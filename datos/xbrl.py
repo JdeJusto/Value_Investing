@@ -8,24 +8,22 @@ tickers = ["AAPL", "MSFT", "NVDA", "AMZN", "META"]
 
 results = []
 
-def safe(val):
-    return val if val not in [None, 0] else None
-
-
 for t in tickers:
     try:
         company = Company(t)
         financials = company.get_financials()
 
         # ─────────────────────────────
-        # FUNDAMENTALS (EDGAR)
+        # FUNDAMENTALS (EDGAR - CLEAN API)
         # ─────────────────────────────
-        equity = safe(financials.get_stockholders_equity())
-        net_income = safe(financials.get_net_income())
-        fcf = safe(financials.get_free_cash_flow())
+        equity = financials.get_stockholders_equity()
+        net_income = financials.get_net_income()
+        fcf = financials.get_free_cash_flow()
+        revenue = financials.get_revenue()
+        operating_income = financials.get_operating_income()
 
         # ─────────────────────────────
-        # MARKET DATA (YFINANCE)
+        # MARKET DATA
         # ─────────────────────────────
         market_cap = yf.Ticker(t).info.get("marketCap")
 
@@ -37,7 +35,7 @@ for t in tickers:
         # ─────────────────────────────
 
         # 1. ROE
-        roe = net_income / equity if net_income and equity else None
+        roe = net_income / equity if equity and net_income else None
 
         # 2. P/B
         pb = market_cap / equity if equity else None
@@ -45,15 +43,24 @@ for t in tickers:
         # 3. FCF Yield
         fcf_yield = fcf / market_cap if fcf and market_cap else None
 
-        # 4. Score combinado (simple y efectivo)
+        # 4. Margins
+        operating_margin = operating_income / revenue if revenue and operating_income else None
+        net_margin = net_income / revenue if revenue and net_income else None
+
+        # 5. Score combinado (mejor balanceado)
         score = 0
 
         if roe:
-            score += roe * 0.4
+            score += roe * 0.25
+
         if fcf_yield:
-            score += fcf_yield * 0.4
+            score += fcf_yield * 0.25
+
+        if operating_margin:
+            score += operating_margin * 0.25
+
         if pb:
-            score += (1 / pb) * 0.2  # inverso: más barato = mejor
+            score += (1 / pb) * 0.25
 
         results.append({
             "ticker": t,
@@ -64,7 +71,9 @@ for t in tickers:
             "roe": roe,
             "pb": pb,
             "fcf_yield": fcf_yield,
-            "score": score
+            "operating_margin": operating_margin,
+            "net_margin": net_margin,
+            "score": score,
         })
 
     except Exception as e:
