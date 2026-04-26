@@ -1,4 +1,4 @@
-# analyzer.py - Híbrido: primero yfinance, luego EDGAR
+# analyzer.py - Híbrido yfinance + EDGAR con manejo robusto de None
 
 from edgar import Company
 import yfinance as yf
@@ -20,12 +20,10 @@ from calculos.datos_basicos import (
 class StockAnalyzer:
     def __init__(self, ticker: str):
         self.ticker = ticker.upper()
-        # Inicializar EDGAR (puede fallar si no hay identity, pero se manejará)
         try:
             self.company = Company(self.ticker)
             self.financials = self.company.get_financials()
-        except Exception as e:
-            print(f"Advertencia: No se pudo inicializar EDGAR para {self.ticker}: {e}")
+        except Exception:
             self.company = None
             self.financials = None
         self.yf_ticker = get_ticker(self.ticker)
@@ -35,18 +33,12 @@ class StockAnalyzer:
     # MÉTODOS AUXILIARES HÍBRIDOS (yfinance -> EDGAR)
     # ------------------------------------------------------------
     def _get_from_yfinance_or_edgar(self, yfinance_func, edgar_attr, year_index=0):
-        """Intenta obtener dato de yfinance; si falla, intenta desde EDGAR.
-           yfinance_func: función de datos_basicos que acepta (ticker, year_index)
-           edgar_attr: nombre del método de self.financials (ej. 'get_stockholders_equity')
-        """
-        # 1. Intentar yfinance
         try:
             val = yfinance_func(self.ticker, year_index)
             if val is not None and not (isinstance(val, float) and np.isnan(val)):
                 return val
         except:
             pass
-        # 2. Fallback a EDGAR
         if self.financials is not None:
             try:
                 edgar_method = getattr(self.financials, edgar_attr, None)
@@ -59,7 +51,6 @@ class StockAnalyzer:
         return None
 
     def _get_equity_from_edgar(self):
-        """Obtiene stockholders equity desde EDGAR (si disponible)."""
         if self.financials is not None:
             try:
                 return self.financials.get_stockholders_equity()
@@ -67,43 +58,10 @@ class StockAnalyzer:
                 pass
         return None
 
-    def _get_net_income_from_edgar(self):
-        if self.financials is not None:
-            try:
-                return self.financials.get_net_income()
-            except:
-                pass
-        return None
-
-    def _get_fcf_from_edgar(self):
-        if self.financials is not None:
-            try:
-                return self.financials.get_free_cash_flow()
-            except:
-                pass
-        return None
-
-    def _get_revenue_from_edgar(self):
-        if self.financials is not None:
-            try:
-                return self.financials.get_revenue()
-            except:
-                pass
-        return None
-
-    def _get_operating_income_from_edgar(self):
-        if self.financials is not None:
-            try:
-                return self.financials.get_operating_income()
-            except:
-                pass
-        return None
-
     # ------------------------------------------------------------
-    # MÉTRICAS (1 a 15) con fallback a EDGAR
+    # MÉTRICAS (1 a 15)
     # ------------------------------------------------------------
     def get_roic(self, year_index=0):
-        # ROIC = NOPAT / Invested Capital
         ebit = self._get_from_yfinance_or_edgar(get_ebit, 'get_operating_income', year_index)
         tax_rate = get_effective_tax_rate(self.ticker, year_index) or 0.21
         if ebit is None:
@@ -113,8 +71,8 @@ class StockAnalyzer:
         total_debt = self._get_from_yfinance_or_edgar(get_total_debt, 'get_total_debt', year_index) or 0
         total_assets = self._get_from_yfinance_or_edgar(get_total_assets, 'get_total_assets', year_index)
         total_liabilities = self._get_from_yfinance_or_edgar(get_total_liabilities, 'get_total_liabilities', year_index)
+
         if total_assets is None or total_liabilities is None:
-            # Si no hay datos de balance, intentar con equity de EDGAR
             equity = self._get_equity_from_edgar()
             if equity is not None:
                 cash = get_cash_and_equivalents(self.ticker, year_index) or 0
@@ -170,7 +128,6 @@ class StockAnalyzer:
         return owner
 
     def get_piotroski_fscore(self):
-        # Se mantiene con yfinance principalmente (por simplicidad)
         try:
             roa0 = self._get_roa(0)
             roa1 = self._get_roa(1)
@@ -179,27 +136,22 @@ class StockAnalyzer:
             ni0 = get_net_income(self.ticker, 0)
             assets0 = get_total_assets(self.ticker, 0)
             accruals = (cfo0 - ni0) / assets0 if (cfo0 and ni0 and assets0) else None
-            
             debt0 = get_total_debt(self.ticker, 0) or 0
             debt1 = get_total_debt(self.ticker, 1) or 0
             lev0 = debt0 / assets0 if assets0 else None
             lev1 = debt1 / get_total_assets(self.ticker, 1) if get_total_assets(self.ticker, 1) else None
-            
             wc0 = get_working_capital(self.ticker, 0) or 0
             wc1 = get_working_capital(self.ticker, 1) or 0
             liq0 = wc0 / assets0 if assets0 else None
             liq1 = wc1 / get_total_assets(self.ticker, 1) if get_total_assets(self.ticker, 1) else None
-            
             rev0 = get_revenue(self.ticker, 0)
             cogs0 = get_cogs(self.ticker, 0)
             gm0 = (rev0 - cogs0) / rev0 if (rev0 and cogs0) else None
             rev1 = get_revenue(self.ticker, 1)
             cogs1 = get_cogs(self.ticker, 1)
             gm1 = (rev1 - cogs1) / rev1 if (rev1 and cogs1) else None
-            
             at0 = rev0 / assets0 if (rev0 and assets0) else None
             at1 = rev1 / get_total_assets(self.ticker, 1) if (rev1 and get_total_assets(self.ticker, 1)) else None
-            
             score = 0
             if roa0 and roa0 > 0: score += 1
             if cfo0 and cfo0 > 0: score += 1
@@ -222,7 +174,7 @@ class StockAnalyzer:
         mcap = get_market_cap(self.ticker) or 0
         liab = self._get_from_yfinance_or_edgar(get_total_liabilities, 'get_total_liabilities') or 0
         revenue = self._get_from_yfinance_or_edgar(get_revenue, 'get_revenue') or 0
-        if None in (assets, liab, mcap, revenue):
+        if None in (assets, liab, revenue):
             return None
         A = wc / assets
         B = re / assets
@@ -238,7 +190,8 @@ class StockAnalyzer:
         ebitda = self._get_ebitda()
         if ebitda is None or ebitda == 0:
             return None
-        return (debt - cash) / ebitda
+        net_debt = debt - cash
+        return net_debt / ebitda
 
     def get_interest_coverage(self):
         ebit = self._get_from_yfinance_or_edgar(get_ebit, 'get_operating_income')
@@ -360,23 +313,20 @@ class StockAnalyzer:
         return None
 
     # ------------------------------------------------------------
-    # MÉTRICAS ORIGINALES (adaptadas con fallback)
+    # MÉTRICAS ORIGINALES (con protección de None)
     # ------------------------------------------------------------
     def get_fundamentals(self):
-        equity = None
         assets = get_total_assets(self.ticker)
         liab = get_total_liabilities(self.ticker)
         if assets is not None and liab is not None:
             equity = assets - liab
         else:
             equity = self._get_equity_from_edgar()
-        
         net_income = self._get_from_yfinance_or_edgar(get_net_income, 'get_net_income')
         fcf = self._get_from_yfinance_or_edgar(get_free_cash_flow, 'get_free_cash_flow')
         revenue = self._get_from_yfinance_or_edgar(get_revenue, 'get_revenue')
         operating_income = self._get_from_yfinance_or_edgar(get_ebit, 'get_operating_income')
         market_cap = get_market_cap(self.ticker)
-        
         return {
             "equity": equity,
             "net_income": net_income,
@@ -388,25 +338,44 @@ class StockAnalyzer:
 
     def compute_score(self, roe, pb, fcf_yield, operating_margin):
         score = 0
-        if roe: score += roe * 0.25
-        if pb: score += (1 / pb) * 0.25 if pb != 0 else 0
-        if fcf_yield: score += fcf_yield * 0.25
-        if operating_margin: score += operating_margin * 0.25
+        if roe:
+            score += roe * 0.25
+        if pb and pb != 0:
+            score += (1 / pb) * 0.25
+        if fcf_yield:
+            score += fcf_yield * 0.25
+        if operating_margin:
+            score += operating_margin * 0.25
         return score
 
     def compute_metrics(self, f):
-        equity = f["equity"]
-        net_income = f["net_income"]
-        fcf = f["fcf"]
-        revenue = f["revenue"]
-        operating_income = f["operating_income"]
-        market_cap = f["market_cap"]
+        equity = f.get("equity")
+        net_income = f.get("net_income")
+        fcf = f.get("fcf")
+        revenue = f.get("revenue")
+        operating_income = f.get("operating_income")
+        market_cap = f.get("market_cap")
 
-        roe = net_income / equity if (net_income and equity and equity != 0) else None
-        pb = market_cap / equity if (equity and equity != 0) else None
-        fcf_yield = fcf / market_cap if (fcf and market_cap) else None
-        operating_margin = operating_income / revenue if (revenue and operating_income) else None
-        net_margin = net_income / revenue if (revenue and net_income) else None
+        roe = None
+        if net_income and equity and equity != 0:
+            roe = net_income / equity
+
+        pb = None
+        if market_cap and equity and equity != 0:
+            pb = market_cap / equity
+
+        fcf_yield = None
+        if fcf and market_cap:
+            fcf_yield = fcf / market_cap
+
+        operating_margin = None
+        if revenue and operating_income:
+            operating_margin = operating_income / revenue
+
+        net_margin = None
+        if revenue and net_income:
+            net_margin = net_income / revenue
+
         score = self.compute_score(roe, pb, fcf_yield, operating_margin)
 
         return {
