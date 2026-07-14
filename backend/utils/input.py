@@ -1,5 +1,5 @@
 def get_tickers():
-    mode = input("¿Varios tickers? (y/n): ").strip().lower()
+    mode = input("?Varios tickers? (y/n): ").strip().lower()
 
     if mode == "y":
         raw = input("Introduce tickers separados por comas: ")
@@ -8,4 +8,3 @@ def get_tickers():
         tickers = [input("Introduce ticker: ").strip().upper()]
 
     return tickers
-

@@ -16,7 +16,13 @@ def get_output_dir() -> str:
     return os.getenv("OUTPUT_DIR", "outputs")
 
 
-# Constants
+def get_database_url() -> str:
+    return os.getenv(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/value_investing",
+    )
+
+
 DEFAULT_TAX_RATE = 0.21
 DEFAULT_WACC = 0.08
 DEFAULT_MARKET_RETURN = 0.10

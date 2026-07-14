@@ -1,14 +1,17 @@
 # Value Investing
 
-Backend de análisis fundamental (Value Investing) para evaluar empresas mediante múltiplos financieros, indicadores de calidad, valor intrínseco y scoring compuesto.
+Backend de análisis fundamental (Value Investing) para evaluar empresas mediante
+múltiplos financieros, indicadores de calidad, valor intrínseco y scoring compuesto.
 
 ## Características
 
 - Obtención de datos financieros vía **yfinance** (Yahoo Finance) y **EDGAR** (SEC)
-- 19 métricas fundamentales: ROE, ROIC, FCF Yield, EV/EBIT, Piotroski F-Score, Altman Z-Score, DCF, Shareholder Yield, etc.
+- 19 métricas fundamentales: ROE, ROIC, FCF Yield, EV/EBIT, Piotroski F-Score,
+  Altman Z-Score, DCF, Shareholder Yield, etc.
 - Score compuesto ponderado para ranking de empresas
 - Estrategia híbrida yfinance + EDGAR con fallback automático
 - Salida CSV con análisis completo
+- Arquitectura limpia preparada para escalar
 
 ## Requisitos
 
@@ -18,16 +21,22 @@ Backend de análisis fundamental (Value Investing) para evaluar empresas mediant
 ## Instalación
 
 ```bash
-# Clonar el repositorio
 git clone <repo-url>
 cd Value_Investing
-
-# Crear entorno Pipenv e instalar dependencias
 pipenv install --dev
-
-# Activar el entorno virtual
-pipenv shell
 ```
+
+El entorno virtual se crea automáticamente en `.venv/`.
+
+## Visual Studio Code
+
+El proyecto incluye configuración lista para VS Code en `.vscode/`:
+
+1. Abre la carpeta del proyecto en VS Code.
+2. Si no lo hiciste ya, ejecuta `pipenv install --dev` para crear el entorno.
+3. El intérprete Python se selecciona automáticamente (`.venv/bin/python`).
+4. Cada terminal nueva activa el entorno automáticamente.
+5. Extensiones recomendadas: Python, Pylance, Black, isort, autoDocstring.
 
 ## Configuración
 
@@ -49,36 +58,51 @@ cp .env.example .env
 pipenv run python main.py
 ```
 
-El programa solicitará uno o varios tickers por consola y mostrará el análisis completo en terminal.
-
 ## Estructura del proyecto
 
 ```
 .
-├── main.py                       # Punto de entrada
-├── analyzer.py                   # Lógica de análisis (StockAnalyzer)
-├── consola.py                    # Entrada por consola
-├── calculos/
-│   └── datos_basicos.py          # Capa de extracción de datos (yfinance)
-├── prueba.py                     # Script de exploración (desarrollo)
-├── project/
-│   ├── app/                      # Aplicación principal (futuro)
-│   ├── config/
-│   │   ├── __init__.py
-│   │   └── settings.py           # Configuración centralizada
-│   ├── services/                 # Servicios de negocio (futuro)
-│   ├── providers/                # Proveedores de datos (futuro)
-│   ├── models/                   # Modelos de datos (futuro)
-│   ├── utils/                    # Utilidades (futuro)
-│   ├── cache/                    # Caché de datos
-│   ├── data/                     # Datos locales
-│   ├── scripts/                  # Scripts auxiliares (futuro)
-│   ├── tests/                    # Tests unitarios (futuro)
-│   └── docs/                     # Documentación (futuro)
-├── Pipfile                       # Dependencias del proyecto
-├── setup.cfg                     # Configuración de herramientas
-├── .env.example                  # Ejemplo de variables de entorno
-└── .gitignore
+├── main.py                       # Entry point
+├── backend/                      # Código fuente principal
+│   ├── app/
+│   │   └── cli.py                # CLI entry point
+│   ├── domain/
+│   │   ├── entities/             # Company, FinancialStatement, etc.
+│   │   ├── value_objects/
+│   │   ├── enums/
+│   │   └── interfaces/           # Provider, Repository, Cache ABCs
+│   ├── providers/
+│   │   ├── yahoo/client.py       # Proveedor Yahoo Finance
+│   │   ├── edgar/client.py       # Proveedor EDGAR SEC
+│   │   └── cache/memory.py       # Caché en memoria
+│   ├── repositories/             # Acceso a datos
+│   ├── services/                 # Lógica de aplicación
+│   ├── analytics/
+│   │   ├── analyzer.py           # StockAnalyzer (19 métricas)
+│   │   ├── interpretation.py     # Presentación de métricas
+│   │   ├── ratios/
+│   │   ├── scoring/
+│   │   └── valuation/
+│   ├── parsers/xbrl/             # Parseo de datos
+│   ├── config/settings.py        # Configuración centralizada
+│   ├── utils/
+│   │   ├── input.py              # Entrada por consola
+│   │   └── logging.py            # Logging profesional
+│   ├── exceptions/               # Excepciones específicas
+│   ├── logging/                  # Config logging
+│   └── scripts/
+│       └── explore_labels.py     # Script de exploración
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── cache/
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── docs/
+├── Pipfile
+├── setup.cfg
+└── .env.example
 ```
 
 ## Herramientas de desarrollo
@@ -94,6 +118,18 @@ pipenv run flake8
 # Tests
 pipenv run pytest
 ```
+
+## Arquitectura
+
+El proyecto sigue principios de **Clean Architecture**:
+
+- **Domain**: Entidades puras sin dependencias externas (ni pandas, ni yfinance, ni requests)
+- **Providers**: Cada fuente de datos está completamente aislada e implementa interfaces comunes
+- **Analytics**: Toda la lógica financiera separada en módulos independientes
+- **Repositories**: Acceso a datos desacoplado de los servicios
+- **Config**: Configuración centralizada sin constantes repartidas
+
+Las dependencias fluyen hacia adentro: `App → Services → Domain ← Providers`
 
 ## Licencia
 
