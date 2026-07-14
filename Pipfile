@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+yfinance = ">=0.2.50"
+pandas = ">=2.2.0"
+numpy = ">=2.0.0"
+edgartools = ">=5.0.0"
+python-dotenv = ">=1.0.0"
+
+[dev-packages]
+black = ">=25.0"
+isort = ">=6.0"
+flake8 = ">=7.0"
+pytest = ">=8.0"
+
+[requires]
+python_version = ">=3.11"
