@@ -1,0 +1,28 @@
+TICKERS: list[str] = [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "BRK-B",
+    "JNJ", "V", "PG", "JPM", "UNH", "HD", "DIS", "MA", "BAC", "KO",
+    "PEP", "XOM", "CVX", "WMT", "ABBV", "LLY", "AVGO", "ORCL", "CRM",
+    "ADBE", "NFLX", "INTC", "CSCO", "TXN", "QCOM", "AMD", "IBM", "MRK",
+    "PFE", "ABT", "TMO", "DHR", "NKE", "MCD", "SBUX", "COST", "TGT",
+    "WFC", "C", "GS", "MS", "AXP", "BLK", "SPGI", "MCO", "VZ", "T",
+    "TMUS", "CMCSA", "CHTR", "AMT", "PLD", "CCI", "EQIX", "DLR",
+    "LOW", "BA", "CAT", "DE", "GE", "HON", "MMM", "UPS", "FDX",
+    "DOW", "LIN", "SHW", "ECL", "APD", "NEE", "DUK", "SO", "D",
+    "MDT", "SYK", "BSX", "ZTS", "REGN", "VRTX", "ISRG", "GILD",
+    "AMGN", "BIIB", "ILMN", "ADP", "INTU", "FIS", "FISV", "SQ", "PYPL",
+    "NOW", "WDAY", "TEAM", "DOCU", "ZM", "CRWD", "PANW", "FTNT",
+    "ROP", "TDG", "RTX", "LMT", "NOC", "GD", "LHX", "HWM",
+    "BKNG", "EXPE", "ABNB", "DAL", "UAL", "LUV", "RCL", "CCL",
+    "EL", "CL", "KMB", "CHD", "SJM", "KHC", "CPB", "CAG",
+    "F", "GM", "RIVN", "LCID", "TM", "HMC", "STLA",
+    "UBER", "LYFT", "SNAP", "PINS", "TTD", "ROKU", "SPOT",
+]
+
+
+def search_tickers(query: str) -> list[dict]:
+    q = query.upper().strip()
+    results = []
+    for t in TICKERS:
+        if q in t:
+            results.append({"ticker": t, "name": None})
+    return results

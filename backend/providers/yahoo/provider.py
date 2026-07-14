@@ -123,6 +123,9 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
     def get_beta(self, ticker: str) -> Optional[float]:
         return self._get_ticker(ticker).info.get("beta")
 
+    def get_company_name(self, ticker: str) -> Optional[str]:
+        return self._get_ticker(ticker).info.get("longName") or self._get_ticker(ticker).info.get("shortName")
+
     def get_shares_outstanding(self, ticker: str) -> Optional[int]:
         return self._get_ticker(ticker).info.get("sharesOutstanding")
 

@@ -20,6 +20,10 @@ class FinancialDataProvider(ABC):
 
 class MarketDataProvider(ABC):
     @abstractmethod
+    def get_company_name(self, ticker: str) -> Optional[str]:
+        ...
+
+    @abstractmethod
     def get_market_cap(self, ticker: str) -> Optional[float]:
         ...
 
