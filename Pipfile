@@ -23,6 +23,7 @@ httpx = "*"
 redis = "*"
 alembic = "*"
 asyncpg = "*"
+bcrypt = "==4.0.1"
 
 [dev-packages]
 black = ">=25.0"
