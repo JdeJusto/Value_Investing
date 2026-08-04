@@ -12,6 +12,17 @@ python-dotenv = ">=1.0.0"
 sqlalchemy = ">=2.0"
 psycopg2-binary = ">=2.9"
 streamlit = "*"
+fastapi = "*"
+uvicorn = {extras = ["standard"], version = "*"}
+celery = {extras = ["redis"], version = "*"}
+passlib = {extras = ["bcrypt"], version = "*"}
+python-jose = {extras = ["cryptography"], version = "*"}
+pydantic = {extras = ["email"], version = "*"}
+pydantic-settings = "*"
+httpx = "*"
+redis = "*"
+alembic = "*"
+asyncpg = "*"
 
 [dev-packages]
 black = ">=25.0"
