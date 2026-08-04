@@ -54,9 +54,34 @@ cp .env.example .env
 
 ## Ejecución
 
+### CLI
+
 ```bash
 pipenv run python main.py
 ```
+
+Subcomandos: `screener`, `analyze`, `company`, `debug`.
+
+### Interfaz Web (Streamlit)
+
+```bash
+# Opción 1 — script directo (recomendado, evita conflictos de venv)
+./run_ui.sh
+
+# Opción 2 — desde cualquier shell (necesitas tener pipenv)
+pipenv run ui
+
+# Opción 3 — pipenv ignorando venv activo
+PIPENV_IGNORE_VIRTUALENVS=1 pipenv run streamlit run ui/app.py
+```
+
+Abre http://localhost:8501 en el navegador. Incluye tres vistas:
+
+| Vista | Descripción |
+|---|---|
+| **Screener** | Filtra ~150 acciones por PER, P/B, ROE, ROIC, D/E, etc. Resultados ordenados por score. Exporta CSV. |
+| **Análisis Detallado** | Las 19+ métricas con interpretación, agrupadas por categoría (rentabilidad, valoración, márgenes, endeudamiento, calidad). |
+| **Vista Rápida** | Resumen ejecutivo: precio, market cap y métricas clave. |
 
 ## Estructura del proyecto
 
