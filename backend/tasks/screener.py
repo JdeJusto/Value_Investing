@@ -4,9 +4,7 @@ from typing import Optional
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.domain.value_objects.screener_result import ScreenerRow
 from backend.providers.cache.memory import MemoryCache
-from backend.providers.edgar import EdgarProvider
 from backend.providers.tickers import TICKERS
-from backend.providers.yahoo import YahooFinanceProvider
 from backend.services.screener_service import StockScreenerService
 from backend.tasks import celery_app
 
@@ -15,13 +13,13 @@ _cache = MemoryCache()
 
 
 def _get_screener_service() -> StockScreenerService:
-    from backend.core.config import SEC_EMAIL, SEC_NAME
+    from backend.app.cli import build_data_pipeline, build_financial_repository
+    from backend.providers.yahoo import YahooFinanceProvider
+
     return StockScreenerService(
-        financial_providers=[
-            YahooFinanceProvider(),
-            EdgarProvider(email=SEC_EMAIL, name=SEC_NAME),
-        ],
+        repository=build_financial_repository(),
         market_provider=YahooFinanceProvider(),
+        loader=build_data_pipeline(),
     )
 
 
@@ -45,7 +43,9 @@ def run_screener_task(
                 op = FilterOperator(f["operator"])
             except ValueError:
                 continue
-            filter_criteria.append(FilterCriteria(field=f["field"], operator=op, value=f.get("value")))
+            filter_criteria.append(
+                FilterCriteria(field=f["field"], operator=op, value=f.get("value"))
+            )
 
     service = _get_screener_service()
     total = len(tickers)
@@ -53,7 +53,9 @@ def run_screener_task(
     results = []
 
     for idx, ticker in enumerate(tickers):
-        self.update_state(state="PROGRESS", meta={"progress": idx / total, "current": ticker})
+        self.update_state(
+            state="PROGRESS", meta={"progress": idx / total, "current": ticker}
+        )
 
         cache_key = f"screener_analysis:{ticker}"
         cached = _cache.get(cache_key)

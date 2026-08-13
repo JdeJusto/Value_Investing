@@ -3,9 +3,10 @@ from typing import Optional
 
 from backend.analytics.ratios.debt_to_equity import DebtToEquityCalculator
 from backend.analytics.ratios.per import PerCalculator
-from backend.analytics.ratios.revenue_growth import RevenueGrowthCalculator
 from backend.analytics.service import CompanyAnalysisService
-from backend.domain.interfaces.provider import FinancialDataProvider, MarketDataProvider
+from backend.domain.interfaces.data_loader import DataLoader
+from backend.domain.interfaces.financial_repository import FinancialRepository
+from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.filter_criteria import FilterCriteria
 from backend.domain.value_objects.screener_result import ScreenerRow
 from backend.providers.tickers import TICKERS
@@ -14,10 +15,13 @@ from backend.providers.tickers import TICKERS
 class StockScreenerService:
     def __init__(
         self,
-        financial_providers: list[FinancialDataProvider],
+        repository: FinancialRepository,
         market_provider: MarketDataProvider,
+        loader: Optional[DataLoader] = None,
     ):
-        self._analysis = CompanyAnalysisService(financial_providers, market_provider)
+        self._analysis = CompanyAnalysisService(
+            repository, market_provider, loader=loader
+        )
         self._market = market_provider
 
     def screen(
@@ -89,7 +93,11 @@ class StockScreenerService:
             equity=d.get("equity") if "equity" in d else None,
         )
         if debt_to_equity is None:
-            if d.get("pb") is not None and d.get("roe") is not None and d.get("roe") != 0:
+            if (
+                d.get("pb") is not None
+                and d.get("roe") is not None
+                and d.get("roe") != 0
+            ):
                 debt_to_equity = (d.get("pb", 0) / d.get("roe", 1)) - 1
 
         return ScreenerRow(

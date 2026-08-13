@@ -1,17 +1,22 @@
 import argparse
+import logging
 import os
 import sys
 import time
 
 from dotenv import load_dotenv
 import pandas as pd
-
 from backend.analytics.interpretation import print_analysis
 from backend.analytics.service import CompanyAnalysisService
 from backend.config.settings import get_output_dir
+from backend.domain.entities.company import Company
+from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.providers.edgar import EdgarProvider
 from backend.providers.yahoo import YahooFinanceProvider
+from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
+from backend.repositories.json_financial_repository import JsonFinancialRepository
+from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.screener_service import StockScreenerService
 from backend.utils.input import get_tickers
 
@@ -20,22 +25,58 @@ load_dotenv()
 sec_email = os.getenv("SEC_EMAIL", "jaimedejusto@gmail.com")
 sec_name = os.getenv("SEC_NAME", "Jaime")
 
+logger = logging.getLogger("backend.app")
+
+
+def build_financial_repository() -> FinancialRepository:
+    repository = SqlAlchemyFinancialRepository()
+    if repository.available():
+        logger.info("Using PostgreSQL financial repository")
+        return repository
+    logger.warning("PostgreSQL unavailable — falling back to JSON storage")
+    return JsonFinancialRepository(os.getenv("NORMALIZED_DATA_DIR", "data/normalized"))
+
+
+def build_data_pipeline() -> DataPipelineService:
+    from backend.adapters.database.repositories.company_repository import (
+        CompanyRepository,
+    )
+
+    yahoo = YahooFinanceProvider()
+    edgar = EdgarProvider(email=sec_email, name=sec_name)
+    repository = build_financial_repository()
+
+    def _save_company(ticker: str) -> None:
+        CompanyRepository().save(Company(ticker=ticker))
+
+    return DataPipelineService(
+        repository=repository,
+        primary=yahoo,
+        fallback=edgar,
+        market=yahoo,
+        company_saver=(
+            _save_company
+            if isinstance(repository, SqlAlchemyFinancialRepository)
+            else None
+        ),
+    )
+
 
 def build_analysis_service() -> CompanyAnalysisService:
     yahoo = YahooFinanceProvider()
-    edgar = EdgarProvider(email=sec_email, name=sec_name)
     return CompanyAnalysisService(
-        financial_providers=[yahoo, edgar],
+        repository=build_financial_repository(),
         market_provider=yahoo,
+        loader=build_data_pipeline(),
     )
 
 
 def build_screener_service() -> StockScreenerService:
     yahoo = YahooFinanceProvider()
-    edgar = EdgarProvider(email=sec_email, name=sec_name)
     return StockScreenerService(
-        financial_providers=[yahoo, edgar],
+        repository=build_financial_repository(),
         market_provider=yahoo,
+        loader=build_data_pipeline(),
     )
 
 
@@ -101,17 +142,33 @@ def cmd_screener(args):
                 elif op == "==":
                     filters.append(FilterCriteria.eq(field, parts[2]))
                 elif op == "<=":
-                    filters.append(FilterCriteria(field=field, operator=FilterOperator.LTE, value=float(parts[2])))
+                    filters.append(
+                        FilterCriteria(
+                            field=field,
+                            operator=FilterOperator.LTE,
+                            value=float(parts[2]),
+                        )
+                    )
                 elif op == ">=":
-                    filters.append(FilterCriteria(field=field, operator=FilterOperator.GTE, value=float(parts[2])))
+                    filters.append(
+                        FilterCriteria(
+                            field=field,
+                            operator=FilterOperator.GTE,
+                            value=float(parts[2]),
+                        )
+                    )
             except (IndexError, ValueError) as e:
                 print(f"  Error en filtro '{f}': {e}")
                 return
 
     tickers = args.tickers.split(",") if args.tickers else None
 
-    print(f"\nEjecutando screener sobre {len(tickers) if tickers else '~150'} tickers...")
-    print(f"Filtros: {[str(f.field) + ' ' + f.operator.value + ' ' + str(f.value) for f in filters] or '(ninguno)'}")
+    print(
+        f"\nEjecutando screener sobre {len(tickers) if tickers else '~150'} tickers..."
+    )
+    print(
+        f"Filtros: {[str(f.field) + ' ' + f.operator.value + ' ' + str(f.value) for f in filters] or '(ninguno)'}"
+    )
     print()
 
     def progress(current, total, ticker):
@@ -146,7 +203,9 @@ def cmd_screener(args):
         roe_str = f"{r.roe:.1%}" if r.roe else "N/A"
         fcf_str = f"{r.fcf:,.0f}" if r.fcf else "N/A"
         score_str = f"{r.score:.4f}" if r.score else "N/A"
-        print(f"{r.ticker:>6} {name_trunc:<28} {price_str:>8} {per_str:>8} {pb_str:>8} {roe_str:>7} {fcf_str:>13} {score_str:>7}")
+        print(
+            f"{r.ticker:>6} {name_trunc:<28} {price_str:>8} {per_str:>8} {pb_str:>8} {roe_str:>7} {fcf_str:>13} {score_str:>7}"
+        )
 
     if args.save:
         path = os.path.join(get_output_dir(), "screener_resultados.csv")
@@ -175,19 +234,29 @@ def cmd_screener(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Value Investing - Backend de Analisis Fundamental")
+    parser = argparse.ArgumentParser(
+        description="Value Investing - Backend de Analisis Fundamental"
+    )
     sub = parser.add_subparsers(dest="command", help="Comandos disponibles")
 
-    p_analyze = sub.add_parser("analyze", help="Analizar uno o varios tickers (modo clasico)")
+    p_analyze = sub.add_parser(
+        "analyze", help="Analizar uno o varios tickers (modo clasico)"
+    )
     p_analyze.set_defaults(func=cmd_analyze)
 
     p_screener = sub.add_parser("screener", help="Stock screener con filtros")
-    p_screener.add_argument("--tickers", type=str, default=None, help="Tickers separados por coma")
-    p_screener.add_argument("--top", type=int, default=30, help="Maximo de resultados")
-    p_screener.add_argument("--save", action="store_true", help="Guardar resultados en CSV")
     p_screener.add_argument(
-        "--filter", action="append", default=[],
-        help='Filtros: "per < 15", "pb between 1 1.5", "roe > 0.15", "fcf > 1000000"'
+        "--tickers", type=str, default=None, help="Tickers separados por coma"
+    )
+    p_screener.add_argument("--top", type=int, default=30, help="Maximo de resultados")
+    p_screener.add_argument(
+        "--save", action="store_true", help="Guardar resultados en CSV"
+    )
+    p_screener.add_argument(
+        "--filter",
+        action="append",
+        default=[],
+        help='Filtros: "per < 15", "pb between 1 1.5", "roe > 0.15", "fcf > 1000000"',
     )
     p_screener.set_defaults(func=cmd_screener)
 

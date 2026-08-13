@@ -1,3 +1,16 @@
+"""Company analysis built exclusively on normalized financial data.
+
+This service reads canonical :class:`NormalizedFinancials` from a
+:class:`FinancialRepository` and market data from a
+:class:`MarketDataProvider`. It never calls financial providers directly;
+when data is missing it may request ingestion through an injected
+:class:`DataLoader` (the data pipeline), but all computation happens on
+normalized, persisted records.
+"""
+
+from __future__ import annotations
+
+import logging
 from typing import Optional
 
 from backend.analytics.ratios.leverage import (
@@ -22,149 +35,110 @@ from backend.analytics.scoring.altman_z import AltmanZScoreCalculator
 from backend.analytics.scoring.composite import CompositeScoreCalculator
 from backend.analytics.scoring.piotroski import PiotroskiFScoreCalculator
 from backend.analytics.valuation.dcf import DcfCalculator
-from backend.domain.entities.financials import (
-    BalanceSheet,
-    CashFlowStatement,
-    IncomeStatement,
-)
-from backend.domain.interfaces.provider import FinancialDataProvider, MarketDataProvider
+from backend.domain.interfaces.data_loader import DataLoader
+from backend.domain.interfaces.financial_repository import FinancialRepository
+from backend.domain.interfaces.provider import MarketDataProvider
+from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+
+logger = logging.getLogger("backend.analytics")
+
+DEFAULT_TAX_RATE = 0.21
+DEFAULT_WACC = 0.08
+DEFAULT_MARKET_RETURN = 0.10
+DEFAULT_RISK_FREE_RATE = 0.04
+DEFAULT_COST_OF_DEBT = 0.05
 
 
-def _merge(obj, *others):
-    if obj is None and not others:
-        return None
-    if obj is None:
-        obj = type(others[0])()
-    for other in others:
-        if other is None:
-            continue
-        for field in obj.__dataclass_fields__:
-            if getattr(obj, field) is None:
-                val = getattr(other, field, None)
-                if val is not None:
-                    setattr(obj, field, val)
-    return obj
+def _equity_of(financials: NormalizedFinancials) -> Optional[float]:
+    if financials.stockholders_equity is not None:
+        return financials.stockholders_equity
+    if financials.total_assets is not None and financials.total_liabilities is not None:
+        return financials.total_assets - financials.total_liabilities
+    return None
+
+
+def _effective_tax_rate(financials: Optional[NormalizedFinancials]) -> Optional[float]:
+    if (
+        financials
+        and financials.tax_provision is not None
+        and financials.pretax_income
+        and financials.pretax_income != 0
+    ):
+        return financials.tax_provision / financials.pretax_income
+    return None
 
 
 class CompanyAnalysisService:
+    """Computes valuation metrics from persisted normalized financials."""
+
     def __init__(
         self,
-        financial_providers: list[FinancialDataProvider],
+        repository: FinancialRepository,
         market_provider: MarketDataProvider,
+        loader: Optional[DataLoader] = None,
+        default_tax_rate: float = DEFAULT_TAX_RATE,
+        default_wacc: float = DEFAULT_WACC,
+        market_return: float = DEFAULT_MARKET_RETURN,
+        risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
     ):
-        self._financial_providers = financial_providers
+        self._repository = repository
         self._market = market_provider
+        self._loader = loader
+        self._default_tax_rate = default_tax_rate
+        self._default_wacc = default_wacc
+        self._market_return = market_return
+        self._risk_free_rate = risk_free_rate
 
-    def _get_income(self, ticker: str, year_index: int = 0) -> Optional[IncomeStatement]:
-        result = None
-        for p in self._financial_providers:
-            try:
-                ism = p.get_income_statement(ticker, year_index)
-                if ism is not None:
-                    result = _merge(result, ism)
-            except Exception:
-                continue
-        if result is not None and result.revenue is None and result.net_income is None:
-            return None
-        return result
-
-    def _get_balance(self, ticker: str, year_index: int = 0) -> Optional[BalanceSheet]:
-        result = None
-        for p in self._financial_providers:
-            try:
-                bs = p.get_balance_sheet(ticker, year_index)
-                if bs is not None:
-                    result = _merge(result, bs)
-            except Exception:
-                continue
-        return result
-
-    def _get_cash_flow(self, ticker: str, year_index: int = 0) -> Optional[CashFlowStatement]:
-        result = None
-        for p in self._financial_providers:
-            try:
-                cf = p.get_cash_flow(ticker, year_index)
-                if cf is not None:
-                    result = _merge(result, cf)
-            except Exception:
-                continue
-        return result
-
-    def _get_effective_tax_rate(self, ticker: str) -> float:
-        for p in self._financial_providers:
-            if hasattr(p, "get_effective_tax_rate"):
-                try:
-                    tr = p.get_effective_tax_rate(ticker)
-                    if tr is not None:
-                        return tr
-                except Exception:
-                    continue
-        return 0.21
-
-    def _get_wacc(self, ticker: str) -> float:
-        for p in self._financial_providers:
-            if hasattr(p, "get_wacc"):
-                try:
-                    w = p.get_wacc(ticker)
-                    if w is not None:
-                        return w
-                except Exception:
-                    continue
-        return 0.08
-
+    # ------------------------------------------------------------------
     def analyze(self, ticker: str) -> Optional[dict]:
-        is0 = self._get_income(ticker, 0)
-        is1 = self._get_income(ticker, 1)
-        bs0 = self._get_balance(ticker, 0)
-        bs1 = self._get_balance(ticker, 1)
-        cf0 = self._get_cash_flow(ticker, 0)
-
-        if is0 is None and bs0 is None and cf0 is None:
+        """Compute the full metric suite for a ticker, or None if no data."""
+        rows = self._load_history(ticker)
+        if not rows:
             return None
 
-        market_cap = self._market.get_market_cap(ticker)
-        ev = self._market.get_enterprise_value(ticker)
+        year_lookup = {row.fiscal_year: row for row in rows}
+        fiscal_years = sorted(year_lookup, reverse=True)
+        current_year = fiscal_years[0]
+        prior_year = fiscal_years[1] if len(fiscal_years) > 1 else None
 
-        equity = None
-        if bs0 and bs0.stockholders_equity is not None:
-            equity = bs0.stockholders_equity
-        elif bs0 and bs0.total_assets is not None and bs0.total_liabilities is not None:
-            equity = bs0.total_assets - bs0.total_liabilities
+        last = year_lookup[current_year]
+        prior = year_lookup.get(prior_year) if prior_year else None
 
-        net_income = is0.net_income if is0 else None
-        revenue = is0.revenue if is0 else None
-        op_income = is0.operating_income if is0 else None
-        ebit = is0.ebit if is0 else None
-        cash = bs0.cash_and_equivalents if bs0 else None
-        debt = bs0.total_debt if bs0 else None
-        assets = bs0.total_assets if bs0 else None
-        liab = bs0.total_liabilities if bs0 else None
-        wc = bs0.working_capital if bs0 else None
-        re = bs0.retained_earnings if bs0 else None
-        fcf = cf0.free_cash_flow if cf0 else None
-        cfo = cf0.operating_cash_flow if cf0 else None
-        da = cf0.depreciation_amortization if cf0 else None
-        dividends = cf0.dividends_paid if cf0 else None
-        buybacks = cf0.repurchase_of_stock if cf0 else None
-        maintenance_capex = cf0.capital_expenditure if cf0 else None
+        market_cap = self._safe_market(self._market.get_market_cap, ticker)
+        ev = self._safe_market(self._market.get_enterprise_value, ticker)
 
-        ebitda = None
-        if is0 and is0.ebitda is not None:
-            ebitda = is0.ebitda
-        elif ebit is not None and da is not None:
+        equity = _equity_of(last)
+        ebit = last.ebit
+        net_income = last.net_income
+        revenue = last.revenue
+        op_income = last.operating_income
+        cash = last.cash_and_equivalents
+        debt = last.total_debt
+        assets = last.total_assets
+        liab = last.total_liabilities
+        wc = last.working_capital
+        re = last.retained_earnings
+        fcf = last.free_cash_flow
+        cfo = last.operating_cash_flow
+        da = last.depreciation_amortization
+        dividends = last.dividends_paid
+        buybacks = last.repurchase_of_stock
+        maintenance_capex = last.capital_expenditure
+
+        ebitda = last.ebitda
+        if ebitda is None and ebit is not None and da is not None:
             ebitda = ebit + da
 
-        gross_margins_list = self._get_gross_margins(ticker)
-        tax_rate = self._get_effective_tax_rate(ticker)
-        wacc = self._get_wacc(ticker)
-        fcf_from_cf = cf0.free_cash_flow if cf0 else None
+        gross_margins = self._gross_margins(rows)
+        tax_rate = _effective_tax_rate(last) or self._default_tax_rate
+        wacc = self._wacc(ticker, last) or self._default_wacc
 
         roa_current = None
         roa_prior = None
-        if net_income is not None and assets is not None and assets != 0:
+        if net_income is not None and assets and assets != 0:
             roa_current = net_income / assets
-        if is1 and is1.net_income is not None and bs1 and bs1.total_assets is not None and bs1.total_assets != 0:
-            roa_prior = is1.net_income / bs1.total_assets
+        if prior and prior.net_income is not None and prior.total_assets:
+            roa_prior = prior.net_income / prior.total_assets
 
         invested_capital = None
         if debt is not None and equity is not None:
@@ -176,103 +150,166 @@ class CompanyAnalysisService:
             "revenue": revenue,
             "net_income": net_income,
             "fcf": fcf,
+            "total_debt": debt,
+            "equity": equity,
         }
 
         result["roe"] = RoeCalculator().calculate(net_income=net_income, equity=equity)
         result["pb"] = PbCalculator().calculate(market_cap=market_cap, equity=equity)
         result["roic"] = RoicCalculator().calculate(
-            ebit=ebit, tax_rate=tax_rate, total_debt=debt, equity=equity, cash=cash,
+            ebit=ebit,
+            tax_rate=tax_rate,
+            total_debt=debt,
+            equity=equity,
+            cash=cash,
         )
         result["incremental_roic"] = IncrementalRoicCalculator().calculate(
             ebit_current=ebit,
-            ebit_prior=is1.ebit if is1 else None,
+            ebit_prior=prior.ebit if prior else None,
             tax_rate=tax_rate,
             debt_current=debt,
-            debt_prior=bs1.total_debt if bs1 else None,
+            debt_prior=prior.total_debt if prior else None,
             equity_current=equity,
-            equity_prior=(
-                bs1.stockholders_equity
-                if bs1 and bs1.stockholders_equity is not None
-                else (bs1.total_assets - bs1.total_liabilities if bs1 and bs1.total_assets and bs1.total_liabilities else None)
-            ),
+            equity_prior=_equity_of(prior) if prior else None,
             cash_current=cash,
-            cash_prior=bs1.cash_and_equivalents if bs1 else None,
+            cash_prior=prior.cash_and_equivalents if prior else None,
         )
         result["operating_margin"] = OperatingMarginCalculator().calculate(
-            operating_income=op_income, revenue=revenue,
+            operating_income=op_income,
+            revenue=revenue,
         )
         result["net_margin"] = NetMarginCalculator().calculate(
-            net_income=net_income, revenue=revenue,
+            net_income=net_income,
+            revenue=revenue,
         )
         result["fcf_yield"] = FcfYieldCalculator().calculate(
-            free_cash_flow=fcf_from_cf, market_cap=market_cap,
+            free_cash_flow=fcf,
+            market_cap=market_cap,
         )
         result["ev_ebit"] = EvEbitCalculator().calculate(
-            enterprise_value=ev, ebit=ebit,
+            enterprise_value=ev,
+            ebit=ebit,
         )
         result["acquirers_multiple"] = result["ev_ebit"]
         result["owner_earnings"] = OwnerEarningsCalculator().calculate(
-            net_income=net_income, depreciation=da,
+            net_income=net_income,
+            depreciation=da,
             maintenance_capex=maintenance_capex,
-            working_capital_change=cf0.working_capital_change if cf0 else None,
+            working_capital_change=last.working_capital_change,
         )
         result["piotroski_fscore"] = PiotroskiFScoreCalculator().calculate(
-            roa_current=roa_current, roa_prior=roa_prior,
-            cfo_current=cfo, net_income_current=net_income,
+            roa_current=roa_current,
+            roa_prior=roa_prior,
+            cfo_current=cfo,
+            net_income_current=net_income,
             total_assets_current=assets,
-            total_assets_prior=bs1.total_assets if bs1 else None,
-            total_debt_current=debt, total_debt_prior=bs1.total_debt if bs1 else None,
+            total_assets_prior=prior.total_assets if prior else None,
+            total_debt_current=debt,
+            total_debt_prior=prior.total_debt if prior else None,
             working_capital_current=wc,
-            working_capital_prior=bs1.working_capital if bs1 else None,
-            revenue_current=revenue, revenue_prior=is1.revenue if is1 else None,
-            cogs_current=is0.cogs if is0 else None,
-            cogs_prior=is1.cogs if is1 else None,
+            working_capital_prior=prior.working_capital if prior else None,
+            revenue_current=revenue,
+            revenue_prior=prior.revenue if prior else None,
+            cogs_current=last.cogs,
+            cogs_prior=prior.cogs if prior else None,
         )
         result["altman_zscore"] = AltmanZScoreCalculator().calculate(
-            working_capital=wc, total_assets=assets,
-            retained_earnings=re, ebit=ebit,
-            market_cap=market_cap, total_liabilities=liab, revenue=revenue,
+            working_capital=wc,
+            total_assets=assets,
+            retained_earnings=re,
+            ebit=ebit,
+            market_cap=market_cap,
+            total_liabilities=liab,
+            revenue=revenue,
         )
         result["net_debt_to_ebitda"] = NetDebtToEbitdaCalculator().calculate(
-            total_debt=debt, cash=cash, ebitda=ebitda,
+            total_debt=debt,
+            cash=cash,
+            ebitda=ebitda,
         )
         result["interest_coverage"] = InterestCoverageCalculator().calculate(
-            ebit=ebit, interest_expense=is0.interest_expense if is0 else None,
+            ebit=ebit,
+            interest_expense=last.interest_expense,
         )
         result["gross_margin_stability"] = GrossMarginStabilityCalculator().calculate(
-            gross_margins=gross_margins_list,
+            gross_margins=gross_margins,
         )
         result["fcf_conversion"] = FcfConversionCalculator().calculate(
-            free_cash_flow=fcf_from_cf, net_income=net_income,
+            free_cash_flow=fcf,
+            net_income=net_income,
         )
         result["croic"] = CroicCalculator().calculate(
-            free_cash_flow=fcf_from_cf, invested_capital=invested_capital,
+            free_cash_flow=fcf,
+            invested_capital=invested_capital,
         )
         result["dcf_value"] = DcfCalculator().calculate(
-            free_cash_flow=fcf_from_cf, wacc=wacc,
+            free_cash_flow=fcf,
+            wacc=wacc,
         )
         result["shareholder_yield"] = ShareholderYieldCalculator().calculate(
-            dividends=dividends, buybacks=buybacks, market_cap=market_cap,
+            dividends=dividends,
+            buybacks=buybacks,
+            market_cap=market_cap,
         )
         result["score"] = CompositeScoreCalculator().calculate(
-            roe=result["roe"], pb=result["pb"],
+            roe=result["roe"],
+            pb=result["pb"],
             fcf_yield=result["fcf_yield"],
             operating_margin=result["operating_margin"],
         )
 
         return result
 
-    def _get_gross_margins(self, ticker: str, years: int = 5) -> list:
-        for p in self._financial_providers:
-            if hasattr(p, "get_income_statement"):
-                margins = []
-                for i in range(years):
-                    ism = p.get_income_statement(ticker, i)
-                    if ism and ism.revenue and ism.cogs is not None and ism.revenue != 0:
-                        margins.append((ism.revenue - ism.cogs) / ism.revenue)
-                    else:
-                        break
-                if len(margins) > 1:
-                    return margins
-                break
-        return []
+    # ------------------------------------------------------------------
+    def _load_history(self, ticker: str) -> list[NormalizedFinancials]:
+        rows = self._repository.list_years(ticker)
+        if not rows and self._loader is not None:
+            try:
+                self._loader.load_ticker(ticker)
+                rows = self._repository.list_years(ticker)
+            except Exception:  # noqa: BLE001 — missing data must not kill analysis
+                logger.warning("analytics: could not load data for %s", ticker)
+        return rows
+
+    def _safe_market(self, getter, ticker: str) -> Optional[float]:
+        try:
+            value = getter(ticker)
+            return value
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _gross_margins(
+        self, rows: list[NormalizedFinancials], years: int = 5
+    ) -> list[float]:
+        margins: list[float] = []
+        for row in rows[:years]:
+            if row.revenue and row.cogs is not None and row.revenue != 0:
+                margins.append((row.revenue - row.cogs) / row.revenue)
+        return margins
+
+    def _wacc(self, ticker: str, financials: NormalizedFinancials) -> Optional[float]:
+        try:
+            market_cap = self._market.get_market_cap(ticker)
+            debt = financials.total_debt
+            if market_cap is None or debt is None:
+                return None
+            total_cap = market_cap + debt
+            weight_debt = debt / total_cap if total_cap != 0 else 0.5
+            weight_equity = 1.0 - weight_debt
+
+            beta = self._safe_market(self._market.get_beta, ticker) or 1.0
+            cost_equity = self._risk_free_rate + beta * (
+                self._market_return - self._risk_free_rate
+            )
+
+            if financials.interest_expense is not None and debt != 0:
+                cost_debt = financials.interest_expense / debt
+            else:
+                cost_debt = DEFAULT_COST_OF_DEBT
+
+            tax_rate = _effective_tax_rate(financials) or self._default_tax_rate
+            return weight_equity * cost_equity + weight_debt * cost_debt * (
+                1 - tax_rate
+            )
+        except Exception:  # noqa: BLE001
+            return None
