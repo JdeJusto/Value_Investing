@@ -20,6 +20,8 @@ def main():
             "  main.py screener --tickers AAPL,MSFT --pb-min 1 --pb-max 5\n"
             "  main.py screener --filter moat=STRONG min_score=80\n"
             "  main.py opportunities\n"
+            "  main.py anomalies AAPL\n"
+            "  main.py momentum\n"
             "  main.py debug\n"
         ),
     )
@@ -33,6 +35,8 @@ def main():
         load_data,
         data_status,
         opportunities,
+        anomalies,
+        momentum,
         debug,
     )
 
@@ -43,6 +47,8 @@ def main():
     load_data.register(sub)
     data_status.register(sub)
     opportunities.register(sub)
+    anomalies.register(sub)
+    momentum.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:

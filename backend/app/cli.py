@@ -9,6 +9,7 @@ import pandas as pd
 from backend.analytics.interpretation import print_analysis
 from backend.analytics.service import CompanyAnalysisService
 from backend.config.settings import get_output_dir
+from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.domain.entities.company import Company
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
@@ -39,10 +40,6 @@ def build_financial_repository() -> FinancialRepository:
 
 
 def build_data_pipeline() -> DataPipelineService:
-    from backend.adapters.database.repositories.company_repository import (
-        CompanyRepository,
-    )
-
     yahoo = YahooFinanceProvider()
     edgar = EdgarProvider(email=sec_email, name=sec_name)
     repository = build_financial_repository()
@@ -83,17 +80,7 @@ def build_screener_service() -> StockScreenerService:
 
 def build_investment_screener(universe: Optional[list[str]] = None) -> ScreenerService:
     """Screener over intelligence outputs, without direct provider access."""
-    from backend.adapters.database.repositories.company_repository import (
-        CompanyRepository,
-    )
-
-    def enrich(ticker: str, item: dict) -> dict:
-        company = CompanyRepository().find_by_ticker(ticker)
-        if company:
-            item["sector"] = company.sector
-            item["industry"] = company.industry
-        return item
-
+    enrich = _company_enrichment()
     if universe is None:
         universe = [c.ticker for c in CompanyRepository().list_all()]
     return ScreenerService(
@@ -101,6 +88,24 @@ def build_investment_screener(universe: Optional[list[str]] = None) -> ScreenerS
         universe=universe,
         enrich=enrich,
     )
+
+
+def build_universe(tickers: Optional[list[str]] = None) -> list[str]:
+    """Tick universe: explicit tickers, or every tracked company in storage."""
+    if tickers:
+        return [t.strip().upper() for t in tickers]
+    return [c.ticker for c in CompanyRepository().list_all()]
+
+
+def _company_enrichment():
+    def enrich(ticker: str, item: dict) -> dict:
+        company = CompanyRepository().find_by_ticker(ticker)
+        if company:
+            item["sector"] = company.sector
+            item["industry"] = company.industry
+        return item
+
+    return enrich
 
 
 def cmd_analyze(args):
