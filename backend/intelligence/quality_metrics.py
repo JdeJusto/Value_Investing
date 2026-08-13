@@ -281,6 +281,11 @@ def compute_quality_metrics(
             else None
         ),
         "roe_mean": _mean_present(roes),
+        "book_value_per_share": (
+            equity / last.shares_outstanding
+            if equity is not None and last.shares_outstanding
+            else None
+        ),
         "owner_earnings": owner_earnings(last),
         "earnings_cv": earnings_cv(rows),
         "max_yoy_decline": max_yoy_decline(rows),
