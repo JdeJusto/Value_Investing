@@ -10,6 +10,7 @@ from backend.domain.value_objects.financials_normalized import (
     RawFinancialsYear,
 )
 from backend.providers.normalizers.base import FinancialNormalizer
+from backend.providers.normalizers.quality import apply_quality_metrics
 
 
 class EdgarNormalizer(FinancialNormalizer):
@@ -17,7 +18,8 @@ class EdgarNormalizer(FinancialNormalizer):
 
     EDGAR exposes fewer standardized concepts than Yahoo; missing fields
     stay ``None`` and are filled by other providers on later loads or left
-    absent for metrics that cannot be computed.
+    absent for metrics that cannot be computed. Key metrics such as free
+    cash flow are derived from available inputs whenever possible.
     """
 
     @property
@@ -33,6 +35,7 @@ class EdgarNormalizer(FinancialNormalizer):
         operating_cash_flow = cash_flow.operating_cash_flow if cash_flow else None
         capital_expenditure = cash_flow.capital_expenditure if cash_flow else None
 
+        derived_metrics: list[str] = []
         free_cash_flow = cash_flow.free_cash_flow if cash_flow else None
         if (
             free_cash_flow is None
@@ -40,8 +43,9 @@ class EdgarNormalizer(FinancialNormalizer):
             and capital_expenditure is not None
         ):
             free_cash_flow = operating_cash_flow - capital_expenditure
+            derived_metrics.append("free_cash_flow")
 
-        return NormalizedFinancials(
+        financials = NormalizedFinancials(
             ticker=raw.ticker,
             fiscal_year=raw.year,
             revenue=income.revenue if income else None,
@@ -60,4 +64,6 @@ class EdgarNormalizer(FinancialNormalizer):
             ),
             source=self.source,
             loaded_at=datetime.now(timezone.utc),
+            derived_metrics=derived_metrics,
         )
+        return apply_quality_metrics(financials)

@@ -10,6 +10,7 @@ from backend.domain.value_objects.financials_normalized import (
     RawFinancialsYear,
 )
 from backend.providers.normalizers.base import FinancialNormalizer
+from backend.providers.normalizers.quality import apply_quality_metrics
 
 
 class YahooNormalizer(FinancialNormalizer):
@@ -32,9 +33,11 @@ class YahooNormalizer(FinancialNormalizer):
         operating_cash_flow = cash_flow.operating_cash_flow if cash_flow else None
         capital_expenditure = cash_flow.capital_expenditure if cash_flow else None
 
+        derived_metrics: list[str] = []
         ebitda = income.ebitda if income and income.ebitda is not None else None
         if ebitda is None and ebit is not None and depreciation is not None:
             ebitda = ebit + depreciation
+            derived_metrics.append("ebitda")
 
         free_cash_flow = cash_flow.free_cash_flow if cash_flow else None
         if (
@@ -43,8 +46,9 @@ class YahooNormalizer(FinancialNormalizer):
             and capital_expenditure is not None
         ):
             free_cash_flow = operating_cash_flow - capital_expenditure
+            derived_metrics.append("free_cash_flow")
 
-        return NormalizedFinancials(
+        financials = NormalizedFinancials(
             ticker=raw.ticker,
             fiscal_year=raw.year,
             revenue=revenue,
@@ -78,4 +82,6 @@ class YahooNormalizer(FinancialNormalizer):
             ),
             source=self.source,
             loaded_at=datetime.now(timezone.utc),
+            derived_metrics=derived_metrics,
         )
+        return apply_quality_metrics(financials)

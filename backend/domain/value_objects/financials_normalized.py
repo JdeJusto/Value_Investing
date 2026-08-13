@@ -10,7 +10,7 @@ This is a pure domain module: no pandas, no network, no database.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
@@ -83,6 +83,13 @@ class NormalizedFinancials:
     currency: str = "USD"
     source: ProviderName = ProviderName.YAHOO
     loaded_at: datetime | None = None
+
+    # --- Data quality ----------------------------------------------------
+    data_completeness: float | None = None
+    data_quality_score: float | None = None
+    is_complete: bool = False
+    data_source_priority: int = 0
+    derived_metrics: list[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
