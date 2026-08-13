@@ -16,6 +16,7 @@ from backend.providers.edgar import EdgarProvider
 from backend.providers.yahoo import YahooFinanceProvider
 from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
+from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.screener_service import StockScreenerService
 from backend.utils.input import get_tickers
@@ -77,6 +78,28 @@ def build_screener_service() -> StockScreenerService:
         repository=build_financial_repository(),
         market_provider=yahoo,
         loader=build_data_pipeline(),
+    )
+
+
+def build_investment_screener(universe: Optional[list[str]] = None) -> ScreenerService:
+    """Screener over intelligence outputs, without direct provider access."""
+    from backend.adapters.database.repositories.company_repository import (
+        CompanyRepository,
+    )
+
+    def enrich(ticker: str, item: dict) -> dict:
+        company = CompanyRepository().find_by_ticker(ticker)
+        if company:
+            item["sector"] = company.sector
+            item["industry"] = company.industry
+        return item
+
+    if universe is None:
+        universe = [c.ticker for c in CompanyRepository().list_all()]
+    return ScreenerService(
+        analyzer=build_analysis_service().analyze,
+        universe=universe,
+        enrich=enrich,
     )
 
 

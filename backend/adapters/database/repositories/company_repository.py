@@ -29,6 +29,22 @@ class CompanyRepository:
             session.commit()
         return company
 
+    def list_all(self) -> list[Company]:
+        """Every tracked company, used as the screening universe."""
+        with get_session() as session:
+            stmt = select(CompanyModel).order_by(CompanyModel.ticker)
+            models = session.execute(stmt).scalars().all()
+            return [
+                Company(
+                    ticker=m.ticker,
+                    name=m.name,
+                    sector=m.sector,
+                    industry=m.industry,
+                    exchange=m.exchange,
+                )
+                for m in models
+            ]
+
     def find_by_ticker(self, ticker: str) -> Optional[Company]:
         with get_session() as session:
             stmt = select(CompanyModel).where(CompanyModel.ticker == ticker.upper())

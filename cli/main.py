@@ -18,6 +18,8 @@ def main():
             "  main.py load-data AAPL --years 15 --force\n"
             "  main.py data-status AAPL\n"
             "  main.py screener --tickers AAPL,MSFT --pb-min 1 --pb-max 5\n"
+            "  main.py screener --filter moat=STRONG min_score=80\n"
+            "  main.py opportunities\n"
             "  main.py debug\n"
         ),
     )
@@ -30,6 +32,7 @@ def main():
         buffett_analysis,
         load_data,
         data_status,
+        opportunities,
         debug,
     )
 
@@ -39,6 +42,7 @@ def main():
     buffett_analysis.register(sub)
     load_data.register(sub)
     data_status.register(sub)
+    opportunities.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:

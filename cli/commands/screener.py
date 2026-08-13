@@ -10,7 +10,7 @@ from backend.app.cli import build_screener_service
 from backend.config.settings import get_output_dir
 from backend.domain.value_objects.filter_criteria import FilterCriteria
 from cli.formatters import (
-    Colors,
+    bold,
     dim,
     fmt_dollar,
     fmt_pct,
@@ -269,7 +269,11 @@ def register(subparsers):
     p = subparsers.add_parser(
         "screener",
         help="Stock screener con filtros fundamentales",
-        description="Busca empresas que cumplan criterios fundamentales usando datos de Yahoo Finance y SEC EDGAR.",
+        description=(
+            "Busca empresas que cumplan criterios fundamentales. Dos motores: "
+            "datos de mercado (Yahoo/EDGAR) o el motor de calidad Buffett "
+            "(usa --filter en formato moat=STRONG min_score=80)."
+        ),
         formatter_class=lambda prog: type(
             "HelpFormatter",
             (argparse.RawDescriptionHelpFormatter,),
@@ -320,15 +324,101 @@ def register(subparsers):
         "--filter",
         action="append",
         default=[],
-        metavar="'campo < valor'",
-        help='Filtro raw (uso avanzado): "per < 15", "pb between 1 1.5"',
+        metavar="'campo < valor'|'clave=valor'",
+        help=(
+            'Filtro raw: "per < 15" (motor mercado) o "moat=STRONG", '
+            '"min_score=80", "min_roic=0.12" (motor calidad Buffett)'
+        ),
     )
     p.add_argument("--save", action="store_true", help="Guardar resultados en CSV")
     p.set_defaults(func=_run)
 
 
+def _parse_investment_filters(raw_filters: list[str]) -> dict:
+    """Parse 'key=value' filters (e.g. moat=STRONG, min_score=80)."""
+    criteria: dict = {}
+    numeric_keys = {
+        "min_market_cap",
+        "max_market_cap",
+        "min_revenue_growth",
+        "min_roic",
+        "max_debt_ratio",
+        "min_buffett_score",
+        "min_moat_score",
+        "min_total_score",
+        "min_margin_of_safety",
+        "min_score",
+        "max_debt",
+    }
+    for raw in raw_filters:
+        if "=" not in raw:
+            continue
+        key, _, value = raw.partition("=")
+        key = key.strip()
+        value = value.strip()
+        try:
+            criteria[key] = float(value) if key in numeric_keys else value
+        except ValueError:
+            print(f"  {red('ERROR:')} Valor invalido para '{key}': '{value}'")
+            sys.exit(1)
+    return criteria
+
+
+def _run_investment_screener(args) -> None:
+    from backend.app.cli import build_investment_screener
+
+    criteria = _parse_investment_filters(args.filter)
+    universe = None
+    if args.tickers:
+        universe = [t.strip().upper() for t in args.tickers.split(",")]
+
+    print(f"  Motor: calidad Buffett  |  Filtros: {criteria or '(sin filtros)'}")
+    print()
+
+    service = build_investment_screener(universe)
+    results = service.top_n(args.top, **criteria)
+    print(f"\n  {green(str(len(results)))} resultados")
+
+    if not results:
+        print(f"\n  {yellow('Ninguna empresa cumple los filtros.')}")
+        return
+
+    headers = [
+        ("Rank", 0),
+        ("Ticker", 0),
+        ("Score", 1),
+        ("Ranking", 1),
+        ("Moat", 0),
+        ("Rating", 0),
+        ("Senal", 0),
+        ("Oportunidad", 0),
+    ]
+    rows = []
+    for r in results:
+        rows.append(
+            [
+                r.rank,
+                r.ticker,
+                f"{r.total_score:.1f}",
+                f"{r.rank_score:.1f}" if r.rank_score else dim("N/A"),
+                r.moat,
+                r.rating,
+                r.signal,
+                r.opportunity_type if r.opportunity_type else dim("-"),
+            ]
+        )
+    print_table(headers, rows)
+
+    print(f"\n  {bold('Por que?')}")
+    for r in results[:10]:
+        reasons = r.reasons[:3]
+        print(f"  {green(str(r.rank)):>3}. {bold(r.ticker)} — {'; '.join(reasons)}")
+
+
 def _run(args):
-    if args.search:
+    if any("=" in f for f in args.filter):
+        _run_investment_screener(args)
+    elif args.search:
         service = build_screener_service()
         _show_search_results(service, args.search)
     else:
