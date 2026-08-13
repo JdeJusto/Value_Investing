@@ -26,6 +26,62 @@ def _opportunity_type(item: dict) -> Optional[str]:
     return None
 
 
+# Trigger thresholds (raw deltas); the strongest positive delta wins
+MARGIN_EXPANSION_TRIGGER = 0.01
+REVENUE_ACCELERATION_TRIGGER = 0.015
+ROIC_IMPROVEMENT_TRIGGER = 0.02
+FCF_SURGE_TRIGGER = 0.20
+
+
+def detect_trigger(item: dict) -> Optional[str]:
+    """The dominant fundamental movement of the latest period.
+
+    Returns the strongest positive trigger, or the strongest negative
+    one when every delta is deteriorating. None when there is no data.
+    """
+    deltas = item.get("delta_metrics") or {}
+    positive: list[tuple[float, str]] = []
+    negative: list[tuple[float, str]] = []
+
+    margin = deltas.get("gross_margin_delta")
+    if margin is not None:
+        (positive if margin >= 0 else negative).append(
+            (margin, "MARGIN_EXPANSION" if margin >= 0 else "MARGIN_COMPRESSION")
+        )
+    rev = deltas.get("revenue_growth_delta")
+    if rev is not None:
+        (positive if rev >= 0 else negative).append(
+            (rev, "REVENUE_ACCELERATION" if rev >= 0 else "REVENUE_DECELERATION")
+        )
+    roic = deltas.get("roic_delta")
+    if roic is not None:
+        (positive if roic >= 0 else negative).append(
+            (roic, "ROIC_IMPROVEMENT" if roic >= 0 else "ROIC_DETERIORATION")
+        )
+    fcf = deltas.get("fcf_delta")
+    if fcf is not None:
+        (positive if fcf >= 0 else negative).append(
+            (fcf, "FCF_SURGE" if fcf >= 0 else "FCF_DECLINE")
+        )
+
+    qualifying_positive = [
+        (value, trigger)
+        for value, trigger in positive
+        if value
+        >= {
+            "MARGIN_EXPANSION": MARGIN_EXPANSION_TRIGGER,
+            "REVENUE_ACCELERATION": REVENUE_ACCELERATION_TRIGGER,
+            "ROIC_IMPROVEMENT": ROIC_IMPROVEMENT_TRIGGER,
+            "FCF_SURGE": FCF_SURGE_TRIGGER,
+        }[trigger]
+    ]
+    if qualifying_positive:
+        return max(qualifying_positive, key=lambda pair: pair[0])[1]
+    if negative:
+        return min(negative, key=lambda pair: pair[0])[1]
+    return None
+
+
 def generate_signal(item: dict, rank: float) -> dict:
     """Assign a BUY / WATCHLIST / HOLD / AVOID label and its reasons."""
     buffett = item.get("buffett_score")
@@ -60,7 +116,12 @@ def generate_signal(item: dict, rank: float) -> dict:
         signal = "HOLD"
         reasons.append(f"rank {rank:.1f} below watch threshold {WATCH_MIN_RANK:.0f}")
 
-    return {"signal": signal, "confidence": confidence, "reason": reasons}
+    return {
+        "signal": signal,
+        "confidence": confidence,
+        "trigger": detect_trigger(item),
+        "reason": reasons,
+    }
 
 
 def can_buy(rank: float, buffett: Optional[float], confidence: str) -> bool:

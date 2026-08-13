@@ -289,6 +289,8 @@ def test_assess_investment_reports_full_suite(strong_history):
         "moat_analysis",
         "composite_score",
         "quality_metrics",
+        "delta_metrics",
+        "anomalies",
         "insight",
     }
     assert report["buffett_score"] >= 80

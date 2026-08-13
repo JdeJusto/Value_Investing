@@ -3,6 +3,8 @@
 Uses mock analytics/intelligence outputs — no providers, no network.
 """
 
+from typing import Optional
+
 from backend.screener.filters import ScreenCriteria, from_kwargs, matches
 from backend.screener.opportunity_engine import (
     detect_opportunities,
@@ -34,8 +36,19 @@ def _analysis(
     revenue_cv: float = 0.2,
     sector: str = "Technology",
     industry: str = "Software",
+    delta: Optional[dict] = None,
     **pillars,
 ) -> dict:
+    deltas = {
+        "revenue_growth_last": 0.05,
+        "revenue_growth_prev": 0.05,
+        "revenue_growth_delta": 0.0,
+        "gross_margin_delta": 0.0,
+        "roic_delta": 0.0,
+        "fcf_delta": 0.0,
+    }
+    if delta is not None:
+        deltas.update(delta)
     breakdown = {
         "profitability": 88.0,
         "financial_strength": 90.0,
@@ -79,6 +92,8 @@ def _analysis(
             "confidence": confidence,
         },
         "quality_metrics": metrics,
+        "delta_metrics": deltas,
+        "anomalies": [],
         "insight": ["Low debt and high interest coverage"],
         "sector": sector,
         "industry": industry,
@@ -329,3 +344,149 @@ def test_screener_enrichment_attaches_sector():
     )
     result = service.run(sector="Energy")
     assert result[0].ticker == "AAA"
+
+
+# ----------------------------------------------------------------------
+# Fundamental momentum in ranking
+# ----------------------------------------------------------------------
+def test_momentum_factor_improves_rank():
+    from backend.screener.ranking_engine import fundamental_momentum
+
+    flat = _analysis("FLAT")
+    surging = _analysis(
+        "SURGE",
+        delta={
+            "revenue_growth_delta": 0.05,
+            "gross_margin_delta": 0.02,
+            "roic_delta": 0.04,
+            "fcf_delta": 0.30,
+        },
+    )
+    deteriorating = _analysis(
+        "DOWN",
+        delta={
+            "revenue_growth_delta": -0.05,
+            "gross_margin_delta": -0.03,
+            "roic_delta": -0.06,
+            "fcf_delta": -0.40,
+        },
+    )
+    assert fundamental_momentum(surging) > 0.5
+    assert fundamental_momentum(deteriorating) < 0.5
+    assert rank_score(surging) > rank_score(flat) > rank_score(deteriorating)
+
+
+def test_rank_score_neutral_momentum_without_deltas():
+    from backend.screener.ranking_engine import fundamental_momentum
+
+    item = _analysis("NO_DELTAS")
+    item["delta_metrics"] = {}
+    assert fundamental_momentum(item) == 0.5
+
+
+# ----------------------------------------------------------------------
+# New opportunity detectors
+# ----------------------------------------------------------------------
+def test_inflection_point_detected_on_recovery():
+    item = _analysis(
+        "REC",
+        buffett=45,
+        moat_type="WEAK",
+        delta={
+            "revenue_growth_last": 0.08,
+            "revenue_growth_prev": -0.05,
+            "net_income_change": 0.4,
+        },
+    )
+    types = [o["type"] for o in detect_opportunities(item)]
+    assert "INFLECTION_POINT" in types
+
+
+def test_fundamental_acceleration_detected():
+    item = _analysis(
+        "ACCEL",
+        delta={
+            "revenue_growth_delta": 0.04,
+            "roic_delta": 0.02,
+        },
+    )
+    types = [o["type"] for o in detect_opportunities(item)]
+    assert "FUNDAMENTAL_ACCELERATION" in types
+
+
+def test_fundamental_acceleration_requires_cash_generation():
+    item = _analysis(
+        "ACCEL",
+        roic=0.10,
+        delta={"revenue_growth_delta": 0.04, "roic_delta": 0.02},
+    )
+    metrics = item["quality_metrics"]
+    metrics["positive_fcf_ratio"] = 0.3
+    assert all(
+        o["type"] != "FUNDAMENTAL_ACCELERATION" for o in detect_opportunities(item)
+    )
+
+
+def test_quality_with_trigger_detected():
+    item = _analysis(
+        "QTRIG",
+        buffett=80,
+        moat_type="STRONG",
+        delta={"gross_margin_delta": 0.015},
+    )
+    candidate = best_opportunity(item)
+    assert candidate is not None
+    qwt = [o for o in detect_opportunities(item) if o["type"] == "QUALITY_WITH_TRIGGER"]
+    assert qwt
+    assert any("trigger" in r for r in qwt[0]["reason"])
+
+
+def test_quality_with_trigger_needs_quality_and_moat():
+    weak = _analysis(
+        "QW",
+        buffett=55,
+        moat_type="WEAK",
+        delta={"gross_margin_delta": 0.02},
+    )
+    assert all(o["type"] != "QUALITY_WITH_TRIGGER" for o in detect_opportunities(weak))
+
+
+# ----------------------------------------------------------------------
+# Signal triggers
+# ----------------------------------------------------------------------
+def test_signal_trigger_positive_margin_expansion():
+    item = _analysis("M", delta={"gross_margin_delta": 0.02})
+    signal = generate_signal(item, rank_score(item))
+    assert signal["trigger"] == "MARGIN_EXPANSION"
+
+
+def test_signal_trigger_prefers_strongest_positive():
+    item = _analysis(
+        "S",
+        delta={
+            "gross_margin_delta": 0.02,
+            "revenue_growth_delta": 0.04,
+            "roic_delta": -0.01,
+        },
+    )
+    signal = generate_signal(item, rank_score(item))
+    assert signal["trigger"] == "REVENUE_ACCELERATION"
+
+
+def test_signal_trigger_negative_when_all_declining():
+    item = _analysis(
+        "D",
+        delta={
+            "gross_margin_delta": -0.02,
+            "revenue_growth_delta": -0.03,
+        },
+    )
+    signal = generate_signal(item, rank_score(item))
+    assert signal["trigger"] == "REVENUE_DECELERATION"
+
+
+def test_signal_trigger_none_without_delta_data():
+    item = _analysis("N")
+    item["delta_metrics"] = {}
+    signal = generate_signal(item, rank_score(item))
+    assert signal["trigger"] is None

@@ -8,7 +8,9 @@ understood.
 from typing import Optional
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.intelligence.anomaly_detection import detect_anomalies
 from backend.intelligence.buffett_engine import buffett_filter
+from backend.intelligence.delta_metrics import compute_delta_metrics
 from backend.intelligence.moat_analysis import analyze_moat
 from backend.intelligence.quality_metrics import compute_quality_metrics
 
@@ -153,5 +155,7 @@ def assess_investment(
         "moat_analysis": moat,
         "composite_score": composite,
         "quality_metrics": metrics,
+        "delta_metrics": compute_delta_metrics(rows),
+        "anomalies": detect_anomalies(rows),
         "insight": generate_insights(metrics, moat),
     }

@@ -25,9 +25,25 @@ SPECIAL_MAX_PRICE_BOOK = 0.80
 SPECIAL_MIN_VOLATILITY = 0.50
 SPECIAL_ABNORMAL_EARNINGS_SHIFT = 0.50
 
+# --- Inflection point ---
+INFLECTION_MIN_RECOVERY = 0.05
+
+# --- Fundamental acceleration ---
+ACCELERATION_MIN_REV_DELTA = 0.02
+
+# --- Quality with trigger ---
+QUALITY_WITH_TRIGGER_MIN_BUFFETT = 70.0
+QUALITY_TRIGGER_MARGIN = 0.01
+QUALITY_TRIGGER_REV_DELTA = 0.01
+QUALITY_TRIGGER_ROIC_DELTA = 0.02
+
 
 def _quality(item: dict, key: str, default=None) -> Optional[float]:
     return (item.get("quality_metrics") or {}).get(key, default)
+
+
+def _delta(item: dict, key: str) -> Optional[float]:
+    return (item.get("delta_metrics") or {}).get(key)
 
 
 def _moat_type(item: dict) -> str:
@@ -162,10 +178,96 @@ def special_situations(item: dict) -> Optional[dict]:
     return None
 
 
+def inflection_point(item: dict) -> Optional[dict]:
+    """Earnings that turned positive, or revenue growth re-accelerating."""
+    deltas = item.get("delta_metrics") or {}
+    reasons: list[str] = []
+
+    income_change = _delta(item, "net_income_change")
+    if income_change is not None and income_change >= INFLECTION_MIN_RECOVERY:
+        reasons.append(f"earnings recovering {income_change:.0%} year over year")
+
+    rev_last = deltas.get("revenue_growth_last")
+    rev_prev = deltas.get("revenue_growth_prev")
+    if rev_last is not None and rev_prev is not None and rev_prev <= 0 and rev_last > 0:
+        reasons.append(
+            f"revenue growth turned positive ({rev_last:.0%} vs {rev_prev:.0%})"
+        )
+
+    if not reasons:
+        return None
+    return {
+        "type": "INFLECTION_POINT",
+        "confidence": _confidence(item),
+        "reason": reasons,
+    }
+
+
+def fundamental_acceleration(item: dict) -> Optional[dict]:
+    """Top line accelerating while capital efficiency improves."""
+    rev_delta = _delta(item, "revenue_growth_delta")
+    roic_delta = _delta(item, "roic_delta")
+    fcf_ratio = _quality(item, "positive_fcf_ratio")
+    if (
+        rev_delta is not None
+        and rev_delta >= ACCELERATION_MIN_REV_DELTA
+        and roic_delta is not None
+        and roic_delta >= 0
+        and (fcf_ratio is None or fcf_ratio >= 0.7)
+    ):
+        reasons = [
+            f"revenue growth accelerating by {rev_delta*100:.1f}pp",
+            f"ROIC improving by {roic_delta*100:.1f}pp",
+        ]
+        if fcf_ratio is not None:
+            reasons.append("cash generation intact")
+        return {
+            "type": "FUNDAMENTAL_ACCELERATION",
+            "confidence": _confidence(item),
+            "reason": reasons,
+        }
+    return None
+
+
+def quality_with_trigger(item: dict) -> Optional[dict]:
+    """A quality business just got a fundamental confirmation signal."""
+    buffett = item.get("buffett_score")
+    if buffett is None or buffett < QUALITY_WITH_TRIGGER_MIN_BUFFETT:
+        return None
+    if not _moat_strong_enough(item):
+        return None
+
+    margin_delta = _delta(item, "gross_margin_delta")
+    rev_delta = _delta(item, "revenue_growth_delta")
+    roic_delta = _delta(item, "roic_delta")
+
+    triggers: list[str] = []
+    if margin_delta is not None and margin_delta >= QUALITY_TRIGGER_MARGIN:
+        triggers.append(f"margin expansion of {margin_delta*100:.1f}pp")
+    if rev_delta is not None and rev_delta >= QUALITY_TRIGGER_REV_DELTA:
+        triggers.append(f"revenue acceleration of {rev_delta*100:.1f}pp")
+    if roic_delta is not None and roic_delta >= QUALITY_TRIGGER_ROIC_DELTA:
+        triggers.append(f"ROIC improvement of {roic_delta*100:.1f}pp")
+
+    if not triggers:
+        return None
+    reasons = [
+        f"quality business (Buffett {buffett:.0f}, moat {_moat_type(item).lower()})",
+    ] + [f"trigger: {t}" for t in triggers]
+    return {
+        "type": "QUALITY_WITH_TRIGGER",
+        "confidence": _confidence(item),
+        "reason": reasons,
+    }
+
+
 # ----------------------------------------------------------------------
 DETECTORS = (
     undervalued_quality,
     compounders,
+    fundamental_acceleration,
+    inflection_point,
+    quality_with_trigger,
     turnarounds,
     special_situations,
 )
