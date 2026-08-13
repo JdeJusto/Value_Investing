@@ -1,4 +1,9 @@
-"""SQLAlchemy implementation of the financial repository (PostgreSQL)."""
+"""SQLAlchemy implementation of the financial repository (PostgreSQL).
+
+Supports multiple providers per (ticker, fiscal_year, period): one row per
+source, upserted individually. Source selection is delegated to
+``get_best_available`` which prefers consistent, high-quality sources.
+"""
 
 from __future__ import annotations
 
@@ -19,13 +24,14 @@ from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
     ProviderName,
 )
+from backend.repositories.source_selection import best_of, best_per_year, choose_history
 
 
 class SqlAlchemyFinancialRepository(FinancialRepository):
     """Persists normalized financials in a relational database.
 
-    One row per (ticker, fiscal_year, period); re-saving a year overwrites
-    the stored values (upsert semantics).
+    One row per (ticker, fiscal_year, period, source); re-saving a
+    source-year overwrites the stored values (upsert semantics).
     """
 
     def __init__(self, session_factory: Callable[[], Session] = SessionLocal):
@@ -45,7 +51,11 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
     def upsert(self, financials: NormalizedFinancials) -> None:
         with self._session_factory() as session:
             model = self._find(
-                session, financials.ticker, financials.fiscal_year, financials.period
+                session,
+                financials.ticker,
+                financials.fiscal_year,
+                financials.period,
+                financials.source,
             )
             if model is None:
                 model = NormalizedFinancialModel(
@@ -63,7 +73,7 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
         with self._session_factory() as session:
             ticker = financials[0].ticker
             existing = {
-                (m.fiscal_year, m.period): m
+                (m.fiscal_year, m.period, m.source): m
                 for m in session.execute(
                     select(NormalizedFinancialModel).where(
                         NormalizedFinancialModel.ticker == ticker
@@ -71,7 +81,16 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
                 ).scalars()
             }
             for item in financials:
-                model = existing.get((item.fiscal_year, item.period or ANNUAL_PERIOD))
+                key = (
+                    item.fiscal_year,
+                    item.period or ANNUAL_PERIOD,
+                    (
+                        item.source.value
+                        if isinstance(item.source, ProviderName)
+                        else str(item.source)
+                    ),
+                )
+                model = existing.get(key)
                 if model is None:
                     model = NormalizedFinancialModel(
                         ticker=item.ticker,
@@ -85,23 +104,56 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
     def get_by_year(
         self, ticker: str, fiscal_year: int
     ) -> Optional[NormalizedFinancials]:
+        """Best available record for a year (highest priority, then quality)."""
         with self._session_factory() as session:
-            model = session.execute(
+            models = session.execute(
                 select(NormalizedFinancialModel).where(
                     NormalizedFinancialModel.ticker == ticker.upper(),
                     NormalizedFinancialModel.fiscal_year == fiscal_year,
                 )
-            ).scalar_one_or_none()
-            return self._to_entity(model) if model else None
+            ).scalars()
+            records = [self._to_entity(m) for m in models]
+        if not records:
+            return None
+        return best_of(records)
 
     def list_years(self, ticker: str) -> list[NormalizedFinancials]:
+        """Best available record per year, most recent first."""
         with self._session_factory() as session:
             models = session.execute(
                 select(NormalizedFinancialModel)
                 .where(NormalizedFinancialModel.ticker == ticker.upper())
                 .order_by(NormalizedFinancialModel.fiscal_year.desc())
             ).scalars()
+            records = [self._to_entity(m) for m in models]
+        return best_per_year(records)
+
+    def list_all(self, ticker: str) -> list[NormalizedFinancials]:
+        """Every stored record across sources, year desc then quality desc."""
+        with self._session_factory() as session:
+            models = session.execute(
+                select(NormalizedFinancialModel)
+                .where(NormalizedFinancialModel.ticker == ticker.upper())
+                .order_by(
+                    NormalizedFinancialModel.fiscal_year.desc(),
+                    NormalizedFinancialModel.data_source_priority.desc(),
+                    NormalizedFinancialModel.data_quality_score.desc(),
+                )
+            ).scalars()
             return [self._to_entity(m) for m in models]
+
+    def get_best_available(self, ticker: str) -> list[NormalizedFinancials]:
+        """Select the best consistent history for a company.
+
+        A single source is used whenever it covers at least
+        FULL_COVERAGE_THRESHOLD of the stored years (preferred by source
+        priority, then coverage, then mean quality). Otherwise the best
+        record per year is blended (the consumer can flag this as MIXED).
+        """
+        rows = self.list_all(ticker)
+        if not rows:
+            return []
+        return choose_history(rows)
 
     def has_data(self, ticker: str) -> bool:
         with self._session_factory() as session:
@@ -123,12 +175,14 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _find(session: Session, ticker: str, fiscal_year: int, period: str):
+    def _find(session: Session, ticker: str, fiscal_year: int, period: str, source):
         return session.execute(
             select(NormalizedFinancialModel).where(
                 NormalizedFinancialModel.ticker == ticker.upper(),
                 NormalizedFinancialModel.fiscal_year == fiscal_year,
                 NormalizedFinancialModel.period == (period or ANNUAL_PERIOD),
+                NormalizedFinancialModel.source
+                == (source.value if isinstance(source, ProviderName) else str(source)),
             )
         ).scalar_one_or_none()
 
@@ -144,6 +198,11 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
         )
         model.shares_outstanding = financials.shares_outstanding
         model.loaded_at = financials.loaded_at
+        model.data_quality_score = financials.data_quality_score
+        model.data_completeness = financials.data_completeness
+        model.is_complete = financials.is_complete
+        model.data_source_priority = financials.data_source_priority
+        model.derived_metrics = list(financials.derived_metrics) or None
         for column in METRIC_COLUMNS:
             setattr(model, column, getattr(financials, column, None))
 
@@ -157,5 +216,12 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
             source=ProviderName(model.source),
             shares_outstanding=model.shares_outstanding,
             loaded_at=model.loaded_at,
+            data_quality_score=model.data_quality_score,
+            data_completeness=model.data_completeness,
+            is_complete=model.is_complete,
+            data_source_priority=model.data_source_priority,
+            derived_metrics=(
+                list(model.derived_metrics) if model.derived_metrics else []
+            ),
             **{column: getattr(model, column) for column in METRIC_COLUMNS},
         )

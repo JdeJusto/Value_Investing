@@ -1,7 +1,9 @@
 """ORM model for normalized annual financial data (provider-agnostic)."""
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -86,6 +88,13 @@ class NormalizedFinancialModel(Base):
     repurchase_of_stock = Column(Float, nullable=True)
     working_capital_change = Column(Float, nullable=True)
 
+    # --- Data quality ---------------------------------------------------
+    data_quality_score = Column(Float, nullable=True)
+    data_completeness = Column(Float, nullable=True)
+    is_complete = Column(Boolean, nullable=False, server_default="false")
+    data_source_priority = Column(Integer, nullable=False, server_default="0")
+    derived_metrics = Column(JSON, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -93,6 +102,10 @@ class NormalizedFinancialModel(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "ticker", "fiscal_year", "period", name="uq_normalized_ticker_year_period"
+            "ticker",
+            "fiscal_year",
+            "period",
+            "source",
+            name="uq_normalized_ticker_year_period_source",
         ),
     )

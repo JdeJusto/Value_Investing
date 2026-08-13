@@ -32,7 +32,19 @@ class FinancialRepository(ABC):
 
     @abstractmethod
     def list_years(self, ticker: str) -> list[NormalizedFinancials]:
-        """Return all stored records for a ticker, most recent year first."""
+        """Return the best record per year for a ticker, most recent first."""
+
+    @abstractmethod
+    def list_all(self, ticker: str) -> list[NormalizedFinancials]:
+        """Return every stored record (all sources), year desc."""
+
+    @abstractmethod
+    def get_best_available(self, ticker: str) -> list[NormalizedFinancials]:
+        """Return the most consistent usable history for a ticker.
+
+        Prefers a single source (highest priority and quality, adequate
+        coverage); blends per-year best records only when necessary.
+        """
 
     @abstractmethod
     def has_data(self, ticker: str) -> bool:
