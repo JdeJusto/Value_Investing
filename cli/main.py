@@ -28,6 +28,8 @@ def main():
             "  main.py portfolio add AAPL 10 180 --thesis \"moat fuerte\"\n"
             "  main.py portfolio view\n"
             "  main.py portfolio performance\n"
+            "  main.py backtest --strategy momentum --top 3\n"
+            "  main.py backtest --strategy buffett --prices precios.csv\n"
             "  main.py debug\n"
         ),
     )
@@ -44,6 +46,7 @@ def main():
         anomalies,
         momentum,
         portfolio,
+        backtest,
         debug,
     )
 
@@ -57,6 +60,7 @@ def main():
     anomalies.register(sub)
     momentum.register(sub)
     portfolio.register(sub)
+    backtest.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:

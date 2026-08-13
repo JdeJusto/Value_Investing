@@ -94,6 +94,17 @@ def compute_delta_metrics(rows: list[NormalizedFinancials]) -> dict:
     fcf_last = last_two[1].free_cash_flow
     fcf_delta = _growth(fcf_prev, fcf_last)
 
+    fcf_growth_last = fcf_delta
+    fcf_growth_prev = None
+    if len(ordered) >= 3:
+        fcf_prev_prev = ordered[-3].free_cash_flow
+        fcf_growth_prev = _growth(fcf_prev_prev, fcf_prev)
+    fcf_growth_delta = (
+        fcf_growth_last - fcf_growth_prev
+        if fcf_growth_last is not None and fcf_growth_prev is not None
+        else None
+    )
+
     roic_prev = roic(ordered[-2])
     roic_last = roic(ordered[-1])
     roic_delta = (
@@ -124,6 +135,9 @@ def compute_delta_metrics(rows: list[NormalizedFinancials]) -> dict:
         "operating_margin_delta": _margin_delta(ordered, _operating_margin),
         "roic_delta": roic_delta,
         "fcf_delta": fcf_delta,
+        "fcf_growth_last": fcf_growth_last,
+        "fcf_growth_prev": fcf_growth_prev,
+        "fcf_growth_delta": fcf_growth_delta,
         "debt_delta": debt_delta,
         "net_income_change": net_income_change,
     }
