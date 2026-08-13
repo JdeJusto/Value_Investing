@@ -97,6 +97,19 @@ def build_universe(tickers: Optional[list[str]] = None) -> list[str]:
     return [c.ticker for c in CompanyRepository().list_all()]
 
 
+def build_portfolio_service():
+    """Portfolio tracking wired to the analytics layer for live refresh."""
+    from backend.portfolio.portfolio_repository import JsonPortfolioRepository
+    from backend.portfolio.portfolio_service import PortfolioService
+
+    return PortfolioService(
+        repository=JsonPortfolioRepository(
+            os.getenv("PORTFOLIO_PATH", "data/portfolio.json")
+        ),
+        analyzer=build_analysis_service().analyze,
+    )
+
+
 def _company_enrichment():
     def enrich(ticker: str, item: dict) -> dict:
         company = CompanyRepository().find_by_ticker(ticker)

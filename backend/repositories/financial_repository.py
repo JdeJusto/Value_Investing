@@ -27,6 +27,17 @@ from backend.domain.value_objects.financials_normalized import (
 from backend.repositories.source_selection import best_of, best_per_year, choose_history
 
 
+def _py_scalar(value):
+    """Convert numpy scalars (np.float64, np.int64) to Python natives.
+
+    psycopg2 renders numpy 2.x scalars as ``np.float64(...)`` which is
+    not valid SQL; normalizers produce them from pandas.
+    """
+    if value is None or type(value).__module__ == "builtins":
+        return value
+    return value.item() if hasattr(value, "item") else value
+
+
 class SqlAlchemyFinancialRepository(FinancialRepository):
     """Persists normalized financials in a relational database.
 
@@ -196,15 +207,31 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
             if isinstance(financials.source, ProviderName)
             else str(financials.source)
         )
-        model.shares_outstanding = financials.shares_outstanding
+        model.shares_outstanding = _py_scalar(financials.shares_outstanding)
         model.loaded_at = financials.loaded_at
-        model.data_quality_score = financials.data_quality_score
-        model.data_completeness = financials.data_completeness
+        model.data_quality_score = _py_scalar(financials.data_quality_score)
+        model.data_completeness = _py_scalar(financials.data_completeness)
         model.is_complete = financials.is_complete
-        model.data_source_priority = financials.data_source_priority
+        model.data_source_priority = _py_scalar(financials.data_source_priority)
         model.derived_metrics = list(financials.derived_metrics) or None
         for column in METRIC_COLUMNS:
-            setattr(model, column, getattr(financials, column, None))
+            value = getattr(financials, column, None)
+            setattr(model, column, _py_scalar(value))
+
+    @staticmethod
+    def _py_scalar(value):
+        """Convert numpy scalars (np.float64, np.int64) to Python natives.
+
+        psycopg2 renders numpy 2.x scalars as ``np.float64(...)`` which is
+        not valid SQL; normalizers produce them from pandas.
+        """
+
+        def _to_py(v):
+            if v is None or type(v).__module__ == "builtins":
+                return v
+            return v.item() if hasattr(v, "item") else v
+
+        return _to_py(value)
 
     @staticmethod
     def _to_entity(model: NormalizedFinancialModel) -> NormalizedFinancials:

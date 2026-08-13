@@ -1,5 +1,8 @@
 import argparse
+import logging
 import sys
+
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 
 def main():
@@ -22,6 +25,9 @@ def main():
             "  main.py opportunities\n"
             "  main.py anomalies AAPL\n"
             "  main.py momentum\n"
+            "  main.py portfolio add AAPL 10 180 --thesis \"moat fuerte\"\n"
+            "  main.py portfolio view\n"
+            "  main.py portfolio performance\n"
             "  main.py debug\n"
         ),
     )
@@ -37,6 +43,7 @@ def main():
         opportunities,
         anomalies,
         momentum,
+        portfolio,
         debug,
     )
 
@@ -49,6 +56,7 @@ def main():
     opportunities.register(sub)
     anomalies.register(sub)
     momentum.register(sub)
+    portfolio.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:
