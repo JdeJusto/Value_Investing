@@ -301,3 +301,140 @@ def test_assess_investment_reports_full_suite(strong_history):
 def test_assess_investment_without_reliability_defaults():
     report = assess_investment([_make(2024)])
     assert report["composite_score"]["confidence"] == "MEDIUM"
+
+
+# ----------------------------------------------------------------------
+# Delta metrics (fundamental momentum)
+# ----------------------------------------------------------------------
+def _row(year, revenue, cogs_pct, ebit_pct, fcf, **overrides):
+    row = NormalizedFinancials(
+        ticker="TEST",
+        fiscal_year=year,
+        revenue=revenue,
+        cogs=revenue * cogs_pct,
+        gross_profit=revenue * (1 - cogs_pct),
+        operating_income=revenue * ebit_pct,
+        ebit=revenue * ebit_pct,
+        ebitda=revenue * (ebit_pct + 0.05),
+        net_income=revenue * 0.20,
+        interest_expense=revenue * 0.02,
+        tax_provision=revenue * 0.05,
+        pretax_income=revenue * 0.25,
+        total_assets=revenue * 2.0,
+        total_liabilities=revenue * 0.75,
+        total_debt=revenue * 0.40,
+        cash_and_equivalents=revenue * 0.10,
+        working_capital=revenue * 0.20,
+        retained_earnings=revenue * 1.5,
+        stockholders_equity=revenue * 1.0,
+        operating_cash_flow=fcf + revenue * 0.05,
+        capital_expenditure=revenue * 0.05,
+        free_cash_flow=fcf,
+        depreciation_amortization=revenue * 0.05,
+        shares_outstanding=1_000_000,
+        source=ProviderName.YAHOO,
+    )
+    for key, value in overrides.items():
+        setattr(row, key, value)
+    return row
+
+
+def _accelerating_history():
+    """Growth 10% -> 10% -> 20%, margin expansion and ROIC improvement."""
+    return [
+        _row(2021, 1_000_000, 0.60, 0.30, 120_000),
+        _row(2022, 1_100_000, 0.60, 0.30, 145_000),
+        _row(2023, 1_210_000, 0.60, 0.30, 165_000),
+        _row(2024, 1_452_000, 0.55, 0.35, 220_000),
+    ]
+
+
+def test_delta_metrics_capture_acceleration():
+    from backend.intelligence.delta_metrics import compute_delta_metrics
+
+    deltas = compute_delta_metrics(_accelerating_history())
+    assert deltas["revenue_growth_last"] == pytest.approx(0.20, abs=0.001)
+    assert deltas["revenue_growth_prev"] == pytest.approx(0.10, abs=0.001)
+    assert deltas["revenue_growth_delta"] == pytest.approx(0.10, abs=0.002)
+    assert deltas["gross_margin_delta"] == pytest.approx(0.05, abs=0.001)
+    assert deltas["roic_delta"] > 0.01
+    assert deltas["fcf_delta"] == pytest.approx((220_000 - 165_000) / 165_000)
+
+
+def test_delta_metrics_require_history():
+    from backend.intelligence.delta_metrics import compute_delta_metrics
+
+    deltas = compute_delta_metrics([_row(2024, 1_000_000, 0.6, 0.3, 100_000)])
+    assert all(v is None for v in deltas.values())
+
+
+def test_delta_metrics_capture_deterioration():
+    from backend.intelligence.delta_metrics import compute_delta_metrics
+
+    history = [
+        _row(2021, 1_000_000, 0.55, 0.32, 150_000),
+        _row(2022, 1_100_000, 0.58, 0.30, 140_000),
+        _row(2023, 1_200_000, 0.62, 0.26, 110_000),
+        _row(2024, 1_250_000, 0.66, 0.22, 80_000),
+    ]
+    deltas = compute_delta_metrics(history)
+    assert deltas["gross_margin_delta"] < 0
+    assert deltas["roic_delta"] < 0
+    assert deltas["fcf_delta"] < 0
+    assert deltas["revenue_growth_delta"] < 0
+
+
+# ----------------------------------------------------------------------
+# Anomaly detection
+# ----------------------------------------------------------------------
+def test_anomaly_detection_flags_last_year_spike():
+    from backend.intelligence.anomaly_detection import detect_anomalies
+
+    rows = [
+        _row(2020 + i, r, 0.60, 0.30, 100_000)
+        for i, r in enumerate((1_000_000, 1_050_000, 1_030_000, 990_000, 2_100_000))
+    ]
+    anomalies = detect_anomalies(rows)
+    revenue_flags = [a for a in anomalies if a["metric"] == "revenue"]
+    assert revenue_flags
+    strongest = revenue_flags[0]
+    assert strongest["direction"] == "UP"
+    assert strongest["zscore"] > 5
+    assert strongest["severity"] == "STRONG"
+
+
+def test_anomaly_detection_clean_history_has_no_flags():
+    from backend.intelligence.anomaly_detection import detect_anomalies
+
+    rows = [
+        _row(2020 + i, r, 0.60, 0.30, 100_000)
+        for i, r in enumerate((1_000_000, 1_050_000, 1_030_000, 990_000, 1_040_000))
+    ]
+    assert detect_anomalies(rows) == []
+
+
+def test_anomaly_detection_flags_abnormal_jump():
+    from backend.intelligence.anomaly_detection import detect_anomalies
+
+    rows = [
+        _row(2020 + i, r, 0.60, 0.30, 100_000)
+        for i, r in enumerate((1_000_000, 1_020_000, 1_040_000, 1_030_000, 1_650_000))
+    ]
+    anomalies = detect_anomalies(rows)
+    jumps = [a for a in anomalies if a["type"] == "yoy_jump"]
+    assert jumps
+    assert jumps[0]["metric"] == "revenue"
+    assert jumps[0]["direction"] == "UP"
+    assert jumps[0]["change"] == pytest.approx(0.60, abs=0.01)
+
+
+def test_anomaly_detection_zscore_requires_baseline():
+    from backend.intelligence.anomaly_detection import detect_anomalies
+
+    rows = [
+        _row(2023, 1_000_000, 0.60, 0.30, 100_000),
+        _row(2024, 2_000_000, 0.60, 0.30, 200_000),
+    ]
+    anomalies = detect_anomalies(rows)
+    assert anomalies  # yoy_jump does not need a baseline
+    assert all(a["type"] == "yoy_jump" for a in anomalies)
