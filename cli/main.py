@@ -15,18 +15,27 @@ def main():
             "  main.py analyze AAPL MSFT GOOGL\n"
             "  main.py load-data AAPL\n"
             "  main.py load-data AAPL --years 15 --force\n"
+            "  main.py data-status AAPL\n"
             "  main.py screener --tickers AAPL,MSFT --pb-min 1 --pb-max 5\n"
             "  main.py debug\n"
         ),
     )
     sub = parser.add_subparsers(dest="command", title="Comandos")
 
-    from cli.commands import screener, company, analyze, load_data, debug
+    from cli.commands import (
+        screener,
+        company,
+        analyze,
+        load_data,
+        data_status,
+        debug,
+    )
 
     screener.register(sub)
     company.register(sub)
     analyze.register(sub)
     load_data.register(sub)
+    data_status.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:
