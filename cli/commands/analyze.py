@@ -12,7 +12,9 @@ def register(subparsers):
         description="Ejecuta el analisis completo (ratios, scoring, DCF) y muestra resultados detallados.",
     )
     p.add_argument(
-        "tickers", type=str, nargs="+",
+        "tickers",
+        type=str,
+        nargs="+",
         help="Ticker(s) a analizar (ej: AAPL o AAPL MSFT GOOGL)",
     )
     p.set_defaults(func=_run)

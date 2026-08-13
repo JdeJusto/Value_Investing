@@ -40,6 +40,7 @@ from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.services import needs_refresh
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.intelligence.scoring_model import assess_investment
 
 logger = logging.getLogger("backend.analytics")
 
@@ -264,6 +265,8 @@ class CompanyAnalysisService:
         )
 
         result.update(self._data_reliability(ticker, rows))
+        result.update(self._market_edge(ticker, result.get("dcf_value")))
+        result.update(assess_investment(rows, result))
 
         return result
 
@@ -330,6 +333,17 @@ class CompanyAnalysisService:
     def _mean(values) -> Optional[float]:
         present = [v for v in values if v is not None]
         return sum(present) / len(present) if present else None
+
+    def _market_edge(self, ticker: str, dcf_value: Optional[float]) -> dict:
+        """Current price and valuation gap used for opportunity detection."""
+        price = self._safe_market(self._market.get_current_price, ticker)
+        margin = None
+        if price and dcf_value:
+            margin = (dcf_value - price) / dcf_value
+        return {
+            "current_price": price,
+            "dcf_margin_of_safety": margin,
+        }
 
     def _safe_market(self, getter, ticker: str) -> Optional[float]:
         try:

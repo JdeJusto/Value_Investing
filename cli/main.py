@@ -13,6 +13,7 @@ def main():
             '  main.py screener --search "apple"\n'
             "  main.py company AAPL\n"
             "  main.py analyze AAPL MSFT GOOGL\n"
+            "  main.py buffett-analysis AAPL\n"
             "  main.py load-data AAPL\n"
             "  main.py load-data AAPL --years 15 --force\n"
             "  main.py data-status AAPL\n"
@@ -26,6 +27,7 @@ def main():
         screener,
         company,
         analyze,
+        buffett_analysis,
         load_data,
         data_status,
         debug,
@@ -34,6 +36,7 @@ def main():
     screener.register(sub)
     company.register(sub)
     analyze.register(sub)
+    buffett_analysis.register(sub)
     load_data.register(sub)
     data_status.register(sub)
     debug.register(sub)

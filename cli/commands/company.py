@@ -74,7 +74,12 @@ def _run(args):
         ("Margen Neto", result.get("net_margin"), "fmt_pct", 1),
         ("FCF Yield", result.get("fcf_yield"), "fmt_pct", 1),
         ("EV/EBIT", result.get("ev_ebit"), "fmt_ratio", 1),
-        ("D/E", result.get("debt_to_equity") if "debt_to_equity" in result else None, "fmt_ratio", 2),
+        (
+            "D/E",
+            result.get("debt_to_equity") if "debt_to_equity" in result else None,
+            "fmt_ratio",
+            2,
+        ),
         ("Piotroski F-Score", result.get("piotroski_fscore"), "int", 0),
         ("Altman Z-Score", result.get("altman_zscore"), "fmt_ratio", 2),
         ("FCF Conversion", result.get("fcf_conversion"), "fmt_pct", 1),

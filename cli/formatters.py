@@ -132,4 +132,5 @@ def print_table(
 
 def remove_ansi(text: str) -> str:
     import re
+
     return re.sub(r"\033\[[0-9;]*m", "", text)

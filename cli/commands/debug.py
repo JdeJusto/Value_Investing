@@ -69,7 +69,11 @@ def _test_imports():
 
 
 def _test_filters():
-    from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
+    from backend.domain.value_objects.filter_criteria import (
+        FilterCriteria,
+        FilterOperator,
+    )
+
     tests = [
         (FilterCriteria.lt("per", 15), 10, True, "per < 15 con 10"),
         (FilterCriteria.lt("per", 15), 20, False, "per < 15 con 20"),
@@ -91,6 +95,7 @@ def _test_filters():
 
 def _test_services():
     from backend.app.cli import build_analysis_service, build_screener_service
+
     a = build_analysis_service()
     assert a is not None
     s = build_screener_service()
@@ -112,22 +117,28 @@ def _test_screener():
     elapsed = time.time() - start
 
     if results:
-        print(f"    {green(f'{len(results)}/3')} tickers pasan filtros en {elapsed:.1f}s")
+        print(
+            f"    {green(f'{len(results)}/3')} tickers pasan filtros en {elapsed:.1f}s"
+        )
         for r in results:
             per_str = fmt_ratio(r.per, 1) if r.per else dim("N/A")
             roe_str = fmt_pct(r.roe) if r.roe else dim("N/A")
             score_str = f"{r.score:.4f}" if r.score else dim("N/A")
-            print(f"      {r.ticker:>6}  PER: {per_str:>6}  ROE: {roe_str:>6}  Score: {score_str}")
+            print(
+                f"      {r.ticker:>6}  PER: {per_str:>6}  ROE: {roe_str:>6}  Score: {score_str}"
+            )
     else:
         print(f"    {yellow('Sin resultados para los tickers de prueba')}")
 
 
 def _test_tickers():
     from backend.providers.tickers import TICKERS
+
     print(f"    {len(TICKERS)} tickers en lista estatica")
     sample = ", ".join(TICKERS[:5])
     print(f"    Primeros: {sample}")
 
     from backend.providers.tickers import search_tickers
+
     results = search_tickers("AAPL")
     print(f"    Busqueda 'AAPL': {len(results)} resultados")

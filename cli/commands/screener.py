@@ -76,16 +76,32 @@ def _build_filters(args) -> list[FilterCriteria]:
                 filters.append(FilterCriteria.eq(field, parts[2]))
             elif operator == "<=":
                 from backend.domain.value_objects.filter_criteria import FilterOperator
-                filters.append(FilterCriteria(field=field, operator=FilterOperator.LTE, value=float(parts[2])))
+
+                filters.append(
+                    FilterCriteria(
+                        field=field, operator=FilterOperator.LTE, value=float(parts[2])
+                    )
+                )
             elif operator == ">=":
                 from backend.domain.value_objects.filter_criteria import FilterOperator
-                filters.append(FilterCriteria(field=field, operator=FilterOperator.GTE, value=float(parts[2])))
+
+                filters.append(
+                    FilterCriteria(
+                        field=field, operator=FilterOperator.GTE, value=float(parts[2])
+                    )
+                )
         except (IndexError, ValueError) as e:
             print(f"  {red('ERROR:')} Filtro invalido: '{raw}' — {e}")
             sys.exit(1)
 
-    if args.pb_min is not None and args.pb_max is not None and args.pb_min > args.pb_max:
-        print(f"  {red('ERROR:')} pb-min ({args.pb_min}) no puede ser mayor que pb-max ({args.pb_max})")
+    if (
+        args.pb_min is not None
+        and args.pb_max is not None
+        and args.pb_min > args.pb_max
+    ):
+        print(
+            f"  {red('ERROR:')} pb-min ({args.pb_min}) no puede ser mayor que pb-max ({args.pb_max})"
+        )
         sys.exit(1)
 
     return filters
@@ -204,32 +220,48 @@ def _run_screener(args):
         elif r.per and r.per > 30:
             per_s = red(per_s)
 
-        rows.append([r.ticker, name_trunc, price_s, per_s, pb_s, roe_s, roic_s, fcf_s, fcf_yield_s, de_s, score_s])
+        rows.append(
+            [
+                r.ticker,
+                name_trunc,
+                price_s,
+                per_s,
+                pb_s,
+                roe_s,
+                roic_s,
+                fcf_s,
+                fcf_yield_s,
+                de_s,
+                score_s,
+            ]
+        )
 
     print_table(headers, rows)
 
     if args.save:
         path = os.path.join(get_output_dir(), "screener_resultados.csv")
         os.makedirs(get_output_dir(), exist_ok=True)
-        pd.DataFrame([
-            {
-                "ticker": r.ticker,
-                "name": r.name,
-                "price": r.price,
-                "per": r.per,
-                "pb": r.pb,
-                "roe": r.roe,
-                "roic": r.roic,
-                "op_margin": r.operating_margin,
-                "net_margin": r.net_margin,
-                "fcf_yield": r.fcf_yield,
-                "ev_ebit": r.ev_ebit,
-                "debt_to_equity": r.debt_to_equity,
-                "fcf": r.fcf,
-                "score": r.score,
-            }
-            for r in results
-        ]).to_csv(path, index=False)
+        pd.DataFrame(
+            [
+                {
+                    "ticker": r.ticker,
+                    "name": r.name,
+                    "price": r.price,
+                    "per": r.per,
+                    "pb": r.pb,
+                    "roe": r.roe,
+                    "roic": r.roic,
+                    "op_margin": r.operating_margin,
+                    "net_margin": r.net_margin,
+                    "fcf_yield": r.fcf_yield,
+                    "ev_ebit": r.ev_ebit,
+                    "debt_to_equity": r.debt_to_equity,
+                    "fcf": r.fcf,
+                    "score": r.score,
+                }
+                for r in results
+            ]
+        ).to_csv(path, index=False)
         print(f"  Resultados guardados en {green(path)}")
 
 
@@ -244,23 +276,50 @@ def register(subparsers):
             {"max_help_position": 36},
         )(prog),
     )
-    p.add_argument("--tickers", type=str, help="Tickers separados por coma (ej: AAPL,MSFT,GOOGL)")
+    p.add_argument(
+        "--tickers", type=str, help="Tickers separados por coma (ej: AAPL,MSFT,GOOGL)"
+    )
     p.add_argument("--search", type=str, help="Buscar por ticker o nombre de empresa")
     p.add_argument("--per-max", type=float, metavar="N", help="PER maximo (ej: 15)")
     p.add_argument("--per-min", type=float, metavar="N", help="PER minimo")
     p.add_argument("--pb-max", type=float, metavar="N", help="P/B maximo (ej: 1.5)")
     p.add_argument("--pb-min", type=float, metavar="N", help="P/B minimo (ej: 1.0)")
-    p.add_argument("--roe-min", type=float, metavar="N", help="ROE minimo en %% (ej: 15)")
-    p.add_argument("--roic-min", type=float, metavar="N", help="ROIC minimo en %% (ej: 10)")
-    p.add_argument("--fcf-min", type=float, metavar="N", help="FCF minimo en USD (ej: 1000000)")
-    p.add_argument("--fcf-yield-min", type=float, metavar="N", help="FCF Yield minimo en %% (ej: 5)")
-    p.add_argument("--market-cap-min", type=float, metavar="N", help="Market Cap minimo en USD")
-    p.add_argument("--debt-to-equity-max", type=float, metavar="N", help="D/E maximo")
-    p.add_argument("--op-margin-min", type=float, metavar="N", help="Margen operativo minimo en %%")
-    p.add_argument("--net-margin-min", type=float, metavar="N", help="Margen neto minimo en %%")
-    p.add_argument("--top", type=int, default=30, metavar="N", help="Maximo de resultados (default: 30)")
     p.add_argument(
-        "--filter", action="append", default=[],
+        "--roe-min", type=float, metavar="N", help="ROE minimo en %% (ej: 15)"
+    )
+    p.add_argument(
+        "--roic-min", type=float, metavar="N", help="ROIC minimo en %% (ej: 10)"
+    )
+    p.add_argument(
+        "--fcf-min", type=float, metavar="N", help="FCF minimo en USD (ej: 1000000)"
+    )
+    p.add_argument(
+        "--fcf-yield-min",
+        type=float,
+        metavar="N",
+        help="FCF Yield minimo en %% (ej: 5)",
+    )
+    p.add_argument(
+        "--market-cap-min", type=float, metavar="N", help="Market Cap minimo en USD"
+    )
+    p.add_argument("--debt-to-equity-max", type=float, metavar="N", help="D/E maximo")
+    p.add_argument(
+        "--op-margin-min", type=float, metavar="N", help="Margen operativo minimo en %%"
+    )
+    p.add_argument(
+        "--net-margin-min", type=float, metavar="N", help="Margen neto minimo en %%"
+    )
+    p.add_argument(
+        "--top",
+        type=int,
+        default=30,
+        metavar="N",
+        help="Maximo de resultados (default: 30)",
+    )
+    p.add_argument(
+        "--filter",
+        action="append",
+        default=[],
         metavar="'campo < valor'",
         help='Filtro raw (uso avanzado): "per < 15", "pb between 1 1.5"',
     )
