@@ -38,6 +38,7 @@ from backend.analytics.valuation.dcf import DcfCalculator
 from backend.domain.interfaces.data_loader import DataLoader
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.interfaces.provider import MarketDataProvider
+from backend.domain.services import needs_refresh
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 
 logger = logging.getLogger("backend.analytics")
@@ -47,6 +48,10 @@ DEFAULT_WACC = 0.08
 DEFAULT_MARKET_RETURN = 0.10
 DEFAULT_RISK_FREE_RATE = 0.04
 DEFAULT_COST_OF_DEBT = 0.05
+
+HIGH_CONFIDENCE_QUALITY = 0.7
+HIGH_CONFIDENCE_COVERAGE = 0.8
+MEDIUM_CONFIDENCE_COVERAGE = 0.5
 
 
 def _equity_of(financials: NormalizedFinancials) -> Optional[float]:
@@ -258,18 +263,73 @@ class CompanyAnalysisService:
             operating_margin=result["operating_margin"],
         )
 
+        result.update(self._data_reliability(ticker, rows))
+
         return result
 
     # ------------------------------------------------------------------
     def _load_history(self, ticker: str) -> list[NormalizedFinancials]:
-        rows = self._repository.list_years(ticker)
+        rows = self._repository.get_best_available(ticker)
+        if rows and needs_refresh(rows):
+            rows = self._refresh_history(ticker)
         if not rows and self._loader is not None:
             try:
                 self._loader.load_ticker(ticker)
-                rows = self._repository.list_years(ticker)
+                rows = self._repository.get_best_available(ticker)
             except Exception:  # noqa: BLE001 — missing data must not kill analysis
                 logger.warning("analytics: could not load data for %s", ticker)
         return rows
+
+    def _refresh_history(self, ticker: str) -> list[NormalizedFinancials]:
+        if self._loader is None:
+            return self._repository.get_best_available(ticker)
+        try:
+            self._loader.load_ticker(ticker, force=True)
+        except Exception:  # noqa: BLE001
+            logger.warning("analytics: could not refresh data for %s", ticker)
+        return self._repository.get_best_available(ticker)
+
+    def _data_reliability(self, ticker: str, rows: list[NormalizedFinancials]) -> dict:
+        """Source consistency, confidence and quality metadata for the result."""
+        all_rows = self._repository.list_all(ticker)
+        available_years = {r.fiscal_year for r in all_rows}
+        used_years = {r.fiscal_year for r in rows}
+        coverage = len(used_years) / len(available_years) if available_years else 0.0
+        sources = sorted({r.source for r in rows})
+
+        if len(sources) > 1:
+            data_source_used = "MIXED"
+        else:
+            data_source_used = sources[0].value.upper() if sources else "UNKNOWN"
+
+        quality = self._mean(r.data_quality_score for r in rows)
+        completeness = self._mean(r.data_completeness for r in rows)
+
+        if len(sources) > 1:
+            confidence = "LOW"
+        elif coverage >= HIGH_CONFIDENCE_COVERAGE:
+            if quality is not None and quality >= HIGH_CONFIDENCE_QUALITY:
+                confidence = "HIGH"
+            else:
+                confidence = "MEDIUM"
+        elif coverage >= MEDIUM_CONFIDENCE_COVERAGE:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
+
+        return {
+            "data_source_used": data_source_used,
+            "confidence": confidence,
+            "data_quality_score": quality,
+            "data_completeness": completeness,
+            "data_coverage": coverage,
+            "data_refreshed": not needs_refresh(rows) if rows else False,
+        }
+
+    @staticmethod
+    def _mean(values) -> Optional[float]:
+        present = [v for v in values if v is not None]
+        return sum(present) / len(present) if present else None
 
     def _safe_market(self, getter, ticker: str) -> Optional[float]:
         try:

@@ -162,3 +162,79 @@ def test_analyze_never_calls_financial_providers(repo, market, service):
     service.analyze("AAPL")
     # if any provider attribute had been accessed, the getattr above would have raised
     assert True
+
+
+def _quality_record(year: int, source=ProviderName.YAHOO) -> NormalizedFinancials:
+    record = _full_record(year)
+    record.source = source
+    record.data_quality_score = 0.92
+    record.data_completeness = 1.0
+    record.is_complete = True
+    record.data_source_priority = 2 if source is ProviderName.YAHOO else 1
+    record.derived_metrics = ["free_cash_flow"]
+    return record
+
+
+def test_analyze_reports_single_source_high_confidence(repo, market, service):
+    repo.upsert_many([_quality_record(2024), _quality_record(2023)])
+
+    result = service.analyze("AAPL")
+
+    assert result["data_source_used"] == "YAHOO"
+    assert result["confidence"] == "HIGH"
+    assert result["data_quality_score"] == pytest.approx(0.92)
+    assert result["data_completeness"] == pytest.approx(1.0)
+    assert result["data_coverage"] == pytest.approx(1.0)
+    assert result["data_refreshed"] is True
+
+
+def test_analyze_mixed_sources_reports_low_confidence(repo, market, service):
+    repo.upsert_many(
+        [
+            _quality_record(2024, ProviderName.YAHOO),
+            _quality_record(2023, ProviderName.EDGAR),
+        ]
+    )
+
+    result = service.analyze("AAPL")
+
+    assert result["data_source_used"] == "MIXED"
+    assert result["confidence"] == "LOW"
+
+
+def test_analyze_prefers_complete_source_over_sparse(repo, market, service):
+    yahoo = _quality_record(2024, ProviderName.YAHOO)
+    edgar2024 = _quality_record(2024, ProviderName.EDGAR)
+    edgar2023 = _quality_record(2023, ProviderName.EDGAR)
+    repo.upsert_many([yahoo, edgar2024, edgar2023])
+
+    result = service.analyze("AAPL")
+
+    assert result["data_source_used"] == "EDGAR"
+    assert result["confidence"] == "HIGH"
+    assert result["data_coverage"] == pytest.approx(1.0)
+
+
+def test_analyze_refreshes_when_data_stale(repo, market):
+    from datetime import datetime, timedelta, timezone
+
+    def fresh_record():
+        record = _quality_record(2024)
+        record.loaded_at = datetime.now(timezone.utc)
+        return record
+
+    stale = fresh_record()
+    stale.loaded_at = datetime.now(timezone.utc) - timedelta(days=120)
+    repo.upsert(stale)
+    loader = RecordingLoader()
+    loader.load_ticker = lambda ticker, years=None, force=False: repo.upsert(
+        fresh_record()
+    )
+    service = CompanyAnalysisService(
+        repository=repo, market_provider=market, loader=loader
+    )
+
+    result = service.analyze("AAPL")
+
+    assert result is not None
+    assert result["data_refreshed"] is True
