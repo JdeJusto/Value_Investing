@@ -109,6 +109,7 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
                         period=item.period or ANNUAL_PERIOD,
                     )
                     session.add(model)
+                    existing[key] = model
                 self._apply(model, item)
             session.commit()
 

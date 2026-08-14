@@ -76,6 +76,41 @@ def test_list_years_sorted_desc(repo_fixture, request):
 
 
 @pytest.mark.parametrize("repo_fixture", ["json_repo", "sql_repo"])
+def test_upsert_many_with_duplicates_in_batch(repo_fixture, request):
+    """Duplicated keys inside one batch must collapse, not violate uniques."""
+    repo = request.getfixturevalue(repo_fixture)
+    repo.upsert_many(
+        [
+            _record("AAPL", 2024, 391.0),
+            _record("AAPL", 2024, 400.0),
+            _record("AAPL", 2024, 410.0),
+        ]
+    )
+
+    records = repo.list_years("AAPL")
+    assert len(records) == 1
+    assert records[0].revenue == 410.0
+
+
+@pytest.mark.parametrize("repo_fixture", ["json_repo", "sql_repo"])
+def test_upsert_many_mixed_existing_and_new(repo_fixture, request):
+    """Re-loading (years already stored) merges instead of duplicating."""
+    repo = request.getfixturevalue(repo_fixture)
+    repo.upsert_many([_record("AAPL", 2023, 383.0)])
+    repo.upsert_many(
+        [
+            _record("AAPL", 2023, 385.0),
+            _record("AAPL", 2024, 391.0),
+        ]
+    )
+
+    records = {r.fiscal_year: r for r in repo.list_years("AAPL")}
+    assert set(records) == {2023, 2024}
+    assert records[2023].revenue == 385.0
+    assert records[2024].revenue == 391.0
+
+
+@pytest.mark.parametrize("repo_fixture", ["json_repo", "sql_repo"])
 def test_has_data_and_delete(repo_fixture, request):
     repo = request.getfixturevalue(repo_fixture)
     assert repo.has_data("AAPL") is False
