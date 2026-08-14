@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 
 
 def main():
@@ -25,11 +25,12 @@ def main():
             "  main.py opportunities\n"
             "  main.py anomalies AAPL\n"
             "  main.py momentum\n"
-            "  main.py portfolio add AAPL 10 180 --thesis \"moat fuerte\"\n"
+            '  main.py portfolio add AAPL 10 180 --thesis "moat fuerte"\n'
             "  main.py portfolio view\n"
             "  main.py portfolio performance\n"
             "  main.py backtest --strategy momentum --top 3\n"
             "  main.py backtest --strategy buffett --prices precios.csv\n"
+            "  main.py alerts\n"
             "  main.py debug\n"
         ),
     )
@@ -47,6 +48,7 @@ def main():
         momentum,
         portfolio,
         backtest,
+        alerts,
         debug,
     )
 
@@ -61,6 +63,7 @@ def main():
     momentum.register(sub)
     portfolio.register(sub)
     backtest.register(sub)
+    alerts.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:
