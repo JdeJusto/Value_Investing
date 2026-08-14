@@ -33,6 +33,18 @@ class PipelineError(Exception):
     """Raised when no provider could produce usable data for a ticker."""
 
 
+def _usable_count(normalized: list[NormalizedFinancials]) -> int:
+    """Years carrying real fundamentals (quality above the shell threshold)."""
+    from backend.repositories.source_selection import USABLE_QUALITY_THRESHOLD
+
+    return sum(
+        1
+        for row in normalized
+        if row.data_quality_score is not None
+        and row.data_quality_score >= USABLE_QUALITY_THRESHOLD
+    )
+
+
 @dataclass(slots=True)
 class LoadResult:
     """Outcome of loading one ticker's financial history."""
@@ -106,7 +118,13 @@ class DataPipelineService(DataLoader):
             providers.append(self._fallback)
 
         last_error: Optional[str] = None
-        for provider in providers:
+        best: Optional[tuple[list[NormalizedFinancials], type]] = None
+        for index, provider in enumerate(providers):
+            if index > 0 and best is not None:
+                # The primary delivered enough usable years; the fallback
+                # would only add network cost without improving coverage.
+                if _usable_count(best[0]) >= history_years:
+                    break
             try:
                 raw_years = self._fetch_history(provider, ticker, history_years)
                 if not raw_years:
@@ -120,24 +138,31 @@ class DataPipelineService(DataLoader):
                     )
                     logger.warning("pipeline: %s %s", ticker, last_error)
                     continue
-                self._store(ticker, normalized)
-                logger.info(
-                    "pipeline: %s stored %d years from %s",
-                    ticker,
-                    len(normalized),
-                    type(provider).__name__,
-                )
-                return LoadResult(
-                    ticker=ticker,
-                    source=normalized[0].source,
-                    years_loaded=len(normalized),
-                    statements=normalized,
-                )
+                if best is None or _usable_count(normalized) > _usable_count(best[0]):
+                    best = (normalized, type(provider))
+                if _usable_count(normalized) >= history_years:
+                    break
             except Exception as exc:  # noqa: BLE001 — provider failures are expected
                 last_error = f"{type(provider).__name__}: {exc}"
                 logger.exception(
                     "pipeline: %s failed via %s", ticker, type(provider).__name__
                 )
+
+        if best is not None:
+            normalized, provider_type = best
+            self._store(ticker, normalized)
+            logger.info(
+                "pipeline: %s stored %d years from %s",
+                ticker,
+                len(normalized),
+                provider_type.__name__,
+            )
+            return LoadResult(
+                ticker=ticker,
+                source=normalized[0].source,
+                years_loaded=len(normalized),
+                statements=normalized,
+            )
 
         raise PipelineError(f"No financial data available for {ticker} ({last_error})")
 

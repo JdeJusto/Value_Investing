@@ -115,6 +115,7 @@ def test_get_best_available_blends_when_no_consistency(repo_fixture, request):
 
 
 def test_choose_history_uses_priority_then_coverage_then_quality():
+    """A higher-priority source wins only when its rows are usable."""
     rows = [
         _record(2025, ProviderName.YAHOO, complete=False, derived=False),
         _record(2024, ProviderName.YAHOO, complete=False, derived=False),
@@ -122,12 +123,40 @@ def test_choose_history_uses_priority_then_coverage_then_quality():
         _record(2025, ProviderName.EDGAR, complete=True, derived=True),
     ]
     selected = choose_history(rows)
+    assert {r.source for r in selected} == {ProviderName.EDGAR}
+    assert len(selected) == 1
+
+
+def test_choose_history_prefers_usable_yahoo_over_shells_of_both():
+    """Real Yahoo rows beat shells even when EDGAR has more stored years."""
+    rows = [
+        _record(2024, ProviderName.YAHOO),
+        _record(2024, ProviderName.EDGAR, complete=False, derived=False),
+        _record(2023, ProviderName.EDGAR, complete=False, derived=False),
+    ]
+    selected = choose_history(rows)
     assert {r.source for r in selected} == {ProviderName.YAHOO}
+    assert [r.fiscal_year for r in selected] == [2024]
 
 
 def test_choose_history_favours_full_edgar_when_yahoo_sparse():
     rows = [
         _record(2025, ProviderName.YAHOO),
+        _record(2025, ProviderName.EDGAR),
+        _record(2024, ProviderName.EDGAR),
+        _record(2023, ProviderName.EDGAR),
+    ]
+    selected = choose_history(rows)
+    assert {r.source for r in selected} == {ProviderName.EDGAR}
+    assert len(selected) == 3
+
+
+def test_choose_history_ignores_empty_shells_for_coverage():
+    """Coverage counts usable years only; shells must not outweigh real data."""
+    rows = [
+        _record(2025, ProviderName.YAHOO),
+        _record(2024, ProviderName.YAHOO, complete=False, derived=False),
+        _record(2023, ProviderName.YAHOO, complete=False, derived=False),
         _record(2025, ProviderName.EDGAR),
         _record(2024, ProviderName.EDGAR),
         _record(2023, ProviderName.EDGAR),

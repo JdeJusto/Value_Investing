@@ -105,6 +105,35 @@ class MockEdgarProvider(FinancialDataProvider):
         return CashFlowStatement(operating_cash_flow=200, free_cash_flow=150)
 
 
+class MockDeepEdgarProvider(FinancialDataProvider):
+    """EDGAR with a longer complete history than the primary provider."""
+
+    def get_income_statement(self, ticker, year_index=0):
+        if year_index >= 5:
+            return None
+        return IncomeStatement(revenue=50 - year_index, ebit=15, net_income=10)
+
+    def get_balance_sheet(self, ticker, year_index=0):
+        if year_index >= 5:
+            return None
+        return BalanceSheet(total_assets=400, total_liabilities=200)
+
+    def get_cash_flow(self, ticker, year_index=0):
+        if year_index >= 5:
+            return None
+        return CashFlowStatement(operating_cash_flow=30, free_cash_flow=20)
+
+
+class DeepEdgarNormalizer(YahooNormalizer):
+    """Yahoo-format normalizer that labels its output as EDGAR data."""
+
+    def normalize(self, raw):
+        row = super().normalize(raw)
+        if row is not None:
+            row.source = ProviderName.EDGAR
+        return row
+
+
 @pytest.fixture
 def repo(tmp_path):
     return JsonFinancialRepository(tmp_path / "normalized")
@@ -138,6 +167,28 @@ def test_load_ticker_fetches_normalizes_and_persists(pipeline, repo):
     assert records[0].free_cash_flow == 40
     assert records[0].source == ProviderName.YAHOO
     assert records[0].shares_outstanding == 1_000_000_000
+
+
+def test_load_ticker_prefers_fallback_when_it_covers_more_years(repo):
+    """A shallow primary must not block the richer fallback provider."""
+    service = DataPipelineService(
+        repository=repo,
+        primary=MockYahooProvider(),
+        fallback=MockDeepEdgarProvider(),
+        market=MockMarketProvider(),
+        normalizers={
+            MockYahooProvider: YahooNormalizer(),
+            MockDeepEdgarProvider: DeepEdgarNormalizer(),
+        },
+        default_years=5,
+    )
+
+    result = service.load_ticker("AAPL")
+
+    assert result.source == ProviderName.EDGAR
+    assert result.years_loaded == 5
+    records = repo.list_years("AAPL")
+    assert len(records) == 5
 
 
 def test_load_ticker_uses_cache_without_refetch(pipeline, repo):

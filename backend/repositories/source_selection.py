@@ -16,6 +16,17 @@ from backend.providers.normalizers.quality import SOURCE_PRIORITY
 # A single source covering at least this share of the stored years is used as-is.
 FULL_COVERAGE_THRESHOLD = 0.8
 
+# Rows below this quality are empty shells (no usable fundamentals);
+# they must never count towards a source's coverage.
+USABLE_QUALITY_THRESHOLD = 0.5
+
+
+def _usable(record: NormalizedFinancials) -> bool:
+    quality = record.data_quality_score
+    # Rows without a score (hand-built records) are treated as usable;
+    # scored empty shells are filtered by the threshold.
+    return quality is None or quality >= USABLE_QUALITY_THRESHOLD
+
 
 def record_rank(record: NormalizedFinancials) -> tuple:
     """Higher is better: source priority first, then quality score."""
@@ -50,16 +61,22 @@ def choose_history(rows: list[NormalizedFinancials]) -> list[NormalizedFinancial
 
     ranked: list[tuple] = []
     for source, yearly in by_source.items():
-        coverage = len(yearly) / total_years
-        mean_quality = sum(
-            r.data_quality_score if r.data_quality_score is not None else 0.0
-            for r in yearly
-        ) / len(yearly)
+        usable = [r for r in yearly if _usable(r)]
+        coverage = len(usable) / total_years
+        mean_quality = (
+            sum(
+                r.data_quality_score if r.data_quality_score is not None else 0.0
+                for r in usable
+            )
+            / len(usable)
+            if usable
+            else 0.0
+        )
         priority = max(
             (r.data_source_priority for r in yearly),
             default=SOURCE_PRIORITY.get(ProviderName(source), 0),
         )
-        ranked.append((priority, coverage, mean_quality, source, yearly))
+        ranked.append((priority, coverage, mean_quality, source, usable))
 
     ranked.sort(
         key=lambda t: (t[1] >= FULL_COVERAGE_THRESHOLD, t[0], t[1], t[2]), reverse=True
@@ -68,4 +85,10 @@ def choose_history(rows: list[NormalizedFinancials]) -> list[NormalizedFinancial
 
     if best_coverage >= FULL_COVERAGE_THRESHOLD:
         return sorted(best_yearly, key=lambda r: r.fiscal_year, reverse=True)
-    return best_per_year(rows)
+
+    # No single source covers enough history: blend the best usable
+    # record per year and drop the empty shells entirely.
+    usable = [r for r in rows if _usable(r)]
+    if not usable:
+        return []
+    return best_per_year(usable)
