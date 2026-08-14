@@ -31,6 +31,8 @@ def main():
             "  main.py backtest --strategy momentum --top 3\n"
             "  main.py backtest --strategy buffett --prices precios.csv\n"
             "  main.py alerts\n"
+            '  main.py watchlist add AAPL --note "pendiente de entry"\n'
+            "  main.py watchlist list\n"
             "  main.py debug\n"
         ),
     )
@@ -49,6 +51,7 @@ def main():
         portfolio,
         backtest,
         alerts,
+        watchlist,
         debug,
     )
 
@@ -64,6 +67,7 @@ def main():
     portfolio.register(sub)
     backtest.register(sub)
     alerts.register(sub)
+    watchlist.register(sub)
     debug.register(sub)
 
     if len(sys.argv) == 1:

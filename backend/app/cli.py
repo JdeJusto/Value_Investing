@@ -110,6 +110,19 @@ def build_portfolio_service():
     )
 
 
+def build_watchlist_service():
+    """Watchlist monitoring wired to the analytics layer for enrichment."""
+    from backend.watchlist.watchlist_repository import JsonWatchlistRepository
+    from backend.watchlist.watchlist_service import WatchlistService
+
+    return WatchlistService(
+        repository=JsonWatchlistRepository(
+            os.getenv("WATCHLIST_PATH", "data/watchlist.json")
+        ),
+        analyzer=build_analysis_service().analyze,
+    )
+
+
 def _company_enrichment():
     def enrich(ticker: str, item: dict) -> dict:
         company = CompanyRepository().find_by_ticker(ticker)
