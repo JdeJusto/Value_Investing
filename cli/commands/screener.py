@@ -100,7 +100,8 @@ def _build_filters(args) -> list[FilterCriteria]:
         and args.pb_min > args.pb_max
     ):
         print(
-            f"  {red('ERROR:')} pb-min ({args.pb_min}) no puede ser mayor que pb-max ({args.pb_max})"
+            f"  {red('ERROR:')} pb-min ({args.pb_min}) no puede ser mayor "
+            f"que pb-max ({args.pb_max})"
         )
         sys.exit(1)
 
@@ -109,7 +110,7 @@ def _build_filters(args) -> list[FilterCriteria]:
 
 def _show_search_results(service, query: str):
     print_header(f"Busqueda: '{query}'")
-    print(f"  Buscando tickers...", end=" ")
+    print("  Buscando tickers...", end=" ")
     sys.stdout.flush()
     try:
         matches = service.search(query)
@@ -352,10 +353,22 @@ def _parse_investment_filters(raw_filters: list[str]) -> dict:
     }
     for raw in raw_filters:
         if "=" not in raw:
-            continue
+            print(
+                f"  {red('ERROR:')} '{raw}' no es un filtro de calidad Buffett. "
+                "No se pueden mezclar filtros raw y de igualdad; usa uno u otro motor."
+            )
+            sys.exit(1)
         key, _, value = raw.partition("=")
         key = key.strip()
         value = value.strip()
+        if key not in numeric_keys and key not in {
+            "moat",
+            "sector",
+            "industry",
+            "confidence",
+        }:
+            print(f"  {red('ERROR:')} Filtro desconocido '{key}'.")
+            sys.exit(1)
         try:
             criteria[key] = float(value) if key in numeric_keys else value
         except ValueError:
@@ -416,7 +429,28 @@ def _run_investment_screener(args) -> None:
 
 
 def _run(args):
-    if any("=" in f for f in args.filter):
+    uses_buffett = any("=" in f for f in args.filter)
+    if uses_buffett:
+        market_flags = [
+            args.per_max,
+            args.per_min,
+            args.pb_max,
+            args.pb_min,
+            args.roe_min,
+            args.roic_min,
+            args.fcf_yield_min,
+            args.market_cap_min,
+            args.debt_to_equity_max,
+            args.op_margin_min,
+            args.net_margin_min,
+        ]
+        if any(v is not None for v in market_flags):
+            print(
+                f"  {red('ERROR:')} No se pueden mezclar filtros de igualdad "
+                "(--filter moat=STRONG) con los filtros numericos "
+                "(--per-max, --roe-min, ...). Usa solo un motor."
+            )
+            sys.exit(1)
         _run_investment_screener(args)
     elif args.search:
         service = build_screener_service()

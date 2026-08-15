@@ -1,10 +1,10 @@
 """Backtesting package: strategies, simulator and engine."""
 
-from backend.backtesting.engine import (
+from backend.backtesting.engine import (  # noqa: F401
     run_backtest,
     snapshot_year,
     sort_snapshots,
-)  # noqa: F401
+)
 from backend.backtesting.strategy import (  # noqa: F401
     STRATEGIES,
     buffett_strategy,

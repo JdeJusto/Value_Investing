@@ -4,5 +4,4 @@ from typing import Any
 
 class MetricCalculator(ABC):
     @abstractmethod
-    def calculate(self, **kwargs) -> Any:
-        ...
+    def calculate(self, **kwargs) -> Any: ...

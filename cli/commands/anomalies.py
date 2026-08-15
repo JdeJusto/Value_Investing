@@ -1,6 +1,6 @@
 from backend.app.cli import build_analysis_service, build_universe
 from backend.intelligence.anomaly_detection import anomaly_summary
-from cli.formatters import bold, dim, green, print_header, red, yellow
+from cli.formatters import bold, green, print_header, red, yellow
 
 
 def register(subparsers):

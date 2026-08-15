@@ -1,15 +1,16 @@
-import sys
-
 from backend.analytics.interpretation import print_analysis as _print_analysis
 from backend.app.cli import build_analysis_service
-from cli.formatters import Colors, dim, green, red, print_header, bold
+from cli.formatters import print_header, red
 
 
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze",
         help="Analisis fundamental completo de uno o varios tickers",
-        description="Ejecuta el analisis completo (ratios, scoring, DCF) y muestra resultados detallados.",
+        description=(
+            "Ejecuta el analisis completo (ratios, scoring, DCF) y "
+            "muestra resultados detallados."
+        ),
     )
     p.add_argument(
         "tickers",

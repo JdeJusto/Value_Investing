@@ -1,5 +1,5 @@
-from backend.app.cli import build_analysis_service
 from backend.analytics.interpretation import print_analysis
+from backend.app.cli import build_analysis_service
 from cli.formatters import (
     bold,
     dim,

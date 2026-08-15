@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,10 +17,15 @@ def get_output_dir() -> str:
     return os.getenv("OUTPUT_DIR", "outputs")
 
 
-def get_database_url() -> str:
+def get_database_url(sync: bool = False) -> str:
+    if sync:
+        return os.getenv(
+            "SYNC_DATABASE_URL",
+            "postgresql+psycopg2://postgres:postgres@localhost:5432/value_investing",
+        )
     return os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/value_investing",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/value_investing",
     )
 
 

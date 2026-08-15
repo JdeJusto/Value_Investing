@@ -1,10 +1,8 @@
-import math
-
 from backend.alerts import (
-    Alert,
     BUY_SIGNAL,
     SELL_WARNING,
     TRIGGER_EVENT,
+    Alert,
     ConsoleNotifier,
     Notifier,
     dedupe,
@@ -15,8 +13,8 @@ from backend.alerts import (
     to_dicts,
     trigger_label,
 )
-from backend.screener.signals import detect_trigger
 from backend.screener.ranking_engine import rank_score
+from backend.screener.signals import detect_trigger
 
 
 def make_analysis(total, confidence="HIGH", buffett=80, deltas=None):

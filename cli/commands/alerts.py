@@ -1,8 +1,10 @@
 """CLI: run the alert engine over the universe and notify."""
 
-from backend.alerts import run, to_dicts
+import sys
+
+from backend.alerts import run
 from backend.app.cli import build_analysis_service, build_universe
-from cli.formatters import bold, green, print_header, yellow
+from cli.formatters import bold, green, print_header, red, yellow
 
 
 def register(subparsers):
@@ -32,8 +34,15 @@ def register(subparsers):
 def _load_state(path):
     import json
 
-    with open(path, encoding="utf-8") as handle:
-        return json.load(handle)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+    except FileNotFoundError:
+        print(f"  {red('ERROR:')} No existe el archivo de estado '{path}'.")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"  {red('ERROR:')} El archivo de estado '{path}' no es JSON valido.")
+        sys.exit(1)
 
 
 def _run(args):

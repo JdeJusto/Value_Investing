@@ -1,5 +1,6 @@
 import math
 
+
 def interpret_roe(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -8,6 +9,7 @@ def interpret_roe(val):
     if val > 0.08:
         return "Aceptable (8-15%)"
     return "Malo (<8%)"
+
 
 def interpret_pb(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -18,6 +20,7 @@ def interpret_pb(val):
         return "Normal (1.5-3)"
     return "Caro (>3)"
 
+
 def interpret_fcf_yield(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -26,6 +29,7 @@ def interpret_fcf_yield(val):
     if val > 0.03:
         return "Aceptable (3-6%)"
     return "Bajo (<3%)"
+
 
 def interpret_op_margin(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -36,6 +40,7 @@ def interpret_op_margin(val):
         return "Normal (10-20%)"
     return "Bajo (<10%)"
 
+
 def interpret_net_margin(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -44,6 +49,7 @@ def interpret_net_margin(val):
     if val > 0.05:
         return "Aceptable (5-15%)"
     return "Bajo (<5%)"
+
 
 def interpret_roic(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -54,6 +60,7 @@ def interpret_roic(val):
         return "Normal (6-12%)"
     return "Malo (<6%)"
 
+
 def interpret_inc_roic(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -62,6 +69,7 @@ def interpret_inc_roic(val):
     if val > 0:
         return "Positivo pero bajo"
     return "Destruyendo valor"
+
 
 def interpret_ev_ebit(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -72,10 +80,12 @@ def interpret_ev_ebit(val):
         return "Razonable (10-18x)"
     return "Caro (>18x)"
 
+
 def interpret_owner_earnings(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
     return f"{val:,.0f} USD"
+
 
 def interpret_piotroski(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -86,6 +96,7 @@ def interpret_piotroski(val):
         return "Normal (5-7)"
     return "Debil (<5)"
 
+
 def interpret_altman_z(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -94,6 +105,7 @@ def interpret_altman_z(val):
     if val > 1.8:
         return "Zona gris"
     return "Riesgo de quiebra"
+
 
 def interpret_net_debt_ebitda(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -104,6 +116,7 @@ def interpret_net_debt_ebitda(val):
         return "Aceptable (1-3)"
     return "Endeudado (>3)"
 
+
 def interpret_interest_coverage(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -112,6 +125,7 @@ def interpret_interest_coverage(val):
     if val > 2:
         return "Riesgo moderado (2-5x)"
     return "Alto riesgo (<2x)"
+
 
 def interpret_gm_stability(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -122,6 +136,7 @@ def interpret_gm_stability(val):
         return "Algo variable (3-8%)"
     return "Volatil (>8%)"
 
+
 def interpret_fcf_conversion(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
@@ -130,6 +145,7 @@ def interpret_fcf_conversion(val):
     if val > 0.5:
         return "Normal (50-80%)"
     return "Debil (<50%)"
+
 
 def interpret_croic(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -140,13 +156,16 @@ def interpret_croic(val):
         return "Aceptable (4-10%)"
     return "Bajo (<4%)"
 
+
 def interpret_acquirers_multiple(val):
     return interpret_ev_ebit(val)
+
 
 def interpret_dcf_value(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
     return f"{val:,.0f} USD"
+
 
 def interpret_shareholder_yield(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -156,6 +175,7 @@ def interpret_shareholder_yield(val):
     if val > 0.02:
         return "Moderado (2-4%)"
     return "Bajo (<2%)"
+
 
 INTERPRETERS = {
     "roe": interpret_roe,
@@ -180,12 +200,27 @@ INTERPRETERS = {
 }
 
 METRICS_ORDER = [
-    "roe", "pb", "fcf_yield", "operating_margin", "net_margin",
-    "roic", "incremental_roic", "ev_ebit", "owner_earnings",
-    "piotroski_fscore", "altman_zscore", "net_debt_to_ebitda",
-    "interest_coverage", "gross_margin_stability", "fcf_conversion",
-    "croic", "acquirers_multiple", "dcf_value", "shareholder_yield"
+    "roe",
+    "pb",
+    "fcf_yield",
+    "operating_margin",
+    "net_margin",
+    "roic",
+    "incremental_roic",
+    "ev_ebit",
+    "owner_earnings",
+    "piotroski_fscore",
+    "altman_zscore",
+    "net_debt_to_ebitda",
+    "interest_coverage",
+    "gross_margin_stability",
+    "fcf_conversion",
+    "croic",
+    "acquirers_multiple",
+    "dcf_value",
+    "shareholder_yield",
 ]
+
 
 def format_metric_value(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -199,13 +234,14 @@ def format_metric_value(val):
             return f"{val:.4f}"
     return str(val)
 
+
 def print_analysis(result):
     ticker = result.get("ticker", "?")
     score = result.get("score", None)
     print(f"\n{'='*60}")
     label = f"{ticker} - Score: {score:.4f}" if score else f"{ticker} - Sin score"
     print(f"{ticker} {label}")
-    print('='*60)
+    print("=" * 60)
 
     for metric in METRICS_ORDER:
         val = result.get(metric)
@@ -219,4 +255,4 @@ def print_analysis(result):
         if extra in result and result[extra] is not None:
             val = result[extra]
             print(f"{extra:>25} : {format_metric_value(val)} USD")
-    print('='*60)
+    print("=" * 60)

@@ -4,11 +4,13 @@ Revision ID: 001
 Revises:
 Create Date: 2026-07-15
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision: str = "001"
 down_revision: Union[str, None] = None
@@ -28,8 +30,12 @@ def upgrade() -> None:
         sa.Column("market_cap", sa.Float(), nullable=True),
         sa.Column("enterprise_value", sa.Float(), nullable=True),
         sa.Column("beta", sa.Float(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=True
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.func.now(), nullable=True
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("ticker"),
     )
@@ -44,11 +50,15 @@ def upgrade() -> None:
         sa.Column("statement_type", sa.String(length=20), nullable=False),
         sa.Column("data", JSONB(), nullable=True),
         sa.Column("source", sa.String(length=50), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=True
+        ),
         sa.ForeignKeyConstraint(["ticker"], ["companies.ticker"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_financial_statements_ticker", "financial_statements", ["ticker"])
+    op.create_index(
+        "ix_financial_statements_ticker", "financial_statements", ["ticker"]
+    )
 
     op.create_table(
         "analysis_results",
@@ -58,7 +68,9 @@ def upgrade() -> None:
         sa.Column("metric_value", sa.Float(), nullable=True),
         sa.Column("fiscal_year", sa.Integer(), nullable=True),
         sa.Column("params", JSONB(), nullable=True),
-        sa.Column("calculated_at", sa.DateTime(), server_default=sa.func.now(), nullable=True),
+        sa.Column(
+            "calculated_at", sa.DateTime(), server_default=sa.func.now(), nullable=True
+        ),
         sa.ForeignKeyConstraint(["ticker"], ["companies.ticker"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

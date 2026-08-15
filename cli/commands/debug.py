@@ -1,20 +1,15 @@
-import sys
 import time
 
 from cli.formatters import (
-    Colors,
+    bold,
     dim,
     fmt_pct,
     fmt_ratio,
-    bold,
     green,
+    print_header,
+    print_separator,
     red,
     yellow,
-    print_header,
-    print_section,
-    print_key_value,
-    print_separator,
-    print_table,
 )
 
 
@@ -28,7 +23,6 @@ def register(subparsers):
 
 
 def _run(args):
-    errors = 0
     print_header("Diagnostico del Sistema", "═")
 
     print(f"  {bold('1. Importaciones basicas')}")
@@ -55,24 +49,21 @@ def _run(args):
 
 
 def _test_imports():
-    import backend.domain.value_objects.filter_criteria
-    import backend.domain.value_objects.screener_result
-    import backend.domain.interfaces.provider
-    import backend.providers.yahoo.provider
-    import backend.providers.tickers
-    import backend.analytics.service
-    import backend.analytics.ratios.per
-    import backend.analytics.ratios.debt_to_equity
-    import backend.analytics.ratios.revenue_growth
-    import backend.services.screener_service
-    import backend.app.cli
+    import backend.analytics.ratios.debt_to_equity  # noqa: F401
+    import backend.analytics.ratios.per  # noqa: F401
+    import backend.analytics.ratios.revenue_growth  # noqa: F401
+    import backend.analytics.service  # noqa: F401
+    import backend.app.cli  # noqa: F401
+    import backend.domain.interfaces.provider  # noqa: F401
+    import backend.domain.value_objects.filter_criteria  # noqa: F401
+    import backend.domain.value_objects.screener_result  # noqa: F401
+    import backend.providers.tickers  # noqa: F401
+    import backend.providers.yahoo.provider  # noqa: F401
+    import backend.services.screener_service  # noqa: F401
 
 
 def _test_filters():
-    from backend.domain.value_objects.filter_criteria import (
-        FilterCriteria,
-        FilterOperator,
-    )
+    from backend.domain.value_objects.filter_criteria import FilterCriteria
 
     tests = [
         (FilterCriteria.lt("per", 15), 10, True, "per < 15 con 10"),

@@ -15,7 +15,9 @@ async def list_alerts(
     user: UserModel = Depends(get_current_active_user),
 ):
     result = await db.execute(
-        select(AlertModel).where(AlertModel.user_id == user.id).order_by(AlertModel.created_at.desc())
+        select(AlertModel)
+        .where(AlertModel.user_id == user.id)
+        .order_by(AlertModel.created_at.desc())
     )
     return [AlertResponse.model_validate(a) for a in result.scalars().all()]
 
@@ -48,7 +50,9 @@ async def update_alert(
     user: UserModel = Depends(get_current_active_user),
 ):
     result = await db.execute(
-        select(AlertModel).where(AlertModel.id == alert_id, AlertModel.user_id == user.id)
+        select(AlertModel).where(
+            AlertModel.id == alert_id, AlertModel.user_id == user.id
+        )
     )
     alert = result.scalar_one_or_none()
     if alert is None:
@@ -71,7 +75,9 @@ async def toggle_alert(
     user: UserModel = Depends(get_current_active_user),
 ):
     result = await db.execute(
-        select(AlertModel).where(AlertModel.id == alert_id, AlertModel.user_id == user.id)
+        select(AlertModel).where(
+            AlertModel.id == alert_id, AlertModel.user_id == user.id
+        )
     )
     alert = result.scalar_one_or_none()
     if alert is None:
@@ -88,7 +94,9 @@ async def delete_alert(
     user: UserModel = Depends(get_current_active_user),
 ):
     result = await db.execute(
-        select(AlertModel).where(AlertModel.id == alert_id, AlertModel.user_id == user.id)
+        select(AlertModel).where(
+            AlertModel.id == alert_id, AlertModel.user_id == user.id
+        )
     )
     alert = result.scalar_one_or_none()
     if alert is None:

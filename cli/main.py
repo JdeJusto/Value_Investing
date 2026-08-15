@@ -39,20 +39,20 @@ def main():
     sub = parser.add_subparsers(dest="command", title="Comandos")
 
     from cli.commands import (
-        screener,
-        company,
-        analyze,
-        buffett_analysis,
-        load_data,
-        data_status,
-        opportunities,
-        anomalies,
-        momentum,
-        portfolio,
-        backtest,
         alerts,
-        watchlist,
+        analyze,
+        anomalies,
+        backtest,
+        buffett_analysis,
+        company,
+        data_status,
         debug,
+        load_data,
+        momentum,
+        opportunities,
+        portfolio,
+        screener,
+        watchlist,
     )
 
     screener.register(sub)

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -40,7 +41,9 @@ DEFAULT_GROWTH_RATE = float(os.getenv("DEFAULT_GROWTH_RATE", "0.05"))
 DEFAULT_TERMINAL_GROWTH = float(os.getenv("DEFAULT_TERMINAL_GROWTH", "0.02"))
 DCF_PROJECTION_YEARS = int(os.getenv("DCF_PROJECTION_YEARS", "5"))
 
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
+).split(",")
 
 FINANCIAL_CACHE_TTL = int(os.getenv("FINANCIAL_CACHE_TTL", "900"))
 ANALYSIS_CACHE_TTL = int(os.getenv("ANALYSIS_CACHE_TTL", "3600"))

@@ -1,23 +1,19 @@
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics.interpretation import INTERPRETERS, METRICS_ORDER, format_metric_value
 from backend.api.deps import get_current_active_user, get_db
-from backend.core.config import SEC_EMAIL, SEC_NAME
+from backend.app.cli import build_data_pipeline, build_financial_repository
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.models import ScreenerJobModel, UserModel
 from backend.providers.cache.memory import MemoryCache
-from backend.providers.edgar import EdgarProvider
 from backend.providers.tickers import TICKERS
 from backend.providers.yahoo import YahooFinanceProvider
 from backend.schemas import (
-    AnalysisResponse,
     FilterSchema,
-    MetricInterpretation,
     ScreenerJobResponse,
     ScreenerJobStatus,
     ScreenerRequest,
@@ -29,12 +25,22 @@ router = APIRouter(prefix="/screener", tags=["screener"])
 _CACHE = MemoryCache()
 
 
+def _py_scalar(value):
+    if isinstance(value, dict):
+        return {k: _py_scalar(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_py_scalar(v) for v in value]
+    if value is None or type(value).__module__ == "builtins":
+        return value
+    return value.item() if hasattr(value, "item") else value
+
+
 def _get_screener_service() -> StockScreenerService:
     yahoo = YahooFinanceProvider()
-    edgar = EdgarProvider(email=SEC_EMAIL, name=SEC_NAME)
     return StockScreenerService(
-        financial_providers=[yahoo, edgar],
+        repository=build_financial_repository(),
         market_provider=yahoo,
+        loader=build_data_pipeline(),
     )
 
 
@@ -44,7 +50,9 @@ def _filters_from_schema(schemas: list[FilterSchema]) -> list[FilterCriteria]:
         try:
             op = FilterOperator(s.operator)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid operator: {s.operator}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid operator: {s.operator}"
+            )
         filters.append(FilterCriteria(field=s.field, operator=op, value=s.value))
     return filters
 
@@ -75,7 +83,6 @@ async def run_screener(
 
     try:
         tickers = body.tickers if body.tickers else TICKERS
-        total = len(tickers)
 
         def progress_cb(current, total, ticker):
             pass
@@ -90,21 +97,23 @@ async def run_screener(
 
         serializable = []
         for r in results:
-            serializable.append({
-                "ticker": r.ticker,
-                "name": r.name,
-                "price": r.price,
-                "market_cap": r.market_cap,
-                "per": r.per,
-                "pb": r.pb,
-                "roe": r.roe,
-                "roic": r.roic,
-                "fcf_yield": r.fcf_yield,
-                "ev_ebit": r.ev_ebit,
-                "debt_to_equity": r.debt_to_equity,
-                "score": r.score,
-                "extra": r.extra,
-            })
+            serializable.append(
+                {
+                    "ticker": _py_scalar(r.ticker),
+                    "name": _py_scalar(r.name),
+                    "price": _py_scalar(r.price),
+                    "market_cap": _py_scalar(r.market_cap),
+                    "per": _py_scalar(r.per),
+                    "pb": _py_scalar(r.pb),
+                    "roe": _py_scalar(r.roe),
+                    "roic": _py_scalar(r.roic),
+                    "fcf_yield": _py_scalar(r.fcf_yield),
+                    "ev_ebit": _py_scalar(r.ev_ebit),
+                    "debt_to_equity": _py_scalar(r.debt_to_equity),
+                    "score": _py_scalar(r.score),
+                    "extra": _py_scalar(r.extra),
+                }
+            )
 
         job.status = "completed"
         job.results = serializable

@@ -1,5 +1,5 @@
 import math
-from typing import Any, Optional
+from typing import Optional
 
 
 class Colors:

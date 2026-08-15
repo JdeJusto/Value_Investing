@@ -96,7 +96,7 @@ def compounders(item: dict) -> Optional[dict]:
         and cagr >= COMPOUNDER_MIN_CAGR
         and fcf is not None
         and fcf >= 0.8
-        and retained
+        and retained is True
     ):
         reasons = [
             f"sustained ROIC of {roic:.0%}",

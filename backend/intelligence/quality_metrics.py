@@ -304,6 +304,8 @@ def compute_quality_metrics(
         "debt_trend": debt_trend(rows),
         "net_income_change": net_income_change(rows),
         "retained_earnings_positive": (
-            last.retained_earnings is not None and last.retained_earnings >= 0
+            True
+            if last.retained_earnings is not None and last.retained_earnings >= 0
+            else False if last.retained_earnings is not None else None
         ),
     }

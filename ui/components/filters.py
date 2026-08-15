@@ -1,4 +1,5 @@
 import streamlit as st
+
 from backend.domain.value_objects.filter_criteria import FilterCriteria
 
 FILTER_FIELDS = {
@@ -38,11 +39,23 @@ def render_filter_controls() -> list[FilterCriteria]:
             val = st.sidebar.number_input(
                 f"{label} máx",
                 value=None,
-                step=0.01 if field in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin") else 1.0,
+                step=(
+                    0.01
+                    if field
+                    in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin")
+                    else 1.0
+                ),
                 key=f"max_{field}",
             )
             if val is not None:
-                if field in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin", "revenue_growth"):
+                if field in (
+                    "roe",
+                    "roic",
+                    "fcf_yield",
+                    "net_margin",
+                    "operating_margin",
+                    "revenue_growth",
+                ):
                     filters.append(FilterCriteria.lt(field, val))
                 else:
                     filters.append(FilterCriteria.lt(field, val))
@@ -51,11 +64,23 @@ def render_filter_controls() -> list[FilterCriteria]:
             val = st.sidebar.number_input(
                 f"{label} mín",
                 value=None,
-                step=0.01 if field in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin") else 1.0,
+                step=(
+                    0.01
+                    if field
+                    in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin")
+                    else 1.0
+                ),
                 key=f"min_{field}",
             )
             if val is not None:
-                if field in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin", "revenue_growth"):
+                if field in (
+                    "roe",
+                    "roic",
+                    "fcf_yield",
+                    "net_margin",
+                    "operating_margin",
+                    "revenue_growth",
+                ):
                     filters.append(FilterCriteria.gt(field, val))
                 else:
                     filters.append(FilterCriteria.gt(field, val))
@@ -66,14 +91,36 @@ def render_filter_controls() -> list[FilterCriteria]:
                 low = st.number_input(
                     f"{label} desde",
                     value=None,
-                    step=0.01 if field in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin") else 1.0,
+                    step=(
+                        0.01
+                        if field
+                        in (
+                            "roe",
+                            "roic",
+                            "fcf_yield",
+                            "net_margin",
+                            "operating_margin",
+                        )
+                        else 1.0
+                    ),
                     key=f"low_{field}",
                 )
             with col2:
                 high = st.number_input(
                     f"{label} hasta",
                     value=None,
-                    step=0.01 if field in ("roe", "roic", "fcf_yield", "net_margin", "operating_margin") else 1.0,
+                    step=(
+                        0.01
+                        if field
+                        in (
+                            "roe",
+                            "roic",
+                            "fcf_yield",
+                            "net_margin",
+                            "operating_margin",
+                        )
+                        else 1.0
+                    ),
                     key=f"high_{field}",
                 )
             if low is not None and high is not None:

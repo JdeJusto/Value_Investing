@@ -1,9 +1,9 @@
 import streamlit as st
 
-from backend.analytics.interpretation import INTERPRETERS, format_metric_value
+from backend.analytics.interpretation import INTERPRETERS
 from ui.components.metrics import metric_card
-from ui.services import get_analysis_service, get_market_provider
 from ui.pages.analysis import METRIC_LABELS
+from ui.services import get_analysis_service, get_market_provider
 from ui.utils.formatting import fmt_usd
 
 QUICK_METRICS = [
@@ -39,9 +39,13 @@ def render_company():
         market = get_market_provider()
 
         with st.spinner(f"Obteniendo datos para {ticker}..."):
-            name = market.get_company_name(ticker)
-            price = market.get_current_price(ticker)
-            market_cap = market.get_market_cap(ticker)
+            try:
+                name = market.get_company_name(ticker)
+                price = market.get_current_price(ticker)
+                market_cap = market.get_market_cap(ticker)
+            except Exception:
+                name = price = market_cap = None
+                st.warning("No se pudo obtener la cotización actual de mercado.")
             result = service.analyze(ticker)
 
         st.session_state.company_result = result
@@ -56,6 +60,10 @@ def render_company():
         name = st.session_state.company_name
         price = st.session_state.company_price
         market_cap = st.session_state.company_market_cap
+
+        if result is None:
+            st.error(f"No se pudieron obtener datos para {ticker}.")
+            return
 
         st.divider()
 
@@ -80,7 +88,6 @@ def render_company():
                     if val is not None:
                         with col:
                             label = METRIC_LABELS.get(key, key)
-                            formatted = format_metric_value(val)
                             interpret_fn = INTERPRETERS.get(key)
                             interpretation = interpret_fn(val) if interpret_fn else ""
                             metric_card(label, val, interpretation)

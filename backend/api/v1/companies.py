@@ -1,14 +1,19 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics.interpretation import INTERPRETERS, METRICS_ORDER, format_metric_value
+from backend.analytics.interpretation import (
+    INTERPRETERS,
+    METRICS_ORDER,
+    format_metric_value,
+)
 from backend.analytics.service import CompanyAnalysisService
 from backend.api.deps import get_current_active_user, get_db
-from backend.core.config import ANALYSIS_CACHE_TTL, SEC_EMAIL, SEC_NAME
-from backend.models import AnalysisCacheModel, CompanyModel, UserModel
+from backend.app.cli import build_data_pipeline, build_financial_repository
+from backend.core.config import ANALYSIS_CACHE_TTL
+from backend.models import UserModel
 from backend.providers.cache.memory import MemoryCache
-from backend.providers.edgar import EdgarProvider
 from backend.providers.tickers import TICKERS
 from backend.providers.yahoo import YahooFinanceProvider
 from backend.schemas import (
@@ -22,14 +27,29 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 
 _provider_cache = MemoryCache()
 _yahoo = YahooFinanceProvider()
-_edgar = EdgarProvider(email=SEC_EMAIL, name=SEC_NAME)
 
 
 def _get_analysis_service() -> CompanyAnalysisService:
     return CompanyAnalysisService(
-        financial_providers=[_yahoo, _edgar],
+        repository=build_financial_repository(),
         market_provider=_yahoo,
+        loader=build_data_pipeline(),
     )
+
+
+async def _search_tickers(query: str, limit: int) -> list[CompanySearchResult]:
+    def _run() -> list[CompanySearchResult]:
+        q = query.lower()
+        results: list[CompanySearchResult] = []
+        for ticker in TICKERS:
+            name = _yahoo.get_company_name(ticker)
+            if q in ticker.lower() or (name and q in name.lower()):
+                results.append(CompanySearchResult(ticker=ticker, name=name))
+                if len(results) >= limit:
+                    break
+        return results
+
+    return await asyncio.to_thread(_run)
 
 
 @router.get("/search", response_model=list[CompanySearchResult])
@@ -37,17 +57,7 @@ async def search_companies(
     q: str = Query(min_length=1, max_length=100),
     limit: int = Query(default=20, ge=1, le=50),
 ):
-    query = q.lower()
-    results: list[CompanySearchResult] = []
-
-    for ticker in TICKERS:
-        name = _yahoo.get_company_name(ticker)
-        if query in ticker.lower() or (name and query in name.lower()):
-            results.append(CompanySearchResult(ticker=ticker, name=name))
-            if len(results) >= limit:
-                break
-
-    return results
+    return await _search_tickers(q.lower(), limit)
 
 
 @router.get("/{ticker}", response_model=CompanyResponse)

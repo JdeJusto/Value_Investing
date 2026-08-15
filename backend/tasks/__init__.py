@@ -6,6 +6,7 @@ celery_app = Celery(
     "value_invest_pro",
     broker=CELERY_BROKER_URL,
     backend=CELERY_RESULT_BACKEND,
+    include=["backend.tasks.screener"],
 )
 
 celery_app.conf.update(

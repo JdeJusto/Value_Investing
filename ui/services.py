@@ -1,4 +1,5 @@
 import streamlit as st
+
 from backend.analytics.service import CompanyAnalysisService
 from backend.app.cli import build_data_pipeline, build_financial_repository
 from backend.providers.yahoo import YahooFinanceProvider

@@ -3,17 +3,16 @@
 Uses mock analytics/intelligence outputs — no providers, no network.
 """
 
+from dataclasses import replace
 from typing import Optional
 
 from backend.screener.filters import ScreenCriteria, from_kwargs, matches
 from backend.screener.opportunity_engine import (
-    detect_opportunities,
     best_opportunity,
+    detect_opportunities,
 )
 from backend.screener.ranking_engine import margin_of_safety_score, rank_score
 from backend.screener.screener_service import ScreenerService
-from dataclasses import replace
-
 from backend.screener.signals import generate_signal
 
 

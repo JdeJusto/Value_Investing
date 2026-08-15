@@ -3,17 +3,20 @@ import logging
 import os
 import sys
 import time
+from typing import Optional
 
-from dotenv import load_dotenv
 import pandas as pd
+from dotenv import load_dotenv
+
+from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.analytics.interpretation import print_analysis
 from backend.analytics.service import CompanyAnalysisService
 from backend.config.settings import get_output_dir
-from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.domain.entities.company import Company
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.providers.edgar import EdgarProvider
+from backend.providers.tickers import TICKERS
 from backend.providers.yahoo import YahooFinanceProvider
 from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
@@ -82,7 +85,7 @@ def build_investment_screener(universe: Optional[list[str]] = None) -> ScreenerS
     """Screener over intelligence outputs, without direct provider access."""
     enrich = _company_enrichment()
     if universe is None:
-        universe = [c.ticker for c in CompanyRepository().list_all()]
+        universe = _tracked_tickers()
     return ScreenerService(
         analyzer=build_analysis_service().analyze,
         universe=universe,
@@ -94,7 +97,17 @@ def build_universe(tickers: Optional[list[str]] = None) -> list[str]:
     """Tick universe: explicit tickers, or every tracked company in storage."""
     if tickers:
         return [t.strip().upper() for t in tickers]
-    return [c.ticker for c in CompanyRepository().list_all()]
+    return _tracked_tickers()
+
+
+def _tracked_tickers() -> list[str]:
+    """Tickers tracked in storage, falling back to the static universe if the
+    database is unavailable so the CLI keeps working."""
+    try:
+        return [c.ticker for c in CompanyRepository().list_all()] or TICKERS
+    except Exception:  # noqa: BLE001 — database down must not kill the CLI
+        logger.warning("storage unavailable — falling back to static ticker list")
+        return TICKERS
 
 
 def build_portfolio_service():
@@ -221,7 +234,11 @@ def cmd_screener(args):
         f"\nEjecutando screener sobre {len(tickers) if tickers else '~150'} tickers..."
     )
     print(
-        f"Filtros: {[str(f.field) + ' ' + f.operator.value + ' ' + str(f.value) for f in filters] or '(ninguno)'}"
+        "Filtros: "
+        + (
+            " ".join(f"{f.field} {f.operator.value} {f.value}" for f in filters)
+            or "(ninguno)"
+        )
     )
     print()
 
@@ -246,7 +263,18 @@ def cmd_screener(args):
         print("  Ninguna empresa cumple los filtros.")
         return
 
-    header = f"{'Ticker':>6} {'Nombre':<28} {'Price':>8} {'PER':>8} {'P/B':>8} {'ROE':>7} {'FCF':>13} {'Score':>7}"
+    header = " ".join(
+        [
+            f"{'Ticker':>6}",
+            f"{'Nombre':<28}",
+            f"{'Price':>8}",
+            f"{'PER':>8}",
+            f"{'P/B':>8}",
+            f"{'ROE':>7}",
+            f"{'FCF':>13}",
+            f"{'Score':>7}",
+        ]
+    )
     print(header)
     print("-" * len(header))
     for r in results:
@@ -258,7 +286,8 @@ def cmd_screener(args):
         fcf_str = f"{r.fcf:,.0f}" if r.fcf else "N/A"
         score_str = f"{r.score:.4f}" if r.score else "N/A"
         print(
-            f"{r.ticker:>6} {name_trunc:<28} {price_str:>8} {per_str:>8} {pb_str:>8} {roe_str:>7} {fcf_str:>13} {score_str:>7}"
+            f"{r.ticker:>6} {name_trunc:<28} {price_str:>8} {per_str:>8} "
+            f"{pb_str:>8} {roe_str:>7} {fcf_str:>13} {score_str:>7}"
         )
 
     if args.save:

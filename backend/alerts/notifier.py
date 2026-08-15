@@ -5,7 +5,6 @@ webhooks) only need a Notifier implementation.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from backend.alerts.alert_engine import Alert
 

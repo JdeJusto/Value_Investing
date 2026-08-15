@@ -14,9 +14,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from ui.pages.screener import render_screener
 from ui.pages.analysis import render_analysis
 from ui.pages.company import render_company
+from ui.pages.screener import render_screener
 
 PAGE_RENDERERS = {
     "Screener": render_screener,
@@ -32,10 +32,12 @@ def main():
     with st.sidebar:
         st.title("📈 Value Investing")
         st.markdown("---")
+        options = list(PAGE_RENDERERS.keys())
+        page = st.session_state.page if st.session_state.page in options else options[0]
         selected = st.radio(
             "Navegación",
-            options=list(PAGE_RENDERERS.keys()),
-            index=list(PAGE_RENDERERS.keys()).index(st.session_state.page),
+            options=options,
+            index=options.index(page),
             key="nav",
         )
         if selected != st.session_state.page:

@@ -50,14 +50,23 @@ class FilterCriteria:
             except (TypeError, ValueError):
                 return str(metric_value) != str(self.value)
 
-        if self.operator == FilterOperator.GT:
-            return left > float(self.value)
-        if self.operator == FilterOperator.GTE:
-            return left >= float(self.value)
-        if self.operator == FilterOperator.LT:
-            return left < float(self.value)
-        if self.operator == FilterOperator.LTE:
-            return left <= float(self.value)
+        if self.operator in (
+            FilterOperator.GT,
+            FilterOperator.GTE,
+            FilterOperator.LT,
+            FilterOperator.LTE,
+        ):
+            try:
+                right = float(self.value)
+            except (TypeError, ValueError):
+                return False
+            if self.operator == FilterOperator.GT:
+                return left > right
+            if self.operator == FilterOperator.GTE:
+                return left >= right
+            if self.operator == FilterOperator.LT:
+                return left < right
+            return left <= right
 
         if self.operator == FilterOperator.BETWEEN:
             if not isinstance(self.value, (list, tuple)) or len(self.value) != 2:

@@ -1,19 +1,17 @@
-import sys
 import math
 
 from backend.app.cli import build_analysis_service
 from cli.formatters import (
-    Colors,
+    bold,
     dim,
     fmt_dollar,
     fmt_pct,
     fmt_ratio,
-    bold,
     green,
-    red,
     print_header,
     print_key_value,
     print_separator,
+    red,
 )
 
 

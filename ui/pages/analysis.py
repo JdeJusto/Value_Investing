@@ -1,13 +1,9 @@
 import streamlit as st
 
-from backend.analytics.interpretation import (
-    INTERPRETERS,
-    METRICS_ORDER,
-    format_metric_value,
-)
-from ui.components.metrics import metric_card, metric_grid
+from backend.analytics.interpretation import INTERPRETERS, METRICS_ORDER
+from ui.components.metrics import metric_card
 from ui.services import get_analysis_service, get_market_provider
-from ui.utils.formatting import fmt_pct, fmt_ratio, fmt_usd
+from ui.utils.formatting import fmt_ratio, fmt_usd
 
 METRIC_LABELS: dict[str, str] = {
     "roe": "ROE",
@@ -33,10 +29,27 @@ METRIC_LABELS: dict[str, str] = {
 
 METRIC_CATEGORIES: dict[str, list[str]] = {
     "Rentabilidad": ["roe", "roic", "incremental_roic", "croic"],
-    "Valoración": ["pb", "per", "ev_ebit", "fcf_yield", "dcf_value", "acquirers_multiple"],
-    "Márgenes": ["operating_margin", "net_margin", "fcf_conversion", "gross_margin_stability"],
+    "Valoración": [
+        "pb",
+        "per",
+        "ev_ebit",
+        "fcf_yield",
+        "dcf_value",
+        "acquirers_multiple",
+    ],
+    "Márgenes": [
+        "operating_margin",
+        "net_margin",
+        "fcf_conversion",
+        "gross_margin_stability",
+    ],
     "Endeudamiento": ["debt_to_equity", "net_debt_to_ebitda", "interest_coverage"],
-    "Calidad": ["piotroski_fscore", "altman_zscore", "shareholder_yield", "owner_earnings"],
+    "Calidad": [
+        "piotroski_fscore",
+        "altman_zscore",
+        "shareholder_yield",
+        "owner_earnings",
+    ],
 }
 
 
@@ -61,9 +74,13 @@ def render_analysis():
             st.error(f"No se pudieron obtener datos para {ticker}.")
             return
 
-        name = market.get_company_name(ticker)
-        price = market.get_current_price(ticker)
-        market_cap = market.get_market_cap(ticker)
+        try:
+            name = market.get_company_name(ticker)
+            price = market.get_current_price(ticker)
+            market_cap = market.get_market_cap(ticker)
+        except Exception:
+            name = price = market_cap = None
+            st.warning("No se pudo obtener la cotización actual de mercado.")
 
         st.session_state.analysis_result = result
         st.session_state.analysis_ticker = ticker
@@ -101,9 +118,12 @@ def render_analysis():
                 if val is not None:
                     with col:
                         label = METRIC_LABELS.get(key, key)
-                        formatted = format_metric_value(val)
                         interpret_fn = INTERPRETERS.get(key)
-                        interpretation = interpret_fn(val) if interpret_fn and val is not None else ""
+                        interpretation = (
+                            interpret_fn(val)
+                            if interpret_fn and val is not None
+                            else ""
+                        )
                         metric_card(label, val, interpretation)
 
         st.divider()
@@ -112,7 +132,8 @@ def render_analysis():
             val = result.get(key)
             if val is not None:
                 label = METRIC_LABELS.get(key, key)
-                formatted = format_metric_value(val)
                 interpret_fn = INTERPRETERS.get(key)
-                interpretation = interpret_fn(val) if interpret_fn and val is not None else ""
+                interpretation = (
+                    interpret_fn(val) if interpret_fn and val is not None else ""
+                )
                 metric_card(label, val, interpretation)

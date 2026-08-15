@@ -15,8 +15,8 @@ from backend.backtesting.simulator import (
     sharpe,
     win_rate,
 )
-from backend.intelligence.delta_metrics import compute_delta_metrics
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.intelligence.delta_metrics import compute_delta_metrics
 
 
 def _build_rows(records):

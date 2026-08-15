@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+import backend.core.config as _config
+from backend.analytics.ratios.debt_to_equity import DebtToEquityCalculator
 from backend.analytics.ratios.leverage import (
     CroicCalculator,
     EvEbitCalculator,
@@ -29,6 +31,7 @@ from backend.analytics.ratios.margins import (
     OperatingMarginCalculator,
     ShareholderYieldCalculator,
 )
+from backend.analytics.ratios.per import PerCalculator
 from backend.analytics.ratios.roe import RoeCalculator
 from backend.analytics.ratios.roic import IncrementalRoicCalculator, RoicCalculator
 from backend.analytics.scoring.altman_z import AltmanZScoreCalculator
@@ -44,9 +47,9 @@ from backend.intelligence.scoring_model import assess_investment
 
 logger = logging.getLogger("backend.analytics")
 
-DEFAULT_TAX_RATE = 0.21
-DEFAULT_WACC = 0.08
-DEFAULT_MARKET_RETURN = 0.10
+DEFAULT_TAX_RATE = _config.DEFAULT_TAX_RATE
+DEFAULT_WACC = _config.DEFAULT_WACC
+DEFAULT_MARKET_RETURN = _config.DEFAULT_MARKET_RETURN
 DEFAULT_RISK_FREE_RATE = 0.04
 DEFAULT_COST_OF_DEBT = 0.05
 
@@ -64,14 +67,17 @@ def _equity_of(financials: NormalizedFinancials) -> Optional[float]:
 
 
 def _effective_tax_rate(financials: Optional[NormalizedFinancials]) -> Optional[float]:
-    if (
-        financials
-        and financials.tax_provision is not None
-        and financials.pretax_income
-        and financials.pretax_income != 0
-    ):
-        return financials.tax_provision / financials.pretax_income
-    return None
+    if not financials or financials.tax_provision is None:
+        return None
+    if not financials.pretax_income or financials.pretax_income == 0:
+        return None
+    return financials.tax_provision / financials.pretax_income
+
+
+def _sanitize_tax_rate(rate: Optional[float], default: float) -> float:
+    if rate is None:
+        return default
+    return min(max(rate, 0.0), 1.0)
 
 
 class CompanyAnalysisService:
@@ -136,7 +142,7 @@ class CompanyAnalysisService:
             ebitda = ebit + da
 
         gross_margins = self._gross_margins(rows)
-        tax_rate = _effective_tax_rate(last) or self._default_tax_rate
+        tax_rate = _sanitize_tax_rate(_effective_tax_rate(last), self._default_tax_rate)
         wacc = self._wacc(ticker, last) or self._default_wacc
 
         roa_current = None
@@ -161,6 +167,14 @@ class CompanyAnalysisService:
         }
 
         result["roe"] = RoeCalculator().calculate(net_income=net_income, equity=equity)
+        result["per"] = PerCalculator().calculate(
+            market_cap=market_cap, net_income=net_income
+        )
+        result["debt_to_equity"] = DebtToEquityCalculator().calculate(
+            total_debt=debt, equity=equity
+        )
+        if revenue is not None and prior is not None and prior.revenue:
+            result["revenue_growth"] = (revenue - prior.revenue) / prior.revenue
         result["pb"] = PbCalculator().calculate(market_cap=market_cap, equity=equity)
         result["roic"] = RoicCalculator().calculate(
             ebit=ebit,
@@ -377,11 +391,13 @@ class CompanyAnalysisService:
             )
 
             if financials.interest_expense is not None and debt != 0:
-                cost_debt = financials.interest_expense / debt
+                cost_debt = abs(financials.interest_expense) / debt
             else:
                 cost_debt = DEFAULT_COST_OF_DEBT
 
-            tax_rate = _effective_tax_rate(financials) or self._default_tax_rate
+            tax_rate = _sanitize_tax_rate(
+                _effective_tax_rate(financials), self._default_tax_rate
+            )
             return weight_equity * cost_equity + weight_debt * cost_debt * (
                 1 - tax_rate
             )

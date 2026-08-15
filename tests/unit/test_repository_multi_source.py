@@ -9,10 +9,10 @@ from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
     ProviderName,
 )
+from backend.providers.normalizers.quality import apply_quality_metrics
 from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
 from backend.repositories.source_selection import best_per_year, choose_history
-from backend.providers.normalizers.quality import apply_quality_metrics
 
 
 def _record(

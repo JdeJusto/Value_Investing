@@ -103,7 +103,7 @@ def _run(args):
         for snapshot in snapshots:
             year = snapshot["year"]
             for ticker, ticker_prices in prices.items():
-                prev = ticker_prices.get(year - 1)
+                prev = ticker_prices.get(year - 1) if year is not None else None
                 current = ticker_prices.get(year)
                 snapshot["prices"][ticker] = (prev, current)
     else:

@@ -38,7 +38,13 @@ async def list_portfolios(
             updated_at=p.updated_at,
             ticker_count=len(p.items),
             items=[
-                {"id": i.id, "ticker": i.ticker, "shares": i.shares, "avg_cost": i.avg_cost, "notes": i.notes}
+                {
+                    "id": i.id,
+                    "ticker": i.ticker,
+                    "shares": i.shares,
+                    "avg_cost": i.avg_cost,
+                    "notes": i.notes,
+                }
                 for i in p.items
             ],
         )
@@ -52,7 +58,9 @@ async def create_portfolio(
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_active_user),
 ):
-    portfolio = PortfolioModel(user_id=user.id, name=body.name, description=body.description)
+    portfolio = PortfolioModel(
+        user_id=user.id, name=body.name, description=body.description
+    )
     db.add(portfolio)
     await db.flush()
     return PortfolioResponse(
@@ -90,7 +98,13 @@ async def get_portfolio(
         updated_at=portfolio.updated_at,
         ticker_count=len(portfolio.items),
         items=[
-            {"id": i.id, "ticker": i.ticker, "shares": i.shares, "avg_cost": i.avg_cost, "notes": i.notes}
+            {
+                "id": i.id,
+                "ticker": i.ticker,
+                "shares": i.shares,
+                "avg_cost": i.avg_cost,
+                "notes": i.notes,
+            }
             for i in portfolio.items
         ],
     )
@@ -127,7 +141,13 @@ async def update_portfolio(
         updated_at=portfolio.updated_at,
         ticker_count=len(portfolio.items),
         items=[
-            {"id": i.id, "ticker": i.ticker, "shares": i.shares, "avg_cost": i.avg_cost, "notes": i.notes}
+            {
+                "id": i.id,
+                "ticker": i.ticker,
+                "shares": i.shares,
+                "avg_cost": i.avg_cost,
+                "notes": i.notes,
+            }
             for i in portfolio.items
         ],
     )
@@ -187,8 +207,12 @@ async def update_portfolio_item(
     user: UserModel = Depends(get_current_active_user),
 ):
     result = await db.execute(
-        select(PortfolioItemModel).where(
-            PortfolioItemModel.id == item_id, PortfolioItemModel.portfolio_id == portfolio_id
+        select(PortfolioItemModel)
+        .join(PortfolioModel, PortfolioModel.id == PortfolioItemModel.portfolio_id)
+        .where(
+            PortfolioItemModel.id == item_id,
+            PortfolioItemModel.portfolio_id == portfolio_id,
+            PortfolioModel.user_id == user.id,
         )
     )
     item = result.scalar_one_or_none()
@@ -204,7 +228,9 @@ async def update_portfolio_item(
     return {"id": item.id, "ticker": item.ticker}
 
 
-@router.delete("/{portfolio_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{portfolio_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_portfolio_item(
     portfolio_id: int,
     item_id: int,
@@ -212,8 +238,12 @@ async def delete_portfolio_item(
     user: UserModel = Depends(get_current_active_user),
 ):
     result = await db.execute(
-        select(PortfolioItemModel).where(
-            PortfolioItemModel.id == item_id, PortfolioItemModel.portfolio_id == portfolio_id
+        select(PortfolioItemModel)
+        .join(PortfolioModel, PortfolioModel.id == PortfolioItemModel.portfolio_id)
+        .where(
+            PortfolioItemModel.id == item_id,
+            PortfolioItemModel.portfolio_id == portfolio_id,
+            PortfolioModel.user_id == user.id,
         )
     )
     item = result.scalar_one_or_none()

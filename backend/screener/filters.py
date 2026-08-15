@@ -81,8 +81,10 @@ def matches(item: dict, criteria: ScreenCriteria) -> bool:
         if desired not in MOAT_TYPES:
             return False
         rank = MOAT_TYPES.index(desired)
-        actual = MOAT_TYPES.index(_moat_type_of(item))
-        if actual > rank:
+        actual_type = _moat_type_of(item)
+        if actual_type not in MOAT_TYPES:
+            return False
+        if MOAT_TYPES.index(actual_type) > rank:
             return False
 
     if criteria.min_total_score is not None:
@@ -98,8 +100,10 @@ def matches(item: dict, criteria: ScreenCriteria) -> bool:
     if criteria.confidence is not None:
         confidence = (item.get("composite_score") or {}).get("confidence")
         levels = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
-        want = levels.get(criteria.confidence.upper(), 0)
-        if confidence is None or levels.get(confidence, 0) < want:
+        want = levels.get(criteria.confidence.upper())
+        if want is None:
+            return False
+        if confidence is None or levels.get(confidence, -1) < want:
             return False
 
     if criteria.tickers and item.get("ticker") not in criteria.tickers:

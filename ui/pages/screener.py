@@ -2,7 +2,6 @@ import pandas as pd
 import streamlit as st
 
 from backend.domain.value_objects.filter_criteria import FilterCriteria
-from backend.providers.tickers import TICKERS
 from ui.components.filters import render_filter_controls
 from ui.services import get_screener_service
 from ui.utils.formatting import fmt_pct, fmt_ratio, fmt_usd
@@ -59,9 +58,13 @@ def render_screener():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        top_n = st.number_input("Top N resultados", min_value=1, max_value=100, value=25)
+        top_n = st.number_input(
+            "Top N resultados", min_value=1, max_value=100, value=25
+        )
     with col2:
-        ticker_input = st.text_input("Tickers (separados por coma, vacío = todos)", placeholder="AAPL,MSFT,GOOGL")
+        ticker_input = st.text_input(
+            "Tickers (separados por coma, vacío = todos)", placeholder="AAPL,MSFT,GOOGL"
+        )
 
     tickers = None
     if ticker_input.strip():
@@ -71,7 +74,6 @@ def render_screener():
         screener = get_screener_service()
 
         progress_bar = st.progress(0, text="Preparando...")
-        total = len(tickers) if tickers else len(TICKERS)
 
         def progress_cb(current, total_stocks, ticker):
             progress_bar.progress(
@@ -95,7 +97,9 @@ def render_screener():
             st.warning("No se encontraron resultados con los filtros actuales.")
             st.session_state.screener_run = False
 
-    if st.session_state.get("screener_run") and st.session_state.get("screener_results"):
+    if st.session_state.get("screener_run") and st.session_state.get(
+        "screener_results"
+    ):
         results = st.session_state.screener_results
         st.markdown(f"### {len(results)} resultados")
 

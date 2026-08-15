@@ -1,4 +1,4 @@
-import asyncio
+from dataclasses import asdict
 from typing import Optional
 
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
@@ -31,7 +31,6 @@ def run_screener_task(
     top_n: int = 25,
     job_id: str = "",
 ):
-    from backend.api.deps import async_session_factory
 
     if tickers is None:
         tickers = TICKERS
@@ -65,22 +64,8 @@ def run_screener_task(
         else:
             try:
                 analysis = service._analyze_ticker(ticker)
-                if analysis and service._passes_filters(analysis, filter_criteria):
-                    row_data = {
-                        "ticker": analysis.ticker,
-                        "name": analysis.name,
-                        "price": analysis.price,
-                        "market_cap": analysis.market_cap,
-                        "per": analysis.per,
-                        "pb": analysis.pb,
-                        "roe": analysis.roe,
-                        "roic": analysis.roic,
-                        "fcf_yield": analysis.fcf_yield,
-                        "ev_ebit": analysis.ev_ebit,
-                        "debt_to_equity": analysis.debt_to_equity,
-                        "score": analysis.score,
-                        "extra": analysis.extra,
-                    }
+                if analysis is not None:
+                    row_data = asdict(analysis)
                     _cache.set(cache_key, row_data, ttl=3600)
                     row = analysis
                 else:
@@ -88,12 +73,15 @@ def run_screener_task(
             except Exception:
                 row = None
 
-        if row is not None:
-            results.append(row)
+        if row is None:
+            continue
+        if filter_criteria and not service._passes_filters(row, filter_criteria):
+            continue
+        results.append(row)
 
     results.sort(key=lambda r: r.score or 0, reverse=True)
 
-    if top_n:
+    if top_n is not None:
         results = results[:top_n]
 
     serializable = [

@@ -54,7 +54,7 @@ async def create_watchlist(
         name=watchlist.name,
         created_at=watchlist.created_at,
         ticker_count=len(body.tickers),
-        items=[{"id": 0, "ticker": t.upper()} for t in body.tickers],
+        items=[{"id": item.id, "ticker": item.ticker} for item in watchlist.items],
     )
 
 

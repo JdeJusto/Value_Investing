@@ -1,19 +1,29 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.v1.alerts import router as alerts_router
 from backend.api.v1.auth import router as auth_router
 from backend.api.v1.companies import router as companies_router
-from backend.api.v1.screener import router as screener_router
 from backend.api.v1.portfolios import router as portfolios_router
-from backend.api.v1.alerts import router as alerts_router
+from backend.api.v1.screener import router as screener_router
 from backend.api.v1.watchlists import router as watchlists_router
-from backend.core.config import CORS_ORIGINS
+from backend.core.config import CORS_ORIGINS, SECRET_KEY
+
+logger = logging.getLogger("backend.api")
+
+DEFAULT_SECRET_KEY = "dev-secret-change-in-production-abcdef123456"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if SECRET_KEY == DEFAULT_SECRET_KEY:
+        logger.warning(
+            "SECRET_KEY not configured — using an insecure default. "
+            "Set SECRET_KEY in your environment before any production use."
+        )
     yield
 
 

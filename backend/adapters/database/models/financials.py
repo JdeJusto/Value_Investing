@@ -8,7 +8,12 @@ class FinancialStatementModel(Base):
     __tablename__ = "financial_statements"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(String(10), ForeignKey("companies.ticker", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(
+        String(10),
+        ForeignKey("companies.ticker", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     fiscal_year = Column(Integer, nullable=False)
     fiscal_period = Column(String(10))
     statement_type = Column(String(20), nullable=False)
@@ -21,7 +26,12 @@ class AnalysisResultModel(Base):
     __tablename__ = "analysis_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(String(10), ForeignKey("companies.ticker", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(
+        String(10),
+        ForeignKey("companies.ticker", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     metric_name = Column(String(50), nullable=False)
     metric_value = Column(Float)
     fiscal_year = Column(Integer)

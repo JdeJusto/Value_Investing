@@ -21,10 +21,17 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             self._cache[ticker] = yf.Ticker(ticker)
         return self._cache[ticker]
 
+    @staticmethod
+    def _is_nan(value) -> bool:
+        try:
+            return bool(np.isnan(value))
+        except (TypeError, ValueError):
+            return False
+
     def _safe_val(self, series, index=0):
         try:
             val = series.iloc[index]
-            if isinstance(val, float) and np.isnan(val):
+            if self._is_nan(val):
                 return None
             return val
         except (IndexError, AttributeError, KeyError, TypeError):
@@ -34,7 +41,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         for name in candidates:
             try:
                 val = df.loc[name].iloc[index]
-                if isinstance(val, float) and np.isnan(val):
+                if self._is_nan(val):
                     continue
                 return val
             except (KeyError, IndexError, AttributeError, TypeError):
@@ -164,9 +171,8 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         return self._get_ticker(ticker).info.get("beta")
 
     def get_company_name(self, ticker: str) -> Optional[str]:
-        return self._get_ticker(ticker).info.get("longName") or self._get_ticker(
-            ticker
-        ).info.get("shortName")
+        info = self._get_ticker(ticker).info
+        return info.get("longName") or info.get("shortName")
 
     def get_shares_outstanding(self, ticker: str) -> Optional[int]:
         return self._get_ticker(ticker).info.get("sharesOutstanding")

@@ -77,8 +77,9 @@ def detect_trigger(item: dict) -> Optional[str]:
     ]
     if qualifying_positive:
         return max(qualifying_positive, key=lambda pair: pair[0])[1]
-    if negative:
-        return min(negative, key=lambda pair: pair[0])[1]
+    qualifying_negative = [pair for pair in negative if pair[0] < 0]
+    if qualifying_negative:
+        return min(qualifying_negative, key=lambda pair: pair[0])[1]
     return None
 
 
@@ -98,6 +99,7 @@ def generate_signal(item: dict, rank: float) -> dict:
         and rank >= BUY_MIN_RANK
         and buffett is not None
         and buffett >= 50
+        and confidence in ("HIGH", "MEDIUM")
     ):
         signal = "BUY"
         reasons.append(f"opportunity detected: {_opportunity_type(item)}")

@@ -8,17 +8,17 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from backend.core.database import Base
-from backend.models import (
-    UserModel,
+from backend.models import (  # noqa: F401  (registra modelos en metadata)
+    AlertModel,
+    AnalysisCacheModel,
     CompanyModel,
     FinancialDataModel,
-    AnalysisCacheModel,
-    ScreenerJobModel,
-    PortfolioModel,
     PortfolioItemModel,
-    WatchlistModel,
+    PortfolioModel,
+    ScreenerJobModel,
+    UserModel,
     WatchlistItemModel,
-    AlertModel,
+    WatchlistModel,
 )
 
 config = context.config

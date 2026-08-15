@@ -1,8 +1,6 @@
 import time
 from typing import Optional
 
-from backend.analytics.ratios.debt_to_equity import DebtToEquityCalculator
-from backend.analytics.ratios.per import PerCalculator
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.interfaces.data_loader import DataLoader
 from backend.domain.interfaces.financial_repository import FinancialRepository
@@ -83,29 +81,12 @@ class StockScreenerService:
         name = self._market.get_company_name(ticker)
         price = self._market.get_current_price(ticker)
 
-        per = PerCalculator().calculate(
-            market_cap=d.get("market_cap"),
-            net_income=d.get("net_income"),
-        )
-
-        debt_to_equity = DebtToEquityCalculator().calculate(
-            total_debt=d.get("total_debt") if "total_debt" in d else None,
-            equity=d.get("equity") if "equity" in d else None,
-        )
-        if debt_to_equity is None:
-            if (
-                d.get("pb") is not None
-                and d.get("roe") is not None
-                and d.get("roe") != 0
-            ):
-                debt_to_equity = (d.get("pb", 0) / d.get("roe", 1)) - 1
-
         return ScreenerRow(
             ticker=ticker,
             name=name,
             price=price,
             market_cap=d.get("market_cap"),
-            per=per,
+            per=d.get("per"),
             pb=d.get("pb"),
             roe=d.get("roe"),
             roic=d.get("roic"),
@@ -113,7 +94,8 @@ class StockScreenerService:
             net_margin=d.get("net_margin"),
             fcf_yield=d.get("fcf_yield"),
             ev_ebit=d.get("ev_ebit"),
-            debt_to_equity=debt_to_equity,
+            debt_to_equity=d.get("debt_to_equity"),
+            revenue_growth=d.get("revenue_growth"),
             fcf=d.get("fcf"),
             score=d.get("score"),
             extra=d,

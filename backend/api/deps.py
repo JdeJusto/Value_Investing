@@ -2,7 +2,6 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +24,11 @@ async def get_current_user(
     user_id: str | None = payload.get("sub")
     if user_id is None:
         return None
-    result = await db.execute(select(UserModel).where(UserModel.id == int(user_id)))
+    try:
+        numeric_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    result = await db.execute(select(UserModel).where(UserModel.id == numeric_id))
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
         return None

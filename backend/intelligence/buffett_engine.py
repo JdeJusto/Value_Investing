@@ -79,7 +79,11 @@ def _financial_strength(metrics: dict) -> float:
         metrics["debt_to_equity"], DEBT_EQUITY_MAX, DEBT_EQUITY_EXTREME, invert=True
     )
     coverage_score = _scale(metrics["interest_coverage"], COVERAGE_TARGET, COVERAGE_MIN)
-    retained_score = 100.0 if metrics["retained_earnings_positive"] else 0.0
+    retained_score = (
+        100.0
+        if metrics["retained_earnings_positive"] is True
+        else (0.0 if metrics["retained_earnings_positive"] is False else 50.0)
+    )
     return (
         DEBT_PILLAR_WEIGHT * debt_score
         + COVERAGE_PILLAR_WEIGHT * coverage_score

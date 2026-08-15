@@ -2,8 +2,6 @@
 
 from typing import Optional
 
-from backend.screener.signals import detect_trigger
-
 # SELL_WARNING: score drop thresholds, in points of total_score (0-100)
 SELL_WARNING_MIN_DROP = 10.0
 SELL_WARNING_HIGH_DROP = 15.0

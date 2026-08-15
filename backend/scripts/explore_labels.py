@@ -1,4 +1,5 @@
 import yfinance as yf
+
 aapl = yf.Ticker("AAPL")
 
 print("\n=== Income Statement - TODOS los indices ===")
