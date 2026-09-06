@@ -35,13 +35,22 @@ INCOME_STATEMENT_CONCEPTS = {
     'Revenue': 'revenue',
     'SalesRevenueNet': 'revenue',
     'RevenueFromContractWithCustomerExcludingAssessedTax': 'revenue',
+    'RevenueFromContractWithCustomerIncludingAssessedTax': 'revenue',
+    'SalesRevenueGoodsNet': 'revenue',
+    'SalesRevenueServicesNet': 'revenue',
 
     # Cost of Goods Sold
     'CostOfGoodsSold': 'cogs',
     'CostOfRevenue': 'cogs',
+    'CostOfGoodsAndServicesSold': 'cogs',
 
     # Gross Profit
     'GrossProfit': 'gross_profit',
+
+    # Operating Expenses
+    'OperatingExpenses': 'operating_expense',
+    'ResearchAndDevelopmentExpense': 'research_development',
+    'SellingGeneralAndAdministrativeExpense': 'sga',
 
     # Operating Income
     'OperatingIncomeLoss': 'operating_income',
@@ -49,14 +58,13 @@ INCOME_STATEMENT_CONCEPTS = {
 
     # EBIT (often same as operating income)
     'OperatingIncomeLoss': 'ebit',
+    'EBIT': 'ebit',
 
     # EBITDA
     'EBITDA': 'ebitda',
 
-    # Net Income
-    'NetIncomeLoss': 'net_income',
-    'NetIncome': 'net_income',
-    'ProfitLoss': 'net_income',
+    # Non-operating Income/Expense
+    'NonoperatingIncomeExpense': 'non_operating_income_expense',
 
     # Interest Expense
     'InterestExpense': 'interest_expense',
@@ -68,6 +76,11 @@ INCOME_STATEMENT_CONCEPTS = {
     # Pretax Income
     'IncomeLossBeforeIncomeTaxes': 'pretax_income',
     'PretaxIncome': 'pretax_income',
+
+    # Net Income
+    'NetIncomeLoss': 'net_income',
+    'NetIncome': 'net_income',
+    'ProfitLoss': 'net_income',
 }
 
 BALANCE_SHEET_CONCEPTS = {
@@ -75,9 +88,24 @@ BALANCE_SHEET_CONCEPTS = {
     'Assets': 'total_assets',
     'AssetsTotal': 'total_assets',
 
+    # Current Assets
+    'CurrentAssets': 'current_assets',
+    'CashAndCashEquivalentsAtCarryingValue': 'cash_and_equivalents',
+    'CashAndCashEquivalents': 'cash_and_equivalents',
+    'AccountsReceivableNetCurrent': 'accounts_receivable',
+    'InventoryNet': 'inventory',
+
     # Total Liabilities
     'Liabilities': 'total_liabilities',
     'LiabilitiesTotal': 'total_liabilities',
+
+    # Current Liabilities
+    'CurrentLiabilities': 'current_liabilities',
+    'AccountsPayableCurrent': 'accounts_payable',
+
+    # Long Term Liabilities
+    'LongTermLiabilities': 'long_term_liabilities',
+    'LongTermDebtNoncurrent': 'long_term_debt',
 
     # Total Debt (approximation)
     'DebtCurrent': 'total_debt',
@@ -390,7 +418,11 @@ class FinancialDatabaseRepository(FinancialRepository):
                 net_income=income.get('net_income'),
                 interest_expense=income.get('interest_expense'),
                 tax_provision=income.get('tax_provision'),
-                pretax_income=income.get('pretax_income')
+                pretax_income=income.get('pretax_income'),
+                operating_expense=income.get('operating_expense'),
+                research_development=income.get('research_development'),
+                sga=income.get('sga'),
+                non_operating_income_expense=income.get('non_operating_income_expense')
             )
 
         # Build BalanceSheet
@@ -600,8 +632,7 @@ class FinancialDatabaseRepository(FinancialRepository):
     def list_all(self, ticker: str) -> List[NormalizedFinancials]:
         """Return every stored record (all sources), year desc."""
         # For Financial-DataBase, we primarily have SEC EDGAR data
-        # so this is similar to list_years but could include multiple sources
-        # if we had them
+        # and we don't have multiple sources, so we return the same as list_years.
         return self.list_years(ticker)
 
     def get_best_available(self, ticker: str) -> List[NormalizedFinancials]:
@@ -610,7 +641,7 @@ class FinancialDatabaseRepository(FinancialRepository):
         For Financial-DataBase, we assume SEC EDGAR data is consistently
         high quality, so we just return all available years.
         """
-        return self.list_years(ticker)
+        return self.list_all(ticker)
 
     def has_data(self, ticker: str) -> bool:
         """True if at least one record exists for the ticker."""
@@ -658,6 +689,144 @@ class FinancialDatabaseRepository(FinancialRepository):
         since we treat it as a source of truth.
         """
         pass
+
+    def get_normalized_financials(self, ticker: str, fiscal_year: int) -> Optional[NormalizedFinancials]:
+        """Get normalized financials for a ticker and fiscal year.
+
+        This method is an alias for get_by_year to match the FinancialRepository interface.
+
+        Args:
+            ticker: Company ticker symbol
+            fiscal_year: Fiscal year
+
+        Returns:
+            NormalizedFinancials object if found, None otherwise
+        """
+        return self.get_by_year(ticker, fiscal_year)
+
+    def get_latest_price(self, ticker: str) -> Optional[float]:
+        """Get the latest price for a ticker from the prices table.
+
+        Args:
+            ticker: Company ticker symbol
+
+        Returns:
+            Latest closing price if available, None otherwise
+        """
+        try:
+            # Get company ID from ticker
+            company_id = self._get_company_id_by_ticker(ticker)
+            if not company_id:
+                return None
+
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                # Get the listing ID for this company
+                cur.execute("""
+                    SELECT cl.id
+                    FROM company_listings cl
+                    JOIN companies c ON cl.company_id = c.id
+                    JOIN company_identifiers ci ON c.id = ci.company_id
+                    JOIN data_providers dp ON ci.provider_id = dp.id
+                    WHERE UPPER(ci.identifier_type) = 'TICKER'
+                      AND UPPER(ci.identifier_value) = %s
+                      AND UPPER(dp.name) = 'SEC EDGAR'
+                      AND cl.is_active = TRUE
+                    ORDER BY cl.created_at
+                    LIMIT 1
+                """, (ticker.upper(),))
+
+                listing_result = cur.fetchone()
+                if not listing_result:
+                    return None
+
+                listing_id = listing_result['id']
+
+                # Get the latest price
+                cur.execute("""
+                    SELECT close
+                    FROM prices
+                    WHERE listing_id = %s
+                    ORDER BY price_date DESC
+                    LIMIT 1
+                """, (listing_id,))
+
+                price_result = cur.fetchone()
+                if price_result and price_result['close'] is not None:
+                    return float(price_result['close'])
+
+                return None
+
+        except Exception:
+            return None
+
+    def get_prices(self, ticker: str, limit: Optional[int] = None) -> List[dict]:
+        """Get historical prices for a ticker from the prices table.
+
+        Args:
+            ticker: Company ticker symbol
+            limit: Maximum number of price records to return (most recent first)
+
+        Returns:
+            List of price dictionaries with date and price data
+        """
+        try:
+            # Get company ID from ticker
+            company_id = self._get_company_id_by_ticker(ticker)
+            if not company_id:
+                return []
+
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                # Get the listing ID for this company
+                cur.execute("""
+                    SELECT cl.id
+                    FROM company_listings cl
+                    JOIN companies c ON cl.company_id = c.id
+                    JOIN company_identifiers ci ON c.id = ci.company_id
+                    JOIN data_providers dp ON ci.provider_id = dp.id
+                    WHERE UPPER(ci.identifier_type) = 'TICKER'
+                      AND UPPER(ci.identifier_value) = %s
+                      AND UPPER(dp.name) = 'SEC EDGAR'
+                      AND cl.is_active = TRUE
+                    ORDER BY cl.created_at
+                    LIMIT 1
+                """, (ticker.upper(),))
+
+                listing_result = cur.fetchone()
+                if not listing_result:
+                    return []
+
+                listing_id = listing_result['id']
+
+                # Get historical prices
+                query = """
+                    SELECT price_date as date, open, high, low, close, volume
+                    FROM prices
+                    WHERE listing_id = %s
+                    ORDER BY price_date DESC
+                """
+                if limit is not None:
+                    query += f" LIMIT {limit}"
+
+                cur.execute(query, (listing_id,))
+
+                prices = []
+                for row in cur.fetchall():
+                    price_dict = {
+                        'date': row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']),
+                        'open': float(row['open']) if row['open'] is not None else None,
+                        'high': float(row['high']) if row['high'] is not None else None,
+                        'low': float(row['low']) if row['low'] is not None else None,
+                        'close': float(row['close']) if row['close'] is not None else None,
+                        'volume': int(row['volume']) if row['volume'] is not None else None
+                    }
+                    prices.append(price_dict)
+
+                return prices
+
+        except Exception:
+            return []
 
     def __del__(self):
         """Cleanup connection on object destruction."""

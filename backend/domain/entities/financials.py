@@ -15,6 +15,11 @@ class IncomeStatement:
     tax_provision: Optional[float] = None
     pretax_income: Optional[float] = None
     effective_tax_rate: Optional[float] = None
+    # Additional income statement fields
+    operating_expense: Optional[float] = None
+    research_development: Optional[float] = None
+    sga: Optional[float] = None
+    non_operating_income_expense: Optional[float] = None
 
 
 @dataclass

@@ -58,6 +58,11 @@ class NormalizedFinancials:
     interest_expense: float | None = None
     tax_provision: float | None = None
     pretax_income: float | None = None
+    # Additional income statement fields
+    operating_expense: float | None = None
+    research_development: float | None = None
+    sga: float | None = None
+    non_operating_income_expense: float | None = None
 
     # --- Balance sheet ---------------------------------------------------
     total_assets: float | None = None

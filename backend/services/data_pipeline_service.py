@@ -101,17 +101,22 @@ class DataPipelineService(DataLoader):
         history_years = years if years and years > 0 else self._default_years
 
         if not force and self._repository.has_data(ticker):
-            cached = self._repository.list_years(ticker)
-            logger.info(
-                "pipeline: %s served from cache (%d years)", ticker, len(cached)
-            )
-            return LoadResult(
-                ticker=ticker,
-                source=cached[0].source if cached else ProviderName.YAHOO,
-                years_loaded=len(cached),
-                statements=cached,
-                cached=True,
-            )
+            cached_records = self._repository.list_years(ticker)
+            if not cached_records:
+                # No cached data, fall through to fetch
+                pass
+            else:
+                # We have cached records, use them directly
+                logger.info(
+                    "pipeline: %s served from cache (%d years)", ticker, len(cached_records)
+                )
+                return LoadResult(
+                    ticker=ticker,
+                    source=cached_records[0].source if cached_records else ProviderName.YAHOO,
+                    years_loaded=len(cached_records),
+                    statements=cached_records,
+                    cached=True,
+                )
 
         providers = [self._primary]
         if self._fallback is not None:
