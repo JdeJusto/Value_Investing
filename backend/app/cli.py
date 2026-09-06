@@ -20,6 +20,7 @@ from backend.providers.tickers import TICKERS
 from backend.providers.yahoo import YahooFinanceProvider
 from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
+from backend.repositories.financial_database_repository import FinancialDatabaseRepository
 from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.screener_service import StockScreenerService
@@ -34,10 +35,22 @@ logger = logging.getLogger("backend.app")
 
 
 def build_financial_repository() -> FinancialRepository:
+    # Try Financial-DataBase repository first
+    try:
+        financial_db_repo = FinancialDatabaseRepository()
+        if financial_db_repo.available():
+            logger.info("Using Financial-DataBase financial repository")
+            return financial_db_repo
+    except Exception as e:
+        logger.warning(f"Financial-DataBase repository unavailable: {e}")
+
+    # Fall back to existing PostgreSQL repository
     repository = SqlAlchemyFinancialRepository()
     if repository.available():
         logger.info("Using PostgreSQL financial repository")
         return repository
+
+    # Finally fall back to JSON storage
     logger.warning("PostgreSQL unavailable — falling back to JSON storage")
     return JsonFinancialRepository(os.getenv("NORMALIZED_DATA_DIR", "data/normalized"))
 

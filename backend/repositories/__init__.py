@@ -1,4 +1,5 @@
 from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
+from backend.repositories.financial_database_repository import FinancialDatabaseRepository
 
-__all__ = ["SqlAlchemyFinancialRepository", "JsonFinancialRepository"]
+__all__ = ["SqlAlchemyFinancialRepository", "JsonFinancialRepository", "FinancialDatabaseRepository"]
