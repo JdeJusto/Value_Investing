@@ -9,7 +9,7 @@ y alertas. Todo determinista, sin ML y sin dependencias de redes sociales.
 
 - **Datos**: pipeline multi-fuente (Yahoo + EDGAR) con fallback automático,
   calidad por año, frescura y refresco bajo demanda
-- **Inteligencia**: filtro Buffett (4 pilares), análisis de moat, métricas de
+- **Inteligencia**: filtro**: filtro Buffett (4 pilares), análisis de moat, métricas de
   calidad (ROIC, owner earnings, CV, CAGR...), scoring compuesto con rating y
   confianza, deltas interanuales y detección de anomalías (z-score)
 - **Screener**: filtros por valor/calidad, ranking con momentum fundamental,
@@ -48,6 +48,8 @@ Copia `.env.example` a `.env`:
 | `SEC_NAME` | Nombre para EDGAR | Tu Nombre |
 | `DATABASE_URL` | PostgreSQL (activar con `docker-compose up -d db`) | postgresql://postgres:postgres@localhost:5432/value_investing |
 | `PORTFOLIO_PATH` | Ruta del archivo JSON de cartera | data/portfolio.json |
+| `FINANCIAL_DATABASE_URL` | Conexión a Financial-DataBase (fundamentales; los precios NO se almacenan, se consultan en tiempo real) | postgresql://financial:test@localhost:5432/financial_database |
+| `PRICE_CACHE_TTL` | TTL (segundos) de la caché en memoria de precios reales | 900 (15 min) |
 
 ```bash
 docker-compose up -d db        # base de datos opcional
@@ -75,6 +77,17 @@ pipenv run python main.py portfolio performance
 # 5. Backtest y alertas
 pipenv run python main.py backtest --strategy momentum --top 3
 pipenv run python main.py alerts
+
+# 6. Análisis histórico de valoración (P/E y FCF yield)
+pipenv run python main.py historical-valuation AAPL MSFT
+
+# 7. Comparar datos entre fuentes
+pipenv run python scripts/compare_sources.py AAPL MSFT KO
+
+# 8. Ejecutar scripts SQL reutilizables de Financial-DataBase
+pipenv run python main.py sql-analysis --script company_overview --cik 0000320193
+pipenv run python main.py sql-analysis --script financial_series --cik 0000320193
+pipenv run python main.py sql-analysis compare --ciks 0000320193,0000789019
 ```
 
 ## Referencia de comandos
@@ -171,6 +184,72 @@ Motor de alertas sobre el universo:
 Salida `{ticker, alert_type, reason[], confidence}`, extensible a notificadores
 reales (email/telegram/webhooks) implementando `backend/alerts/notifier.py`.
 
+### `historical-valuation TICKERS...`
+Muestra ratios históricos de valoración (P/E y FCF yield) para los tickers
+indicados. Los **fundamentales** salen de Financial-DataBase (repositorio
+principal); los **precios son en tiempo real** vía `PriceService` (yfinance) y
+**nunca se persisten** en ninguna base de datos.
+
+El cálculo se basa en:
+- **Precio**: cierre del día de negociación más cercano al cierre del año fiscal
+  (la fecha exacta del fin de año fiscal se obtiene de los fundamentales; si no
+  está disponible se usa el 31 de diciembre del año)
+- **EPS**: Beneficio neto / acciones en circulación
+- **P/E ratio**: Precio / EPS
+- **FCF yield**: Flujo de caja libre / Capitalización de mercado (el FCF se
+  deriva de OCF − capex cuando el dato directo no existe)
+- **Ajuste por splits**: los precios de Yahoo están ajustados por splits y las
+  acciones reportadas no; `PriceService.get_split_adjustment` las alinea para
+  que las métricas por acción sean consistentes a través del tiempo
+
+Los precios se cachean en memoria (máx. 15 minutos, configurable con
+`PRICE_CACHE_TTL`); cada ejecución nueva vuelve a Yahoo en tiempo real.
+
+Si no hay datos de precios disponibles para un año, ese año se muestra con
+"N/A" en lugar de fallar.
+
+Ejemplo de salida para AAPL:
+
+```
+fiscal_year |    price |      eps |   pe_ratio |  fcf_yield
+-----------------------------------------------------------
+      2025 |   254.52 |     5.23 |      48.70 |      2.21%
+      2024 |   225.90 |     4.76 |      47.44 |      2.28%
+      2023 |   168.93 |     4.96 |      34.06 |      3.36%
+```
+
+### `sql-analysis SCRIPT [--script SCRIPT] [--cik CIK] [--ciks CIKs] [--params JSON] [--limit N] [--list] [--output FORMAT]`
+Ejecuta scripts SQL reutilizables desde el directorio `scripts/analysis` de
+Financial-DataBase. Permite consultas predefinidas para overview de compañías,
+ratios avanzados y otros análisis financieros.
+
+- `SCRIPT` o `--script`: Nombre del script SQL (sin extensión .sql)
+- `--cik`: CIK directo para usar como parámetro
+- `--ciks`: Lista de CIKs separados por comas (para scripts multi-empresa
+  como `compare`/`compare_companies`)
+- `--params`: Parámetros adicionales en formato JSON
+- `--limit`: Limita el número de filas devueltas (útil para scripts como financial_series)
+- `--list`: Lista los scripts SQL disponibles
+- `--output`: Formato de salida (table, json, csv; default: table)
+
+Alias: `compare` → `compare_companies`.
+
+Ejemplos:
+
+```bash
+# Overview de Apple vía CIK directo
+pipenv run python main.py sql-analysis --script company_overview --cik 0000320193
+
+# Series financieras de los últimos 5 años para Apple
+pipenv run python main.py sql-analysis --script financial_series --cik 0000320193 --limit 5
+
+# Ratios avanzados para Apple
+pipenv run python main.py sql-analysis --script ratios_advanced --cik 0000320193
+
+# Comparar múltiples empresas (Apple y Microsoft) con el alias shorthand
+pipenv run python main.py sql-analysis compare --ciks 0000320193,0000789019
+```
+
 ### `debug`
 Verifica que todas las piezas del sistema funcionan (BD, repositorios, CLI).
 
@@ -183,12 +262,58 @@ Verifica que todas las piezas del sistema funcionan (BD, repositorios, CLI).
 Abre http://localhost:8501: screener (~150 acciones), análisis detallado y
 vista rápida por ticker.
 
+## Comparación de fuentes de datos
+
+El script `scripts/compare_sources.py` compara los **fundamentales** de
+Financial-DataBase con los obtenidos directamente de Yahoo Finance y EDGAR para
+validar calidad y consistencia. **Los precios nunca se comparan ni se piden**;
+la comparación es exclusivamente de estados financieros.
+
+- Comparación anclada en el **último año fiscal completo** de Financial-DataBase
+  (aquel con datos anuales `period='FY'`), no en el año en curso a medio cerrar.
+- Campos comparados (6): ingresos, beneficio neto, activos totales, pasivos
+  totales, flujo de caja operativo y gastos de capital.
+- Se destacan discrepancias **> 5%** entre fuentes.
+
+Ejemplo de uso:
+
+```bash
+pipenv run python scripts/compare_sources.py AAPL MSFT KO
+```
+
+## Limitaciones conocidas
+
+- **Precios en tiempo real (no persistidos)**: `historical-valuation`, el
+  screener y cualquier métrica que requiera precio consultan Yahoo Finance en
+  vivo (caché en memoria ≤ 15 min). Esto es intencional: los precios no se
+  almacenan en Financial-DataBase. Depende por tanto de la disponibilidad y los
+  límites de tasa de Yahoo/yfinance; si la red falla, las métricas dependientes
+  de precio se muestran como "N/A" en lugar de fallar.
+- **Ajuste por splits**: los precios ajustados de Yahoo se alinean con las
+  acciones reportadas históricamente mediante `PriceService.get_split_adjustment`.
+  Si Yahoo no devuelve el historial de splits, se usan las cifras tal como se
+  reportaron (posible métricas por acción inexactas para años anteriores a un
+  split).
+- **Dependencia de Yahoo Finance y EDGAR**: El script de comparación depende de
+  las bibliotecas `yfinance` y `edgar`, que pueden estar sujetas a límites de
+  tasa o cambios en sus APIs. Si fallan, el script continuará con las fuentes
+  disponibles.
+- **Discrepancias entre fuentes**: Los datos de Financial-DataBase (SEC EDGAR
+  procesado) pueden diferir de Yahoo/EDGAR vivo por ventanas temporales o
+  conceptos (p. ej. total liabilities ausentes para ciertos tickers). El script
+  las detecta y las reporta, pero no las corrige.
+- **Scripts SQL**: Los scripts SQL reutilizables provienen de Financial-DataBase
+  y pueden requerir ajustes futuros si el esquema de la base de datos cambia.
+- **Precisión de los cálculos**: Se usa el cierre del día de negociación más
+  cercano al cierre del año fiscal (ventana de ±15 días naturales) si no hay
+  datos para ese día exacto.
+
 ## Testing y calidad
 
 ```bash
-pipenv run pytest tests/unit -q     # suite unitaria (194 tests, sin red)
-pipenv run black .                  # formato
-pipenv run flake8                   # lint
+pipenv run pytest tests/unit -q     # suite unitaria (274 tests, sin red)
+pipenv run black .
+pipenv run flake8
 ```
 
 ## Estructura del proyecto
@@ -200,7 +325,7 @@ pipenv run flake8                   # lint
 │   ├── domain/                   # Entidades, VOs, interfaces (sin pandas)
 │   ├── providers/                # Yahoo + EDGAR, normalizadores
 │   ├── repositories/             # SQL (PostgreSQL) y JSON
-│   ├── services/                 # Pipeline de datos, análisis
+│   ├── services/                 # Pipeline de datos, análisis, precios en tiempo real
 │   ├── analytics/                # Ratios, DCF, scoring, calidad
 │   ├── intelligence/             # Buffett, moat, scoring, deltas, anomalías
 │   ├── screener/                 # Filtros, ranking, señales, oportunidades
@@ -210,7 +335,7 @@ pipenv run flake8                   # lint
 ├── cli/commands/                 # Un módulo por subcomando
 ├── alembic/                      # Migraciones de esquema
 ├── data/                         # portfolio.json, raw, cache
-├── tests/unit/                   # 194 tests sin red (mocks)
+├── tests/unit/                   # 274 tests sin red (mocks)
 ├── ui/                           # Streamlit
 └── docs/
 ```

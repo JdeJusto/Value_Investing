@@ -89,33 +89,34 @@ class TestFinancialDatabaseIntegration:
             assert result.ticker == test_ticker.upper()
             assert result.fiscal_year == test_year
 
-    def test_price_data_methods(
+    def test_fiscal_year_end_date_method(
         self,
         financial_db_repo: FinancialRepository,
-        test_ticker: str
+        test_ticker: str,
+        test_year: int
     ) -> None:
-        """Test price data retrieval methods."""
+        """Test fiscal year end date retrieval (fundamentals-only repository)."""
         if not financial_db_repo.available():
             pytest.skip("Financial-DataBase not available")
 
-        # Test get_latest_price
-        latest_price = financial_db_repo.get_latest_price(test_ticker)
-        # Can be None if no price data, or float if data exists
-        if latest_price is not None:
-            assert isinstance(latest_price, float)
-            assert latest_price > 0
+        fye = financial_db_repo.get_fiscal_year_end_date(test_ticker, test_year)
+        # Either None (no data) or a date near the fiscal year end.
+        if fye is not None:
+            assert hasattr(fye, 'year')
+            # AAPL's fiscal year ends in late September, so the FYE must be
+            # within a reasonable window of the fiscal year.
+            assert fye.year in (test_year - 1, test_year, test_year + 1)
 
-        # Test get_prices with limit
-        prices = financial_db_repo.get_prices(test_ticker, limit=5)
-        assert isinstance(prices, list)
-        # Each price entry should be a dict with expected keys
-        for price_entry in prices:
-            assert isinstance(price_entry, dict)
-            # Check for expected keys (may vary based on implementation)
-            assert 'date' in price_entry
-            assert 'close' in price_entry
-            assert isinstance(price_entry['close'], (int, float))
-            assert price_entry['close'] > 0
+        # Shares outstanding is a fundamental fact and must remain available.
+        shares = financial_db_repo.get_shares_outstanding(test_ticker, test_year)
+        if shares is not None:
+            assert shares > 0
+
+    def test_repository_exposes_no_price_methods(self, financial_db_repo: FinancialRepository) -> None:
+        """Prices must NOT be read from Financial-DataBase."""
+        assert not hasattr(financial_db_repo, "get_latest_price")
+        assert not hasattr(financial_db_repo, "get_prices")
+        assert not hasattr(financial_db_repo, "get_historical_valuation_ratios")
 
     @pytest.mark.skipif(
         not os.getenv("FINANCIAL_DATABASE_URL"),

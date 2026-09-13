@@ -94,3 +94,42 @@ class EdgarProvider(FinancialDataProvider):
     def get_stockholders_equity(self, ticker: str) -> Optional[float]:
         bs = self.get_balance_sheet(ticker)
         return bs.stockholders_equity if bs else None
+
+    def get_financials(self, ticker: str) -> Optional[object]:
+        """Return an object with financial attributes for comparison.
+        This method is intended for use in scripts like compare_sources.py.
+        """
+        class _Financials:
+            def __init__(self):
+                self.revenue: Optional[float] = None
+                self.net_income: Optional[float] = None
+                self.total_assets: Optional[float] = None
+                self.total_liabilities: Optional[float] = None
+                self.operating_cash_flow: Optional[float] = None
+                self.capital_expenditure: Optional[float] = None  # positive
+                self.shareholders_equity: Optional[float] = None
+                self.diluted_eps: Optional[float] = None
+                self.free_cash_flow: Optional[float] = None
+                self.fiscal_year: Optional[int] = None
+
+        try:
+            fins = self._get_financials(ticker)
+            if not fins:
+                return None
+
+            fin = _Financials()
+            fin.revenue = float(fins.get_revenue(0)) if fins.get_revenue(0) is not None else None
+            fin.net_income = float(fins.get_net_income(0)) if fins.get_net_income(0) is not None else None
+            fin.total_assets = float(fins.get_total_assets(0)) if fins.get_total_assets(0) is not None else None
+            fin.total_liabilities = float(fins.get_total_liabilities(0)) if fins.get_total_liabilities(0) is not None else None
+            fin.operating_cash_flow = float(fins.get_operating_cash_flow(0)) if fins.get_operating_cash_flow(0) is not None else None
+            capex = fins.get_capital_expenditures(0)
+            if capex is not None:
+                fin.capital_expenditure = abs(float(capex))
+            fin.free_cash_flow = float(fins.get_free_cash_flow(0)) if fins.get_free_cash_flow(0) is not None else None
+            # Calculate diluted EPS if possible (EDGAR doesn't have shares outstanding directly in the financials object?)
+            # We'll leave it as None for now.
+            # Attempt to get fiscal year (not directly available; we could try to infer from filings? skip)
+            return fin
+        except Exception:
+            return None

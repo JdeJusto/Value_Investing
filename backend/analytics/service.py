@@ -161,9 +161,11 @@ class CompanyAnalysisService:
             "market_cap": market_cap,
             "revenue": revenue,
             "net_income": net_income,
+            "ebit": ebit,
             "fcf": fcf,
             "total_debt": debt,
             "equity": equity,
+            "cash_and_equivalents": cash,
         }
 
         result["roe"] = RoeCalculator().calculate(net_income=net_income, equity=equity)

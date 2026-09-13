@@ -6,6 +6,9 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 
 
 def main():
+    print("DEBUG: main() called", file=sys.stderr)
+    print("DEBUG: sys.argv = {}".format(sys.argv), file=sys.stderr)
+    print("DEBUG: About to create parser", file=sys.stderr)
     parser = argparse.ArgumentParser(
         prog="main.py",
         description="Value Investing Platform — Analisis fundamental desde la terminal",
@@ -47,11 +50,13 @@ def main():
         company,
         data_status,
         debug,
+        historical_valuation,
         load_data,
         momentum,
         opportunities,
         portfolio,
         screener,
+        sql_analysis,
         watchlist,
     )
 
@@ -59,6 +64,7 @@ def main():
     company.register(sub)
     analyze.register(sub)
     buffett_analysis.register(sub)
+    historical_valuation.register(sub)
     load_data.register(sub)
     data_status.register(sub)
     opportunities.register(sub)
@@ -69,6 +75,7 @@ def main():
     alerts.register(sub)
     watchlist.register(sub)
     debug.register(sub)
+    sql_analysis.register(sub)
 
     if len(sys.argv) == 1:
         parser.print_help()

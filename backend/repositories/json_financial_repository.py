@@ -99,6 +99,14 @@ class JsonFinancialRepository(FinancialRepository):
             else str(financials.source)
         )
 
+    # FinancialRepository interface extensions for historical data
+    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+        """Get shares outstanding from normalized financials for the given year."""
+        record = self.get_by_year(ticker, fiscal_year)
+        if record and record.shares_outstanding is not None:
+            return float(record.shares_outstanding)
+        return None
+
     @staticmethod
     def _record_rank(record: NormalizedFinancials) -> tuple:
         return (

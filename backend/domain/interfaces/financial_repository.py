@@ -47,6 +47,18 @@ class FinancialRepository(ABC):
         """
 
     @abstractmethod
+    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+        """Get shares outstanding for a ticker and fiscal year.
+
+        Args:
+            ticker: Company ticker symbol
+            fiscal_year: Fiscal year
+
+        Returns:
+            Shares outstanding if available, None otherwise
+        """
+
+    @abstractmethod
     def has_data(self, ticker: str) -> bool:
         """True if at least one record exists for the ticker."""
 

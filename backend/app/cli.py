@@ -23,6 +23,7 @@ from backend.repositories.json_financial_repository import JsonFinancialReposito
 from backend.repositories.financial_database_repository import FinancialDatabaseRepository
 from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
+from backend.services.price_service import get_price_service
 from backend.services.screener_service import StockScreenerService
 from backend.utils.input import get_tickers
 
@@ -91,6 +92,7 @@ def build_screener_service() -> StockScreenerService:
         repository=build_financial_repository(),
         market_provider=yahoo,
         loader=build_data_pipeline(),
+        price_service=get_price_service(),
     )
 
 
@@ -121,6 +123,45 @@ def _tracked_tickers() -> list[str]:
     except Exception:  # noqa: BLE001 — database down must not kill the CLI
         logger.warning("storage unavailable — falling back to static ticker list")
         return TICKERS
+
+
+def cmd_historical_valuation(args):
+    """Show historical valuation ratios (P/E and FCF yield) for tickers."""
+    from backend.services.historical_valuation_service import HistoricalValuationService
+
+    service = HistoricalValuationService()
+    tickers = get_tickers()
+
+    if not tickers:
+        print("Error: No tickers provided")
+        return
+
+    for ticker in tickers:
+        print(f"\nHistorical Valuation Ratios for {ticker}")
+        print("=" * 50)
+        table_output = service.format_valuation_table(ticker)
+        print(table_output)
+
+
+def build_financial_repository() -> FinancialRepository:
+    # Try Financial-DataBase repository first
+    try:
+        financial_db_repo = FinancialDatabaseRepository()
+        if financial_db_repo.available():
+            logger.info("Using Financial-DataBase financial repository")
+            return financial_db_repo
+    except Exception as e:
+        logger.warning(f"Financial-DataBase repository unavailable: {e}")
+
+    # Fall back to existing PostgreSQL repository
+    repository = SqlAlchemyFinancialRepository()
+    if repository.available():
+        logger.info("Using PostgreSQL financial repository")
+        return repository
+
+    # Finally fall back to JSON storage
+    logger.warning("PostgreSQL unavailable — falling back to JSON storage")
+    return JsonFinancialRepository(os.getenv("NORMALIZED_DATA_DIR", "data/normalized"))
 
 
 def build_portfolio_service():
@@ -355,6 +396,12 @@ def main():
         help='Filtros: "per < 15", "pb between 1 1.5", "roe > 0.15", "fcf > 1000000"',
     )
     p_screener.set_defaults(func=cmd_screener)
+
+    # Historical valuation command
+    p_hist = sub.add_parser(
+        "historical-valuation", help="Show historical valuation ratios (P/E and FCF yield)"
+    )
+    p_hist.set_defaults(func=cmd_historical_valuation)
 
     args = parser.parse_args()
     if args.command is None:

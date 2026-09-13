@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -128,6 +128,11 @@ BALANCE_SHEET_CONCEPTS = {
     'StockholdersEquity': 'stockholders_equity',
     'TotalEquityGrossMinorityInterest': 'stockholders_equity',
     'ShareholdersEquity': 'stockholders_equity',
+
+    # Shares Outstanding
+    'WeightedAverageNumberOfSharesOutstandingBasic': 'shares_outstanding',
+    'WeightedAverageNumberOfSharesOutstanding': 'shares_outstanding',
+    'WeightedAverageNumberOfSharesOutstandingDiluted': 'shares_outstanding',
 }
 
 CASH_FLOW_CONCEPTS = {
@@ -137,6 +142,7 @@ CASH_FLOW_CONCEPTS = {
 
     # Capital Expenditure (positive value)
     'PaymentsToAcquireProductiveAssets': 'capital_expenditure',
+    'PaymentsToAcquirePropertyPlantAndEquipment': 'capital_expenditure',
     'CapitalExpenditures': 'capital_expenditure',
     'CapitalExpenditure': 'capital_expenditure',
 
@@ -250,10 +256,8 @@ class FinancialDatabaseRepository(FinancialRepository):
                     SELECT c.id
                     FROM companies c
                     JOIN company_identifiers ci ON c.id = ci.company_id
-                    JOIN data_providers dp ON ci.provider_id = dp.id
                     WHERE UPPER(ci.identifier_type) = 'TICKER'
                       AND UPPER(ci.identifier_value) = %s
-                      AND UPPER(dp.name) = 'SEC EDGAR'
                 """, (ticker.upper(),))
                 result = cur.fetchone()
                 return str(result['id']) if result else None
@@ -524,26 +528,9 @@ class FinancialDatabaseRepository(FinancialRepository):
             if not company_id:
                 return None
 
-            # Get company identifiers to get the CIK for querying financial facts
             conn = self._get_connection()
             with conn.cursor() as cur:
-                # Get the CIK for this company
-                cur.execute("""
-                    SELECT ci.identifier_value as cik
-                    FROM company_identifiers ci
-                    JOIN data_providers dp ON ci.provider_id = dp.id
-                    WHERE ci.company_id = %s
-                      AND UPPER(ci.identifier_type) = 'CIK'
-                      AND UPPER(dp.name) = 'SEC EDGAR'
-                """, (company_id,))
-
-                cik_result = cur.fetchone()
-                if not cik_result:
-                    return None
-
-                cik = cik_result['cik']
-
-                # Now get financial facts for this company/year
+                # Get financial facts for this company/year directly using company_id
                 cur.execute("""
                     SELECT
                         f.concept,
@@ -590,10 +577,8 @@ class FinancialDatabaseRepository(FinancialRepository):
                 cur.execute("""
                     SELECT ci.identifier_value as cik
                     FROM company_identifiers ci
-                    JOIN data_providers dp ON ci.provider_id = dp.id
                     WHERE ci.company_id = %s
                       AND UPPER(ci.identifier_type) = 'CIK'
-                      AND UPPER(dp.name) = 'SEC EDGAR'
                 """, (company_id,))
 
                 cik_result = cur.fetchone()
@@ -608,10 +593,8 @@ class FinancialDatabaseRepository(FinancialRepository):
                     FROM financial_facts f
                     JOIN companies c ON f.company_id = c.id
                     JOIN company_identifiers ci ON c.id = ci.company_id
-                    JOIN data_providers dp ON ci.provider_id = dp.id
                     WHERE UPPER(ci.identifier_type) = 'CIK'
                       AND UPPER(ci.identifier_value) = %s
-                      AND UPPER(dp.name) = 'SEC EDGAR'
                     ORDER BY f.fiscal_year DESC
                 """, (cik,))
 
@@ -704,14 +687,21 @@ class FinancialDatabaseRepository(FinancialRepository):
         """
         return self.get_by_year(ticker, fiscal_year)
 
-    def get_latest_price(self, ticker: str) -> Optional[float]:
-        """Get the latest price for a ticker from the prices table.
+    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+        """Get shares outstanding for a ticker and fiscal year.
+
+        Tries multiple concepts in order:
+          1. CommonStockSharesOutstanding
+          2. WeightedAverageNumberOfSharesOutstandingBasic
+          3. WeightedAverageNumberOfSharesOutstanding
+          4. WeightedAverageNumberOfSharesOutstandingDiluted
 
         Args:
             ticker: Company ticker symbol
+            fiscal_year: Fiscal year
 
         Returns:
-            Latest closing price if available, None otherwise
+            Shares outstanding if available, None otherwise
         """
         try:
             # Get company ID from ticker
@@ -721,112 +711,114 @@ class FinancialDatabaseRepository(FinancialRepository):
 
             conn = self._get_connection()
             with conn.cursor() as cur:
-                # Get the listing ID for this company
-                cur.execute("""
-                    SELECT cl.id
-                    FROM company_listings cl
-                    JOIN companies c ON cl.company_id = c.id
-                    JOIN company_identifiers ci ON c.id = ci.company_id
-                    JOIN data_providers dp ON ci.provider_id = dp.id
-                    WHERE UPPER(ci.identifier_type) = 'TICKER'
-                      AND UPPER(ci.identifier_value) = %s
-                      AND UPPER(dp.name) = 'SEC EDGAR'
-                      AND cl.is_active = TRUE
-                    ORDER BY cl.created_at
-                    LIMIT 1
-                """, (ticker.upper(),))
+                # Try multiple concepts for shares outstanding
+                concepts_to_try = [
+                    'CommonStockSharesOutstanding',
+                    'WeightedAverageNumberOfSharesOutstandingBasic',
+                    'WeightedAverageNumberOfSharesOutstanding',
+                    'WeightedAverageNumberOfSharesOutstandingDiluted'
+                ]
+                for concept in concepts_to_try:
+                    cur.execute("""
+                        SELECT f.value
+                        FROM financial_facts f
+                        WHERE f.company_id = %s
+                          AND f.fiscal_year = %s
+                          AND f.concept = %s
+                        ORDER BY f.updated_at DESC
+                        LIMIT 1
+                    """, (company_id, fiscal_year, concept))
 
-                listing_result = cur.fetchone()
-                if not listing_result:
-                    return None
-
-                listing_id = listing_result['id']
-
-                # Get the latest price
-                cur.execute("""
-                    SELECT close
-                    FROM prices
-                    WHERE listing_id = %s
-                    ORDER BY price_date DESC
-                    LIMIT 1
-                """, (listing_id,))
-
-                price_result = cur.fetchone()
-                if price_result and price_result['close'] is not None:
-                    return float(price_result['close'])
+                    result = cur.fetchone()
+                    if result and result['value'] is not None:
+                        return float(result['value'])
 
                 return None
 
         except Exception:
             return None
 
-    def get_prices(self, ticker: str, limit: Optional[int] = None) -> List[dict]:
-        """Get historical prices for a ticker from the prices table.
+    def get_fiscal_year_end_date(self, ticker: str, fiscal_year: int) -> Optional[date]:
+        """Return the best-known fiscal year end date for a ticker/year.
+
+        Uses the most frequent ``period_end`` among the annual ('FY') facts,
+        which is the actual fiscal year-end reported in the 10-K (e.g. Apple's
+        fiscal year ends in late September, not December).
 
         Args:
             ticker: Company ticker symbol
-            limit: Maximum number of price records to return (most recent first)
+            fiscal_year: Fiscal year
 
         Returns:
-            List of price dictionaries with date and price data
+            Fiscal year end date if found, None otherwise
         """
         try:
-            # Get company ID from ticker
             company_id = self._get_company_id_by_ticker(ticker)
             if not company_id:
-                return []
+                return None
 
             conn = self._get_connection()
             with conn.cursor() as cur:
-                # Get the listing ID for this company
                 cur.execute("""
-                    SELECT cl.id
-                    FROM company_listings cl
-                    JOIN companies c ON cl.company_id = c.id
-                    JOIN company_identifiers ci ON c.id = ci.company_id
-                    JOIN data_providers dp ON ci.provider_id = dp.id
-                    WHERE UPPER(ci.identifier_type) = 'TICKER'
-                      AND UPPER(ci.identifier_value) = %s
-                      AND UPPER(dp.name) = 'SEC EDGAR'
-                      AND cl.is_active = TRUE
-                    ORDER BY cl.created_at
+                    SELECT f.period_end::date, COUNT(*) as cnt
+                    FROM financial_facts f
+                    WHERE f.company_id = %s
+                      AND f.fiscal_year = %s
+                      AND UPPER(f.fiscal_period) = 'FY'
+                      AND f.period_end IS NOT NULL
+                    GROUP BY f.period_end::date
+                    ORDER BY cnt DESC, f.period_end::date
                     LIMIT 1
-                """, (ticker.upper(),))
+                """, (company_id, fiscal_year))
 
-                listing_result = cur.fetchone()
-                if not listing_result:
-                    return []
-
-                listing_id = listing_result['id']
-
-                # Get historical prices
-                query = """
-                    SELECT price_date as date, open, high, low, close, volume
-                    FROM prices
-                    WHERE listing_id = %s
-                    ORDER BY price_date DESC
-                """
-                if limit is not None:
-                    query += f" LIMIT {limit}"
-
-                cur.execute(query, (listing_id,))
-
-                prices = []
-                for row in cur.fetchall():
-                    price_dict = {
-                        'date': row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date']),
-                        'open': float(row['open']) if row['open'] is not None else None,
-                        'high': float(row['high']) if row['high'] is not None else None,
-                        'low': float(row['low']) if row['low'] is not None else None,
-                        'close': float(row['close']) if row['close'] is not None else None,
-                        'volume': int(row['volume']) if row['volume'] is not None else None
-                    }
-                    prices.append(price_dict)
-
-                return prices
+                result = cur.fetchone()
+                if result and result['period_end'] is not None:
+                    period_end = result['period_end']
+                    if isinstance(period_end, date):
+                        return period_end
+                    return date.fromisoformat(str(period_end)[:10])
+                return None
 
         except Exception:
-            return []
+            return None
+
+    def get_latest_completed_fiscal_year(self, ticker: str) -> Optional[int]:
+        """Return the most recent fiscal year that has annual ('FY') facts.
+
+        ``list_years`` returns every year with any facts, including the current
+        in-progress year (partial quarterly data). Completed-year comparisons
+        should anchor on the latest year that has a full annual report.
+
+        Args:
+            ticker: Company ticker symbol
+
+        Returns:
+            Completed fiscal year if found, None otherwise
+        """
+        try:
+            company_id = self._get_company_id_by_ticker(ticker)
+            if not company_id:
+                return None
+
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT DISTINCT f.fiscal_year
+                    FROM financial_facts f
+                    WHERE f.company_id = %s
+                      AND UPPER(f.fiscal_period) = 'FY'
+                      AND f.fiscal_year IS NOT NULL
+                    ORDER BY f.fiscal_year DESC
+                    LIMIT 1
+                """, (company_id,))
+
+                result = cur.fetchone()
+                if result and result['fiscal_year'] is not None:
+                    return int(result['fiscal_year'])
+                return None
+
+        except Exception:
+            return None
 
     def __del__(self):
         """Cleanup connection on object destruction."""

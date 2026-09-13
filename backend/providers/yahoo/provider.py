@@ -234,9 +234,75 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             total_cap = mcap + debt
             wd = debt / total_cap if total_cap != 0 else 0.5
             we = 1.0 - wd
-            cost_debt = self.get_cost_of_debt(ticker)
-            tax = self.get_effective_tax_rate(ticker)
-            cost_equity = self.get_cost_of_equity(ticker)
-            return we * cost_equity + wd * cost_debt * (1 - tax)
-        except Exception:
+
+            cost_equity = self._risk_free_rate + beta * (
+                self._market_return - self._risk_free_rate
+            )
+            if financials.interest_expense is not None and debt != 0:
+                cost_debt = abs(financials.interest_expense) / debt
+            else:
+                cost_debt = DEFAULT_COST_OF_DEBT
+
+            tax_rate = _sanitize_tax_rate(
+                _effective_tax_rate(financials), self._default_tax_rate
+            )
+            return weight_equity * cost_equity + weight_debt * cost_debt * (
+                1 - tax_rate
+            )
+        except Exception:  # noqa: BLE001
             return 0.08
+
+    def get_financials(self, ticker: str) -> Optional[object]:
+        """Return an object with financial attributes for comparison.
+        This method is intended for use in scripts like compare_sources.py.
+        """
+        class _Financials:
+            def __init__(self):
+                self.revenue: Optional[float] = None
+                self.net_income: Optional[float] = None
+                self.total_assets: Optional[float] = None
+                self.total_liabilities: Optional[float] = None
+                self.operating_cash_flow: Optional[float] = None
+                self.capital_expenditure: Optional[float] = None  # positive
+                self.shareholders_equity: Optional[float] = None
+                self.diluted_eps: Optional[float] = None
+                self.free_cash_flow: Optional[float] = None
+                self.fiscal_year: Optional[int] = None
+
+        try:
+            ticker_obj = self._get_ticker(ticker)
+            income = self.get_income_statement(ticker)
+            balance = self.get_balance_sheet(ticker)
+            cash_flow = self.get_cash_flow(ticker)
+            shares_outstanding = self.get_shares_outstanding(ticker)
+
+            if not any([income, balance, cash_flow]):
+                return None
+
+            fin = _Financials()
+            if income:
+                fin.revenue = float(income.revenue) if income.revenue is not None else None
+                fin.net_income = float(income.net_income) if income.net_income is not None else None
+            if balance:
+                fin.total_assets = float(balance.total_assets) if balance.total_assets is not None else None
+                fin.total_liabilities = float(balance.total_liabilities) if balance.total_liabilities is not None else None
+                fin.shareholders_equity = float(balance.stockholders_equity) if balance.stockholders_equity is not None else None
+            if cash_flow:
+                fin.operating_cash_flow = float(cash_flow.operating_cash_flow) if cash_flow.operating_cash_flow is not None else None
+                capex = cash_flow.capital_expenditure
+                if capex is not None:
+                    fin.capital_expenditure = abs(float(capex))
+                fin.free_cash_flow = float(cash_flow.free_cash_flow) if cash_flow.free_cash_flow is not None else None
+            # Calculate diluted EPS if possible
+            if fin.net_income is not None and shares_outstanding is not None and shares_outstanding != 0:
+                fin.diluted_eps = fin.net_income / float(shares_outstanding)
+            # Attempt to get fiscal year (most recent)
+            try:
+                years = self.get_fiscal_years(ticker)
+                if years:
+                    fin.fiscal_year = int(years[0])
+            except Exception:
+                pass
+            return fin
+        except Exception:
+            return None

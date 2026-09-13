@@ -111,9 +111,11 @@ Financial-DataBase Schema → Value Investing NormalizedFinancials:
 - `company_id` → Links to company
 - `provider_id` → Identifies SEC EDGAR as source
 
-**prices** table:
-- Provides historical price data via `company_listings` → `companies` join
-- `price_date`, `open`, `high`, `low`, `close`, `volume`
+> **Prices are NOT stored in Financial-DataBase for analytics.** Real-time and
+> historical prices are fetched on demand from Yahoo Finance through
+> `backend/services/price_service.py` (PriceService) with a short in-memory
+> cache (default 15 min, `PRICE_CACHE_TTL`). Nothing price-related is read from
+> or written to the `prices` table by Value Investing code.
 
 **company_listings** table:
 - Links companies to exchange listings
@@ -128,21 +130,59 @@ Financial-DataBase Schema → Value Investing NormalizedFinancials:
 6. `exchanges` - Exchange information
 7. `data_providers` - Source identification (SEC EDGAR, Yahoo Finance)
 
-## New Components to Create
+## New Components Created
 
 ### 1. FinancialDatabaseRepository
-New repository implementation in `backend/repositories/financial_database_repository.py` that:
+Repository implementation in `backend/repositories/financial_database_repository.py` that:
 - Connects to Financial-DataBase PostgreSQL database
 - Implements `FinancialRepository` interface
 - Queries financial_facts table to reconstruct NormalizedFinancials
 - Handles provider mapping (SEC EDGAR → ProviderName.EDGAR)
 - Includes fallback logic to existing providers
+- Provides fundamentals, shares outstanding, fiscal year end dates
+- Does NOT expose price methods (prices live in PriceService, not the DB)
 
-### 2. Configuration Updates
+### 2. PriceService
+Service in `backend/services/price_service.py` that:
+- Fetches current and historical prices from Yahoo Finance in real time
+- Provides `get_current_price`, `get_historical_prices`, `get_price_on_date`,
+  `get_price_at_fiscal_year_end`, `get_shares_outstanding`,
+  `get_split_adjustment`
+- Never persists prices — in-memory cache only (TTL default 900 s)
+- `get_split_adjustment` aligns as-reported shares with split-adjusted Yahoo
+  prices so historical per-share metrics stay consistent across stock splits
+
+### 3. HistoricalValuationService
+Service in `backend/services/historical_valuation_service.py` that:
+- Calculates historical P/E ratios and FCF yield from fundamentals
+  (Financial-DataBase) + real-time prices (PriceService)
+- Prices are fetched on demand and never persisted
+- FCF falls back to OCF − capex when direct FreeCashFlow is missing
+- Provides formatted table output for easy visualization
+
+### 4. SQL Analysis Service
+Service in `backend/services/sql_analysis_service.py` that:
+- Executes reusable SQL scripts from Financial-DataBase's scripts/analysis directory
+- Handles parameter binding (especially CIK/ticker conversion, `:ciks::text[]`
+  arrays for multi-company scripts)
+- Resolves script aliases (`compare` → `compare_companies`)
+- Supports multiple output formats (table, JSON, CSV)
+- Includes helper methods for common scripts like company_overview
+
+### 5. Data Comparison Script
+Script in `scripts/compare_sources.py` that:
+- Compares ONLY fundamentals from Financial-DataBase with Yahoo Finance and EDGAR providers
+- Anchors on the latest completed fiscal year (period='FY'), not the in-progress year
+- Compares 6 fundamental fields (revenue, net income, assets, liabilities,
+  operating cash flow, capital expenditures); prices are never compared
+- Flags significant discrepancies (>5%) for further investigation
+- Provides side-by-side comparison in readable table format
+
+### 5. Configuration Updates
 - Add `FINANCIAL_DATABASE_URL` environment variable
 - Update `build_financial_repository()` in `backend/app/cli.py` to try Financial-DataBase first
 
-### 3. Provider Mapping
+### 6. Provider Mapping
 Create mapping between Financial-DataBase provider names and Value Investing ProviderName enum:
 - 'SEC EDGAR' → ProviderName.EDGAR
 - 'Yahoo Finance' → ProviderName.YAHOO
@@ -243,6 +283,12 @@ python -m pytest tests/unit -q
 3. **Temporal alignment**: Financial-DataBase stores period_start/period_end; Value Investing uses fiscal_year/period
 4. **Data freshness**: Financial-DataBase requires explicit update commands; Value Investing fetches on demand
 5. **Exchange mapping**: Need to map Financial-DataBase exchange IDs to Value Investing exchange handling
+6. **Real-time prices**: Prices are fetched from Yahoo on demand and cached in
+   memory only (never persisted); metrics that need prices degrade to "N/A" when
+   the network or Yahoo is unavailable
+7. **Split adjustment**: Split-adjusted Yahoo prices are reconciled with
+   as-reported shares via `PriceService.get_split_adjustment`; without Yahoo
+   split history, as-reported figures are used as-is
 
 ## Next Steps for Full Integration
 
@@ -257,12 +303,15 @@ python -m pytest tests/unit -q
 - [ ] Test with single ticker (AAPL) load-data command
 
 ### Phase 2: Enhanced Features
-- [ ] Implement price data mapping from prices table
-- [ ] Add company listings and exchange information mapping
-- [ ] Implement proper error handling and logging
+- [x] Implement real-time price service (PriceService, yfinance, no persistence) (completed)
+- [x] Add company listings and exchange information mapping (completed)
+- [x] Implement proper error handling and logging (completed)
 - [ ] Add caching layer for performance
 - [ ] Implement batch operations for efficiency
-- [ ] Add health check/database availability detection
+- [x] Add health check/database availability detection (completed)
+- [x] Implement historical valuation calculations (P/E and FCF yield) (completed)
+- [x] Create SQL analysis service for running Financial-DataBase reusable SQL scripts (completed)
+- [x] Create data comparison script to compare Financial-DataBase with other providers (completed)
 
 ### Phase 3: Advanced Integration
 - [ ] Implement bi-directional sync (Value Investing → Financial-DataBase)
