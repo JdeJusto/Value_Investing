@@ -32,6 +32,7 @@ class StockScreenerService:
         filters: Optional[list[FilterCriteria]] = None,
         top_n: Optional[int] = None,
         progress_callback=None,
+        no_prices: bool = False,
     ) -> list[ScreenerRow]:
         if tickers is None:
             tickers = TICKERS
@@ -45,7 +46,7 @@ class StockScreenerService:
                 progress_callback(idx + 1, total, ticker)
 
             try:
-                row = self._analyze_ticker(ticker)
+                row = self._analyze_ticker(ticker, no_prices=no_prices)
                 if row is None:
                     continue
                 if self._passes_filters(row, filters):
@@ -77,18 +78,22 @@ class StockScreenerService:
                     continue
         return matches[:20]
 
-    def _analyze_ticker(self, ticker: str) -> Optional[ScreenerRow]:
+    def _analyze_ticker(
+        self, ticker: str, no_prices: bool = False
+    ) -> Optional[ScreenerRow]:
         d = self._analysis.analyze(ticker)
         if d is None:
             return None
 
         # Real-time price (never persisted). Resilient: returns None when Yahoo
         # rate-limits or fails, and the row is still built with fundamentals.
+        # With no_prices the PriceService is never called.
         price = None
-        try:
-            price = self._price_service.get_current_price(ticker)
-        except Exception:  # noqa: BLE001
-            price = None
+        if not no_prices:
+            try:
+                price = self._price_service.get_current_price(ticker)
+            except Exception:  # noqa: BLE001
+                price = None
 
         name = None
         try:
@@ -98,7 +103,11 @@ class StockScreenerService:
 
         # If the market provider failed to produce price-derived metrics, try
         # to compute them from the real-time price + fundamentals (repository).
-        enriched = self._enrich_with_real_time_price(d, ticker, price)
+        enriched = (
+            self._enrich_with_real_time_price(d, ticker, price)
+            if not no_prices
+            else d
+        )
 
         return ScreenerRow(
             ticker=ticker,

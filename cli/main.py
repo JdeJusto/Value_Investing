@@ -44,6 +44,7 @@ def main():
     from cli.commands import (
         alerts,
         analyze,
+        analyze_full,
         anomalies,
         backtest,
         buffett_analysis,
@@ -63,6 +64,7 @@ def main():
     screener.register(sub)
     company.register(sub)
     analyze.register(sub)
+    analyze_full.register(sub)
     buffett_analysis.register(sub)
     historical_valuation.register(sub)
     load_data.register(sub)

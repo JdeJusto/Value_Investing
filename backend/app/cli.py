@@ -96,8 +96,10 @@ def build_screener_service() -> StockScreenerService:
     )
 
 
-def build_investment_screener(universe: Optional[list[str]] = None) -> ScreenerService:
-    """Screener over intelligence outputs, without direct provider access."""
+def build_investment_screener(
+    universe: Optional[list[str]] = None, no_prices: bool = False
+) -> ScreenerService:
+    """Screener over intelligence outputs, enriched with real-time prices."""
     enrich = _company_enrichment()
     if universe is None:
         universe = _tracked_tickers()
@@ -105,7 +107,28 @@ def build_investment_screener(universe: Optional[list[str]] = None) -> ScreenerS
         analyzer=build_analysis_service().analyze,
         universe=universe,
         enrich=enrich,
+        price_service=get_price_service(),
+        no_prices=no_prices,
     )
+
+
+def load_universe(path: Optional[str] = None) -> Optional[list[str]]:
+    """Read a optional universe file (one ticker per line, '#' comments).
+
+    Returns None when the file does not exist so callers can fall back to
+    their default universe (e.g. the static ticker list).
+    """
+    target = path or os.getenv("UNIVERSE_PATH", "config/universe.txt")
+    try:
+        with open(target, encoding="utf-8") as handle:
+            tickers = [
+                line.strip().upper()
+                for line in handle
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
+    except OSError:
+        return None
+    return tickers or None
 
 
 def build_universe(tickers: Optional[list[str]] = None) -> list[str]:
@@ -192,10 +215,13 @@ def build_watchlist_service():
 
 def _company_enrichment():
     def enrich(ticker: str, item: dict) -> dict:
-        company = CompanyRepository().find_by_ticker(ticker)
-        if company:
-            item["sector"] = company.sector
-            item["industry"] = company.industry
+        try:
+            company = CompanyRepository().find_by_ticker(ticker)
+            if company:
+                item["sector"] = company.sector
+                item["industry"] = company.industry
+        except Exception as e:  # noqa: BLE001
+            logger.warning("company metadata unavailable for %s: %s", ticker, e)
         return item
 
     return enrich

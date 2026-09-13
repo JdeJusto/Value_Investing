@@ -1,0 +1,32 @@
+# Value Investing - daily screener universe
+# One ticker per line. Lines starting with '#' are ignored.
+# The daily workflow screens exactly this set; prices are fetched in real
+# time ONLY for these companies and are never persisted.
+
+# Core validation set (broad diversification across sectors)
+AAPL
+MSFT
+KO
+JNJ
+PG
+BRK-B
+XOM
+JPM
+V
+WMT
+HD
+UNH
+
+# Additional watchlist
+META
+NVDA
+GOOGL
+AMZN
+MA
+ABBV
+COST
+PEP
+MCD
+NKE
+TMO
+LOW

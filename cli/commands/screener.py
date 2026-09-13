@@ -37,8 +37,8 @@ def _build_filters(args) -> list[FilterCriteria]:
     filters: list[FilterCriteria] = []
 
     simple_filters = {
-        "per_max": ("per", "lt", False),
-        "per_min": ("per", "gt", False),
+        "pe_max": ("per", "lt", False),
+        "pe_min": ("per", "gt", False),
         "pb_max": ("pb", "lt", False),
         "pb_min": ("pb", "gt", False),
         "debt_to_equity_max": ("debt_to_equity", "lt", False),
@@ -49,6 +49,7 @@ def _build_filters(args) -> list[FilterCriteria]:
         "fcf_yield_min": ("fcf_yield", "gt", True),
         "op_margin_min": ("op_margin", "gt", True),
         "net_margin_min": ("net_margin", "gt", True),
+        "ev_ebit_max": ("ev_ebit", "lt", False),
     }
 
     for attr, (field, op, is_pct) in simple_filters.items():
@@ -105,6 +106,13 @@ def _build_filters(args) -> list[FilterCriteria]:
         )
         sys.exit(1)
 
+    if args.pe_min is not None and args.pe_max is not None and args.pe_min > args.pe_max:
+        print(
+            f"  {red('ERROR:')} pe-min ({args.pe_min}) no puede ser mayor "
+            f"que pe-max ({args.pe_max})"
+        )
+        sys.exit(1)
+
     return filters
 
 
@@ -136,6 +144,15 @@ def _show_search_results(service, query: str):
     print_table(headers, rows)
 
 
+_PRICE_BASED_FILTERS = {
+    "per",
+    "pb",
+    "fcf_yield",
+    "ev_ebit",
+    "market_cap",
+}
+
+
 def _run_screener(args):
     service = build_screener_service()
     filters = _build_filters(args)
@@ -157,9 +174,25 @@ def _run_screener(args):
             return
         tickers = matches
 
+    if tickers is None:
+        from backend.app.cli import load_universe
+
+        universe = load_universe()
+        if universe:
+            tickers = universe
+
+    price_filters = [f for f in filters if f.field in _PRICE_BASED_FILTERS]
+    if args.no_prices and price_filters:
+        print(
+            f"  {yellow('AVISO:')} --no-prices con filtros de valoracion "
+            f"({', '.join(f.field for f in price_filters)}). "
+            "Sin precio real, estas empresas se descartaran."
+        )
+
     total_tickers = len(tickers) if tickers else "~150"
     filter_desc = ", ".join(str(f) for f in filters) if filters else "(sin filtros)"
-    print(f"  Tickers: {total_tickers}  |  Filtros: {filter_desc}")
+    mode = "sin precios reales" if args.no_prices else "precios en tiempo real"
+    print(f"  Tickers: {total_tickers}  |  Filtros: {filter_desc}  |  {mode}")
     print()
 
     start = time.time()
@@ -175,6 +208,7 @@ def _run_screener(args):
         filters=filters,
         top_n=args.top,
         progress_callback=progress,
+        no_prices=args.no_prices,
     )
     elapsed = time.time() - start
 
@@ -285,10 +319,30 @@ def register(subparsers):
         "--tickers", type=str, help="Tickers separados por coma (ej: AAPL,MSFT,GOOGL)"
     )
     p.add_argument("--search", type=str, help="Buscar por ticker o nombre de empresa")
-    p.add_argument("--per-max", type=float, metavar="N", help="PER maximo (ej: 15)")
-    p.add_argument("--per-min", type=float, metavar="N", help="PER minimo")
+    p.add_argument(
+        "--pe-max",
+        "--per-max",
+        dest="pe_max",
+        type=float,
+        metavar="N",
+        help="PER maximo (ej: 15)",
+    )
+    p.add_argument(
+        "--pe-min",
+        "--per-min",
+        dest="pe_min",
+        type=float,
+        metavar="N",
+        help="PER minimo",
+    )
+    p.add_argument("--ev-ebit-max", type=float, metavar="N", help="EV/EBIT maximo (ej: 20)")
     p.add_argument("--pb-max", type=float, metavar="N", help="P/B maximo (ej: 1.5)")
     p.add_argument("--pb-min", type=float, metavar="N", help="P/B minimo (ej: 1.0)")
+    p.add_argument(
+        "--no-prices",
+        action="store_true",
+        help="No consultar precios en tiempo real (P/E, FCF yield y EV/EBIT pueden quedar en N/A)",
+    )
     p.add_argument(
         "--roe-min", type=float, metavar="N", help="ROE minimo en %% (ej: 15)"
     )
@@ -378,17 +432,22 @@ def _parse_investment_filters(raw_filters: list[str]) -> dict:
 
 
 def _run_investment_screener(args) -> None:
-    from backend.app.cli import build_investment_screener
+    from backend.app.cli import build_investment_screener, load_universe
 
     criteria = _parse_investment_filters(args.filter)
     universe = None
     if args.tickers:
         universe = [t.strip().upper() for t in args.tickers.split(",")]
+    elif not args.search:
+        universe = load_universe()
 
-    print(f"  Motor: calidad Buffett  |  Filtros: {criteria or '(sin filtros)'}")
+    mode = "" if args.no_prices else " (+ precios en tiempo real)"
+    print(f"  Motor: calidad Buffett{mode}  |  Filtros: {criteria or '(sin filtros)'}")
+    if args.no_prices:
+        print(f"  {yellow('AVISO:')} --no-prices: sin P/E ni FCF yield en tiempo real.")
     print()
 
-    service = build_investment_screener(universe)
+    service = build_investment_screener(universe, no_prices=args.no_prices)
     results = service.top_n(args.top, **criteria)
     print(f"\n  {green(str(len(results)))} resultados")
 
@@ -403,21 +462,32 @@ def _run_investment_screener(args) -> None:
         ("Ranking", 1),
         ("Moat", 0),
         ("Rating", 0),
+        ("Precio", 1),
+        ("PER", 1),
+        ("FCF Yield", 1),
+        ("EV/EBIT", 1),
         ("Senal", 0),
-        ("Oportunidad", 0),
     ]
     rows = []
     for r in results:
+        metrics = r.metrics or {}
+        price = metrics.get("price")
+        per = metrics.get("per")
+        fcf_yield = metrics.get("fcf_yield")
+        ev_ebit = metrics.get("ev_ebit")
         rows.append(
             [
-                r.rank,
+                str(r.rank),
                 r.ticker,
                 f"{r.total_score:.1f}",
                 f"{r.rank_score:.1f}" if r.rank_score else dim("N/A"),
                 r.moat,
                 r.rating,
+                fmt_dollar(price) if price is not None else dim("N/A"),
+                fmt_ratio(per, 1) if per is not None else dim("N/A"),
+                fmt_pct(fcf_yield) if fcf_yield is not None else dim("N/A"),
+                fmt_ratio(ev_ebit, 1) if ev_ebit is not None else dim("N/A"),
                 r.signal,
-                r.opportunity_type if r.opportunity_type else dim("-"),
             ]
         )
     print_table(headers, rows)
@@ -432,8 +502,9 @@ def _run(args):
     uses_buffett = any("=" in f for f in args.filter)
     if uses_buffett:
         market_flags = [
-            args.per_max,
-            args.per_min,
+            args.pe_max,
+            args.pe_min,
+            args.ev_ebit_max,
             args.pb_max,
             args.pb_min,
             args.roe_min,
@@ -448,7 +519,7 @@ def _run(args):
             print(
                 f"  {red('ERROR:')} No se pueden mezclar filtros de igualdad "
                 "(--filter moat=STRONG) con los filtros numericos "
-                "(--per-max, --roe-min, ...). Usa solo un motor."
+                "(--pe-max, --roe-min, ...). Usa solo un motor."
             )
             sys.exit(1)
         _run_investment_screener(args)

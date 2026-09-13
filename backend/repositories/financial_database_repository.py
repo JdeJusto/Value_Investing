@@ -214,6 +214,30 @@ class FinancialDatabaseRepository(FinancialRepository):
         except Exception:
             return False
 
+    def get_company_name(self, ticker: str) -> Optional[str]:
+        """Company legal name by ticker, or None when unknown.
+
+        Reads only metadata (companies + company_identifiers); no prices.
+        """
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT c.legal_name
+                    FROM company_identifiers ci
+                    JOIN companies c ON c.id = ci.company_id
+                    WHERE ci.identifier_type = 'TICKER'
+                      AND ci.identifier_value = %s
+                    LIMIT 1
+                    """,
+                    (str(ticker).upper(),),
+                )
+                row = cur.fetchone()
+                return row["legal_name"] if row else None
+        except Exception:
+            return None
+
     def _get_company_id_by_cik(self, cik: str) -> Optional[str]:
         """Get company ID from CIK.
 
