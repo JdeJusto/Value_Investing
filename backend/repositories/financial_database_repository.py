@@ -33,6 +33,7 @@ INCOME_STATEMENT_CONCEPTS = {
     # Revenue
     'Revenues': 'revenue',
     'Revenue': 'revenue',
+    'RegulatedAndUnregulatedOperatingRevenue': 'revenue',
     'SalesRevenueNet': 'revenue',
     'RevenueFromContractWithCustomerExcludingAssessedTax': 'revenue',
     'RevenueFromContractWithCustomerIncludingAssessedTax': 'revenue',
@@ -78,9 +79,40 @@ INCOME_STATEMENT_CONCEPTS = {
     'PretaxIncome': 'pretax_income',
 
     # Net Income
+    'NetIncomeLossAvailableToCommonStockholdersBasic': 'net_income',
+    'NetIncomeLossAvailableToCommonStockholdersDiluted': 'net_income',
     'NetIncomeLoss': 'net_income',
     'NetIncome': 'net_income',
     'ProfitLoss': 'net_income',
+}
+
+# Some companies tag several elements with identical fiscal periods (e.g.
+# RevenueFromContractWithCustomerExcludingAssessedTax for a single quarter vs
+# Revenues for the full year, both with period_end=Dec-31). When several
+# concepts map to the same field, prefer the most complete/representative one.
+INCOME_FIELD_PRIORITY = {
+    'revenue': [
+        'Revenues',
+        'Revenue',
+        'RegulatedAndUnregulatedOperatingRevenue',
+        'SalesRevenueNet',
+        'SalesRevenueGoodsNet',
+        'SalesRevenueServicesNet',
+        'RevenueFromContractWithCustomerExcludingAssessedTax',
+        'RevenueFromContractWithCustomerIncludingAssessedTax',
+    ],
+    'net_income': [
+        'NetIncomeLossAvailableToCommonStockholdersBasic',
+        'NetIncomeLossAvailableToCommonStockholdersDiluted',
+        'NetIncomeLoss',
+        'NetIncome',
+        'ProfitLoss',
+    ],
+}
+INCOME_CONCEPT_RANK = {
+    concept: rank
+    for field, concepts in INCOME_FIELD_PRIORITY.items()
+    for rank, concept in enumerate(concepts)
 }
 
 BALANCE_SHEET_CONCEPTS = {
@@ -162,6 +194,13 @@ CASH_FLOW_CONCEPTS = {
 
     # Working Capital Change (we'll calculate this)
 }
+
+
+CORE_STATEMENT_CONCEPTS = sorted(
+    set(INCOME_STATEMENT_CONCEPTS)
+    | set(BALANCE_SHEET_CONCEPTS)
+    | set(CASH_FLOW_CONCEPTS)
+)
 
 
 class FinancialDatabaseRepository(FinancialRepository):
@@ -332,6 +371,42 @@ class FinancialDatabaseRepository(FinancialRepository):
         balance_data = {}
         cash_flow_data = {}
 
+        # A fiscal-year bucket stores the latest 10-K plus its comparative
+        # years (each fact carries its own period_start/period_end), and some
+        # elements are reported both quarterly and year-to-date with the same
+        # period_end. Order candidates so the true annual figure wins:
+        #   1. newest period_end (the target comparative year),
+        #   2. preferred concept for the field (e.g. 'Revenues' over
+        #      RevenueFromContractWithCustomerExcludingAssessedTax),
+        #   3. earliest period_start (longest cumulative duration).
+        def _date_ord(value):
+            if value is None:
+                return 0
+            if isinstance(value, date):
+                return value.toordinal()
+            try:
+                return date.fromisoformat(str(value)[:10]).toordinal()
+            except (ValueError, TypeError):
+                return 0
+
+        def _sort_key(fact):
+            concept = fact.get('concept') or ''
+            return (
+                _date_ord(fact.get('period_end')),
+                -INCOME_CONCEPT_RANK.get(concept, 10**9),
+                -_date_ord(fact.get('period_start')),
+            )
+
+        facts = sorted(facts, key=_sort_key, reverse=True)
+        max_pe = next(
+            (f.get('period_end') for f in facts if f.get('period_end') is not None),
+            None,
+        )
+
+        # Track debt concepts already summed within the newest comparative so a
+        # quarterly + annual occurrence of the same element is not double added.
+        summed_debt_concepts = set()
+
         # Process each fact
         for fact in facts:
             concept = fact['concept']
@@ -347,21 +422,28 @@ class FinancialDatabaseRepository(FinancialRepository):
             # Map to income statement
             if concept in INCOME_STATEMENT_CONCEPTS:
                 field_name = INCOME_STATEMENT_CONCEPTS[concept]
-                # Handle duplicates by taking the first non-None value
+                # Handle duplicates by taking the first fact ordered above
                 if field_name not in income_data or income_data[field_name] is None:
                     income_data[field_name] = value
 
             # Map to balance sheet
             elif concept in BALANCE_SHEET_CONCEPTS:
                 field_name = BALANCE_SHEET_CONCEPTS[concept]
-                # For total debt, we might want to sum current and non-current
+                # For total debt, we want to sum current and non-current debt
+                # from the SAME (newest) comparative, not across years or
+                # duplicate periods.
                 if field_name == 'total_debt':
+                    if max_pe is not None and fact.get('period_end') != max_pe:
+                        continue
+                    if concept in summed_debt_concepts:
+                        continue
+                    summed_debt_concepts.add(concept)
                     if field_name not in balance_data:
                         balance_data[field_name] = 0.0
                     if value is not None:
                         balance_data[field_name] += value
                 else:
-                    # Handle duplicates by taking the first non-None value
+                    # Handle duplicates by taking the newest-comparative value
                     if field_name not in balance_data or balance_data[field_name] is None:
                         balance_data[field_name] = value
 
@@ -372,7 +454,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 if field_name == 'capital_expenditure' and value is not None:
                     value = abs(value)  # Ensure positive
 
-                # Handle duplicates by taking the first non-None value
+                # Handle duplicates by taking the newest-comparative value
                 if field_name not in cash_flow_data or cash_flow_data[field_name] is None:
                     cash_flow_data[field_name] = value
 
@@ -554,17 +636,25 @@ class FinancialDatabaseRepository(FinancialRepository):
 
             conn = self._get_connection()
             with conn.cursor() as cur:
-                # Get financial facts for this company/year directly using company_id
+                # Get financial facts for this company/year directly using company_id.
+                # Only annual ('FY') facts are used: the fiscal_year bucket also
+                # holds quarterly YTD facts and the comparative years embedded in
+                # the latest 10-K, so filtering to 'FY' is what makes each value
+                # represent a completed fiscal year (see _normalize_financial_facts
+                # for the max-period_end dedup).
                 cur.execute("""
                     SELECT
                         f.concept,
                         f.value,
                         f.unit,
                         f.fiscal_year,
-                        f.fiscal_period
+                        f.fiscal_period,
+                        f.period_end,
+                        f.period_start
                     FROM financial_facts f
                     WHERE f.company_id = %s
                       AND f.fiscal_year = %s
+                      AND UPPER(f.fiscal_period) = 'FY'
                 """, (company_id, fiscal_year))
 
                 facts = cur.fetchall()
@@ -711,22 +801,45 @@ class FinancialDatabaseRepository(FinancialRepository):
         """
         return self.get_by_year(ticker, fiscal_year)
 
-    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+    def get_shares_outstanding(
+        self,
+        ticker: str,
+        fiscal_year: int,
+        prefer_diluted: bool = False,
+    ) -> Optional[float]:
         """Get shares outstanding for a ticker and fiscal year.
 
         Tries multiple concepts in order:
-          1. CommonStockSharesOutstanding
+          1. WeightedAverageNumberOfSharesOutstandingDiluted /
+             WeightedAverageNumberOfDilutedSharesOutstanding
           2. WeightedAverageNumberOfSharesOutstandingBasic
-          3. WeightedAverageNumberOfSharesOutstanding
-          4. WeightedAverageNumberOfSharesOutstandingDiluted
+          3. CommonStockSharesOutstanding (point-in-time)
+          4. WeightedAverageNumberOfSharesOutstanding
 
         Args:
             ticker: Company ticker symbol
             fiscal_year: Fiscal year
+            prefer_diluted: When True try diluted weighted-average concepts
+                first (best basis for diluted EPS); otherwise the as-reported
+                end-of-period share count is preferred.
 
         Returns:
             Shares outstanding if available, None otherwise
         """
+        end_of_period = [
+            'CommonStockSharesOutstanding',
+            'WeightedAverageNumberOfSharesOutstandingBasic',
+            'WeightedAverageNumberOfSharesOutstanding',
+            'WeightedAverageNumberOfSharesOutstandingDiluted',
+            'WeightedAverageNumberOfDilutedSharesOutstanding',
+        ]
+        diluted = [
+            'WeightedAverageNumberOfSharesOutstandingDiluted',
+            'WeightedAverageNumberOfDilutedSharesOutstanding',
+            'CommonStockSharesOutstanding',
+            'WeightedAverageNumberOfSharesOutstandingBasic',
+        ]
+        concepts_to_try = diluted if prefer_diluted else end_of_period
         try:
             # Get company ID from ticker
             company_id = self._get_company_id_by_ticker(ticker)
@@ -735,13 +848,25 @@ class FinancialDatabaseRepository(FinancialRepository):
 
             conn = self._get_connection()
             with conn.cursor() as cur:
-                # Try multiple concepts for shares outstanding
-                concepts_to_try = [
-                    'CommonStockSharesOutstanding',
-                    'WeightedAverageNumberOfSharesOutstandingBasic',
-                    'WeightedAverageNumberOfSharesOutstanding',
-                    'WeightedAverageNumberOfSharesOutstandingDiluted'
-                ]
+                # Try multiple concepts, preferring the annual ('FY') fact with
+                # the latest period_end (the actual fiscal-year-end figure).
+                for concept in concepts_to_try:
+                    cur.execute("""
+                        SELECT f.value
+                        FROM financial_facts f
+                        WHERE f.company_id = %s
+                          AND f.fiscal_year = %s
+                          AND f.concept = %s
+                          AND UPPER(f.fiscal_period) = 'FY'
+                        ORDER BY f.period_end DESC NULLS LAST
+                        LIMIT 1
+                    """, (company_id, fiscal_year, concept))
+
+                    result = cur.fetchone()
+                    if result and result['value'] is not None:
+                        return float(result['value'])
+
+                # Fallback: no annual fact — accept any period (rare)
                 for concept in concepts_to_try:
                     cur.execute("""
                         SELECT f.value
@@ -765,9 +890,13 @@ class FinancialDatabaseRepository(FinancialRepository):
     def get_fiscal_year_end_date(self, ticker: str, fiscal_year: int) -> Optional[date]:
         """Return the best-known fiscal year end date for a ticker/year.
 
-        Uses the most frequent ``period_end`` among the annual ('FY') facts,
-        which is the actual fiscal year-end reported in the 10-K (e.g. Apple's
-        fiscal year ends in late September, not December).
+        The value is the latest ``period_end`` among the annual ('FY') facts of
+        the *core statement line items* (the concepts mapped onto the
+        statements).  Only the core concepts are considered because one-off
+        disclosures tagged 'FY' (fee schedules, Entity% cover-page facts) can
+        carry a later period_end that is not the fiscal year end.  This keeps
+        e.g. Apple's late-September year-end intact while rejecting stray
+        longer-dated facts.
 
         Args:
             ticker: Company ticker symbol
@@ -784,16 +913,14 @@ class FinancialDatabaseRepository(FinancialRepository):
             conn = self._get_connection()
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT f.period_end::date, COUNT(*) as cnt
+                    SELECT MAX(f.period_end::date) AS period_end
                     FROM financial_facts f
                     WHERE f.company_id = %s
                       AND f.fiscal_year = %s
                       AND UPPER(f.fiscal_period) = 'FY'
                       AND f.period_end IS NOT NULL
-                    GROUP BY f.period_end::date
-                    ORDER BY cnt DESC, f.period_end::date
-                    LIMIT 1
-                """, (company_id, fiscal_year))
+                      AND f.concept = ANY(%s::text[])
+                """, (company_id, fiscal_year, CORE_STATEMENT_CONCEPTS))
 
                 result = cur.fetchone()
                 if result and result['period_end'] is not None:
@@ -826,13 +953,26 @@ class FinancialDatabaseRepository(FinancialRepository):
 
             conn = self._get_connection()
             with conn.cursor() as cur:
+# A 'FY' period is only meaningful when it comes from an actual
+                # annual report. Shelf/registration filings (424B5, S-3ASR...)
+                # also carry fiscal_period='FY' for their filing-fee facts, so
+                # they are excluded to avoid treating the in-progress year as
+                # completed. A stray (mis-filed) annual bucket whose embedded
+                # facts describe an older period, e.g. a 10-K labelled fut+1
+                # but only carrying prior comparatives, is rejected by picking
+                # the bucket with the most recent true fiscal-year-end rather
+                # than simply the largest fiscal_year number.
                 cur.execute("""
-                    SELECT DISTINCT f.fiscal_year
+                    SELECT f.fiscal_year
                     FROM financial_facts f
                     WHERE f.company_id = %s
                       AND UPPER(f.fiscal_period) = 'FY'
+                      AND UPPER(f.form) IN ('10-K', '10-K/A', '20-F', '20-F/A')
                       AND f.fiscal_year IS NOT NULL
-                    ORDER BY f.fiscal_year DESC
+                      AND f.period_end IS NOT NULL
+                      AND f.concept NOT LIKE 'Entity%%'
+                    GROUP BY f.fiscal_year
+                    ORDER BY MAX(f.period_end) DESC
                     LIMIT 1
                 """, (company_id,))
 

@@ -37,6 +37,14 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         except (IndexError, AttributeError, KeyError, TypeError):
             return None
 
+    def _get(self, df: pd.DataFrame, name: str, index: int = 0):
+        """Read a single row label; missing labels degrade to None instead of
+        raising KeyError (some statements omit rows like Operating Income)."""
+        try:
+            return self._safe_val(df.loc[name], index)
+        except (KeyError, IndexError, AttributeError, TypeError):
+            return None
+
     def _pick(self, df: pd.DataFrame, candidates: list[str], index: int = 0):
         for name in candidates:
             try:
@@ -55,22 +63,18 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         try:
             ism = t.income_stmt
             return IncomeStatement(
-                revenue=self._safe_val(ism.loc["Total Revenue"], year_index),
-                cogs=self._safe_val(ism.loc["Cost Of Revenue"], year_index),
-                gross_profit=self._safe_val(ism.loc["Gross Profit"], year_index),
-                operating_income=self._safe_val(
-                    ism.loc["Operating Income"], year_index
-                ),
-                ebit=self._safe_val(ism.loc["Operating Income"], year_index),
+                revenue=self._get(ism, "Total Revenue", year_index),
+                cogs=self._get(ism, "Cost Of Revenue", year_index),
+                gross_profit=self._get(ism, "Gross Profit", year_index),
+                operating_income=self._get(ism, "Operating Income", year_index),
+                ebit=self._get(ism, "Operating Income", year_index),
                 ebitda=self._pick(ism, ["EBITDA"], year_index),
-                net_income=self._safe_val(ism.loc["Net Income"], year_index),
-                interest_expense=self._safe_val(
-                    ism.loc["Interest Expense"], year_index
-                ),
-                tax_provision=self._safe_val(ism.loc["Tax Provision"], year_index),
-                pretax_income=self._safe_val(ism.loc["Pretax Income"], year_index),
+                net_income=self._get(ism, "Net Income", year_index),
+                interest_expense=self._get(ism, "Interest Expense", year_index),
+                tax_provision=self._get(ism, "Tax Provision", year_index),
+                pretax_income=self._get(ism, "Pretax Income", year_index),
             )
-        except (KeyError, AttributeError, TypeError):
+        except (AttributeError, TypeError):
             return None
 
     def get_balance_sheet(
@@ -80,18 +84,16 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         try:
             bs = t.balance_sheet
             return BalanceSheet(
-                total_assets=self._safe_val(bs.loc["Total Assets"], year_index),
-                total_liabilities=self._safe_val(
-                    bs.loc["Total Liabilities Net Minority Interest"], year_index
+                total_assets=self._get(bs, "Total Assets", year_index),
+                total_liabilities=self._get(
+                    bs, "Total Liabilities Net Minority Interest", year_index
                 ),
-                total_debt=self._safe_val(bs.loc["Total Debt"], year_index),
-                cash_and_equivalents=self._safe_val(
-                    bs.loc["Cash And Cash Equivalents"], year_index
+                total_debt=self._get(bs, "Total Debt", year_index),
+                cash_and_equivalents=self._get(
+                    bs, "Cash And Cash Equivalents", year_index
                 ),
-                working_capital=self._safe_val(bs.loc["Working Capital"], year_index),
-                retained_earnings=self._safe_val(
-                    bs.loc["Retained Earnings"], year_index
-                ),
+                working_capital=self._get(bs, "Working Capital", year_index),
+                retained_earnings=self._get(bs, "Retained Earnings", year_index),
                 stockholders_equity=self._pick(
                     bs,
                     [
@@ -102,7 +104,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                     year_index,
                 ),
             )
-        except (KeyError, AttributeError, TypeError):
+        except (AttributeError, TypeError):
             return None
 
     def get_cash_flow(
@@ -111,7 +113,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         t = self._get_ticker(ticker)
         try:
             cf = t.cashflow
-            capex = self._safe_val(cf.loc["Capital Expenditure"], year_index)
+            capex = self._get(cf, "Capital Expenditure", year_index)
             return CashFlowStatement(
                 operating_cash_flow=self._pick(
                     cf,
@@ -177,6 +179,28 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
     def get_shares_outstanding(self, ticker: str) -> Optional[int]:
         return self._get_ticker(ticker).info.get("sharesOutstanding")
 
+    def get_eps(self, ticker: str, year_index: int = 0) -> Optional[float]:
+        """Diluted EPS for the requested annual period.
+
+        Prefers Yahoo's reported 'Diluted EPS' row; falls back to
+        net income / diluted weighted-average shares so the EPS basis on
+        this side matches an as-reported fiscal year (not the current share
+        count)."""
+        try:
+            ism = self._get_ticker(ticker).income_stmt
+            eps = self._pick(ism, ["Diluted EPS", "Basic EPS"], year_index)
+            if eps is not None:
+                return float(eps)
+            ni = self._get(ism, "Net Income", year_index)
+            shares = self._pick(
+                ism, ["Diluted Average Shares", "Basic Average Shares"], year_index
+            )
+            if ni is not None and shares:
+                return float(ni) / float(shares)
+        except (KeyError, AttributeError, TypeError):
+            pass
+        return None
+
     def get_fiscal_years(self, ticker: str) -> list[int]:
         """Fiscal years covered by the annual income statement, most recent first."""
         t = self._get_ticker(ticker)
@@ -190,6 +214,32 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         except (KeyError, AttributeError, TypeError):
             pass
         return []
+
+    def get_fiscal_year_end_dates(self, ticker: str) -> list[dict]:
+        """Fiscal periods of the annual income statement, newest first.
+
+        Each entry has 'year' (Yahoo's fiscal-year label) and 'end_date' (the
+        actual fiscal-period-end date), letting callers anchor on the *period*
+        rather than the label."""
+        t = self._get_ticker(ticker)
+        try:
+            cols = t.income_stmt.columns
+            entries = []
+            for col in cols:
+                if not getattr(col, "year", None):
+                    continue
+                entries.append(
+                    {
+                        "year": int(col.year),
+                        "end_date": col.date()
+                        if hasattr(col, "date")
+                        else pd.Timestamp(col),
+                    }
+                )
+            entries.sort(key=lambda e: e["end_date"], reverse=True)
+            return entries
+        except (KeyError, AttributeError, TypeError):
+            return []
 
     def get_risk_free_rate(self) -> float:
         try:
@@ -252,9 +302,10 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         except Exception:  # noqa: BLE001
             return 0.08
 
-    def get_financials(self, ticker: str) -> Optional[object]:
+    def get_financials(self, ticker: str, year_index: int = 0) -> Optional[object]:
         """Return an object with financial attributes for comparison.
         This method is intended for use in scripts like compare_sources.py.
+        ``year_index`` selects the fiscal year column (0 = most recent).
         """
         class _Financials:
             def __init__(self):
@@ -271,9 +322,9 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
         try:
             ticker_obj = self._get_ticker(ticker)
-            income = self.get_income_statement(ticker)
-            balance = self.get_balance_sheet(ticker)
-            cash_flow = self.get_cash_flow(ticker)
+            income = self.get_income_statement(ticker, year_index)
+            balance = self.get_balance_sheet(ticker, year_index)
+            cash_flow = self.get_cash_flow(ticker, year_index)
             shares_outstanding = self.get_shares_outstanding(ticker)
 
             if not any([income, balance, cash_flow]):
@@ -293,14 +344,13 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 if capex is not None:
                     fin.capital_expenditure = abs(float(capex))
                 fin.free_cash_flow = float(cash_flow.free_cash_flow) if cash_flow.free_cash_flow is not None else None
-            # Calculate diluted EPS if possible
-            if fin.net_income is not None and shares_outstanding is not None and shares_outstanding != 0:
-                fin.diluted_eps = fin.net_income / float(shares_outstanding)
-            # Attempt to get fiscal year (most recent)
+            # Calculate diluted EPS (as-reported fiscal-year basis)
+            fin.diluted_eps = self.get_eps(ticker, year_index)
+            # Attempt to get fiscal year (matching the selected column)
             try:
-                years = self.get_fiscal_years(ticker)
-                if years:
-                    fin.fiscal_year = int(years[0])
+                entries = self.get_fiscal_year_end_dates(ticker)
+                if entries and year_index < len(entries):
+                    fin.fiscal_year = int(entries[year_index]["year"])
             except Exception:
                 pass
             return fin
