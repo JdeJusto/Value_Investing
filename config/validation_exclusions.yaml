@@ -1,0 +1,121 @@
+# validation_exclusions.yaml
+#
+# Discrepancies excluded from the S&P 500 validation report
+# (scripts/validate_sp500.py, compare step).
+#
+# Matching: a row (ticker, metric) is marked EXCLUDED when it matches a rule.
+# metric may be set to "*" to exclude every metric for a ticker.
+#
+# Classifications:
+#   EXTERNAL_SOURCE_ERROR   - the external source (Yahoo Finance) reports a value
+#                             that does not match the as-filed figure; Value
+#                             Investing reproduces the filing.
+#   EXPECTED_DIFFERENCE     - both sides are "correct" but use a different
+#                             accounting/definitional convention.
+#   BUG_IN_VALUE_INVESTING  - Value Investing computed the metric wrong; fixed.
+#   BUG_IN_FINANCIAL_DATABASE - the Financial-DataBase ingestion is wrong.
+#   UNCERTAIN               - root cause not yet determined.
+#
+# Rules that document a genuine bug are kept here (marked FIXED in the report)
+# only when the metric can still diverge for another reason; rules for items
+# fixed to match the external source are NOT listed.
+
+validation_exclusions:
+  # -- EPS / P/E: Yahoo's annual Diluted EPS row is unreliable ---------------
+  # Yahoo reports a quarterly (or split-mistated) value instead of the
+  # fiscal-year diluted EPS; Value Investing reproduces the 10-K figure.
+  - ticker: ABNB
+    metric: eps
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo annual Diluted EPS (1.03) is the Q4 2025 quarterly value; fiscal-year diluted EPS = 2,511M / 623M shares = 4.03 (VI matches the 10-K)."
+  - ticker: ABNB
+    metric: pe_ratio
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Derived from Yahoo's quarterly EPS (1.03); VI uses the fiscal-year diluted EPS (4.03)."
+  - ticker: CVNA
+    metric: eps
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo Diluted EPS (1.69) matches no as-filed FY2025 figure; VI now reproduces the 10-K diluted EPS (diluted NI 1,895M / 224.3M shares = 8.45)."
+  - ticker: CVNA
+    metric: pe_ratio
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Derived from Yahoo's erroneous EPS (1.69); VI uses the fiscal-year diluted EPS (8.45)."
+  - ticker: DD
+    metric: eps
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo Diluted EPS (-5.61) uses ~139M current shares; company FY25 diluted EPS = -779M / 419.2M shares = -1.86 (VI matches)."
+  - ticker: DD
+    metric: pe_ratio
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Derived from Yahoo's erroneous EPS (-5.61); VI matches company-reported -1.86."
+  - ticker: DLR
+    metric: eps
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo Diluted EPS (0.90) uses a ~1.39B share count (~4x the true 347.8M); VI = 1,268M / 347.8M = 3.65."
+  - ticker: DLR
+    metric: pe_ratio
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Derived from Yahoo's inflated-share EPS (0.90)."
+  - ticker: FE
+    metric: eps
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo Diluted EPS (0.44) uses a ~2.31B share count (~4x the true 578M); VI = 1,020M / 578M = 1.76."
+  - ticker: FE
+    metric: pe_ratio
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Derived from Yahoo's inflated-share EPS (0.44)."
+  - ticker: MNST
+    metric: eps
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo Diluted EPS (0.97) uses a ~1.96B share count (~2x the true 984M); VI = 1,905M / 984M = 1.94."
+    # MNST pe_ratio (MEDIUM, not HIGH) is left unflagged.
+
+  # -- Revenue: source presentation differences ------------------------------
+  - ticker: BX
+    metric: revenue
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo revenue (12.41B) omits part of the 10-K 'Revenues' (14.45B); S&P Global confirms 14,450M = VI."
+  - ticker: HAS
+    metric: revenue
+    classification: EXPECTED_DIFFERENCE
+    reason: "VI picks gross 'Revenues' (5.37B); Yahoo/S&P use net revenue (4.70B). Not generically fixable without industry tagging (ADM/BG/URI need the gross figure)."
+  - ticker: IBKR
+    metric: revenue
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo uses gross interest-income presentation (10.22B); VI now uses net revenue (interest 3.56B + noninterest 2.64B = 6.21B); S&P confirms 6,205M."
+  - ticker: IBKR
+    metric: net_margin
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Fallout of the revenue presentation difference (gross vs net interest income)."
+
+  # -- Net income: NCI / preferred-stock basis -------------------------------
+  - ticker: IVZ
+    metric: net_income
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo NetIncome row (-281.7M) contradicts Yahoo's own EPS (-1.60 x 455M shares = -726M); VI matches the 10-K -726.3M."
+  - ticker: IVZ
+    metric: roe
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Fallout of the Yahoo NetIncome row inconsistency."
+  - ticker: MCHP
+    metric: net_income
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo NetIncome row (230M) includes NCI (~111M China JV); VI uses available-to-common (118.8M); Yahoo's own EPS (0.22) matches VI."
+  - ticker: OXY
+    metric: net_income
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo NetIncome row (2.33B) is consolidated pre-preferred; VI uses available-to-common (1.61B); Yahoo's own EPS (1.61) matches VI."
+
+  # -- FCF yield: REIT convention / capex definition -------------------------
+  - ticker: DOC
+    metric: fcf_yield
+    classification: EXPECTED_DIFFERENCE
+    reason: "REIT convention - Yahoo/S&P report FCF = OCF with no capex deduction; VI subtracts acquisition/development spend (~895M)."
+  - ticker: AEP
+    metric: fcf_yield
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo capex (8.58B) omits the construction-in-progress component; VI = 10-K capex (11.91B, SegmentExpenditureAdditionToLongLivedAssets); S&P confirms 11,906M."
+  - ticker: LNT
+    metric: fcf_yield
+    classification: EXTERNAL_SOURCE_ERROR
+    reason: "Yahoo fcf_yield (6.7%) is OCF/market_cap (1169M/17.4B); true FCF = OCF - capex = 1169M - 2483M = -1314M. VI correctly reports negative FCF for this capital-intensive utility."

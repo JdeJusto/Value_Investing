@@ -230,6 +230,23 @@ python -m pytest tests/unit -q
    python -m pytest tests/unit/test_repository.py -v
    ```
 
+## Cross-Source Validation (`scripts/validate_sp500.py`)
+
+- The S&P 500 validation cross-checks Value Investing fundamentals (read from
+  Financial-DataBase, SEC EDGAR derived) against Yahoo Finance. Methodology,
+  thresholds, and known expected differences:
+  `docs/validation_methodology.md`. Current results and the classification of
+  every excluded row: `docs/validation_report_200_sp500.md`.
+- **Validations must respect `config/validation_exclusions.yaml`** — do not
+  hand-edit `data/validation_discrepancies_200.csv`. To add or change an
+  exclusion, edit that YAML (ticker + metric, `metric: "*"` = all metrics,
+  plus a `classification` and a `reason`), then rerun
+  `python -m scripts.validate_sp500 compare`. A rule must never be added just
+  to silence noise; it needs a root-cause reason.
+- Excluded rows are counted separately in the `compare` summary
+  (genuine vs excluded per severity). A `HIGH genuine` count greater than zero
+  means unflagged HIGH discrepancies remain and should be investigated.
+
 ## Important Files and Directories
 
 ### To Modify/Create

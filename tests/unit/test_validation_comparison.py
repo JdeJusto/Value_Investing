@@ -22,9 +22,10 @@ from backend.providers.yahoo.provider import YahooFinanceProvider
 
 import sys
 import os
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../scripts"))
-from validate_sp500 import METRICS, compare_rows, _severity
+from validate_sp500 import METRICS, compare_rows, _severity, _load_exclusions, _match_exclusion
 
 
 def _fact(concept, value, period_end, period="FY", period_start=None):
@@ -427,3 +428,222 @@ class TestSeverity:
             "roe",
             "net_margin",
         ]
+
+
+class TestOperatingLeaseLeaseIncomePreference:
+    """OperatingLeaseLeaseIncome must only carry revenue for REIT-like filers
+    whose rental income is the whole top line, and must never shadow a genuine
+    contract-revenue figure (e.g. DD 6.85B sales vs 74M side rental)."""
+
+    _repo = FinancialDatabaseRepository()
+
+    def test_contract_revenue_wins_over_small_rental_income(self):
+        facts = [
+            _fact("OperatingLeaseLeaseIncome", 74e6, date(2025, 12, 31)),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                6.849e9,
+                date(2025, 12, 31),
+                period_start=date(2025, 1, 1),
+            ),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["revenue"] == 6.849e9
+
+    def test_dominant_rental_income_wins_over_partial_contract_tag(self):
+        # CPT: no explicit revenue tag; the contract-revenue figure is a 13M
+        # leftover while rental income (1.57B) is the whole top line.
+        facts = [
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                12.967e6,
+                date(2025, 12, 31),
+                period_start=date(2025, 1, 1),
+            ),
+            _fact("OperatingLeaseLeaseIncome", 1.573544e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["revenue"] == 1.573544e9
+
+    def test_rental_income_used_when_no_other_revenue_tag(self):
+        facts = [_fact("OperatingLeaseLeaseIncome", 1.573544e9, date(2025, 12, 31))]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["revenue"] == 1.573544e9
+
+
+class TestBankRevenueOverride:
+    """Banks/brokers that present a net-of-interest top line must sum
+    InterestIncomeExpenseNet + NoninterestIncome when both are present,
+    even if a small contract-revenue tag is also filed."""
+
+    _repo = FinancialDatabaseRepository()
+
+    def test_bank_pair_sums_to_revenue(self):
+        facts = [
+            _fact("InterestIncomeExpenseNet", 6.948e9, date(2025, 12, 31)),
+            _fact("NoninterestIncome", 2.742e9, date(2025, 12, 31)),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                2.2e9, date(2025, 12, 31),
+                period_start=date(2025, 1, 1),
+            ),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["revenue"] == 9.690e9
+
+    def test_single_bank_component_does_not_trigger_override(self):
+        facts = [_fact("InterestIncomeExpenseNet", 6.948e9, date(2025, 12, 31))]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"].get("revenue") is None
+
+
+class TestCapexFieldPriority:
+    """Capital expenditure must prefer the as-filed payments-to-acquire-plants
+    tag, then the segment expenditure tag.  Preferring PaymentsToAcquire
+    ProductiveAssets (which mixes in assets acquired in one-off transactions)
+    understated e.g. AEP's construction-heavy capex."""
+
+    _repo = FinancialDatabaseRepository()
+
+    def test_payments_to_acquire_ppe_preferred_over_segment(self):
+        facts = [
+            _fact("PaymentsToAcquirePropertyPlantAndEquipment", 5e9, date(2025, 12, 31)),
+            _fact("SegmentExpenditureAdditionToLongLivedAssets", 3e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["capital_expenditure"] == 5e9
+
+    def test_segment_preferred_over_payments_to_acquire_productive_assets(self):
+        # AEP: PaymentsToAcquireProductiveAssets (2.9B) was chosen before; the
+        # 10-K capex (11.9B) is SegmentExpenditureAdditionToLongLivedAssets.
+        facts = [
+            _fact("PaymentsToAcquireProductiveAssets", 2.924e9, date(2025, 12, 31)),
+            _fact(
+                "SegmentExpenditureAdditionToLongLivedAssets",
+                11.906e9, date(2025, 12, 31),
+            ),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["capital_expenditure"] == 11.906e9
+
+
+class TestDilutedNetIncomeFYEAnchoring:
+    """get_available_to_common_diluted_net_income must restrict to the
+    fiscal-year-end period_end.  Otherwise a comparative prior-year column
+    tagged FY under the wrong fiscal_year (APA: 804M, period_end 2024-12-31
+    under fiscal_year 2025) is picked up and corrupts EPS."""
+
+    _repo = FinancialDatabaseRepository()
+
+    def test_ignore_comparative_column_mislabeled_under_fiscal_year(self, monkeypatch):
+        repo = FinancialDatabaseRepository()
+        executed: list[str] = []
+
+        q = iter([
+            # anchor subquery -> FYE for "APA"
+            {"period_end": "2025-12-31"},
+            # the outer query finds nothing for 2025-12-31 diluted NI
+        ])
+
+        class FakeCursor:
+            def execute(self, sql, par):
+                executed.append(sql)
+                self._result = next(q)
+
+            def fetchone(self):
+                return self._result
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class FakeConn:
+            def cursor(self):
+                return FakeCursor()
+
+        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
+        monkeypatch.setattr(
+            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
+        )
+        # A comparative column mislabeled under fiscal_year=2025 (period_end
+        # 2024-12-31) must be EXCLUDED by the period_end anchor.
+        result = repo.get_available_to_common_diluted_net_income("APA", 2025)
+        assert result is None
+        sql = executed[-1]
+        assert "period_end = (" in sql
+        assert "MAX(f2.period_end)" in sql
+
+    def test_fye_diluted_net_income_kept(self):
+        facts = [
+            _fact(
+                "NetIncomeLossAvailableToCommonStockholdersDiluted",
+                1895e6,
+                date(2025, 12, 31),
+            ),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["net_income"] == 1895e6
+
+
+class TestExclusionLoaderAndMatcher:
+    """config/validation_exclusions.yaml parsing and (ticker, metric) matching,
+    including the '*' metric wildcard."""
+
+    def _yaml(self, tmp_path, text: str):
+        p = tmp_path / "exclusions.yaml"
+        p.write_text(text)
+        return p
+
+    def test_loads_rules_and_strips_comments(self, tmp_path):
+        p = self._yaml(
+            tmp_path,
+            "\n".join(
+                [
+                    "# header comment",
+                    "validation_exclusions:",
+                    "  - ticker: ABNB",
+                    "    metric: eps",
+                    "    classification: EXTERNAL_SOURCE_ERROR",
+                    "    reason: \"foo\"",
+                    "  - ticker: HAS",
+                    "    metric: revenue",
+                    "    classification: EXPECTED_DIFFERENCE",
+                    "    reason: gross vs net",
+                    "",
+                ]
+            ),
+        )
+        rules = _load_exclusions(p)
+        assert len(rules) == 2
+        assert rules[0] == {
+            "ticker": "ABNB",
+            "metric": "eps",
+            "classification": "EXTERNAL_SOURCE_ERROR",
+            "reason": "foo",
+        }
+        assert rules[1]["ticker"] == "HAS"
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        assert _load_exclusions(tmp_path / "nope.yaml") == []
+
+    def test_match_exact(self):
+        rules = [{"ticker": "ABNB", "metric": "eps", "classification": "X"}]
+        match = _match_exclusion({"ticker": "ABNB", "metric": "eps"}, rules)
+        assert match and match["classification"] == "X"
+        assert _match_exclusion({"ticker": "ABNB", "metric": "pe_ratio"}, rules) is None
+        assert _match_exclusion({"ticker": "Z", "metric": "eps"}, rules) is None
+
+    def test_match_metric_wildcard(self):
+        rules = [{"ticker": "HAS", "metric": "*", "classification": "X"}]
+        assert _match_exclusion({"ticker": "HAS", "metric": "revenue"}, rules)
+        assert _match_exclusion({"ticker": "HAS", "metric": "net_income"}, rules)
+        assert _match_exclusion({"ticker": "OTHER", "metric": "revenue"}, rules) is None
+
+    def test_real_exclusions_file_parses(self):
+        rules = _load_exclusions(Path("config") / "validation_exclusions.yaml")
+        assert len(rules) == 22
+        assert all(r.get("ticker") and r.get("metric") and r.get("classification")
+                   for r in rules)
+        assert _match_exclusion({"ticker": "LNT", "metric": "fcf_yield"}, rules)

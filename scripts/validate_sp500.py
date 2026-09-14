@@ -210,7 +210,14 @@ def vi_metrics_for(repo, price_service, ticker: str, target_fy: Optional[int] = 
 
         market_cap = price * float(current_shares) if price and current_shares else None
 
-        eps = _safe_div(fin.net_income, diluted_shares)
+        # As-reported diluted EPS pairs the *diluted* available-to-common net
+        # income with the diluted share count (they differ when assumed
+        # conversions of LLC units / dilutive securities reallocate income,
+        # e.g. Carvana 2025: 1,895M / 224.3M = 8.45). Fall back to the basic
+        # available-to-common net income when the diluted one is not filed.
+        diluted_ni = repo.get_available_to_common_diluted_net_income(ticker, fy)
+        eps_num = diluted_ni if diluted_ni is not None else fin.net_income
+        eps = _safe_div(eps_num, diluted_shares)
         row.update(
             {
                 "fiscal_year": fy,
@@ -507,6 +514,26 @@ def build_discrepancies(out: Path) -> None:
         compared += 1
         flagged.extend(compare_rows(vi[ticker], ext[ticker]))
 
+    # Apply configured exclusions (config/validation_exclusions.yaml): rows
+    # that match an exclusion rule are marked EXCLUDED and counted separately,
+    # so genuinely unexplained discrepancies stay easy to see.
+    rules = _load_exclusions(PROJECT_ROOT / "config" / "validation_exclusions.yaml")
+    excluded_by_severity: dict[str, int] = {}
+    flagged_out: list[dict[str, Any]] = []
+    for row in flagged:
+        orig = row["severity"]
+        rule = _match_exclusion(row, rules)
+        if rule is not None:
+            excluded_by_severity[orig] = excluded_by_severity.get(orig, 0) + 1
+            row["severity"] = "EXCLUDED"
+            row["classification"] = rule.get("classification", "")
+            row["exclusion_reason"] = rule.get("reason", "")
+        else:
+            row["classification"] = ""
+            row["exclusion_reason"] = ""
+        flagged_out.append(row)
+    flagged = flagged_out
+
     with out.open("w", newline="") as handle:
         writer = csv.DictWriter(
             handle,
@@ -518,13 +545,71 @@ def build_discrepancies(out: Path) -> None:
                 "abs_diff",
                 "pct_diff",
                 "severity",
+                "classification",
+                "exclusion_reason",
             ],
         )
         writer.writeheader()
         writer.writerows(flagged)
 
     print(f"  compared {compared} companies; wrote {len(flagged)} discrepancy rows")
-    _summarize(flagged, compared)
+    _summarize(flagged, compared, excluded_by_severity)
+
+
+def _load_exclusions(path: Path) -> list[dict[str, str]]:
+    """Parse the minimal YAML-subset used by config/validation_exclusions.yaml.
+
+    The file has a single top-level key ``validation_exclusions`` whose value is
+    a list of blocks.  Each block starts with ``- ticker:`` and contains scalar
+    ``key: value`` fields.  ``#`` comments and single/double quoted values are
+    stripped.  No PyYAML dependency is required.
+    """
+    rules: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    if not path.exists():
+        return rules
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        stripped = raw.split("#", 1)[0]
+        indent = len(stripped) - len(stripped.lstrip(" \t"))
+        line = stripped.strip()
+        if not line:
+            continue
+        # Block start: a "- " item begins a new rule
+        if line.startswith("- "):
+            if current is not None:
+                rules.append(current)
+            current = {}
+            line = line[2:]
+        elif indent == 0:
+            # Top-level key (e.g. "validation_exclusions:") — reset context
+            current = None
+            continue
+        if current is not None and ":" in line:
+            key, _, value = line.partition(":")
+            current[key.strip()] = value.strip().strip("'\"")
+    if current is not None:
+        rules.append(current)
+    return rules
+
+
+def _match_exclusion(
+    row: dict[str, Any], rules: list[dict[str, str]]
+) -> Optional[dict[str, str]]:
+    """Return the first matching rule for (ticker, metric), or None.
+
+    A rule matches when its ``ticker`` and ``metric`` fields equal the row's
+    ticker and metric.  The special metric value ``*`` matches any metric.
+    """
+    ticker = row.get("ticker", "")
+    metric = row.get("metric", "")
+    for rule in rules:
+        rule_ticker = rule.get("ticker", "")
+        rule_metric = rule.get("metric", "")
+        if not rule_ticker or not rule_metric:
+            continue
+        if rule_ticker == ticker and rule_metric in (metric, "*"):
+            return rule
+    return None
 
 
 def _db_year_for_fye(repo, ticker: str, fye: str) -> Optional[int]:
@@ -542,12 +627,25 @@ def _db_year_for_fye(repo, ticker: str, fye: str) -> Optional[int]:
     return None
 
 
-def _summarize(flagged: list[dict], compared: int) -> None:
+def _summarize(
+    flagged: list[dict],
+    compared: int,
+    excluded_by_severity: Optional[dict[str, int]] = None,
+) -> None:
     from collections import Counter
 
     by_metric = Counter(r["metric"] for r in flagged)
     by_sev = Counter(r["severity"] for r in flagged)
+    total = len(flagged)
+    n_excl = sum(excluded_by_severity.values()) if excluded_by_severity else 0
+    n_high = by_sev.get("HIGH", 0)
+    n_med = by_sev.get("MEDIUM", 0)
+    n_low = by_sev.get("LOW", 0)
     print(f"  companies compared: {compared}")
+    print(f"  total discrepancy rows: {total}")
+    print(f"  HIGH genuine: {n_high}  HIGH excluded: {excluded_by_severity.get('HIGH', 0) if excluded_by_severity else 0}")
+    print(f"  MEDIUM genuine: {n_med}  MEDIUM excluded: {excluded_by_severity.get('MEDIUM', 0) if excluded_by_severity else 0}")
+    print(f"  LOW genuine: {n_low}  LOW excluded: {excluded_by_severity.get('LOW', 0) if excluded_by_severity else 0}")
     print(f"  flagged rows by metric: {dict(by_metric)}")
     print(f"  by severity: {dict(by_sev)}")
 

@@ -1,61 +1,61 @@
-ticker,metric,value_investing,external_source,abs_diff,pct_diff,severity
-ABNB,eps,4.0305,1.03,3.0005,291.31,HIGH
-ABNB,pe_ratio,42.2256,165.233,-123.0075,-74.44,HIGH
-ACGL,revenue,19929000000.0,19300000000.0,629000000.0,3.26,LOW
-AEP,fcf_yield,0.052,-0.02441,7.641,,HIGH
-AWK,fcf_yield,-0.03899,-0.04539,0.64,,LOW
-BEN,net_income,471700000.0,524900000.0,-53200000.0,-10.14,MEDIUM
-BEN,roe,0.0391,0.0435,-0.0044,-10.14,LOW
-BG,eps,4.9019,4.219,0.6828,16.18,MEDIUM
-BG,pe_ratio,24.9721,29.0137,-4.0416,-13.93,LOW
-BX,revenue,14450265000.0,12410012000.0,2040253000.0,16.44,HIGH
-BX,net_margin,0.20894,0.24329,-3.435,,LOW
-CPT,revenue,12967000.0,1573544000.0,-1560577000.0,-99.18,HIGH
-CPT,net_margin,29.58572,0.24433,2934.139,,HIGH
-CSGP,eps,0.0166,0.02,-0.0034,-16.81,MEDIUM
-CSGP,pe_ratio,1830.6459,1523.0,307.646,20.2,MEDIUM
-CSGP,fcf_yield,0.00997,0.00332,0.664,,LOW
-CVNA,eps,6.2735,1.69,4.5835,271.21,HIGH
-CVNA,pe_ratio,11.0242,40.9231,-29.8989,-73.06,HIGH
-DD,eps,-1.8583,-5.61,3.7517,66.88,HIGH
-DD,pe_ratio,-68.3366,-22.6364,-45.7002,-201.89,HIGH
-DLR,eps,3.6453,0.895,2.7503,307.29,HIGH
-DLR,pe_ratio,51.7326,210.7039,-158.9713,-75.45,HIGH
-DOC,fcf_yield,0.02551,0.08944,-6.394,,HIGH
-DVN,fcf_yield,0.05645,0.05062,0.583,,LOW
-EXE,fcf_yield,0.08377,0.07489,0.888,,LOW
-FE,eps,1.7647,0.44,1.3247,301.07,HIGH
-FE,pe_ratio,26.1403,104.8409,-78.7006,-75.07,HIGH
-FITB,net_income,2376000000.0,2522000000.0,-146000000.0,-5.79,LOW
-HAS,revenue,5365900000.0,4701300000.0,664600000.0,14.14,HIGH
-HAS,fcf_yield,0.06428,0.05382,1.046,,MEDIUM
-HSIC,fcf_yield,0.05819,0.05291,0.528,,LOW
-IBKR,revenue,2440000000.0,10222000000.0,-7782000000.0,-76.13,HIGH
-IBKR,net_margin,0.40328,0.09626,30.702,,HIGH
-IVZ,net_income,-726300000.0,-281700000.0,-444600000.0,-157.83,HIGH
-IVZ,roe,-0.0594,-0.023,-0.0364,-157.83,HIGH
-IVZ,net_margin,-0.11389,-0.04417,-6.972,,MEDIUM
-MCHP,net_income,118800000.0,230000000.0,-111200000.0,-48.35,HIGH
-MCHP,roe,0.0185,0.0358,-0.0173,-48.35,MEDIUM
-MCHP,net_margin,0.02521,0.0488,-2.359,,LOW
-MNST,eps,1.9355,0.97,0.9655,99.54,HIGH
-MNST,pe_ratio,22.4228,44.7423,-22.3194,-49.88,MEDIUM
-MTB,revenue,1657000000.0,9632000000.0,-7975000000.0,-82.8,HIGH
-MTB,net_income,2699000000.0,2851000000.0,-152000000.0,-5.33,LOW
-MTB,net_margin,1.62885,0.29599,133.285,,HIGH
-NI,fcf_yield,-0.02115,-0.03997,1.882,,MEDIUM
-NRG,net_income,797000000.0,864000000.0,-67000000.0,-7.75,LOW
-NTRS,fcf_yield,0.15773,0.1375,2.023,,MEDIUM
-OXY,net_income,1612000000.0,2326000000.0,-714000000.0,-30.7,HIGH
-OXY,roe,0.0447,0.0646,-0.0198,-30.7,MEDIUM
-OXY,net_margin,0.07465,0.10772,-3.307,,LOW
-PCAR,fcf_yield,0.05685,0.04689,0.996,,LOW
-PNC,net_income,6576000000.0,6936000000.0,-360000000.0,-5.19,LOW
-PSA,net_income,1585585000.0,1784348000.0,-198763000.0,-11.14,MEDIUM
-PSA,roe,0.1714,0.1929,-0.0215,-11.14,LOW
-PSA,net_margin,0.32868,0.36988,-4.12,,MEDIUM
-RJF,revenue,15912000000.0,13842000000.0,2070000000.0,14.95,HIGH
-RJF,net_margin,0.13386,0.15424,-2.038,,LOW
-STT,net_income,2717000000.0,2945000000.0,-228000000.0,-7.74,LOW
-TDG,eps,35.6357,32.08,3.5557,11.08,MEDIUM
-TFC,net_income,4974000000.0,5307000000.0,-333000000.0,-6.27,LOW
+ticker,metric,value_investing,external_source,abs_diff,pct_diff,severity,classification,exclusion_reason
+ABNB,eps,4.0353,1.03,3.0053,291.78,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo annual Diluted EPS (1.03) is the Q4 2025 quarterly value; fiscal-year diluted EPS = 2,511M / 623M shares = 4.03 (VI matches the 10-K)."
+ABNB,pe_ratio,42.1752,165.233,-123.0578,-74.48,EXCLUDED,EXTERNAL_SOURCE_ERROR,Derived from Yahoo's quarterly EPS (1.03); VI uses the fiscal-year diluted EPS (4.03).
+ACGL,revenue,19929000000.0,19300000000.0,629000000.0,3.26,LOW,,
+AEP,fcf_yield,-0.0739,-0.02441,-4.949,,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo capex (8.58B) omits the construction-in-progress component; VI = 10-K capex (11.91B, SegmentExpenditureAdditionToLongLivedAssets); S&P confirms 11,906M."
+APA,fcf_yield,0.1195,0.11352,0.598,,LOW,,
+AWK,fcf_yield,-0.039,-0.04539,0.639,,LOW,,
+BEN,net_income,471700000.0,524900000.0,-53200000.0,-10.14,MEDIUM,,
+BEN,roe,0.0391,0.0435,-0.0044,-10.03,LOW,,
+BG,eps,4.9019,4.219,0.6829,16.19,MEDIUM,,
+BG,pe_ratio,24.9721,29.0137,-4.0416,-13.93,LOW,,
+BX,revenue,14450265000.0,12410012000.0,2040253000.0,16.44,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo revenue (12.41B) omits part of the 10-K 'Revenues' (14.45B); S&P Global confirms 14,450M = VI."
+BX,net_margin,0.2089,0.24329,-3.439,,LOW,,
+CSGP,eps,0.0166,0.02,-0.0034,-17.0,MEDIUM,,
+CSGP,pe_ratio,1830.6459,1523.0,307.6459,20.2,MEDIUM,,
+CSGP,fcf_yield,0.01,0.00332,0.668,,LOW,,
+CVNA,eps,8.4494,1.69,6.7594,399.96,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo Diluted EPS (1.69) matches no as-filed FY2025 figure; VI now reproduces the 10-K diluted EPS (diluted NI 1,895M / 224.3M shares = 8.45)."
+CVNA,pe_ratio,8.1852,40.9231,-32.7379,-80.0,EXCLUDED,EXTERNAL_SOURCE_ERROR,Derived from Yahoo's erroneous EPS (1.69); VI uses the fiscal-year diluted EPS (8.45).
+DD,eps,-1.8583,-5.61,3.7517,66.88,EXCLUDED,EXTERNAL_SOURCE_ERROR,Yahoo Diluted EPS (-5.61) uses ~139M current shares; company FY25 diluted EPS = -779M / 419.2M shares = -1.86 (VI matches).
+DD,pe_ratio,-68.3366,-22.6364,-45.7002,-201.89,EXCLUDED,EXTERNAL_SOURCE_ERROR,Derived from Yahoo's erroneous EPS (-5.61); VI matches company-reported -1.86.
+DLR,eps,3.5803,0.895,2.6853,300.03,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo Diluted EPS (0.90) uses a ~1.39B share count (~4x the true 347.8M); VI = 1,268M / 347.8M = 3.65."
+DLR,pe_ratio,52.6712,210.7039,-158.0327,-75.0,EXCLUDED,EXTERNAL_SOURCE_ERROR,Derived from Yahoo's inflated-share EPS (0.90).
+DOC,fcf_yield,0.0255,0.08944,-6.394,,EXCLUDED,EXPECTED_DIFFERENCE,REIT convention - Yahoo/S&P report FCF = OCF with no capex deduction; VI subtracts acquisition/development spend (~895M).
+DVN,fcf_yield,0.0564,0.05062,0.578,,LOW,,
+EXE,fcf_yield,0.0838,0.07489,0.891,,LOW,,
+FE,eps,1.7647,0.44,1.3247,301.07,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo Diluted EPS (0.44) uses a ~2.31B share count (~4x the true 578M); VI = 1,020M / 578M = 1.76."
+FE,pe_ratio,26.1403,104.8409,-78.7006,-75.07,EXCLUDED,EXTERNAL_SOURCE_ERROR,Derived from Yahoo's inflated-share EPS (0.44).
+FITB,revenue,9017000000.0,8821000000.0,196000000.0,2.22,LOW,,
+FITB,net_income,2376000000.0,2522000000.0,-146000000.0,-5.79,LOW,,
+FITB,net_margin,0.2635,0.28591,-2.241,,LOW,,
+HAS,revenue,5365900000.0,4701300000.0,664600000.0,14.14,EXCLUDED,EXPECTED_DIFFERENCE,VI picks gross 'Revenues' (5.37B); Yahoo/S&P use net revenue (4.70B). Not generically fixable without industry tagging (ADM/BG/URI need the gross figure).
+HAS,fcf_yield,0.0643,0.05382,1.048,,MEDIUM,,
+HSIC,fcf_yield,0.0582,0.05291,0.529,,LOW,,
+IBKR,revenue,6205000000.0,10222000000.0,-4017000000.0,-39.3,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo uses gross interest-income presentation (10.22B); VI now uses net revenue (interest 3.56B + noninterest 2.64B = 6.21B); S&P confirms 6,205M."
+IBKR,net_margin,0.1586,0.09626,6.234,,EXCLUDED,EXTERNAL_SOURCE_ERROR,Fallout of the revenue presentation difference (gross vs net interest income).
+IVZ,net_income,-726300000.0,-281700000.0,-444600000.0,-157.83,EXCLUDED,EXTERNAL_SOURCE_ERROR,Yahoo NetIncome row (-281.7M) contradicts Yahoo's own EPS (-1.60 x 455M shares = -726M); VI matches the 10-K -726.3M.
+IVZ,roe,-0.0594,-0.023,-0.0364,-157.91,EXCLUDED,EXTERNAL_SOURCE_ERROR,Fallout of the Yahoo NetIncome row inconsistency.
+IVZ,net_margin,-0.1139,-0.04417,-6.973,,MEDIUM,,
+LNT,fcf_yield,-0.0753,0.06703,-14.233,,EXCLUDED,EXTERNAL_SOURCE_ERROR,Yahoo fcf_yield (6.7%) is OCF/market_cap (1169M/17.4B); true FCF = OCF - capex = 1169M - 2483M = -1314M. VI correctly reports negative FCF for this capital-intensive utility.
+MCHP,net_income,118800000.0,230000000.0,-111200000.0,-48.35,EXCLUDED,EXTERNAL_SOURCE_ERROR,Yahoo NetIncome row (230M) includes NCI (~111M China JV); VI uses available-to-common (118.8M); Yahoo's own EPS (0.22) matches VI.
+MCHP,roe,0.0185,0.0358,-0.0173,-48.26,MEDIUM,,
+MCHP,net_margin,0.0252,0.0488,-2.36,,LOW,,
+MNST,eps,1.9355,0.97,0.9655,99.54,EXCLUDED,EXTERNAL_SOURCE_ERROR,"Yahoo Diluted EPS (0.97) uses a ~1.96B share count (~2x the true 984M); VI = 1,905M / 984M = 1.94."
+MNST,pe_ratio,22.4228,44.7423,-22.3195,-49.88,MEDIUM,,
+MTB,net_income,2699000000.0,2851000000.0,-152000000.0,-5.33,LOW,,
+NI,fcf_yield,-0.0211,-0.03997,1.887,,MEDIUM,,
+NRG,net_income,797000000.0,864000000.0,-67000000.0,-7.75,LOW,,
+NTRS,fcf_yield,0.1577,0.1375,2.02,,MEDIUM,,
+OXY,net_income,1612000000.0,2326000000.0,-714000000.0,-30.7,EXCLUDED,EXTERNAL_SOURCE_ERROR,Yahoo NetIncome row (2.33B) is consolidated pre-preferred; VI uses available-to-common (1.61B); Yahoo's own EPS (1.61) matches VI.
+OXY,roe,0.0447,0.0646,-0.0199,-30.75,MEDIUM,,
+OXY,net_margin,0.0747,0.10772,-3.302,,LOW,,
+PCAR,fcf_yield,0.0569,0.04689,1.001,,MEDIUM,,
+PNC,net_income,6576000000.0,6936000000.0,-360000000.0,-5.19,LOW,,
+PSA,net_income,1585585000.0,1784348000.0,-198763000.0,-11.14,MEDIUM,,
+PSA,roe,0.1714,0.1929,-0.0215,-11.16,LOW,,
+PSA,net_margin,0.3287,0.36988,-4.118,,MEDIUM,,
+STT,net_income,2717000000.0,2945000000.0,-228000000.0,-7.74,LOW,,
+TDG,eps,35.6357,32.08,3.5557,11.08,MEDIUM,,
+TFC,net_income,4974000000.0,5307000000.0,-333000000.0,-6.27,LOW,,
+VLO,fcf_yield,0.0351,0.04475,-0.965,,LOW,,
+WEC,fcf_yield,-0.0415,-0.02968,-1.182,,MEDIUM,,

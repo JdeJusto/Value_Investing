@@ -39,6 +39,8 @@ INCOME_STATEMENT_CONCEPTS = {
     'RevenueFromContractWithCustomerIncludingAssessedTax': 'revenue',
     'SalesRevenueGoodsNet': 'revenue',
     'SalesRevenueServicesNet': 'revenue',
+    # REITs file their rental income here when no 'Revenues' tag is present
+    'OperatingLeaseLeaseIncome': 'revenue',
 
     # Cost of Goods Sold
     'CostOfGoodsSold': 'cogs',
@@ -100,6 +102,10 @@ INCOME_FIELD_PRIORITY = {
         'SalesRevenueServicesNet',
         'RevenueFromContractWithCustomerExcludingAssessedTax',
         'RevenueFromContractWithCustomerIncludingAssessedTax',
+        # REIT rental income; ranked last so explicit revenue tags win, with a
+        # value-based override in _normalize_financial_facts for REITs whose
+        # rental income is the whole top line (e.g. CPT).
+        'OperatingLeaseLeaseIncome',
     ],
     'net_income': [
         'NetIncomeLossAvailableToCommonStockholdersBasic',
@@ -112,6 +118,26 @@ INCOME_FIELD_PRIORITY = {
 INCOME_CONCEPT_RANK = {
     concept: rank
     for field, concepts in INCOME_FIELD_PRIORITY.items()
+    for rank, concept in enumerate(concepts)
+}
+
+# Some companies file several capital-expenditure elements for the same period
+# (e.g. AEP reports both PaymentsToAcquireProductiveAssets and the broader
+# SegmentExpenditureAdditionToLongLivedAssets). Rank the concepts so the most
+# complete figure wins instead of an arbitrary first-match.
+CASH_FLOW_FIELD_PRIORITY = {
+    'capital_expenditure': [
+        'PaymentsToAcquirePropertyPlantAndEquipment',
+        'SegmentExpenditureAdditionToLongLivedAssets',
+        'PaymentsToAcquireProductiveAssets',
+        'PaymentsForConstructionInProcess',
+        'CapitalExpenditures',
+        'CapitalExpenditure',
+    ],
+}
+CASH_FLOW_CONCEPT_RANK = {
+    concept: rank
+    for field, concepts in CASH_FLOW_FIELD_PRIORITY.items()
     for rank, concept in enumerate(concepts)
 }
 
@@ -175,6 +201,8 @@ CASH_FLOW_CONCEPTS = {
     # Capital Expenditure (positive value)
     'PaymentsToAcquireProductiveAssets': 'capital_expenditure',
     'PaymentsToAcquirePropertyPlantAndEquipment': 'capital_expenditure',
+    'SegmentExpenditureAdditionToLongLivedAssets': 'capital_expenditure',
+    'PaymentsForConstructionInProcess': 'capital_expenditure',
     'CapitalExpenditures': 'capital_expenditure',
     'CapitalExpenditure': 'capital_expenditure',
 
@@ -393,7 +421,9 @@ class FinancialDatabaseRepository(FinancialRepository):
             concept = fact.get('concept') or ''
             return (
                 _date_ord(fact.get('period_end')),
-                -INCOME_CONCEPT_RANK.get(concept, 10**9),
+                -INCOME_CONCEPT_RANK.get(
+                    concept, CASH_FLOW_CONCEPT_RANK.get(concept, 10**9)
+                ),
                 -_date_ord(fact.get('period_start')),
             )
 
@@ -406,6 +436,14 @@ class FinancialDatabaseRepository(FinancialRepository):
         # Track debt concepts already summed within the newest comparative so a
         # quarterly + annual occurrence of the same element is not double added.
         summed_debt_concepts = set()
+
+        # Banks/brokers present a net-of-interest top line. Capture their
+        # interest + non-interest income so their revenue can be reconstructed
+        # when no net-revenue tag is filed.
+        bank_interest = None
+        bank_noninterest = None
+        # REIT rental income (see the value-based override below).
+        rental_income = None
 
         # Process each fact
         for fact in facts:
@@ -422,6 +460,8 @@ class FinancialDatabaseRepository(FinancialRepository):
             # Map to income statement
             if concept in INCOME_STATEMENT_CONCEPTS:
                 field_name = INCOME_STATEMENT_CONCEPTS[concept]
+                if concept == 'OperatingLeaseLeaseIncome' and rental_income is None:
+                    rental_income = value
                 # Handle duplicates by taking the first fact ordered above
                 if field_name not in income_data or income_data[field_name] is None:
                     income_data[field_name] = value
@@ -457,6 +497,33 @@ class FinancialDatabaseRepository(FinancialRepository):
                 # Handle duplicates by taking the newest-comparative value
                 if field_name not in cash_flow_data or cash_flow_data[field_name] is None:
                     cash_flow_data[field_name] = value
+
+            # Track bank top-line components (not part of the standard mapping)
+            elif concept == 'InterestIncomeExpenseNet' and bank_interest is None:
+                bank_interest = value
+            elif concept == 'NoninterestIncome' and bank_noninterest is None:
+                bank_noninterest = value
+            elif concept == 'OperatingLeaseLeaseIncome' and rental_income is None:
+                rental_income = value
+
+        # REITs whose rental income is the whole top line (no revenue tag filed,
+        # or only a small contract-revenue tag) report it as OperatingLease
+        # LeaseIncome. Prefer the rental figure when it dominates whatever
+        # contract-revenue tag was picked (e.g. CPT's 1.57B rental vs a 13M
+        # contract tag) while leaving e.g. DD (6.85B sales vs 74M rental)
+        # untouched.
+        if rental_income is not None and (
+            income_data.get('revenue') is None
+            or rental_income > income_data['revenue']
+        ):
+            income_data['revenue'] = rental_income
+
+        # Banks/brokers report a net-of-interest top line. When both
+        # components exist, treat the total as revenue (overrides a partial
+        # contract-revenue tag and matches the net-revenue presentation
+        # used by financial data providers).
+        if bank_interest is not None and bank_noninterest is not None:
+            income_data['revenue'] = bank_interest + bank_noninterest
 
         return {
             'income': income_data,
@@ -882,6 +949,67 @@ class FinancialDatabaseRepository(FinancialRepository):
                     if result and result['value'] is not None:
                         return float(result['value'])
 
+                return None
+
+        except Exception:
+            return None
+
+    def get_available_to_common_diluted_net_income(
+        self, ticker: str, fiscal_year: int
+    ) -> Optional[float]:
+        """Return net income available to common stockholders on a diluted
+        basis (``NetIncomeLossAvailableToCommonStockholdersDiluted``) for the
+        fiscal year, if filed.
+
+        Some filers' diluted EPS uses a *diluted* attribution of net income
+        (adding back assumed conversions of LLC units / dilutive securities)
+        that differs from the basic available-to-common figure. Pairing that
+        numerator with the diluted share count reproduces the as-reported
+        diluted EPS exactly (e.g. Carvana 2025: 1,895M / 224.3M shares).
+
+        Args:
+            ticker: Company ticker symbol
+            fiscal_year: Fiscal year
+
+        Returns:
+            Diluted available-to-common net income if found, None otherwise
+        """
+        try:
+            company_id = self._get_company_id_by_ticker(ticker)
+            if not company_id:
+                return None
+
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT f.value
+                    FROM financial_facts f
+                    WHERE f.company_id = %s
+                      AND f.fiscal_year = %s
+                      AND f.concept = 'NetIncomeLossAvailableToCommonStockholdersDiluted'
+                      AND UPPER(f.fiscal_period) = 'FY'
+                      AND f.period_end = (
+                          SELECT MAX(f2.period_end)
+                          FROM financial_facts f2
+                          WHERE f2.company_id = f.company_id
+                            AND f2.fiscal_year = %s
+                            AND UPPER(f2.fiscal_period) = 'FY'
+                            AND f2.concept IN (
+                                'NetIncomeLoss',
+                                'Revenues',
+                                'SalesRevenueNet',
+                                'SalesRevenueServicesNet',
+                                'SalesRevenueGoodsNet',
+                                'RevenueFromContractWithCustomerExcludingAssessedTax'
+                            )
+                      )
+                    ORDER BY f.period_end DESC NULLS LAST
+                    LIMIT 1
+                """, (company_id, fiscal_year, fiscal_year))
+
+                result = cur.fetchone()
+                if result and result['value'] is not None:
+                    return float(result['value'])
                 return None
 
         except Exception:
