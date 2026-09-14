@@ -384,6 +384,109 @@ def test_rank_score_neutral_momentum_without_deltas():
 
 
 # ----------------------------------------------------------------------
+# Calibrated ranking (cross-sectional)
+# ----------------------------------------------------------------------
+
+def _rank_dict(ticker, buffett=80, total=80, margin=0.3, moat_type="STRONG", moat_score=78,
+               delta=None, fcf=10e9, debt_to_equity=0.4, interest_coverage=12.0,
+               roic=0.15, cagr=0.10):
+    """Build an analysis dict suitable for calibrated_rank."""
+    d = _analysis(
+        ticker,
+        buffett=buffett,
+        total_score=total,
+        margin=margin,
+        moat_type=moat_type,
+        moat_score=moat_score,
+        delta=delta,
+        debt_equity=debt_to_equity,
+        roic=roic,
+        cagr=cagr,
+    )
+    d["fcf"] = fcf
+    d["quality_metrics"] = {
+        "roic_mean": 0.15,
+        "roe_mean": 0.20,
+        "revenue_cagr": 0.10,
+        "revenue_cv": 0.2,
+        "gross_margin_cv": 0.05,
+        "gross_margin_trend": 0.005,
+        "capital_intensity": 0.05,
+        "positive_fcf_ratio": 0.9,
+        "fcf_growth": 0.1,
+        "earnings_cv": 0.2,
+        "max_yoy_decline": -0.05,
+        "debt_to_equity": debt_to_equity,
+        "debt_trend": -0.10,
+        "net_income_change": 0.05,
+        "interest_coverage": interest_coverage,
+        "retained_earnings_positive": True,
+        "book_value_per_share": 25.0,
+        "owner_earnings": 5e9,
+        "shares_outstanding": 1e9,
+    }
+    return d
+
+
+def test_calibrated_rank_spreads_scores():
+    from backend.screener.ranking_engine import calibrated_rank, CALIBRATION_MIN, CALIBRATION_MAX
+
+    items = [_rank_dict(f"T{i}", total=40 + i * 5) for i in range(10)]
+    ranks = [calibrated_rank(it, items) for it in items]
+    assert all(CALIBRATION_MIN <= r <= CALIBRATION_MAX for r in ranks)
+    # The highest-quality company should have the highest rank.
+    assert ranks[-1] > ranks[0]
+
+
+def test_calibrated_rank_quality_leads_over_cheapness():
+    """A high-quality (low margin) company outranks a cheaper one (low quality)."""
+    from backend.screener.ranking_engine import calibrated_rank
+
+    quality = _rank_dict("QUAL", buffett=85, total=90, margin=0.0)   # no MOS
+    cheap = _rank_dict("CHEAP", buffett=40, total=40, margin=0.30)  # high MOS
+    items = [quality, cheap]
+    assert calibrated_rank(quality, items) > calibrated_rank(cheap, items)
+
+
+def test_health_cap_penalizes_negative_fcf():
+    """Negative FCF caps even a fundamentally strong company at the cap."""
+    from backend.screener.ranking_engine import calibrated_rank, LEVERAGED_RANK_CAP
+
+    # "BEST" has the strongest fundamentals but burns cash.
+    best = _rank_dict("BEST", buffett=95, total=99, roic=0.30, cagr=0.25, fcf=-2e9)
+    weak = _rank_dict("WEAK", buffett=30, total=25, roic=0.05, cagr=0.01, fcf=1e9)
+    items = [weak, best]
+    top = calibrated_rank(best, items)
+    assert top == LEVERAGED_RANK_CAP
+    assert calibrated_rank(weak, items) < top
+
+
+def test_health_cap_penalizes_high_debt():
+    from backend.screener.ranking_engine import health_cap, LEVERAGED_RANK_CAP
+
+    low_debt = _rank_dict("LOW", debt_to_equity=0.4)
+    high_debt = _rank_dict("HIGH", debt_to_equity=2.0)
+    assert health_cap(low_debt) > LEVERAGED_RANK_CAP
+    assert health_cap(high_debt) == LEVERAGED_RANK_CAP
+
+
+def test_health_cap_penalizes_weak_coverage():
+    from backend.screener.ranking_engine import health_cap, LEVERAGED_RANK_CAP
+
+    strong = _rank_dict("STRONG", interest_coverage=12.0)
+    weak = _rank_dict("WEAK", interest_coverage=2.5)
+    assert health_cap(strong) > LEVERAGED_RANK_CAP
+    assert health_cap(weak) == LEVERAGED_RANK_CAP
+
+
+def test_health_cap_allows_good_health():
+    from backend.screener.ranking_engine import health_cap, CALIBRATION_MAX
+
+    item = _rank_dict("GOOD", fcf=10e9, debt_to_equity=0.5, interest_coverage=15.0)
+    assert health_cap(item) == CALIBRATION_MAX
+
+
+# ----------------------------------------------------------------------
 # New opportunity detectors
 # ----------------------------------------------------------------------
 def test_inflection_point_detected_on_recovery():

@@ -10,7 +10,7 @@ from typing import Callable, Iterable, Optional
 
 from backend.screener.filters import ScreenCriteria, from_kwargs, matches
 from backend.screener.opportunity_engine import best_opportunity, detect_opportunities
-from backend.screener.ranking_engine import rank_score, ranking_reasons
+from backend.screener.ranking_engine import calibrated_rank, rank_score, ranking_reasons
 from backend.screener.signals import generate_signal
 
 Analyzer = Callable[[str], Optional[dict]]
@@ -168,10 +168,14 @@ class ScreenerService:
 
     def _screen(self, criteria: ScreenCriteria) -> list[ScreenedCompany]:
         items = self._collect(criteria)
-        ranked = sorted(items, key=lambda item: rank_score(item), reverse=True)
+        # Calibrate ranks across the analyzed (post-filter) universe so the
+        # final scores spread across the 10-90 band and reflect relative
+        # quality instead of absolute component compression.
+        pool_scores = {id(it): calibrated_rank(it, items) for it in items}
+        ranked = sorted(items, key=lambda it: pool_scores[id(it)], reverse=True)
         companies: list[ScreenedCompany] = []
         for position, item in enumerate(ranked, start=1):
-            score = rank_score(item)
+            score = pool_scores[id(item)]
             opportunity = best_opportunity(item)
             signal = generate_signal(dict(item, opportunity=opportunity), score)
             composite = item.get("composite_score") or {}

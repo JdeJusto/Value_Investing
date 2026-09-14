@@ -43,7 +43,7 @@ from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.services import needs_refresh
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
-from backend.intelligence.scoring_model import assess_investment
+from backend.intelligence.scoring_model import assess_investment, confidence_level
 
 logger = logging.getLogger("backend.analytics")
 
@@ -56,6 +56,10 @@ DEFAULT_COST_OF_DEBT = 0.05
 HIGH_CONFIDENCE_QUALITY = 0.7
 HIGH_CONFIDENCE_COVERAGE = 0.8
 MEDIUM_CONFIDENCE_COVERAGE = 0.5
+
+# Years of usable history that count as full quality data; thinner
+# histories get proportionally lower derived quality scores.
+REQUIRED_HISTORY_YEARS = 8
 
 
 def _equity_of(financials: NormalizedFinancials) -> Optional[float]:
@@ -287,6 +291,24 @@ class CompanyAnalysisService:
         return result
 
     # ------------------------------------------------------------------
+    # Fields that any real (completed) fiscal year must populate; an
+    # all-empty row is an in-progress year with no filings yet and must
+    # not be treated as the current year.
+    _CORE_FIELDS = (
+        "revenue",
+        "net_income",
+        "ebit",
+        "ebitda",
+        "operating_income",
+        "operating_cash_flow",
+        "free_cash_flow",
+        "total_assets",
+    )
+
+    @classmethod
+    def _row_has_data(cls, row: NormalizedFinancials) -> bool:
+        return any(getattr(row, field) is not None for field in cls._CORE_FIELDS)
+
     def _load_history(self, ticker: str) -> list[NormalizedFinancials]:
         rows = self._repository.get_best_available(ticker)
         if rows and needs_refresh(rows):
@@ -297,7 +319,9 @@ class CompanyAnalysisService:
                 rows = self._repository.get_best_available(ticker)
             except Exception:  # noqa: BLE001 — missing data must not kill analysis
                 logger.warning("analytics: could not load data for %s", ticker)
-        return rows
+        # Drop all-empty (in-progress) years so the "current year" is always a
+        # completed fiscal year with actual values.
+        return [row for row in rows if self._row_has_data(row)]
 
     def _refresh_history(self, ticker: str) -> list[NormalizedFinancials]:
         if self._loader is None:
@@ -309,11 +333,21 @@ class CompanyAnalysisService:
         return self._repository.get_best_available(ticker)
 
     def _data_reliability(self, ticker: str, rows: list[NormalizedFinancials]) -> dict:
-        """Source consistency, confidence and quality metadata for the result."""
+        """Source consistency, confidence and quality metadata for the result.
+
+        When ``data_quality_score`` / ``data_completeness`` are not set in the
+        persisted rows (as is the case when fundamentals are reconstructed from
+        the Financial-DataBase), a derived quality metric is computed from the
+        depth of available history and the coverage ratio so the composite
+        score and confidence carry real signal.
+        """
         all_rows = self._repository.list_all(ticker)
         available_years = {r.fiscal_year for r in all_rows}
         used_years = {r.fiscal_year for r in rows}
         coverage = len(used_years) / len(available_years) if available_years else 0.0
+        # Depth: fraction of REQUIRED_HISTORY_YEARS we have; capped at 1.0.
+        depth = min(len(used_years), REQUIRED_HISTORY_YEARS) / REQUIRED_HISTORY_YEARS
+
         sources = sorted({r.source for r in rows})
 
         if len(sources) > 1:
@@ -321,29 +355,27 @@ class CompanyAnalysisService:
         else:
             data_source_used = sources[0].value.upper() if sources else "UNKNOWN"
 
-        quality = self._mean(r.data_quality_score for r in rows)
-        completeness = self._mean(r.data_completeness for r in rows)
+        quality_raw = self._mean(r.data_quality_score for r in rows)
+        completeness_raw = self._mean(r.data_completeness for r in rows)
 
-        if len(sources) > 1:
-            confidence = "LOW"
-        elif coverage >= HIGH_CONFIDENCE_COVERAGE:
-            if quality is not None and quality >= HIGH_CONFIDENCE_QUALITY:
-                confidence = "HIGH"
-            else:
-                confidence = "MEDIUM"
-        elif coverage >= MEDIUM_CONFIDENCE_COVERAGE:
-            confidence = "MEDIUM"
-        else:
-            confidence = "LOW"
+        # Derived fallbacks: quality from history depth, completeness from
+        # data coverage — both concrete, deterministic numbers that scale
+        # with how much usable history is available.
+        quality = quality_raw if quality_raw is not None else round(depth, 3)
+        completeness = completeness_raw if completeness_raw is not None else round(
+            coverage, 3
+        )
 
-        return {
+        report = {
             "data_source_used": data_source_used,
-            "confidence": confidence,
             "data_quality_score": quality,
             "data_completeness": completeness,
             "data_coverage": coverage,
-            "data_refreshed": not needs_refresh(rows) if rows else False,
         }
+        report["confidence"] = confidence_level(report)
+        report["data_refreshed"] = not needs_refresh(rows) if rows else False
+
+        return report
 
     @staticmethod
     def _mean(values) -> Optional[float]:
@@ -351,13 +383,22 @@ class CompanyAnalysisService:
         return sum(present) / len(present) if present else None
 
     def _market_edge(self, ticker: str, dcf_value: Optional[float]) -> dict:
-        """Current price and valuation gap used for opportunity detection."""
+        """Current price, market cap and valuation gap used for opportunity
+        detection.
+
+        The DCF value is company-total, so the margin of safety is computed
+        against the total market cap (shares already priced in). Comparing
+        the total DCF to the per-share price — as done before — produced a
+        meaningless ~100% margin for every listed company.
+        """
         price = self._safe_market(self._market.get_current_price, ticker)
+        market_cap = self._safe_market(self._market.get_market_cap, ticker)
         margin = None
-        if price and dcf_value:
-            margin = (dcf_value - price) / dcf_value
+        if dcf_value and market_cap is not None and market_cap > 0:
+            margin = (dcf_value - market_cap) / dcf_value
         return {
             "current_price": price,
+            "market_cap": market_cap,
             "dcf_margin_of_safety": margin,
         }
 

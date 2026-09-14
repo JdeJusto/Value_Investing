@@ -73,6 +73,51 @@ class TestPriceService:
         # Only one network request should happen thanks to the cache.
         assert mock_ticker.history.call_count == 1
 
+    def test_get_current_prices_batch(self, service):
+        """Test batch fetching returns prices for all tickers."""
+        tickers = ["AAPL", "MSFT", "GOOGL"]
+        hist = _make_history([date(2024, 1, 2)], [150.25])
+        mock_ticker = Mock()
+        mock_ticker.history.return_value = hist
+
+        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+            prices = service.get_current_prices(tickers)
+
+        assert prices == {"AAPL": 150.25, "MSFT": 150.25, "GOOGL": 150.25}
+        assert mock_ticker.history.call_count == 3
+
+    def test_get_current_prices_partial_failure(self, service):
+        """Test batch fetching when one ticker fails gracefully."""
+        tickers = ["AAPL", "INVALID"]
+
+        def _side_effect(ticker):
+            m = Mock()
+            if ticker == "AAPL":
+                m.history.return_value = _make_history([date(2024, 1, 2)], [150.25])
+            else:
+                m.history.return_value = pd.DataFrame()
+            return m
+
+        with patch("backend.services.price_service.yf.Ticker", side_effect=_side_effect):
+            prices = service.get_current_prices(tickers)
+
+        assert prices["AAPL"] == 150.25
+        assert prices["INVALID"] is None
+
+    def test_get_current_prices_caches_batch(self, service):
+        """Test that batch results are cached individually."""
+        hist = _make_history([date(2024, 1, 2)], [150.25])
+        mock_ticker = Mock()
+        mock_ticker.history.return_value = hist
+
+        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+            p1 = service.get_current_prices(["AAPL", "MSFT"])
+            p2 = service.get_current_prices(["AAPL", "MSFT"])
+
+        assert p1 == p2
+        # First call fetches both; second call uses cache for both.
+        assert mock_ticker.history.call_count == 2
+
     def test_get_current_price_cache_expiry(self):
         """Test that the cache expires after the TTL."""
         hist = _make_history([date(2024, 1, 2)], [150.25])

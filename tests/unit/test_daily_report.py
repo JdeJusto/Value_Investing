@@ -79,6 +79,7 @@ class TestMarkdown:
                     "name": "Apple Inc.",
                     "rating": "B",
                     "total_score": 78.0,
+                    "rank_score": 72.5,
                     "price": 200.0,
                     "per": 15.0,
                     "fcf_yield": 0.08,
@@ -96,6 +97,7 @@ class TestMarkdown:
             ],
             missing=["XDATA"],
             price_notes=["real-time price unavailable for: XDATA"],
+            runtime_seconds=12.3,
         )
 
     def test_build_markdown_contains_sections(self):
@@ -103,7 +105,9 @@ class TestMarkdown:
         assert "# Daily report — 2026-09-13" in md
         assert "SEC update: ok" in md
         assert "| # | Ticker |" in md
-        assert "| 1 | AAPL | Apple Inc. | B | 78.0 | 200.0 | 15.0 | 8.0% | 12.0 | BUY |" in md
+        assert "| 1 | AAPL | Apple Inc. | B | 78.0 | 72.5 | 200.0 | 15.0 | 8.0% | 12.0 | BUY |" in md
+        assert "coverage: **50%**" in md
+        assert "Runtime: **12s**" in md
         assert "**AAPL** — Buy signal" in md
         assert "## Missing data" in md
         assert "XDATA" in md
@@ -177,11 +181,13 @@ class TestWorkflowHelpers:
             ticker = "KO"
             rating = "B"
             total_score = 70.0
+            rank_score = 68.5
             signal = "BUY"
             metrics = {"price": 55.0, "per": 18.0, "fcf_yield": 0.05, "ev_ebit": 20.0}
 
         row = daily_workflow._row_of(Item())
         assert row["price"] == 55.0
+        assert row["rank_score"] == 68.5
         assert row["signal"] == "BUY"
 
     def test_row_of_graceful_without_metrics(self):
@@ -192,9 +198,41 @@ class TestWorkflowHelpers:
             ticker = "KO"
             rating = "B"
             total_score = 70.0
+            rank_score = 68.5
             signal = "BUY"
             metrics = None
 
         row = daily_workflow._row_of(Item())
         assert row["price"] is None
         assert row["per"] is None
+
+    def test_load_universe_csv(self, tmp_path):
+        from scripts import daily_workflow
+
+        f = tmp_path / "universe.csv"
+        f.write_text(
+            "ticker,cik,company_name,source_index\n"
+            "AAPL,0000320193,Apple Inc.,SP500\n"
+            "MSFT,0000789019,Microsoft Corp.,SP500\n",
+            encoding="utf-8",
+        )
+        assert daily_workflow._load_universe(str(f)) == ["AAPL", "MSFT"]
+
+    def test_parser_limit_flag(self):
+        from scripts.daily_workflow import build_parser
+
+        args = build_parser().parse_args(["--limit", "10"])
+        assert args.limit == 10
+
+    def test_parser_limit_default_none(self):
+        from scripts.daily_workflow import build_parser
+
+        args = build_parser().parse_args([])
+        assert args.limit is None
+
+    def test_parser_batch_flags(self):
+        from scripts.daily_workflow import build_parser
+
+        args = build_parser().parse_args(["--batch-size", "5", "--batch-delay", "0.1"])
+        assert args.batch_size == 5
+        assert args.batch_delay == 0.1

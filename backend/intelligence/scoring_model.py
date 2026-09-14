@@ -24,6 +24,8 @@ RATING_C = 45.0
 
 HIGH_QUALITY_THRESHOLD = 0.7
 HIGH_COVERAGE_THRESHOLD = 0.8
+MEDIUM_COVERAGE_THRESHOLD = 0.5
+LOW_QUALITY_THRESHOLD = 0.3
 
 
 def composite_score(
@@ -54,9 +56,12 @@ def confidence_level(reliability: dict) -> str:
         return "LOW"
     quality = reliability.get("data_quality_score")
     coverage = reliability.get("data_coverage")
-    if quality is not None and coverage is not None:
-        if quality >= HIGH_QUALITY_THRESHOLD and coverage >= HIGH_COVERAGE_THRESHOLD:
-            return "HIGH"
+    if quality is None or coverage is None:
+        return "MEDIUM"
+    if quality >= HIGH_QUALITY_THRESHOLD and coverage >= HIGH_COVERAGE_THRESHOLD:
+        return "HIGH"
+    if quality < LOW_QUALITY_THRESHOLD or coverage < MEDIUM_COVERAGE_THRESHOLD:
+        return "LOW"
     return "MEDIUM"
 
 

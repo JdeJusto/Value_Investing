@@ -33,6 +33,7 @@ class DailyReport:
     missing: list[str] = field(default_factory=list)
     price_notes: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    runtime_seconds: float = 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -46,6 +47,7 @@ class DailyReport:
             "missing": self.missing,
             "price_notes": self.price_notes,
             "notes": self.notes,
+            "runtime_seconds": self.runtime_seconds,
         }
 
 
@@ -102,6 +104,12 @@ def _fmt(value: Any, kind: str) -> str:
     return str(value)
 
 
+def _coverage_pct(report: DailyReport) -> str:
+    if report.universe_size <= 0:
+        return "0%"
+    return f"{report.screened_count / report.universe_size:.0%}"
+
+
 def build_markdown(report: DailyReport) -> str:
     lines: list[str] = []
     lines.append(f"# Daily report — {report.report_date.isoformat()}")
@@ -112,25 +120,30 @@ def build_markdown(report: DailyReport) -> str:
     lines.append(f"Universe screened: **{report.universe_size}** companies "
                  f"| prices: **{report.prices_mode}**")
     lines.append("")
-    lines.append(f"Screened results that passed: **{report.screened_count}**")
+    lines.append(f"Screened results that passed: **{report.screened_count}**"
+                 f" | coverage: **{_coverage_pct(report)}**")
     lines.append("")
+    if report.runtime_seconds:
+        lines.append(f"Runtime: **{report.runtime_seconds:.0f}s**")
+        lines.append("")
 
     if report.rows:
         lines.append("## Screened")
         header = (
-            "| # | Ticker | Company | Rating | Score | Price | P/E | "
+            "| # | Ticker | Company | Rating | Score | Rank | Price | P/E | "
             "FCF yield | EV/EBIT | Signal |"
         )
         lines.append(header)
-        lines.append("|" + "---|" * 10)
+        lines.append("|" + "---|" * 11)
         for row in report.rows:
             lines.append(
-                "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
+                "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
                     row.get("rank", ""),
                     row.get("ticker", ""),
                     (row.get("name") or "N/A")[:24],
                     row.get("rating") or "N/A",
                     _fmt(row.get("total_score"), "score"),
+                    _fmt(row.get("rank_score"), "score"),
                     _fmt(row.get("price"), "ratio"),
                     _fmt(row.get("per"), "ratio"),
                     _fmt(row.get("fcf_yield"), "pct"),

@@ -70,6 +70,29 @@ class PriceService:
             self._set_cached(key, price)
         return price
 
+    def get_current_prices(
+        self,
+        tickers: List[str],
+        batch_size: int = 25,
+        delay: float = 0.2,
+    ) -> Dict[str, Optional[float]]:
+        """Batch current-price fetch with rate-limit pacing.
+
+        Prices already in the in-memory cache are reused; the rest are
+        fetched in batches of ``batch_size`` with a ``delay`` pause between
+        batches so a large universe does not hammer Yahoo Finance. Nothing is
+        persisted. Returns ``{TICKER: price-or-None}``.
+        """
+        prices: Dict[str, Optional[float]] = {}
+        remaining = [t.upper() for t in tickers if t]
+        while remaining:
+            batch, remaining = remaining[:batch_size], remaining[batch_size:]
+            for ticker in batch:
+                prices[ticker] = self.get_current_price(ticker)
+            if remaining and delay > 0:
+                time.sleep(delay)
+        return prices
+
     def get_historical_prices(
         self,
         ticker: str,

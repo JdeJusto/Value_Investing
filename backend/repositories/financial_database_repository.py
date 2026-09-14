@@ -305,6 +305,33 @@ class FinancialDatabaseRepository(FinancialRepository):
         except Exception:
             return None
 
+    def get_cik(self, ticker: str) -> Optional[str]:
+        """SEC CIK for a ticker, or None when the company is not in the DB.
+
+        Returns the CIK identifier stored on the company the ticker maps to.
+        Foreign filers (ASML, NVO, ...) commonly have no US CIK here.
+        """
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT ci.identifier_value as cik
+                    FROM company_identifiers ct
+                    JOIN company_identifiers ci ON ci.company_id = ct.company_id
+                    WHERE ct.identifier_type = 'TICKER'
+                      AND UPPER(ct.identifier_value) = %s
+                      AND UPPER(ci.identifier_type) = 'CIK'
+                    ORDER BY UPPER(ci.provider_id::text) DESC
+                    LIMIT 1
+                    """,
+                    (str(ticker).upper(),),
+                )
+                row = cur.fetchone()
+                return row["cik"] if row else None
+        except Exception:
+            return None
+
     def _get_company_id_by_cik(self, cik: str) -> Optional[str]:
         """Get company ID from CIK.
 

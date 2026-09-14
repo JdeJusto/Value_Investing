@@ -4,7 +4,15 @@ The rank score blends the composite quality score with the valuation
 gap (margin of safety), growth quality, earnings stability, fundamental
 momentum and the confidence in the underlying data. Every factor is
 documented and deterministic; the weights sum to 1.0.
+
+``rank_score`` keeps the absolutely-scaled blend for single-item use
+(tests, opportunity lists). The screening path uses
+``calibrated_rank``, which percentile-ranks each component *within the
+analyzed universe* so a 20-name screen spreads the final ranks across
+the full 10-90 band instead of piling everything near 50-65.
 """
+
+from typing import Iterable
 
 COMPOSITE_WEIGHT = 0.55
 MARGIN_WEIGHT = 0.20
@@ -15,6 +23,26 @@ CONFIDENCE_WEIGHT = 0.05
 
 MARGIN_SATURATION = 0.40  # margin of safety above this is fully rewarded
 CONFIDENCE_VALUE = {"LOW": 0.25, "MEDIUM": 0.5, "HIGH": 1.0}
+
+# Calibrated ranking: final scores land in [CALIBRATION_MIN, CALIBRATION_MAX]
+# so the best of a universe scores 75-95 and the weakest 10-35.
+CALIBRATION_MIN = 10.0
+CALIBRATION_MAX = 90.0
+
+# Companies with poor financial health (negative FCF, debt-to-equity >= 1.5,
+# or interest coverage below 3x) are capped here so they can never reach the
+# BUY / top-quartile band even if momentum percentiles are favorable.
+LEVERAGED_RANK_CAP = 60.0
+
+# Weighted components used by the calibrated rank (must sum to 1.0).
+_COMPONENT_WEIGHTS = (
+    ("quality", COMPOSITE_WEIGHT),
+    ("value", MARGIN_WEIGHT),
+    ("growth", GROWTH_WEIGHT),
+    ("stability", STABILITY_WEIGHT),
+    ("momentum", MOMENTUM_WEIGHT),
+    ("confidence", CONFIDENCE_WEIGHT),
+)
 
 # Momentum deltas (raw fractions) that count as a full positive/negative signal
 MOMENTUM_REV_DELTA_GOOD = 0.02
@@ -146,6 +174,85 @@ def rank_score(item: dict) -> float:
         + confidence_part,
         2,
     )
+
+
+# ----------------------------------------------------------------------
+# Calibrated ranking (cross-sectional within the analyzed universe)
+# ----------------------------------------------------------------------
+def component_scores(item: dict) -> dict[str, float]:
+    """Absolute 0-100 score per weighted component for one company."""
+    return {
+        "quality": _total_score(item),
+        "value": margin_of_safety_score(item) * 100.0,
+        "growth": growth_quality_score(item) * 100.0,
+        "stability": stability_bonus(item) * 100.0,
+        "momentum": fundamental_momentum(item) * 100.0,
+        "confidence": confidence_factor(item) * 100.0,
+    }
+
+
+def _percentile_rank(value: float, values: list[float]) -> float:
+    """Fraction of a population strictly below ``value`` (ties share ranks).
+
+    Returns 0.0 for the minimum, 1.0 for the maximum, 0.5 when the list has
+    a single element or value is exactly the median of a tied group.
+    """
+    n = len(values)
+    if n <= 1:
+        return 0.5
+    below = sum(1 for v in values if v < value)
+    ties = sum(1 for v in values if v == value)
+    return (below + (ties - 1) / 2.0) / (n - 1)
+
+
+def health_cap(item: dict) -> float:
+    """Rank ceiling for companies with weak financial health.
+
+    Penalizes negative free cash flow, elevated leverage (debt-to-equity
+    >= 1.5) and interest coverage below the 3x comfort zone. Such companies
+    cannot reach the top band even when their momentum percentiles are
+    favorable — cheapness alone does not make a quality investment.
+    """
+    metrics = item.get("quality_metrics") or {}
+    fcf = item.get("fcf")
+    if fcf is not None and fcf < 0:
+        return LEVERAGED_RANK_CAP
+    debt_equity = metrics.get("debt_to_equity")
+    if debt_equity is not None and debt_equity >= 1.5:
+        return LEVERAGED_RANK_CAP
+    coverage = metrics.get("interest_coverage")
+    if coverage is not None and 0 <= coverage < 3.0:
+        return LEVERAGED_RANK_CAP
+    return CALIBRATION_MAX
+
+
+def calibrated_rank(item: dict, items: Iterable[dict]) -> float:
+    """Final ranking score normalized across the analyzed universe.
+
+    Every weighted component is percentile-ranked within ``items``, blended
+    with ``_COMPONENT_WEIGHTS``, and mapped onto the 10-90 band. Quality and
+    valuation (0.75 combined) dominate momentum, so the ranking rewards the
+    strongest company over the cheapest one.
+    """
+    pool = list(items)
+    if not pool:
+        return round((CALIBRATION_MIN + CALIBRATION_MAX) / 2.0, 2)
+    vectors: dict[str, list[float]] = {name: [] for name, _ in _COMPONENT_WEIGHTS}
+    for other in pool:
+        raw = component_scores(other)
+        for name in vectors:
+            vectors[name].append(raw[name])
+
+    raw = component_scores(item)
+    blended = sum(
+        weight * _percentile_rank(raw[name], vectors[name])
+        for name, weight in _COMPONENT_WEIGHTS
+    )
+    blended = min(max(blended, 0.0), 1.0)
+    score = round(
+        CALIBRATION_MIN + (CALIBRATION_MAX - CALIBRATION_MIN) * blended, 2
+    )
+    return min(score, health_cap(item))
 
 
 def ranking_reasons(item: dict) -> list[str]:

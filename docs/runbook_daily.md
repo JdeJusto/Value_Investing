@@ -12,9 +12,13 @@ real-time prices. Prices are always fetched live from Yahoo Finance
   `postgresql://financial:test@localhost:5432/financial_database`.
 - **SEC_USER_AGENT** set (required by the SEC EDGAR incremental update),
   e.g. `export SEC_USER_AGENT='your-email@example.com'`.
-- Optional universe file `config/universe.txt` (one ticker per line,
-  `#` comments). The screener and the daily workflow use it as the default
-  universe; the static ~150 ticker list is the fallback.
+- Universe file `config/universe.csv` (default) — S&P 500 + Nasdaq-100
+  constituents deduplicated, with columns
+  `ticker,cik,company_name,source_index`. Regenerate it with
+  `python scripts/fetch_universe.py` (uses the SEC/EDGAR CIK mapping in
+  Financial-DataBase; companies without a CIK are skipped and reported).
+  A legacy plain-text universe (`config/universe.txt`, one ticker per line,
+  `#` comments) is still accepted via `--universe`.
 
 ## 1. Update SEC fundamentals (Financial-DataBase)
 
@@ -50,6 +54,12 @@ python scripts/daily_workflow.py --no-update
 # Validate without touching anything (no SEC update, no files written)
 python scripts/daily_workflow.py --dry-run
 
+# Analyze only the first 200 tickers of the universe (staging / fast loop)
+python scripts/daily_workflow.py --limit 200
+
+# Pace price fetching to stay under Yahoo's rate limits
+python scripts/daily_workflow.py --batch-size 25 --batch-delay 0.2
+
 # Use a custom universe / output dir / no prices
 python scripts/daily_workflow.py --universe config/universe.txt \
   --out data/reports --no-prices
@@ -61,12 +71,16 @@ What it does:
    Financial-DataBase CLI. Failures are reported in the markdown but never
    block the screen.
 2. **Screen the universe** with the quality (Buffett) engine, enriched with
-   real-time prices fetched **only for the universe tickers**.
+   real-time prices fetched **only for the universe tickers** in paced
+   batches (`PriceService.get_current_prices`, default batch size 25,
+   0.2 s pause between batches). Rankings use the calibrated cross-sectional
+   `rank_score` (see `docs/scoring_methodology.md`).
 3. **Alerts** from `backend/alerts`: `BUY_SIGNAL`, `SELL_WARNING` (chained to
    the previous day's state in `data/reports/daily_state.json`), and
    `TRIGGER_EVENT` (margin/ROIC/FCF/REV movements).
-4. **Report** written to `data/reports/daily_YYYY-MM-DD.md` and the new state
-   persisted for the next `SELL_WARNING` comparison.
+4. **Report** written to `data/reports/daily_YYYY-MM-DD.md` (includes the
+   `rank_score` column, data-coverage column, and the runtime in seconds) and
+   the new state persisted for the next `SELL_WARNING` comparison.
 
 `--dry-run` skips both the SEC update and file writes and prints the report
 to stdout.
@@ -76,7 +90,7 @@ to stdout.
 Market engine (fundamentals + live valuation filters):
 
 ```bash
-# Default universe (config/universe.txt), real-time prices
+# Default universe (config/universe.csv, S&P 500 + Nasdaq-100), real-time prices
 python main.py screener
 
 # Restricted set — prices fetched ONLY for these tickers
@@ -129,6 +143,19 @@ python main.py alerts                      # whole universe
 python main.py alerts AAPL MSFT            # selected tickers
 python main.py alerts --state data/reports/daily_state.json   # SELL_WARNING vs previous
 ```
+
+## 6. Universe management
+
+```bash
+# Rebuild config/universe.csv from current Wikipedia constituents
+python scripts/fetch_universe.py
+```
+
+The script pulls the S&P 500 and Nasdaq-100 lists from Wikipedia, merges and
+deduplicates them, resolves each ticker to its SEC CIK via Financial-DataBase
+(`company_identifiers`), and writes `config/universe.csv` for the daily
+workflow and the screener. Tickers with no CIK in the database (e.g. foreign
+issuers or duplicate share classes) are skipped with a warning.
 
 ## Troubleshooting
 

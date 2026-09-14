@@ -125,8 +125,12 @@ Busca empresas por criterios. Dos motores:
   `moat=STRONG min_score=80 min_margin_of_safety=0.15`, o comparaciones
   `--filter 'min_roic >= 0.15'`
 
-Resultados ordenados por ranking (compuesto 55%, margen de seguridad 20%,
-momentum 10%, crecimiento 5%, estabilidad 5%, confianza 5%).
+Resultados ordenados por el ranking calibrado: percentil intra-ticker de cada
+componente (compuesto 55%, margen de seguridad 20%, momentum 10%, crecimiento
+5%, estabilidad 5%, confianza 5%), mapeado a la banda 10-90, con tope de 60
+para empresas con FCF negativo, deuda/equity ≥ 1.5 o cobertura de intereses
+< 3×. Señales: BUY ≥ 75, WATCHLIST ≥ 60, AVOID si buffett < 40. Detalle en
+`docs/scoring_methodology.md` y `docs/scoring_validation.md`.
 
 ### `opportunities [--tickers T1,T2] [--type TIPO]`
 Detecta situaciones accionables sobre el universo cargado: 7 tipos

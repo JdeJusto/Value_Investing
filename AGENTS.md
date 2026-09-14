@@ -173,6 +173,31 @@ Service in `backend/services/sql_analysis_service.py` that:
 Script in `scripts/compare_sources.py` that:
 - Compares ONLY fundamentals from Financial-DataBase with Yahoo Finance and EDGAR providers
 - Anchors on the latest completed fiscal year (period='FY'), not the in-progress year
+
+### 5b. Screener ranking calibration
+
+The screener ranks the analyzed universe with `calibrated_rank`
+(`backend/screener/ranking_engine.py`), a cross-sectional score that
+percentile-ranks each component and blends quality 0.55 / value 0.20 /
+momentum 0.10 / growth 0.05 / stability 0.05 / confidence 0.05, mapping onto
+a 10-90 band. Companies with negative FCF, debt-to-equity ≥ 1.5, or interest
+coverage < 3x are capped at `LEVERAGED_RANK_CAP = 60`. Signal thresholds
+(`backend/screener/signals.py`): BUY ≥ 75, WATCHLIST ≥ 60, AVOID when
+buffett < 40. See `docs/scoring_methodology.md` and `docs/scoring_validation.md`.
+
+Data quality is derived when the repository has no `data_quality_score`:
+`backend/analytics/service.py::_data_reliability` uses history depth
+(`min(years, 8) / 8`) and coverage; `confidence_level()` in
+`backend/intelligence/scoring_model.py` maps quality + coverage to LOW /
+MEDIUM / HIGH. The analytics service compares DCF value (total) to
+market_cap (total) for the margin of safety and filters out in-progress,
+all-empty fiscal year rows before computing ratios.
+
+The default daily universe comes from `config/universe.csv` (S&P 500 +
+Nasdaq-100 deduplicated, regenerated with `scripts/fetch_universe.py`,
+tickers resolved to SEC CIKs via Financial-DataBase). `scripts/daily_workflow.py`
+supports `--limit`, `--batch-size`, `--batch-delay` and pre-warms the price
+cache before analysis.
 - Compares 6 fundamental fields (revenue, net income, assets, liabilities,
   operating cash flow, capital expenditures); prices are never compared
 - Flags significant discrepancies (>5%) for further investigation

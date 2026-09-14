@@ -2,8 +2,9 @@
 """Daily fundamentals + valuation workflow.
 
 1. (optional) Incrementally update SEC fundamentals in Financial-DataBase.
-2. Screen a configurable universe with real-time prices (fetched ONLY for
-   the universe, never persisted).
+2. Screen a configurable universe (default config/universe.csv) with
+   real-time prices (fetched in batches ONLY for the analyzed tickers,
+   never persisted).
 3. Evaluate alerts (BUY_SIGNAL / SELL_WARNING / TRIGGER_EVENT) against the
    previous day's state.
 4. Write data/reports/daily_YYYY-MM-DD.md and persist the new state.
@@ -11,9 +12,11 @@
 Flags:
   --dry-run    skip the SEC update AND skip writing any file (print report)
   --no-update  skip the SEC update but still screen + write report/state
+  --limit N    analyze only the first N tickers of the universe
 """
 
 import argparse
+import csv
 import logging
 import os
 import subprocess
@@ -30,7 +33,24 @@ logger = logging.getLogger("daily_workflow")
 
 
 def _load_universe(path: str) -> list[str]:
-    """Tickers from a plain text file (one per line, '#' comments)."""
+    """Tickers from a CSV (ticker,cik,company_name,source_index) universe file.
+
+    A plain text file (one ticker per line, '#' comments) is still accepted
+    for backward compatibility.
+    """
+    with open(path, encoding="utf-8") as handle:
+        first = handle.readline().strip()
+    if first and "," in first:
+        with open(path, encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            if reader.fieldnames and "ticker" in reader.fieldnames:
+                tickers = [
+                    row["ticker"].strip().upper()
+                    for row in reader
+                    if row.get("ticker", "").strip()
+                ]
+                if tickers:
+                    return tickers
     with open(path, encoding="utf-8") as handle:
         tickers = [
             line.strip().upper()
@@ -95,7 +115,12 @@ def _run(args) -> None:
     report_date = (
         date.fromisoformat(args.date) if args.date else datetime.now().date()
     )
+    start_time = time.time()
     universe = _load_universe(args.universe)
+    if args.limit:
+        universe = universe[: args.limit]
+        logger.info("constrained to first %d tickers of the universe", args.limit)
+    logger.info("universe loaded: %d tickers", len(universe))
 
     if args.dry_run:
         sec_update_status = "SEC update: skipped (dry-run)"
@@ -108,7 +133,22 @@ def _run(args) -> None:
 
     analysis_service = build_analysis_service()
     fdb_repo = build_financial_repository()
+    price_service = get_price_service()
     cache: dict[str, dict | None] = {}
+
+    if not args.no_prices:
+        logger.info(
+            "prefetching real-time prices for %d tickers (batch=%d, delay=%.2fs)",
+            len(universe),
+            args.batch_size,
+            args.batch_delay,
+        )
+        prices = price_service.get_current_prices(
+            list(universe), batch_size=args.batch_size, delay=args.batch_delay
+        )
+        unavailable = [t for t, p in prices.items() if p is None]
+        if unavailable:
+            logger.warning("no real-time price for %d ticker(s)", len(unavailable))
 
     def analyzer(ticker: str):
         if ticker not in cache:
@@ -119,14 +159,16 @@ def _run(args) -> None:
                 cache[ticker] = None
         return cache[ticker]
 
-    # Real-time price enrichment fetched only for the universe tickers.
+    # Real-time price enrichment served from the warm cache above, fetched
+    # only for the analyzed universe.
     screener = ScreenerService(
         analyzer=analyzer,
         universe=universe,
-        price_service=get_price_service(),
+        price_service=price_service,
         no_prices=args.no_prices,
     )
     screened = screener.run()
+    logger.info("screened %d of %d tickers", len(screened), len(universe))
 
     previous = (
         {}
@@ -169,6 +211,7 @@ def _run(args) -> None:
         alerts=[alert_to_dict(a) for a in alerts],
         missing=missing,
         price_notes=price_notes,
+        runtime_seconds=time.time() - start_time,
     )
     body = build_markdown(report)
 
@@ -214,6 +257,7 @@ def _row_of(item, name_resolver=None) -> dict:
         else name_resolver(item.ticker),
         "rating": item.rating,
         "total_score": item.total_score or 0.0,
+        "rank_score": item.rank_score or 0.0,
         "price": metrics.get("price"),
         "per": metrics.get("per"),
         "fcf_yield": metrics.get("fcf_yield"),
@@ -241,8 +285,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="daily_workflow.py")
     p.add_argument(
         "--universe",
-        default="config/universe.txt",
-        help="Universe file (one ticker per line)",
+        default="config/universe.csv",
+        help="Universe file — CSV (ticker,cik,company_name,source_index) or "
+        "plain text (default: config/universe.csv)",
     )
     p.add_argument(
         "--out",
@@ -250,6 +295,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory for reports and state (default: data/reports)",
     )
     p.add_argument("--date", default=None, help="Report date (YYYY-MM-DD)")
+    p.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Analyze only the first N tickers of the universe",
+    )
+    p.add_argument(
+        "--batch-size",
+        type=int,
+        default=25,
+        help="Price-fetch batch size (default: 25)",
+    )
+    p.add_argument(
+        "--batch-delay",
+        type=float,
+        default=0.2,
+        help="Seconds to pause between price-fetch batches (default: 0.2)",
+    )
     p.add_argument(
         "--no-update", action="store_true", help="Skip the SEC incremental update"
     )
