@@ -37,11 +37,11 @@ DEFAULT_REFRESH_TIMEOUT_SECONDS = 300
 DEFAULT_SKIP_REFRESH_FLAG = False
 
 # Well-known location of the Financial-DataBase checkout, overridable with
-# FINANCIAL_DATABASE_REPO_PATH.
-DEFAULT_FDB_REPO = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "Financial-DataBase",
-)
+# FINANCIAL_DATABASE_REPO_PATH. The FDB project lives as a sibling of this
+# repository (e.g. /home/caudillo/Financial-DataBase next to
+# /home/caudillo/Value_Investing).
+_VI_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DEFAULT_FDB_REPO = os.path.join(os.path.dirname(_VI_ROOT), "Financial-DataBase")
 
 
 @dataclass
@@ -140,7 +140,10 @@ class FdbGateway:
         """Last ingestion timestamp for a company, from data timestamps.
 
         import_runs has no per-CIK scope, so freshness is derived from the
-        most recent fact/filing write for that company.
+        most recent fact/filing write OR the companies row — the companies
+        row is touched (updated_at) on every successful sec sync, which is
+        what makes a just-refreshed company look fresh on the next run even
+        when SEC reported no changes.
         """
         try:
             with self._connection().cursor() as cur:
@@ -148,10 +151,11 @@ class FdbGateway:
                     """
                     SELECT GREATEST(
                         (SELECT max(updated_at) FROM financial_facts WHERE company_id = %s),
-                        (SELECT max(created_at) FROM filings WHERE company_id = %s)
+                        (SELECT max(created_at) FROM filings WHERE company_id = %s),
+                        (SELECT updated_at FROM companies WHERE id = %s)
                     ) AS last_ingested
                     """,
-                    (company_id, company_id),
+                    (company_id, company_id, company_id),
                 )
                 row = cur.fetchone()
         except Exception:
