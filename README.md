@@ -115,7 +115,7 @@ fortaleza financiera, generación de caja, estabilidad), moat (STRONG/
 MODERATE/WEAK/NONE), score compuesto con rating (A–D), confianza de datos,
 insights interpretables. `--full` muestra el desglose de cada métrica.
 
-### `screener [--tickers T1,T2] [--search TEXTO] [--top N]`
+### `screener [--tickers T1,T2] [--search TEXTO] [--top N] [--no-prices]`
 Busca empresas por criterios. Dos motores:
 
 - **Mercado** (por defecto): `--per-max`, `--pb-min`, `--roe-min`, `--roic-min`,
@@ -124,6 +124,12 @@ Busca empresas por criterios. Dos motores:
 - **Calidad Buffett** (con `--filter`): claves separadas por espacio
   `moat=STRONG min_score=80 min_margin_of_safety=0.15`, o comparaciones
   `--filter 'min_roic >= 0.15'`
+
+Con `--no-prices` no se consultan precios: la columna de precio y las métricas
+derivadas del precio (PER, P/B, EV/EBIT, FCF yield, market cap) se muestran
+como N/A y los filtros basados en esas métricas no producen resultados.
+Los filtros de valoración emitirán un aviso en ese modo. Los precios nunca se
+persisten; se consultan en tiempo real vía PriceService (Yahoo Finance).
 
 Resultados ordenados por el ranking calibrado: percentil intra-ticker de cada
 componente (compuesto 55%, margen de seguridad 20%, momentum 10%, crecimiento

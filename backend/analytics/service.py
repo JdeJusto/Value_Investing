@@ -106,8 +106,14 @@ class CompanyAnalysisService:
         self._risk_free_rate = risk_free_rate
 
     # ------------------------------------------------------------------
-    def analyze(self, ticker: str) -> Optional[dict]:
-        """Compute the full metric suite for a ticker, or None if no data."""
+    def analyze(self, ticker: str, no_prices: bool = False) -> Optional[dict]:
+        """Compute the full metric suite for a ticker, or None if no data.
+
+        With ``no_prices=True`` the market provider is never called and the
+        price-multiplying metrics (market cap, P/E, P/B, FCF yield, EV/EBIT)
+        come back as None — the caller renders them as N/A instead of
+        silently fetching a real-time quote anyway.
+        """
         rows = self._load_history(ticker)
         if not rows:
             return None
@@ -120,8 +126,12 @@ class CompanyAnalysisService:
         last = year_lookup[current_year]
         prior = year_lookup.get(prior_year) if prior_year else None
 
-        market_cap = self._safe_market(self._market.get_market_cap, ticker)
-        ev = self._safe_market(self._market.get_enterprise_value, ticker)
+        if no_prices:
+            market_cap = None
+            ev = None
+        else:
+            market_cap = self._safe_market(self._market.get_market_cap, ticker)
+            ev = self._safe_market(self._market.get_enterprise_value, ticker)
 
         equity = _equity_of(last)
         ebit = last.ebit

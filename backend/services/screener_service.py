@@ -81,7 +81,7 @@ class StockScreenerService:
     def _analyze_ticker(
         self, ticker: str, no_prices: bool = False
     ) -> Optional[ScreenerRow]:
-        d = self._analysis.analyze(ticker)
+        d = self._analysis.analyze(ticker, no_prices=no_prices)
         if d is None:
             return None
 
