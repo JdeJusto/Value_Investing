@@ -14,7 +14,11 @@ from cli.formatters import (
     red,
     yellow,
 )
-from backend.app.cli import build_financial_repository, get_tickers
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_financial_repository,
+    refresh_analysis_inputs,
+)
 from backend.services.historical_valuation_service import HistoricalValuationService
 
 
@@ -33,6 +37,7 @@ def register(subparsers):
         nargs="+",
         help="Ticker(s) to show historical valuation for (e.g: AAPL or AAPL MSFT)",
     )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -43,6 +48,7 @@ def _run(args):
     repo = build_financial_repository()
     tickers = [t.upper().strip() for t in args.tickers]
     print(f"DEBUG: tickers: {tickers}", file=sys.stderr)
+    refresh_analysis_inputs(tickers, args)
 
     if not repo.available():
         print(f"{red('ERROR:')} Financial-DataBase repository not available")

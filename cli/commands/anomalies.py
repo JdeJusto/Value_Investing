@@ -1,4 +1,9 @@
-from backend.app.cli import build_analysis_service, build_universe
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_analysis_service,
+    build_universe,
+    refresh_analysis_inputs,
+)
 from backend.intelligence.anomaly_detection import anomaly_summary
 from cli.formatters import bold, green, print_header, red, yellow
 
@@ -18,6 +23,7 @@ def register(subparsers):
         nargs="*",
         help="Ticker(s) a inspeccionar (opcional: usa el universo cargado)",
     )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -32,6 +38,7 @@ def _direction_symbol(direction: str) -> str:
 def _run(args):
     service = build_analysis_service()
     universe = build_universe(args.tickers)
+    refresh_analysis_inputs(universe, args, explicit=bool(args.tickers))
 
     total_flags = 0
     for ticker in universe:

@@ -17,7 +17,11 @@ ticker never stops the rest of the batch.
 import sys
 
 from backend.adapters.database.repositories.company_repository import CompanyRepository
-from backend.app.cli import build_screener_service
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_screener_service,
+    refresh_analysis_inputs,
+)
 from backend.services.historical_valuation_service import HistoricalValuationService
 from cli.formatters import (
     bold,
@@ -53,6 +57,7 @@ def register(subparsers):
         action="store_true",
         help="No consultar precios en tiempo real (la seccion 2 queda parcial)",
     )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -205,6 +210,7 @@ def _section_risks(row_input):
 def _run(args):
     service = build_screener_service()
     tickers = [t.upper().strip() for t in args.tickers]
+    refresh_analysis_inputs(tickers, args, fetch_prices=not args.no_prices)
 
     for ticker in tickers:
         try:

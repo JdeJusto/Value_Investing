@@ -299,14 +299,23 @@ class RefreshService:
         if skip_refresh:
             result.notes.append("SEC refresh disabled (--no-refresh / skip_refresh_flag)")
 
-        dedup: dict[str, Optional[tuple[Optional[str], Optional[str]]]] = {}
+        dedup: list[str] = []
+        seen: set[str] = set()
         for ticker in tickers:
             t = ticker.strip().upper()
-            if not t or t in dedup:
+            if not t or t in seen:
                 continue
-            dedup[t] = self._gateway.resolve_company(t)
+            seen.add(t)
+            dedup.append(t)
 
-        for ticker, resolved in dedup.items():
+        for ticker in dedup:
+            if skip_refresh:
+                # No sync requested: mark skipped without DB work; the only
+                # cost later is the (optional) price fetch.
+                result.skipped.append(ticker)
+                continue
+
+            resolved = self._gateway.resolve_company(ticker)
             company_id = cik = None
             if resolved is not None:
                 company_id, cik = resolved
@@ -314,10 +323,6 @@ class RefreshService:
                 result.failed.append(
                     (ticker, "no CIK mapping in Financial-DataBase")
                 )
-                continue
-
-            if skip_refresh:
-                result.skipped.append(ticker)
                 continue
 
             try:
@@ -342,7 +347,7 @@ class RefreshService:
                 result.skipped.append(ticker)
 
         if fetch_prices:
-            result.prices = self._fetch_prices([t for t in dedup])
+            result.prices = self._fetch_prices(dedup)
 
         return result
 

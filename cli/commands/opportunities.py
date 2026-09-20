@@ -1,4 +1,8 @@
-from backend.app.cli import build_investment_screener
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_investment_screener,
+    refresh_analysis_inputs,
+)
 from cli.formatters import bold, dim, green, print_header, print_key_value, yellow
 
 
@@ -28,6 +32,7 @@ def register(subparsers):
         ),
         help="Filtrar por tipo de oportunidad",
     )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -45,6 +50,9 @@ def _run(args):
     universe = None
     if args.tickers:
         universe = [t.strip().upper() for t in args.tickers.split(",")]
+
+    if universe:
+        refresh_analysis_inputs(universe, args, explicit=True)
 
     print_header("Oportunidades")
     service = build_investment_screener(universe)

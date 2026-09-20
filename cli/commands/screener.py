@@ -6,7 +6,11 @@ from typing import Optional
 
 import pandas as pd
 
-from backend.app.cli import build_screener_service
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_screener_service,
+    refresh_analysis_inputs,
+)
 from backend.config.settings import get_output_dir
 from backend.domain.value_objects.filter_criteria import FilterCriteria
 from cli.formatters import (
@@ -180,6 +184,12 @@ def _run_screener(args):
         universe = load_universe()
         if universe:
             tickers = universe
+
+    if tickers:
+        explicit = bool(args.tickers) or bool(args.search)
+        refresh_analysis_inputs(
+            tickers, args, fetch_prices=not args.no_prices, explicit=explicit
+        )
 
     price_filters = [f for f in filters if f.field in _PRICE_BASED_FILTERS]
     if args.no_prices and price_filters:
@@ -386,6 +396,7 @@ def register(subparsers):
         ),
     )
     p.add_argument("--save", action="store_true", help="Guardar resultados en CSV")
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -440,6 +451,14 @@ def _run_investment_screener(args) -> None:
         universe = [t.strip().upper() for t in args.tickers.split(",")]
     elif not args.search:
         universe = load_universe()
+
+    if universe:
+        refresh_analysis_inputs(
+            universe,
+            args,
+            fetch_prices=not args.no_prices,
+            explicit=bool(args.tickers),
+        )
 
     mode = "" if args.no_prices else " (+ precios en tiempo real)"
     print(f"  Motor: calidad Buffett{mode}  |  Filtros: {criteria or '(sin filtros)'}")

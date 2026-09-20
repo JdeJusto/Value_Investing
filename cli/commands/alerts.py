@@ -3,7 +3,12 @@
 import sys
 
 from backend.alerts import run
-from backend.app.cli import build_analysis_service, build_universe
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_analysis_service,
+    build_universe,
+    refresh_analysis_inputs,
+)
 from cli.formatters import bold, green, print_header, red, yellow
 
 
@@ -28,6 +33,7 @@ def register(subparsers):
         nargs="*",
         help="Tickers a evaluar (opcional: universo cargado)",
     )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -48,6 +54,7 @@ def _load_state(path):
 def _run(args):
     service = build_analysis_service()
     universe = build_universe(args.tickers)
+    refresh_analysis_inputs(universe, args, explicit=bool(args.tickers))
     previous = _load_state(args.state) if args.state else {}
 
     analyses = {}

@@ -27,6 +27,7 @@ from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.price_service import get_price_service
 from backend.services.screener_service import StockScreenerService
 from backend.utils.input import get_tickers
+from cli.formatters import dim, green, red
 
 load_dotenv()
 
@@ -116,6 +117,112 @@ def build_investment_screener(
         price_service=get_price_service(),
         no_prices=no_prices,
     )
+
+
+def add_refresh_arguments(parser) -> None:
+    """Add the on-demand SEC refresh flags to an analysis parser.
+
+    --refresh / --no-refresh are mutually exclusive; --freshness-hours
+    overrides the configured freshness threshold (default 168h).
+    """
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Forzar sincronizacion SEC de los tickers analizados (ignora antiguedad)",
+    )
+    group.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="No sincronizar datos SEC antes del analisis (usa los datos existentes)",
+    )
+    parser.add_argument(
+        "--freshness-hours",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Antiguedad maxima (horas) para considerar datos frescos (default: 168)",
+    )
+
+
+def refresh_analysis_inputs(
+    tickers: list[str],
+    args=None,
+    *,
+    fetch_prices: bool = True,
+    explicit: bool = True,
+):
+    """Ensure the analyzed tickers are fresh and warm real-time prices.
+
+    Runs a freshness check and, for each stale company, a targeted
+    ``sec sync <CIK>`` — only for the tickers being analyzed; the full
+    universe is never synced here. Real-time prices are fetched through
+    PriceService and returned in the RefreshResult (never persisted).
+
+    Args:
+        tickers: exact ticker list that will be analyzed.
+        args: argparse namespace with --refresh / --no-refresh /
+            --freshness-hours (optional; missing attrs default off).
+        fetch_prices: when False, skip the price fetch (e.g. --no-prices).
+        explicit: True when the tickers were provided by the user (targeted
+            run). Universe-wide runs (default screener/momentum/alerts over
+            the tracked universe) never auto-sync; pass --refresh to force.
+
+    Returns:
+        RefreshResult with .refreshed/.skipped/.failed and .prices.
+    """
+    from backend.services.refresh_service import RefreshService, load_refresh_config
+
+    config = load_refresh_config()
+    force = bool(getattr(args, "refresh", False)) if args else False
+    no_refresh = bool(getattr(args, "no_refresh", False)) if args else False
+    freshness_hours = getattr(args, "freshness_hours", None)
+    if freshness_hours is not None:
+        try:
+            freshness_hours = int(freshness_hours)
+        except (TypeError, ValueError):
+            freshness_hours = None
+
+    skip = None  # None => let the config decide (skip_refresh_flag/auto_refresh)
+    if no_refresh or (not explicit and not force):
+        # --no-refresh, or a universe-wide run without --refresh: never
+        # auto-sync the whole universe; per-CIK refresh is for explicit runs.
+        skip = True
+
+    service = RefreshService(config=config)
+    result = service.ensure_fresh_and_prices(
+        list(tickers),
+        force=force,
+        max_age_hours=freshness_hours,
+        skip_refresh=skip,
+        fetch_prices=fetch_prices,
+    )
+    _print_refresh_summary(
+        result, universe_wide=(not explicit and not force and not no_refresh)
+    )
+    return result
+
+
+def _print_refresh_summary(result, *, universe_wide: bool = False) -> None:
+    """One compact line describing the freshness/prices step."""
+    sync_failures = [r for r in result.failed if "CIK mapping" not in r[1]]
+    pieces = []
+    if result.refreshed:
+        n = len(result.refreshed)
+        pieces.append(
+            green(f"{n} sincronizado{'s' if n > 1 else ''} con SEC")
+        )
+    if result.skipped:
+        pieces.append(dim(f"{len(result.skipped)} sin tocar"))
+    if sync_failures:
+        pieces.append(red(f"{len(sync_failures)} con fallo"))
+    if universe_wide:
+        pieces.append(
+            dim("universo amplio: refresh acotado (usa --refresh para forzar)")
+        )
+    if not pieces:
+        return
+    print("  " + " · ".join(pieces))
 
 
 def load_universe(path: Optional[str] = None) -> Optional[list[str]]:

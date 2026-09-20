@@ -1,4 +1,9 @@
-from backend.app.cli import build_analysis_service, build_universe
+from backend.app.cli import (
+    add_refresh_arguments,
+    build_analysis_service,
+    build_universe,
+    refresh_analysis_inputs,
+)
 from backend.screener.ranking_engine import (
     fundamental_momentum,
     momentum_reasons,
@@ -32,6 +37,7 @@ def register(subparsers):
         nargs="*",
         help="Ticker(s) a evaluar (opcional: usa el universo cargado)",
     )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -46,6 +52,9 @@ def _delta_color(value):
 def _run(args):
     service = build_analysis_service()
     universe = build_universe(args.tickers)
+    refresh_analysis_inputs(
+        universe, args, explicit=bool(args.tickers)
+    )
 
     rows = []
     for ticker in universe:
