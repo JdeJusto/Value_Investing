@@ -39,6 +39,20 @@ rate-limited; in a fresh environment run the full seed first:
 .venv/bin/python -m financial_database.cli sec bulk-ingest
 ```
 
+> **On-demand targeted refresh (analysis commands):** even without the bulk
+> update above, every analysis command (`analyze`, `analyze-full`, `screener`,
+> `momentum`, `opportunities`, `anomalies`, `alerts`, `buffett-analysis`,
+> `historical-valuation`) checks the analyzed tickers' freshness and runs a
+> targeted `sec sync <CIK>` for each stale company — never a full-universe
+> sync. Use `--no-refresh` to skip it, `--refresh` to force it, or
+> `--freshness-hours N` to change the threshold (default 168 h). The SEC sync
+> needs `SEC_USER_AGENT`; without it the refresh step degrades with a clear
+> message and analysis continues.
+>
+> Universe-wide runs (e.g. `screener` or `momentum` without explicit tickers)
+> intentionally skip the sync to avoid syncing hundreds of companies at once;
+> pass `--refresh` to force it on those too.
+
 ## 2. Daily workflow
 
 ```bash

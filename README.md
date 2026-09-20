@@ -232,6 +232,33 @@ fiscal_year |    price |      eps |   pe_ratio |  fcf_yield
       2023 |   168.93 |     4.96 |      34.06 |      3.36%
 ```
 
+### Refresco de datos SEC bajo demanda (`--refresh` / `--no-refresh` / `--freshness-hours`)
+
+Los comandos de análisis (`analyze`, `analyze-full`, `buffett-analysis`,
+`screener`, `momentum`, `opportunities`, `anomalies`, `alerts`,
+`historical-valuation`) comprueban antes de analizar si los fundamentales de
+**los tickers solicitados** están frescos en Financial-DataBase y, si no lo
+están, lanzan una **sincronización SEC acotada por CIK** (`sec sync <CIK>`
+por empresa) — nunca un sync masivo del universo completo.
+
+- `--refresh`: fuerza la sincronización de todos los tickers analizados, sin
+  importar la antigüedad.
+- `--no-refresh`: desactiva el paso de sincronización (usa los datos que ya
+  existen); los precios se siguen consultando.
+- `--freshness-hours N`: antigüedad máxima para considerar los datos frescos
+  (por defecto 168 h = 7 días, configurable en `config/refresh.yaml`).
+
+Cuando el comando corre sobre el universo amplio sin tickers explícitos
+(p. ej. `screener` o `momentum` sin argumentos), el refresh se omite por
+defecto para no sincronizar cientos de empresas de golpe; se indica en la
+salida y `--refresh` lo fuerza si se desea.
+
+Degradación: si Financial-DataBase no está disponible, `SEC_USER_AGENT` no está
+configurado, SEC no responde o el ticker no tiene CIK, el paso se reporta como
+fallo/saltado con un mensaje claro y el análisis continúa con los datos
+existentes. Los precios siempre se consultan en tiempo real vía `PriceService`
+y **nunca se persisten**.
+
 ### `sql-analysis SCRIPT [--script SCRIPT] [--cik CIK] [--ciks CIKs] [--params JSON] [--limit N] [--list] [--output FORMAT]`
 Ejecuta scripts SQL reutilizables desde el directorio `scripts/analysis` de
 Financial-DataBase. Permite consultas predefinidas para overview de compañías,

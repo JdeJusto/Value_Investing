@@ -203,6 +203,35 @@ cache before analysis.
 - Flags significant discrepancies (>5%) for further investigation
 - Provides side-by-side comparison in readable table format
 
+### 5c. On-demand SEC refresh (RefreshService)
+
+`backend/services/refresh_service.py` is the integration point between the
+analysis commands and Financial-DataBase ingestion:
+
+- `RefreshService.ensure_fresh_and_prices(tickers, force=..., max_age_hours=...,
+  skip_refresh=..., fetch_prices=...)` returns a `RefreshResult` with
+  `refreshed` / `skipped` / `failed` and `prices`.
+- It only ever acts on **the tickers being analyzed**: for each stale company
+  it runs a targeted subprocess `sec sync <CIK>` via the Financial-DataBase
+  CLI. The full universe is never synced through this service; universe-wide
+  runs (no explicit tickers) skip the sync unless `--refresh` is passed.
+- Freshness per company comes from `max(financial_facts.updated_at)` /
+  `max(filings.created_at)` — `import_runs` has no per-CIK column.
+  `FdbGateway` (a read-only gateway) resolves ticker→CIK via
+  `company_listings` / `company_identifiers`, so the refresh keys on
+  Financial-DataBase's `company_id`.
+- Prices are fetched through `PriceService` (Yahoo, in-memory cache only) and
+  **never persisted**.
+- Degradation: DB unreachable, missing `SEC_USER_AGENT`, SEC timeouts and
+  unknown tickers are reported as skipped/failed with clear messages; the
+  analysis command continues with existing data.
+- Config: `config/refresh.yaml` (`auto_refresh`, `freshness_max_age_hours=168`,
+  `refresh_timeout_seconds=300`, `skip_refresh_flag`), env overrides
+  `REFRESH_AUTO` / `FRESHNESS_MAX_AGE_HOURS` / `REFRESH_TIMEOUT_SECONDS` /
+  `REFRESH_SKIP_FLAG`, and CLI flags
+  `--refresh` / `--no-refresh` / `--freshness-hours N` (added with
+  `backend.app.cli.add_refresh_arguments`).
+
 ### 5. Configuration Updates
 - Add `FINANCIAL_DATABASE_URL` environment variable
 - Update `build_financial_repository()` in `backend/app/cli.py` to try Financial-DataBase first
@@ -218,6 +247,15 @@ Add to `.env`:
 ```
 FINANCIAL_DATABASE_URL=postgresql://financial:test@localhost:5432/financial_database
 ```
+
+The on-demand refresh step also honors:
+- `SEC_USER_AGENT`: required for the targeted `sec sync <CIK>` (see
+  Financial-DataBase `.env.example`); without it the refresh step reports a
+  clear failure and analysis continues.
+- `FINANCIAL_DATABASE_REPO_PATH`: where the Financial-DataBase checkout lives
+  (default: sibling directory of this repo).
+- `REFRESH_AUTO` / `FRESHNESS_MAX_AGE_HOURS` / `REFRESH_TIMEOUT_SECONDS` /
+  `REFRESH_SKIP_FLAG`: environment overrides for `config/refresh.yaml`.
 
 ## Key Commands (CLI)
 
