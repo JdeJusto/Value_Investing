@@ -1,0 +1,30 @@
+# On-demand SEC refresh for analysis commands (refresh_service.py).
+#
+# Before analyzing explicit tickers, the CLI checks how fresh their data in
+# Financial-DataBase is and, for stale companies, runs a *targeted*
+# `sec sync <CIK>` per company (never a blanket full-universe sync).
+# Current prices are always fetched on demand via PriceService and are
+# NEVER persisted anywhere.
+#
+# Command-line overrides:
+#   --refresh                 force refresh regardless of age
+#   --no-refresh              skip the SEC sync step
+#   --freshness-hours N       override freshness_max_age_hours
+#
+# Environment overrides:
+#   REFRESH_AUTO, FRESHNESS_MAX_AGE_HOURS, REFRESH_TIMEOUT_SECONDS,
+#   REFRESH_SKIP_FLAG
+
+# Refresh stale companies before analysis by default.
+auto_refresh: true
+
+# A company is "stale" when its most recent SEC ingestion timestamps
+# (max(financial_facts.updated_at) / max(filings.created_at)) are older
+# than this. 168h = 7 days, matching the weekly sync cadence.
+freshness_max_age_hours: 168
+
+# Per-company SEC sync timeout in seconds.
+refresh_timeout_seconds: 300
+
+# Global kill-switch equivalent to always passing --no-refresh.
+skip_refresh_flag: false
