@@ -1,0 +1,142 @@
+{
+  "A": {
+    "composite_score": {
+      "total_score": 89.54,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "AAPL": {
+    "composite_score": {
+      "total_score": 67.31,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ABBV": {
+    "composite_score": {
+      "total_score": 66.33,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ABNB": {
+    "composite_score": {
+      "total_score": 75.17,
+      "rating": "A",
+      "confidence": "MEDIUM"
+    }
+  },
+  "ABT": {
+    "composite_score": {
+      "total_score": 82.12,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ACGL": {
+    "composite_score": {
+      "total_score": 47.18,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ACN": {
+    "composite_score": {
+      "total_score": 90.2,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ADBE": {
+    "composite_score": {
+      "total_score": 78.25,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ADI": {
+    "composite_score": {
+      "total_score": 81.19,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ADM": {
+    "composite_score": {
+      "total_score": 54.11,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ADP": {
+    "composite_score": {
+      "total_score": 37.73,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ADSK": {
+    "composite_score": {
+      "total_score": 64.07,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AEE": {
+    "composite_score": {
+      "total_score": 48.46,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "AEP": {
+    "composite_score": {
+      "total_score": 43.4,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "AES": {
+    "composite_score": {
+      "total_score": 38.73,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "AFL": {
+    "composite_score": {
+      "total_score": 47.2,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "AIG": {
+    "composite_score": {
+      "total_score": 36.18,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "AIZ": {
+    "composite_score": {
+      "total_score": 51.61,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "AJG": {
+    "composite_score": {
+      "total_score": 49.2,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "AKAM": {
+    "composite_score": {
+      "total_score": 76.32,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  }
+}
