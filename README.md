@@ -194,6 +194,10 @@ Motor de alertas sobre el universo:
 Salida `{ticker, alert_type, reason[], confidence}`, extensible a notificadores
 reales (email/telegram/webhooks) implementando `backend/alerts/notifier.py`.
 
+> **Nota:** `anomalies`, `momentum` y `alerts` reciben los tickers como
+> argumentos posicionales (`anomalies AAPL MSFT KO`), **no** con la opción
+> `--tickers` (que solo existe en `screener` y `opportunities`).
+
 ### `historical-valuation TICKERS...`
 Muestra ratios históricos de valoración (P/E y FCF yield) para los tickers
 indicados. Los **fundamentales** salen de Financial-DataBase (repositorio
