@@ -15,6 +15,7 @@ from backend.config.settings import get_output_dir
 from backend.domain.entities.company import Company
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
+from backend.domain.value_objects.financials_normalized import ProviderName
 from backend.providers.edgar import EdgarProvider
 from backend.providers.tickers import TICKERS
 from backend.providers.yahoo import YahooFinanceProvider
@@ -72,6 +73,11 @@ def build_data_pipeline() -> DataPipelineService:
         company_saver=(
             _save_company
             if isinstance(repository, SqlAlchemyFinancialRepository)
+            else None
+        ),
+        report_source=(
+            ProviderName.EDGAR
+            if isinstance(repository, FinancialDatabaseRepository)
             else None
         ),
     )

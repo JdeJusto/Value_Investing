@@ -69,6 +69,7 @@ class DataPipelineService(DataLoader):
         normalizers: Optional[dict[type, FinancialNormalizer]] = None,
         company_saver: Optional[Callable[[str], None]] = None,
         default_years: int = DEFAULT_HISTORY_YEARS,
+        report_source: Optional[ProviderName] = None,
     ):
         self._repository = repository
         self._primary = primary
@@ -77,6 +78,12 @@ class DataPipelineService(DataLoader):
         self._normalizers = normalizers or {}
         self._company_saver = company_saver
         self._default_years = default_years
+        # When set, LoadResult.source reports this provider regardless of
+        # which network provider fetched the raw statements. Used when the
+        # repository is read-only Financial-DataBase: the data that actually
+        # backs the analysis lives there, so "edgar" is the truthful label
+        # even when --force re-downloaded statements from Yahoo.
+        self._report_source = report_source
 
     # ------------------------------------------------------------------
     def _ensure_company(self, ticker: str) -> None:
@@ -112,7 +119,12 @@ class DataPipelineService(DataLoader):
                 )
                 return LoadResult(
                     ticker=ticker,
-                    source=cached_records[0].source if cached_records else ProviderName.YAHOO,
+                    source=self._report_source
+                    or (
+                        cached_records[0].source
+                        if cached_records
+                        else ProviderName.YAHOO
+                    ),
                     years_loaded=len(cached_records),
                     statements=cached_records,
                     cached=True,
@@ -164,7 +176,7 @@ class DataPipelineService(DataLoader):
             )
             return LoadResult(
                 ticker=ticker,
-                source=normalized[0].source,
+                source=self._report_source or normalized[0].source,
                 years_loaded=len(normalized),
                 statements=normalized,
             )
