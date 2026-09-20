@@ -92,7 +92,7 @@ def _run(args):
     for i, row in enumerate(rows, start=1):
         table_rows.append(
             [
-                i,
+                str(i),
                 row["ticker"],
                 fmt_pct(row["momentum"]),
                 _delta_color(row["revenue_growth_delta"]),
