@@ -118,9 +118,15 @@ def run(
     analyses: dict[str, dict],
     previous: Optional[dict[str, dict]] = None,
 ) -> list[Alert]:
-    """Evaluate every company and return the deduplicated alert list."""
+    """Evaluate every company and return the deduplicated alert list.
+
+    Companies whose current analysis is None (insufficient data, failed
+    analysis) are skipped: an alert cannot be derived from no analysis.
+    """
     alerts: list[Alert] = []
     for ticker, current in analyses.items():
+        if current is None:
+            continue
         alerts.extend(
             evaluate_company(
                 ticker, current, previous.get(ticker) if previous else None

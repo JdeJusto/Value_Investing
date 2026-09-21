@@ -134,6 +134,16 @@ class TestRun:
         alerts = run(current, previous=previous)
         assert any(a.alert_type == SELL_WARNING for a in alerts)
 
+    def test_run_skips_none_analyses(self):
+        # Companies that could not be analyzed (insufficient data) have a
+        # None entry; the alert engine must skip them, not crash.
+        analyses = {
+            "AAPL": make_analysis(85, buffett=82, deltas={"gross_margin_delta": 0.03}),
+            "XDATA": None,  # no analysis — regression: used to raise AttributeError
+        }
+        alerts = run(analyses)
+        assert [a.ticker for a in alerts] == ["AAPL"]
+
     def test_dedupe_first_wins(self):
         alerts = [
             Alert(
