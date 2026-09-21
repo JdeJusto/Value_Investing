@@ -331,3 +331,70 @@ def test_database_url_default_matches_repository():
     repo = FdbGateway()
     assert "financial_database" in repo.database_url
     assert os.environ.get("FINANCIAL_DATABASE_URL", "financial_database") in repo.database_url
+
+
+# ----------------------------------------------------------------------
+# check_freshness (read-only scope estimation, used by the daily workflow)
+# ----------------------------------------------------------------------
+
+
+def test_check_freshness_splits_stale_fresh_unknown():
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193"), "KO": ("c2", "0000021344"),
+                   "MSFT": ("c3", "0000789019")},
+        last_synced={"c1": STALE, "c2": FRESH, "c3": STALE},
+    )
+    service = make_service(gateway=gateway)
+
+    stale, fresh, unknown = service.check_freshness(
+        ["AAPL", "ko", "MSFT", "NOPE"]
+    )
+
+    assert stale == ["AAPL", "MSFT"]
+    assert fresh == ["KO"]
+    assert unknown == ["NOPE"]
+    # Read-only: never resolves the sync runner / never refetches prices.
+    assert gateway.resolve_calls == ["AAPL", "KO", "MSFT", "NOPE"]
+    assert sorted(gateway.last_synced_calls) == ["c1", "c2", "c3"]
+
+
+def test_check_freshness_never_synced_is_stale():
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={},
+    )
+    service = make_service(gateway=gateway)
+
+    stale, fresh, unknown = service.check_freshness(["AAPL", "aapl"])
+
+    assert stale == ["AAPL"]  # deduplicated, untouched company is stale
+    assert fresh == []
+    assert unknown == []
+
+
+def test_check_freshness_dedup_and_threshold_override():
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193"), "MSFT": ("c2", "0000789019")},
+        last_synced={"c1": FRESH, "c2": STALE},
+    )
+    service = make_service(gateway=gateway)
+
+    stale, fresh, _ = service.check_freshness(
+        ["AAPL", "MSFT", "AAPL"], max_age_hours=5
+    )
+
+    # With a 5h threshold, even the 10h-old data is stale.
+    assert stale == ["AAPL", "MSFT"]
+    assert fresh == []
+    assert gateway.resolve_calls == ["AAPL", "MSFT"]
+
+
+def test_check_freshness_db_down_lists_everything_unknown():
+    gateway = FakeGateway(available=False)
+    service = make_service(gateway=gateway)
+
+    stale, fresh, unknown = service.check_freshness(["AAPL", "MSFT"])
+
+    assert stale == []
+    assert fresh == []
+    assert unknown == ["AAPL", "MSFT"]

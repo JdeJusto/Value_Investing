@@ -355,7 +355,68 @@ class RefreshService:
 
         return result
 
+    def check_freshness(
+        self,
+        tickers: list[str],
+        *,
+        max_age_hours: Optional[int] = None,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Read-only staleness estimate: (stale, fresh, unknown) tickers.
+
+        Never syncs anything and never touches prices — used for dry-run
+        scope estimation (how many companies a real run would refresh) and
+        for reporting the pre-run state. A ticker is "unknown" when it has
+        no CIK mapping in Financial-DataBase or the DB is unreachable.
+        """
+        threshold = (
+            max_age_hours if max_age_hours is not None else self.config.freshness_max_age_hours
+        )
+        stale: list[str] = []
+        fresh: list[str] = []
+        unknown: list[str] = []
+
+        if not self._gateway.available():
+            return stale, fresh, self._dedup(tickers)
+
+        for ticker in self._dedup(tickers):
+            resolved = self._gateway.resolve_company(ticker)
+            if resolved is None:
+                unknown.append(ticker)
+                continue
+            company_id, _ = resolved
+            last = None
+            try:
+                last = self._gateway.last_synced_at(company_id)
+            except Exception:  # noqa: BLE001 — estimate must never crash the dry run
+                last = None
+            if last is None:
+                stale.append(ticker)  # never ingested → a real run would sync it
+                continue
+            try:
+                age_hours = (
+                    _dt.datetime.now(_dt.timezone.utc) - last
+                ).total_seconds() / 3600.0
+            except TypeError:
+                stale.append(ticker)  # unparseable timestamp → treat as stale
+                continue
+            (stale if age_hours > threshold else fresh).append(ticker)
+
+        return stale, fresh, unknown
+
     # ------------------------------------------------------------------
+    @staticmethod
+    def _dedup(tickers: list[str]) -> list[str]:
+        """Case-insensitive, order-preserving deduplication."""
+        dedup: list[str] = []
+        seen: set[str] = set()
+        for ticker in tickers:
+            t = ticker.strip().upper()
+            if not t or t in seen:
+                continue
+            seen.add(t)
+            dedup.append(t)
+        return dedup
+
     def _fetch_prices(self, tickers: list[str]) -> dict[str, Optional[float]]:
         try:
             return self._price_service.get_current_prices(tickers)
