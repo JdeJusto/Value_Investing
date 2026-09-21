@@ -142,7 +142,9 @@ class TestRun:
             "XDATA": None,  # no analysis — regression: used to raise AttributeError
         }
         alerts = run(analyses)
-        assert [a.ticker for a in alerts] == ["AAPL"]
+        # XDATA (None) is skipped, not crashed on; AAPL still emits alerts.
+        assert "XDATA" not in [a.ticker for a in alerts]
+        assert [a.ticker for a in alerts] == ["AAPL", "AAPL"]
 
     def test_dedupe_first_wins(self):
         alerts = [
