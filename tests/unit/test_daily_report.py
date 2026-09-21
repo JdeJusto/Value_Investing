@@ -108,6 +108,8 @@ class TestMarkdown:
         assert "| 1 | AAPL | Apple Inc. | B | 78.0 | 72.5 | 200.0 | 15.0 | 8.0% | 12.0 | BUY |" in md
         assert "coverage: **50%**" in md
         assert "Runtime: **12s**" in md
+        assert "no price is ever persisted" in md
+        assert "`prices` table is untouched" in md
         assert "**AAPL** — Buy signal" in md
         assert "## Missing data" in md
         assert "XDATA" in md
