@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Daily fundamentals + valuation workflow.
 
-1. (optional) Incrementally update SEC fundamentals in Financial-DataBase.
+1. (optional) Targeted SEC refresh in Financial-DataBase — only the analyzed
+   tickers are checked for staleness and only the stale ones are synced
+   (per-CIK `sec sync`); the full universe is never synced wholesale.
 2. Screen a configurable universe (default config/universe.csv) with
    real-time prices (fetched in batches ONLY for the analyzed tickers,
    never persisted).
@@ -10,16 +12,19 @@
 4. Write data/reports/daily_YYYY-MM-DD.md and persist the new state.
 
 Flags:
-  --dry-run    skip the SEC update AND skip writing any file (print report)
-  --no-update  skip the SEC update but still screen + write report/state
-  --limit N    analyze only the first N tickers of the universe
+  --dry-run         estimate staleness (read-only, no sync) and print the
+                    report without writing any file
+  --no-update       skip the SEC refresh but still screen + write report/state
+  --limit N         analyze only the first N tickers of the universe
+  --refresh         force a targeted SEC refresh of the analyzed tickers
+  --no-refresh      skip the targeted SEC refresh entirely
+  --freshness-hours override the freshness threshold (default: 168)
 """
 
 import argparse
 import csv
 import logging
 import os
-import subprocess
 import sys
 import time
 from datetime import date, datetime
@@ -62,40 +67,58 @@ def _load_universe(path: str) -> list[str]:
     return tickers
 
 
-def _run_sec_update(fdb_dir: str, python_path: str, verbose: bool) -> str:
-    """Run Financial-DataBase's incremental SEC update; never blocks the rest."""
+def _run_targeted_refresh(universe: list[str], args) -> str:
+    """Targeted per-CIK SEC refresh of ONLY the analyzed tickers.
+
+    Replaces the old blanket ``sec update-incremental`` (which scanned the
+    whole ~8k-company Financial-DataBase): the on-demand refresh service
+    resolves each analyzed ticker's CIK and syncs just the stale companies
+    of this universe, degrading gracefully per company. In dry-run mode it
+    only estimates staleness (read-only), it never syncs.
+    """
+    from backend.services.refresh_service import RefreshService
+
     start = time.time()
-    env = dict(os.environ)
-    env.setdefault("SEC_USER_AGENT", os.getenv("SEC_EMAIL", "daily@value-investing.local"))
-    env["DATA_RAW_DIR"] = str(Path(fdb_dir) / "data" / "raw")
-    cmd = [
-        python_path,
-        "-m",
-        "financial_database.cli",
-        "sec",
-        "update-incremental",
-        "--max-age-hours",
-        "24",
-    ]
-    logger.info("running SEC update: %s", " ".join(cmd))
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=fdb_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=1800,
+    force = getattr(args, "refresh", False)
+    no_refresh = getattr(args, "no_refresh", False)
+    freshness_hours = getattr(args, "freshness_hours", None)
+    service = RefreshService(fdb_repo_path=str(Path(args.fdb_dir).resolve()))
+
+    if args.dry_run:
+        stale, fresh, unknown = service.check_freshness(
+            list(universe), max_age_hours=freshness_hours
         )
         elapsed = time.time() - start
-        tail = " ".join(
-            (result.stdout or "").strip().splitlines()[-3:]
-        ) or result.stderr.strip()
-        if result.returncode == 0:
-            return f"SEC update: ok ({elapsed:.0f}s) — {tail or 'no output'}"
-        return f"SEC update: **failed** (rc={result.returncode}, {elapsed:.0f}s) — {tail}"
-    except Exception as e:  # noqa: BLE001
-        return f"SEC update: **error** — {e}"
+        return (
+            f"SEC refresh (dry-run estimate): {len(stale)} stale of "
+            f"{len(universe)} analyzed · {len(fresh)} fresh · "
+            f"{len(unknown)} unmapped ({elapsed:.0f}s)"
+        )
+
+    result = service.ensure_fresh_and_prices(
+        list(universe),
+        force=force,
+        max_age_hours=freshness_hours,
+        skip_refresh=no_refresh or None,
+        fetch_prices=False,  # the workflow prefetches prices separately below
+    )
+    elapsed = time.time() - start
+
+    parts = [f"{len(result.refreshed)} refreshed", f"{len(result.skipped)} fresh/skipped"]
+    if result.failed:
+        parts.append(f"{len(result.failed)} failed")
+    parts.append(f"{elapsed:.0f}s")
+    status = "SEC refresh (targeted): " + " · ".join(parts)
+
+    if result.failed:
+        for ticker, reason in result.failed[:10]:
+            logger.warning("refresh failed %s: %s", ticker, reason)
+        if len(result.failed) > 10:
+            logger.warning("... and %d more refresh failures", len(result.failed) - 10)
+    for note in result.notes:
+        logger.warning("refresh note: %s", note)
+
+    return status
 
 
 def _run(args) -> None:
@@ -122,14 +145,13 @@ def _run(args) -> None:
         logger.info("constrained to first %d tickers of the universe", args.limit)
     logger.info("universe loaded: %d tickers", len(universe))
 
-    if args.dry_run:
-        sec_update_status = "SEC update: skipped (dry-run)"
-    elif args.no_update:
-        sec_update_status = "SEC update: skipped (--no-update)"
+    # Targeted SEC refresh of ONLY the analyzed tickers (stale companies via
+    # per-CIK `sec sync`). Dry-run computes a read-only staleness estimate;
+    # --no-update skips the refresh but still screens + writes.
+    if args.no_update:
+        sec_update_status = "SEC refresh: skipped (--no-update)"
     else:
-        sec_update_status = _run_sec_update(
-            args.fdb_dir, args.fdb_python, args.verbose
-        )
+        sec_update_status = _run_targeted_refresh(universe, args)
 
     analysis_service = build_analysis_service()
     fdb_repo = build_financial_repository()
@@ -314,7 +336,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Seconds to pause between price-fetch batches (default: 0.2)",
     )
     p.add_argument(
-        "--no-update", action="store_true", help="Skip the SEC incremental update"
+        "--no-update", action="store_true", help="Skip the SEC refresh but still screen + write"
+    )
+    refresh_group = p.add_mutually_exclusive_group()
+    refresh_group.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Force a targeted SEC refresh of the analyzed tickers even when fresh",
+    )
+    refresh_group.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="Skip the targeted SEC refresh entirely (stale companies stay stale)",
+    )
+    p.add_argument(
+        "--freshness-hours",
+        type=int,
+        default=None,
+        help="Override the freshness threshold (hours) for the targeted SEC refresh "
+        "(default: 168)",
     )
     p.add_argument(
         "--dry-run",
