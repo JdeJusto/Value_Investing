@@ -129,4 +129,117 @@ EDGAR, 100%-quality fundamentals. No name needs to be removed or
 re-ranked on the evidence reviewed. Two names warrant monitoring on the
 freshness axis — **APTV** (FY2026 FCF deterioration) and **SWKS** (post-run
 price spike vs FY2025-basis valuation) — and VRSK's book-value ratios are
-flagged for interpretation.
+flagged for interpretation. Section 5 below then re-reviewed APTV and SWKS
+in depth against updated public sources and assigns final keep/demote
+decisions that supersede this initial verdict.
+
+## 5. Deep-dive re-reviews with keep/demote decisions (follow-up)
+
+Both names were re-run with `main.py analyze-full --no-refresh` and
+re-checked against StockAnalysis (S&P Global MI), Macrotrends, company
+press releases/10-K, and SEC filings as of the 2026-09-21 close.
+
+### 5.1 APTV — DEMOTE from the top-10 recommendation
+
+**Cross-checks (VI vs external):**
+
+| Metric | VI (`analyze-full`) | External | Match |
+|---|---|---|---|
+| Price | $43.57 | $43.57 (StockAnalysis, Sep 21 close) | exact |
+| Market cap | $9.0B | $9.05B | exact |
+| P/E (FY2025 GAAP) | 54.8 | EPS ttm $1.03 → ~42 at close | basis differs |
+| Forward P/E (adj.) | — | 7.13 (StockAnalysis) | n/a |
+| FY2025 revenue | $20.40B (+3.5%) | $20.40B (+3.47%) | exact |
+| FY2025 net income | $165M (−90.8%) | $165M (−90.77%) | exact |
+| FY2025 FCF | $1.5B | $1.549B (Macrotrends) | exact |
+
+**Findings.**
+
+1. **FCF deterioration is real and already visible in 2026.** Q1-26 FCF
+   −$362M vs +$76M a year earlier; H1-26 FCF −$196M vs +$264M; Q2-26 only
+   +$12M (including a $70M separation-cost drag); FY2026 guidance was cut
+   (China weakness, delayed launches, software timing) and the stock fell
+   ~20.7% in the 30 days after the Aug 4 Q2 report. The screener's 16.9%
+   FCF-yield read on the *completed* FY2025 does not persist into FY2026.
+2. **Entity mismatch inflates the value channels (new finding).** The
+   Versigent PLC (Electrical Distribution Systems) spin-off was completed
+   **April 1, 2026** (record date Mar 17, 2026, per SEC 8-K and the
+   company's announcement). All fundamentals the analysis uses — FY2025
+   revenue $20.40B, net income $165M, FCF $1.549B, and therefore the DCF
+   ($29.6B) and margin-of-safety (69.4%) — are the **pre-spin combined
+   company**. Section-2's price/market cap ($43.57 / $9.05B) are **New
+   Aptiv only**. Mixing them overstates the FCF yield: it jumps from 9.45%
+   at FY-end (consistent pre-spin price $76.09 × FY2025 FCF) to 16.9%
+   mostly because half the company's equity value now trades separately as
+   Versigent while the FCF numerator still includes Versigent's cash flows.
+   New Aptiv itself generated **negative FCF in 2026 H1**.
+3. **P/E 54.8 is a GAAP-collapse artifact, not an expensive signal.**
+   FY2025 GAAP EPS $0.795 ($165M / 207.6M sh) is depressed by restructuring
+   / spin charges; adjusted forward EPS guidance is $5.60–5.80 → adjusted
+   forward P/E ≈ 7.6, and consensus ("Buy") sees ~53% upside to a $66.61
+   target. The quality case (Buffett 76.0, STRONG moat, HIGH confidence,
+   avg ROIC 49.7%) is about the 10-year combined history and is authentic.
+
+**Decision — DEMOTE.** APTV (#6, rank 78.2, BUY) currently screens on value
+inputs that mix two different companies. The honest standing until fresh
+post-spin fundamentals arrive is **WATCHLIST / hold, not a top-10 BUY**.
+No hand edit is made to the daily run (top-20 remains byte-identical).
+The system self-corrects automatically: when FY2026 completes, the
+comparative financials are New-Aptiv-only (Versigent classified as
+discontinued operations), and with a negative trailing FCF the calibrated
+leveraged cap (negative-FCF → rank ≤ 60) drops APTV out of the top-10 by
+itself. Watch for that re-ranking on the next fundamentals refresh.
+
+### 5.2 SWKS — KEEP at #10, standing WATCHLIST
+
+**Cross-checks (VI vs external):**
+
+| Metric | VI (`analyze-full`) | External | Match |
+|---|---|---|---|
+| Price | $88.74 | $88.74 (StockAnalysis, Sep 21 close) | exact |
+| Market cap | $13.4B | $13.35B | exact |
+| P/E | 28.0 (FY2025 EPS $3.21) | **45.87 TTM** (EPS $1.93) | basis confirmed |
+| FY2025 revenue | $4.09B (−2.2%) | $4.09B (−2.18%) | exact |
+| FY2025 FCF | $1.1B | $1.106B (10-K / IR) | exact |
+| FY2025 GAAP EPS | $3.21 | $3.20 diluted (10-K) | ~exact |
+
+**Findings.**
+
+1. **The EPS-basis understatement is confirmed and already handled.** The
+   28.0 P/E uses FY2025 EPS ($3.21); trailing EPS through Jun-2026 is $1.93
+   → the real-time trailing multiple is ≈ 46 (StockAnalysis: 45.87). This
+   is exactly why the run already signals **WATCHLIST, not BUY**: SWKS ranks
+   #10 at 74.7, below the BUY threshold of 75. The system priced in the
+   earnings decline before the price spike.
+2. **Fundamentals verify cleanly and are entity-consistent** (no
+   restructuring or spin differentiates numerator/denominator): FY2025 FCF
+   $1.106B matches the 10-K press line, FCF yield 8.3%, Altman Z 5.43,
+   Buffett 80.2, STRONG moat, HIGH confidence, Piotroski 4/9. FCF trend
+   remains positive despite Q4-25's soft quarter (OCF $200M, FCF $144M).
+3. **Material events since the FY2025 basis (not in EDGAR historicals):**
+   the Qorvo combination is on track to close in 2026 (company-guided $500M
+   of annual synergies; combined-company leadership named), and the
+   quarterly dividend was **replaced by a $2B buyback** (Q3-26 announcement,
+   with the board's $2.84 annual dividend discontinued). Street consensus
+   turned to **Hold with an $68.35 target (−23%)** after the ~32% pre-run
+   rally; 52-week range 51.93–92.30, trading near the high.
+
+**Decision — KEEP at #10, signal stays WATCHLIST.** The multiple distortion
+is real but already reflected by the signal, and the underlying cash-flow
+and quality metrics verify exactly. SWKS is not promotable to BUY until a
+post-FY2026 refreshed EPS narrows the trailing multiple or closed Qorvo
+synergies rebase the thesis — which the deterministic refresh will handle.
+No ranking change; the caveat is reaffirmed and now cites the TTM P/E of
+~46 as externally confirmed.
+
+### 5.3 Superseding verdict
+
+- **APTV — DEMOTE** from the top-10 recommendation (entity-mismatch +
+  negative 2026 YTD FCF). Expect automatic demotion at the next
+  fundamentals refresh.
+- **SWKS — KEEP** at #10 with WATCHLIST standing (verified fundamentals;
+  signals already correct for the EPS-basis).
+- No scoring/ranking code was changed: the 500-run outputs (top-20,
+  alerts, prices) remain byte-for-byte identical to the validated run, and
+  both actions are recorded here (and, for APTV, will crystallize in the
+  refreshed daily state).
