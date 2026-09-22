@@ -246,13 +246,22 @@ class PriceService:
     # yfinance internals (kept separate for easy mocking in tests)
     # ------------------------------------------------------------------
     def _fetch_current_price(self, ticker: str) -> Optional[float]:
-        try:
-            hist = yf.Ticker(ticker).history(period="1d")
-            if hist is None or hist.empty:
-                return None
-            return float(hist["Close"].iloc[-1])
-        except Exception:  # noqa: BLE001
-            return None
+        """Latest close for ``ticker``, or None on failure.
+
+        yfinance occasionally returns an empty ``period="1d"`` frame for a
+        transient window (rate limiting); one short retry usually recovers
+        it. Nothing is ever persisted.
+        """
+        for attempt in (1, 2):
+            try:
+                hist = yf.Ticker(ticker).history(period="1d")
+                if hist is not None and not hist.empty:
+                    return float(hist["Close"].iloc[-1])
+            except Exception:  # noqa: BLE001 — transient Yahoo errors
+                pass
+            if attempt == 1:
+                time.sleep(0.75)
+        return None
 
     def _fetch_historical_prices(
         self,
