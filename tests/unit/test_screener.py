@@ -567,7 +567,7 @@ def test_signal_trigger_prefers_strongest_positive():
         "S",
         delta={
             "gross_margin_delta": 0.02,
-            "revenue_growth_delta": 0.04,
+            "revenue_growth_delta": 0.06,
             "roic_delta": -0.01,
         },
     )
@@ -575,7 +575,10 @@ def test_signal_trigger_prefers_strongest_positive():
     assert signal["trigger"] == "REVENUE_ACCELERATION"
 
 
-def test_signal_trigger_negative_when_all_declining():
+def test_signal_trigger_none_when_only_declining():
+    # Deliberate policy: deterioration is not a positive trigger event, so a
+    # company where every delta is negative emits no trigger (SELL_WARNING
+    # and anomaly reporting cover deterioration instead).
     item = _analysis(
         "D",
         delta={
@@ -584,7 +587,7 @@ def test_signal_trigger_negative_when_all_declining():
         },
     )
     signal = generate_signal(item, rank_score(item))
-    assert signal["trigger"] == "REVENUE_DECELERATION"
+    assert signal["trigger"] is None
 
 
 def test_signal_trigger_none_without_delta_data():
