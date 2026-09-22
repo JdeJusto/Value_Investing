@@ -8,6 +8,7 @@ financial facts and reconstructing NormalizedFinancials objects.
 from __future__ import annotations
 
 import os
+import threading
 from typing import Optional, List
 from datetime import date, datetime, timezone
 
@@ -254,22 +255,44 @@ class FinancialDatabaseRepository(FinancialRepository):
             )
 
         self.database_url = database_url
-        self._connection = None
+        # psycopg2 connections are not thread-safe: when analysis runs in a
+        # thread pool each worker needs its own lazily-created connection. All
+        # connections opened by *any* thread are tracked so close() can tear
+        # them down together.
+        self._local = threading.local()
+        self._connections: set = set()
+        self._connections_lock = threading.Lock()
 
     def _get_connection(self):
-        """Get or create a database connection."""
-        if self._connection is None or self._connection.closed:
-            self._connection = psycopg2.connect(
+        """Get or create a connection for the *current* thread.
+
+        Every worker thread receives its own connection (created on first
+        use) so parallel analysis never shares a psycopg2 connection across
+        threads.
+        """
+        conn = getattr(self._local, "connection", None)
+        if conn is None or conn.closed:
+            conn = psycopg2.connect(
                 self.database_url,
-                cursor_factory=RealDictCursor
+                cursor_factory=RealDictCursor,
             )
-        return self._connection
+            self._local.connection = conn
+            with self._connections_lock:
+                self._connections.add(conn)
+        return conn
 
     def close(self):
-        """Close the database connection."""
-        if self._connection and not self._connection.closed:
-            self._connection.close()
-            self._connection = None
+        """Close every connection this repository opened (any thread)."""
+        with self._connections_lock:
+            connections = list(self._connections)
+            self._connections.clear()
+        for conn in connections:
+            try:
+                if not conn.closed:
+                    conn.close()
+            except Exception:  # noqa: BLE001 — best-effort teardown
+                pass
+        self._local.connection = None
 
     def available(self) -> bool:
         """Check if the Financial-DataBase is available."""
@@ -772,7 +795,14 @@ class FinancialDatabaseRepository(FinancialRepository):
             return None
 
     def list_years(self, ticker: str) -> List[NormalizedFinancials]:
-        """Return the best record per year for a ticker, most recent first."""
+        """Return the best record per year for a ticker, most recent first.
+
+        All *annual* (FY) facts for the company are fetched in a single query
+        and bucketed by fiscal year, replacing the old per-year ``get_by_year``
+        round-trips (3 + 2×N queries per ticker) with 2 queries. The rows fed
+        to ``_normalize_financial_facts`` per year are identical to what
+        ``get_by_year`` produced, so the reconstructed records do not change.
+        """
         try:
             # Get company ID from ticker (same as get_by_year)
             company_id = self._get_company_id_by_ticker(ticker)
@@ -780,42 +810,50 @@ class FinancialDatabaseRepository(FinancialRepository):
                 return []
 
             conn = self._get_connection()
+            facts = []
             with conn.cursor() as cur:
-                # Get the CIK for this company
+                # Only annual ('FY') facts are used: the fiscal_year bucket also
+                # holds quarterly YTD facts and the comparative years embedded in
+                # the latest 10-K, so filtering to 'FY' is what makes each value
+                # represent a completed fiscal year (see _normalize_financial_facts
+                # for the max-period_end dedup).
                 cur.execute("""
-                    SELECT ci.identifier_value as cik
-                    FROM company_identifiers ci
-                    WHERE ci.company_id = %s
-                      AND UPPER(ci.identifier_type) = 'CIK'
-                """, (company_id,))
-
-                cik_result = cur.fetchone()
-                if not cik_result:
-                    return []
-
-                cik = cik_result['cik']
-
-                # Get all years with data for this company
-                cur.execute("""
-                    SELECT DISTINCT f.fiscal_year
+                    SELECT
+                        f.concept,
+                        f.value,
+                        f.unit,
+                        f.fiscal_year,
+                        f.fiscal_period,
+                        f.period_end,
+                        f.period_start
                     FROM financial_facts f
-                    JOIN companies c ON f.company_id = c.id
-                    JOIN company_identifiers ci ON c.id = ci.company_id
-                    WHERE UPPER(ci.identifier_type) = 'CIK'
-                      AND UPPER(ci.identifier_value) = %s
-                    ORDER BY f.fiscal_year DESC
-                """, (cik,))
+                    WHERE f.company_id = %s
+                      AND UPPER(f.fiscal_period) = 'FY'
+                """, (company_id,))
+                facts = cur.fetchall()
 
-                years = [row['fiscal_year'] for row in cur.fetchall()]
+            if not facts:
+                return []
 
-                # Get data for each year
-                results = []
-                for year in years:
-                    financials = self.get_by_year(ticker, year)
+            by_year: dict[int, list] = {}
+            for row in facts:
+                by_year.setdefault(row["fiscal_year"], []).append(row)
+
+            results: List[NormalizedFinancials] = []
+            for year in sorted(by_year, reverse=True):
+                try:
+                    statements = self._normalize_financial_facts(by_year[year])
+                    statements = self._calculate_derived_fields(statements)
+                    financials = self._build_normalized_financials(
+                        ticker=ticker.upper(),
+                        fiscal_year=year,
+                        statements=statements,
+                    )
                     if financials is not None:
                         results.append(financials)
-
-                return results
+                except Exception:  # noqa: BLE001 — one bad year must not drop the rest
+                    continue
+            return results
 
         except Exception:
             return []
