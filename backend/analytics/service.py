@@ -326,6 +326,12 @@ class CompanyAnalysisService:
         if not rows and self._loader is not None:
             try:
                 self._loader.load_ticker(ticker)
+                # The loader may have refreshed data through a different
+                # repository instance — drop any cached fundamentals so the
+                # retry reads the new facts (FinancialDatabaseRepository).
+                invalidate = getattr(self._repository, "invalidate_list_cache", None)
+                if callable(invalidate):
+                    invalidate(ticker.upper())
                 rows = self._repository.get_best_available(ticker)
             except Exception:  # noqa: BLE001 — missing data must not kill analysis
                 logger.warning("analytics: could not load data for %s", ticker)
@@ -340,6 +346,11 @@ class CompanyAnalysisService:
             self._loader.load_ticker(ticker, force=True)
         except Exception:  # noqa: BLE001
             logger.warning("analytics: could not refresh data for %s", ticker)
+        # See _load_history: the loader writes through its own repository
+        # instance, so invalidate the cache before the re-read.
+        invalidate = getattr(self._repository, "invalidate_list_cache", None)
+        if callable(invalidate):
+            invalidate(ticker.upper())
         return self._repository.get_best_available(ticker)
 
     def _data_reliability(self, ticker: str, rows: list[NormalizedFinancials]) -> dict:

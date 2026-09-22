@@ -263,6 +263,39 @@ class FinancialDatabaseRepository(FinancialRepository):
         self._connections: set = set()
         self._connections_lock = threading.Lock()
 
+        # Per-run fundamentals cache. ``analyze`` fetches the full FY history
+        # twice per ticker (list_years via _load_history and again via
+        # _data_reliability's list_all); both funnel through list_years, so a
+        # simple run-scoped cache removes the redundant round-trip +
+        # normalization. Only NON-EMPTY results are cached (a deliberate
+        # refresh could otherwise serve stale data for a currently-empty
+        # ticker), and writes invalidate the affected ticker.
+        self._list_cache: dict[str, list[NormalizedFinancials]] = {}
+        self._list_cache_lock = threading.Lock()
+
+    # ------------------------------------------------------------------
+    # per-run list_years cache helpers
+    # ------------------------------------------------------------------
+    def _list_cache_get(self, ticker: str) -> Optional[list[NormalizedFinancials]]:
+        with self._list_cache_lock:
+            return self._list_cache.get(ticker)
+
+    def _list_cache_set(
+        self, ticker: str, rows: list[NormalizedFinancials]
+    ) -> None:
+        with self._list_cache_lock:
+            self._list_cache[ticker] = list(rows)
+
+    def invalidate_list_cache(self, ticker: str) -> None:
+        """Drop the cached fundamentals for one ticker (after a refresh/write)."""
+        with self._list_cache_lock:
+            self._list_cache.pop(ticker, None)
+
+    def clear_list_cache(self) -> None:
+        """Drop every cached fundamentals entry (call before a data sync)."""
+        with self._list_cache_lock:
+            self._list_cache.clear()
+
     def _get_connection(self):
         """Get or create a connection for the *current* thread.
 
@@ -731,15 +764,15 @@ class FinancialDatabaseRepository(FinancialRepository):
         since we're primarily using it as a source of truth.
         For a full bidirectional sync, this would write to the database.
         """
-        # For now, we treat Financial-DataBase as read-only
-        # In a full implementation, this would write to the database
-        # using the same mapping logic in reverse
-        pass
+        # Even though this is read-only, invalidate the ticker's cached
+        # fundamentals so a future writer never serves stale data.
+        self.invalidate_list_cache(financials.ticker.upper())
 
     def upsert_many(self, financials: List[NormalizedFinancials]) -> None:
         """Insert or update a batch of fiscal-year records in one operation."""
-        # Read-only implementation
-        pass
+        # Read-only implementation; still invalidate the touched tickers.
+        for row in financials:
+            self.invalidate_list_cache(row.ticker.upper())
 
     def get_by_year(
         self, ticker: str, fiscal_year: int
@@ -796,6 +829,31 @@ class FinancialDatabaseRepository(FinancialRepository):
 
     def list_years(self, ticker: str) -> List[NormalizedFinancials]:
         """Return the best record per year for a ticker, most recent first.
+
+        Results are cached for the lifetime of this repository instance so the
+        two calls ``analyze`` makes per ticker (``_load_history`` and
+        ``_data_reliability``) re-use one query + normalization instead of
+        fetching the full FY history twice. Only non-empty results are cached
+        and ``invalidate_list_cache``/``upsert*`` clear a ticker when its data
+        changes, so a deliberate refresh never serves stale fundamentals.
+        """
+        ticker = ticker.upper()
+        cached = self._list_cache_get(ticker)
+        if cached is not None:
+            return list(cached)
+
+        rows = self._list_years_uncached(ticker)
+
+        if rows:
+            self._list_cache_set(ticker, rows)
+        else:
+            # Negative lookups are never cached: a loader/sync may populate the
+            # company in between and the next read must see the fresh data.
+            self.invalidate_list_cache(ticker)
+        return rows
+
+    def _list_years_uncached(self, ticker: str) -> List[NormalizedFinancials]:
+        """The uncached list_years implementation (see ``list_years``).
 
         All *annual* (FY) facts for the company are fetched in a single query
         and bucketed by fiscal year, replacing the old per-year ``get_by_year``
