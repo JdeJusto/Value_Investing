@@ -349,6 +349,31 @@ pipenv run python scripts/compare_sources.py AAPL MSFT KO
   cercano al cierre del año fiscal (ventana de ±15 días naturales) si no hay
   datos para ese día exacto.
 
+## Universo de análisis
+
+El universo maestro para el screener y el flujo diario es
+`config/universe.csv`, generado por un pipeline de cuatro pasos que también
+produce archivos por índice (`config/universe_sp500_nasdaq.csv`,
+`config/universe_russell2000.csv`, `config/universe_european.csv`):
+
+```bash
+python scripts/fetch_universe.py            # 1) S&P 500 + Nasdaq-100 (Wikipedia)
+python scripts/fetch_russell2000.py         # 2) Russell 2000 (holdings oficiales de IWM)
+python scripts/fetch_european_indices.py    # 3) FTSE 100, DAX 40, CAC 40, IBEX 35,
+                                            #    FTSE MIB, AEX, SMI, OMXS30, OMXC20/25
+python scripts/build_universe.py            # 4) Merge + dedup -> config/universe.csv
+python scripts/validate_universe_against_fdb.py   # 5) Gate de cobertura (>= 80%)
+```
+
+Solo se mantienen en el maestro las empresas con **CIK de SEC EDGAR**: los
+fundamentales se derivan exclusivamente de los filings SEC, de modo que las
+empresas europeas que no presentan ante la SEC (sin ADR/20-F/40-F) y las
+acciones Russell sin CIK quedan fuera del maestro (pero visibles, marcadas, en
+su archivo por índice). El flujo diario (`scripts/daily_workflow.py`) acepta
+subconjuntos con `--universe sp500|nasdaq100|sp500,nasdaq100|russell2000|
+european|all` o una ruta a un archivo, y limita el sync SEC acotado por CIK con
+`--max-refresh N` (por defecto 200). Ver `docs/runbook_daily.md`.
+
 ## Testing y calidad
 
 ```bash

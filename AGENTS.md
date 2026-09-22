@@ -193,12 +193,25 @@ MEDIUM / HIGH. The analytics service compares DCF value (total) to
 market_cap (total) for the margin of safety and filters out in-progress,
 all-empty fiscal year rows before computing ratios.
 
-The default daily universe comes from `config/universe.csv` (S&P 500 +
-Nasdaq-100 deduplicated, regenerated with `scripts/fetch_universe.py`,
-tickers resolved to SEC CIKs via Financial-DataBase). `scripts/daily_workflow.py`
-supports `--limit`, `--batch-size`, `--batch-delay`, `--workers` (parallel
+The default daily universe comes from `config/universe.csv` — the **master
+universe** built by `scripts/build_universe.py` from per-index source files
+(S&P 500 + Nasdaq-100 via `scripts/fetch_universe.py`, Russell 2000 via
+`scripts/fetch_russell2000.py` from the official iShares IWM holdings snapshot,
+and nine European indices via `scripts/fetch_european_indices.py`).
+Fundamentals come exclusively from SEC filings, so only companies with an SEC
+EDGAR CIK are kept in the master: European ADRs / 20-F / 40-F filers are
+analyzable, European non-filers and Russell names without a CIK are excluded
+but stay flagged in their per-index files. Tickers resolve to SEC CIKs via
+Financial-DataBase. `scripts/validate_universe_against_fdb.py` gates the master
+at ≥ 80% FDB coverage (exit code ≠ 0 below it; unresolved list capped at 100).
+`scripts/daily_workflow.py` selects a universe with `--universe
+sp500|nasdaq100|sp500,nasdaq100|russell2000|european|all|<file>` (default
+`sp500`), caps the targeted SEC refresh with `--max-refresh N` (default 200,
+stale companies with the most recent filings first, deferred the rest), supports
+`--limit`, `--batch-size`, `--batch-delay`, `--workers` (parallel
 price prefetch + analysis; the price prefetch is capped at 2 concurrent
-workers because denser `history()` bursts throttle at Yahoo) and pre-warms
+workers because denser `history()` bursts throttle at Yahoo), `--resume`
+(skips tickers already in the previous `daily_state.json`) and pre-warms
 the price cache before analysis.
 - Compares 6 fundamental fields (revenue, net income, assets, liabilities,
   operating cash flow, capital expenditures); prices are never compared
@@ -298,6 +311,14 @@ All standard CLI commands will automatically use Financial-DataBase when availab
 - `pipenv run python main.py buffett-analysis AAPL` - Buffett analysis using cached data
 - `pipenv run python main.py opportunities` - Find opportunities using cached data
 
+Universe pipeline (regenerate + validate the master `config/universe.csv`):
+- `pipenv run python scripts/fetch_universe.py` - S&P 500 + Nasdaq-100 (Wikipedia)
+- `pipenv run python scripts/fetch_russell2000.py` - Russell 2000 (iShares IWM holdings)
+- `pipenv run python scripts/fetch_european_indices.py` - Nine European indices (SEC-filer flag)
+- `pipenv run python scripts/build_universe.py` - Merge + dedup → `config/universe.csv`
+- `pipenv run python scripts/validate_universe_against_fdb.py` - Coverage gate (≥ 80%)
+- `pipenv run python -m scripts.daily_workflow --universe russell2000` - Run a named subset
+
 ## Testing Instructions
 
 ### Running Existing Tests
@@ -357,6 +378,13 @@ python -m pytest tests/unit -q
 - `backend/domain/interfaces/financial_repository.py` - Repository interface
 - `backend/domain/value_objects/financials_normalized.py` - NormalizedFinancials definition
 - `backend/services/data_pipeline_service.py` - Main data loading pipeline
+- `scripts/universe_common.py` - SEC ticker/CIK map, European matching, index registry
+- `scripts/fetch_universe.py` - S&P 500 + Nasdaq-100 fetch (→ `config/universe_sp500_nasdaq.csv`)
+- `scripts/fetch_russell2000.py` - Russell 2000 fetch from iShares IWM holdings
+- `scripts/fetch_european_indices.py` - European index fetch + SEC-filer flagging
+- `scripts/build_universe.py` - Merge per-index files into master `config/universe.csv`
+- `scripts/validate_universe_against_fdb.py` - FDB coverage gate (≥ 80%, exit-code gate)
+- `scripts/daily_workflow.py` - Daily run; `--universe` subsets, `--max-refresh`, `--resume`
 
 ### Reference Files (Financial-DataBase)
 - `/home/caudillo/Financial-DataBase/src/financial_database/db/migrations/` - Schema migrations
