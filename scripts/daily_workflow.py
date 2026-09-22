@@ -167,18 +167,25 @@ def _run(args) -> None:
     cache: dict[str, dict | None] = {}
 
     if not args.no_prices:
+        # Concurrent history() bursts throttle harder at Yahoo than the
+        # .info calls inside analysis: benchmarked on the 500-universe, 3+
+        # concurrent prefetch workers add latency and can intermittently
+        # return empty history ("possibly delisted"). Cap the prefetch at 2
+        # workers regardless of --workers (the analysis pool still uses the
+        # full worker count).
+        price_workers = min(args.workers, 2)
         logger.info(
             "prefetching real-time prices for %d tickers (batch=%d, delay=%.2fs, workers=%d)",
             len(universe),
             args.batch_size,
             args.batch_delay,
-            args.workers,
+            price_workers,
         )
         prices = price_service.get_current_prices(
             list(universe),
             batch_size=args.batch_size,
             delay=args.batch_delay,
-            workers=args.workers,
+            workers=price_workers,
         )
         unavailable = [t for t, p in prices.items() if p is None]
         if unavailable:
