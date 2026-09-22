@@ -218,6 +218,10 @@ python scripts/fetch_russell2000.py
 #    FTSE MIB, AEX, SMI, OMXS30, OMXC20/25) -> config/universe_european.csv.
 #    Only SEC filers (ADR / 20-F / 40-F with an EDGAR CIK) can be analyzed, so
 #    the file flags has_sec_filings and the non-filers stay out of the master.
+#    Name-only SEC matching can wrongly flag a US company sharing the name
+#    (NN Group/NN, Merck KGaA/Merck & Co, Compass Group/Compass Inc, EQT
+#    AB/EQT Corp); those collisions are curated out in
+#    scripts/universe_common.py::SEC_NAME_COLLISIONS.
 python scripts/fetch_european_indices.py
 
 # 4) Merge + dedup (by ticker, then by CIK) -> config/universe.csv (master)

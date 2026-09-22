@@ -17,7 +17,13 @@ decision is auditable.
 Filing status is determined by matching each company name against the
 official SEC ``company_tickers.json`` map. Name matching (not ticker
 matching) is essential: domestic exchange tickers routinely collide with
-unrelated US symbols (DAX ``DTE`` vs DTE Energy).
+unrelated US symbols (DAX ``DTE`` vs DTE Energy). The reverse risk — a
+European name key coinciding with a different US SEC filer after
+company-type stripping — is handled by the curated ``SEC_NAME_COLLISIONS``
+map in ``universe_common.py`` (audited 2026-09: NN Group/NN, Merck
+KGaA/Merck & Co, Compass Group/Compass Inc, EQT AB/EQT Corp); a collided
+constituent records ``has_sec_filings=false`` and keeps its domestic
+ticker so the decision stays auditable.
 
 Output columns: ``ticker,cik,company_name,source_index,has_sec_filings``.
 Companies with ``has_sec_filings=true`` carry their US-listed SEC ticker
