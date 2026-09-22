@@ -186,9 +186,14 @@ issuers or duplicate share classes) are skipped with a warning.
 
 - **SEC update fails** ("SEC_USER_AGENT ... required"): export it before
   running `daily_workflow.py`, or set `SEC_EMAIL` in `.env`.
-- **Prices show N/A**: Yahoo may be rate-limiting or offline; the workflow
-  degrades gracefully and the report lists affected tickers under
-  `## Price notes`. Re-run later.
+- **Prices show N/A** ("missing quotes"): Yahoo may be rate-limiting or
+  offline; the workflow degrades gracefully. Every unquoted ticker is
+  re-probed and categorized (`docs/price_failure_diagnosis_2026-09-22.md`):
+  `yahoo_glitch` → WARNING + report note (data exists on retry; analyzed
+  with market fields N/A), `mapping` → ERROR + report note (symbol is not a
+  known listed company — universe/CIK gap), `delisted`/`unknown` → silent
+  INFO skip. Affected tickers are listed under `## Price notes`. Re-run
+  later.
 - **No basics for a ticker**: run the Financial-DataBase sync for it
   (`sec sync <CIK>`) or `load-data <TICKER>` on the Value Investing side.
 - **`financial_database` module not found**: make sure `--fdb-dir` points to
