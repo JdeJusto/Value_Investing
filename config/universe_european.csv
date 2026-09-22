@@ -1,0 +1,356 @@
+ticker,cik,company_name,source_index,has_sec_filings
+ABN-AS,,ABN AMRO,AEX,false
+ADYEN-AS,,Adyen,AEX,false
+AEG,0000769218,Aegon Ltd.,AEX,true
+AD-AS,,Ahold Delhaize,AEX,false
+AKZOY,0000003124,Akzo Nobel Nv,AEX,true
+MT,0001243429,Arcelormittal,AEX,true
+ASM-AS,,ASM International,AEX,false
+ASML,0000937966,Asml Holding Nv,AEX,true
+ASRNL-AS,,ASR Nederland,AEX,false
+BESI-AS,,BE Semiconductors,AEX,false
+DSFIR-AS,,DSM Firmenich AG,AEX,false
+EXO-AS,,Exor,AEX,false
+HKHHY,0001142231,Heineken Holding N V,AEX,true
+IMCD-AS,,IMCD,AEX,false
+INGA-AS,,ING Group,AEX,false
+KPN-AS,,KPN,AEX,false
+NNBR,0000918541,Nn Inc,AEX,true
+PHIA-AS,,Philips,AEX,false
+PRX-AS,,Prosus,AEX,false
+RAND-AS,,Randstad,AEX,false
+RELX,0000929869,Relx Plc,AEX,true
+SHEL,0001306965,Shell Plc,AEX,true
+UMG-AS,,Universal Music Group,AEX,false
+UL,0000217410,Unilever Plc,AEX,true
+WKL-AS,,Wolters Kluwer,AEX,false
+AC-PA,,Accor,CAC40,false
+AI-PA,,Air Liquide,CAC40,false
+AIR-PA,,Airbus,CAC40,false
+MT,0001243429,Arcelormittal,CAC40,true
+CS-PA,,Axa,CAC40,false
+BNP-PA,,BNP Paribas,CAC40,false
+EN-PA,,Bouygues,CAC40,false
+BVI-PA,,Bureau Veritas,CAC40,false
+CAP-PA,,Capgemini,CAC40,false
+CA-PA,,Carrefour,CAC40,false
+ACA-PA,,Crédit Agricole,CAC40,false
+BN-PA,,Danone,CAC40,false
+DSY-PA,,Dassault Systèmes,CAC40,false
+EDEN-PA,,Edenred,CAC40,false
+ENGI-PA,,Engie,CAC40,false
+EL-PA,,EssilorLuxottica,CAC40,false
+ERF-PA,,Eurofins Scientific,CAC40,false
+RMS-PA,,Hermès,CAC40,false
+KER-PA,,Kering,CAC40,false
+OR-PA,,L'Oréal,CAC40,false
+LR-PA,,Legrand,CAC40,false
+MC-PA,,LVMH,CAC40,false
+ML-PA,,Michelin,CAC40,false
+FNCTF,0001038143,Orange,CAC40,true
+RI-PA,,Pernod Ricard,CAC40,false
+PUB-PA,,Publicis,CAC40,false
+RNO-PA,,Renault,CAC40,false
+SAF-PA,,Safran,CAC40,false
+SGO-PA,,Saint-Gobain,CAC40,false
+SNY,0001121404,Sanofi,CAC40,true
+SU-PA,,Schneider Electric,CAC40,false
+GLE-PA,,Société Générale,CAC40,false
+STLA,0001605484,Stellantis N.V.,CAC40,true
+STM,0000932787,Stmicroelectronics N.V.,CAC40,true
+TEP-PA,,Teleperformance,CAC40,false
+HO-PA,,Thales,CAC40,false
+TTE,0000879764,Totalenergies Se,CAC40,true
+URW-PA,,Unibail-Rodamco-Westfield,CAC40,false
+VIE-PA,,Veolia,CAC40,false
+DG-PA,,Vinci,CAC40,false
+ADS-DE,,Adidas,DAX40,false
+AIR-PA,,Airbus,DAX40,false
+ALV-DE,,Allianz,DAX40,false
+BAS-DE,,BASF,DAX40,false
+BAYN-DE,,Bayer,DAX40,false
+BEI-DE,,Beiersdorf,DAX40,false
+BMW-DE,,BMW,DAX40,false
+BNR-DE,,Brenntag,DAX40,false
+CBK-DE,,Commerzbank,DAX40,false
+CON-DE,,Continental,DAX40,false
+DTG-DE,,Daimler Truck,DAX40,false
+DB,0001159508,Deutsche Bank Aktiengesellschaft,DAX40,true
+DB1-DE,,Deutsche Börse,DAX40,false
+DHL-DE,,Deutsche Post,DAX40,false
+DTEGY,0000946770,Deutsche Telekom Ag,DAX40,true
+EONGY,0001136808,E.On Se,DAX40,true
+FRE-DE,,Fresenius,DAX40,false
+FMS,0001333141,Fresenius Medical Care Ag,DAX40,true
+G1A-DE,,GEA Group,DAX40,false
+HNR1-DE,,Hannover Re,DAX40,false
+HEI-DE,,Heidelberg Materials,DAX40,false
+HEN3-DE,,Henkel,DAX40,false
+IFNNY,0001107457,Infineon Technologies Ag,DAX40,true
+MBG-DE,,Mercedes-Benz Group,DAX40,false
+MRK,0000310158,"Merck & Co., Inc.",DAX40,true
+MTX-DE,,MTU Aero Engines,DAX40,false
+MUV2-DE,,Munich Re,DAX40,false
+PAH3-DE,,Porsche SE,DAX40,false
+QGEN,0001015820,Qiagen N.V.,DAX40,true
+RHM-DE,,Rheinmetall,DAX40,false
+RWE-DE,,RWE,DAX40,false
+SAP,0001000184,Sap Se,DAX40,true
+G24-DE,,Scout24,DAX40,false
+SIE-DE,,Siemens,DAX40,false
+ENR-DE,,Siemens Energy,DAX40,false
+SHL-DE,,Siemens Healthineers,DAX40,false
+SY1-DE,,Symrise,DAX40,false
+VOW3-DE,,Volkswagen Group,DAX40,false
+VNA-DE,,Vonovia,DAX40,false
+ZAL-DE,,Zalando,DAX40,false
+TGOPF,0001078716,3I Group Plc,FTSE100,true
+ABDN,,Aberdeen Group,FTSE100,false
+ADM,,Admiral Group,FTSE100,false
+AAF,,Airtel Africa,FTSE100,false
+ALW,,Alliance Witan,FTSE100,false
+AAL,,Anglo American plc,FTSE100,false
+ANTO,,Antofagasta plc,FTSE100,false
+ABF,,Associated British Foods,FTSE100,false
+AZN,0000901832,Astrazeneca Plc,FTSE100,true
+AUTO,,Autotrader Group,FTSE100,false
+AV,,Aviva,FTSE100,false
+BAB,,Babcock International,FTSE100,false
+BA,,BAE Systems,FTSE100,false
+BCS,0000312069,Barclays Plc,FTSE100,true
+BTRW,,Barratt Redrow,FTSE100,false
+BEZ,,Beazley,FTSE100,false
+BP,0000313807,Bp Plc,FTSE100,true
+BTI,0001303523,British American Tobacco P.L.C.,FTSE100,true
+BLND,,British Land,FTSE100,false
+BT-A,,BT Group,FTSE100,false
+BZLFY,0001072397,Bunzl Plc,FTSE100,true
+BRBY,,Burberry Group,FTSE100,false
+CNA,,Centrica,FTSE100,false
+CCEP,0001650107,Coca-Cola Europacific Partners Plc,FTSE100,true
+CCH,,Coca-Cola HBC,FTSE100,false
+COMP,0001563190,"Compass, Inc.",FTSE100,true
+CCC,,Computacenter,FTSE100,false
+CTEC,,Convatec,FTSE100,false
+CRDA,,Croda International,FTSE100,false
+DCC,,DCC Energy,FTSE100,false
+DEO,0000835403,Diageo Plc,FTSE100,true
+DPLM,,Diploma,FTSE100,false
+ESYJY,0001470419,Easyjet Plc,FTSE100,true
+EDV,,Endeavour Mining,FTSE100,false
+EXPN,,Experian,FTSE100,false
+FCIT,,F & C Investment Trust,FTSE100,false
+FRES,,Fresnillo plc,FTSE100,false
+GAW,,Games Workshop,FTSE100,false
+GLEN,,Glencore,FTSE100,false
+GSK,0001131399,Gsk Plc,FTSE100,true
+HLN,0001900304,Haleon Plc,FTSE100,true
+HLMA,,Halma plc,FTSE100,false
+HSX,,Hiscox,FTSE100,false
+HWDN,,Howdens Joinery,FTSE100,false
+HSBC,0001089113,Hsbc Holdings Plc,FTSE100,true
+ICG,,ICG,FTSE100,false
+IGG,,IG Group,FTSE100,false
+IHG,,IHG Hotels & Resorts,FTSE100,false
+IMI,,IMI,FTSE100,false
+IMB,,Imperial Brands,FTSE100,false
+INF,,Informa,FTSE100,false
+IAG,,International Airlines Group,FTSE100,false
+ITRK,,Intertek,FTSE100,false
+INVP,,Investec,FTSE100,false
+ITH,,Ithaca Energy,FTSE100,false
+JD,,JD Sports,FTSE100,false
+BGEO,,Lion Finance Group,FTSE100,false
+KGF,,Kingfisher plc,FTSE100,false
+LAND,,Land Securities,FTSE100,false
+LGEN,,Legal & General,FTSE100,false
+LYG,0001160106,Lloyds Banking Group Plc,FTSE100,true
+LMP,,LondonMetric Property,FTSE100,false
+LSEGY,0001842726,London Stock Exchange Group Plc,FTSE100,true
+MNG,,M&G,FTSE100,false
+MKS,,Marks & Spencer,FTSE100,false
+MRO,,Melrose Industries,FTSE100,false
+MTLN,,Metlen Energy & Metals,FTSE100,false
+NGG,0001004315,National Grid Plc,FTSE100,true
+NWG,0000844150,Natwest Group Plc,FTSE100,true
+NXT,,Next plc,FTSE100,false
+PSO,0000938323,Pearson Plc,FTSE100,true
+PS,0002026053,Pershing Square Inc.,FTSE100,true
+PCT,,Polar Capital Technology Trust,FTSE100,false
+PUK,0001116578,Prudential Plc,FTSE100,true
+RKT,,Reckitt,FTSE100,false
+RELX,0000929869,Relx Plc,FTSE100,true
+RTO,,Rentokil Initial,FTSE100,false
+RTNTF,0000887028,Rio Tinto Ltd,FTSE100,true
+RR,,Rolls-Royce Holdings,FTSE100,false
+SGE,,Sage Group,FTSE100,false
+SBRY,,Sainsbury's,FTSE100,false
+SDR,,Schroders,FTSE100,false
+SMT,,Scottish Mortgage Investment Trust,FTSE100,false
+SGRO,,Segro,FTSE100,false
+SVT,,Severn Trent,FTSE100,false
+SHEL,0001306965,Shell Plc,FTSE100,true
+SMIN,,Smiths Group,FTSE100,false
+SNN,0000845982,Smith & Nephew Plc,FTSE100,true
+SPX,,Spirax Group,FTSE100,false
+SSE,,SSE plc,FTSE100,false
+STAN,,Standard Chartered,FTSE100,false
+SLFPY,0001370418,Standard Life Plc,FTSE100,true
+STJ,,St. James's Place,FTSE100,false
+TSCO,,Tesco,FTSE100,false
+BBOX,,Tritax Big Box REIT,FTSE100,false
+UL,0000217410,Unilever Plc,FTSE100,true
+UU,,United Utilities,FTSE100,false
+VOD,,Vodafone Group,FTSE100,false
+WEIR,,Weir,FTSE100,false
+WTB,,Whitbread,FTSE100,false
+A2A-MI,,A2A,FTSE_MIB,false
+AMP-MI,,Amplifon,FTSE_MIB,false
+AVIO-MI,,Avio,FTSE_MIB,false
+AZM-MI,,Azimut,FTSE_MIB,false
+BMED-MI,,Banca Mediolanum,FTSE_MIB,false
+BMDPF,0001002788,Banca Monte Dei Paschi Di Siena Spa,FTSE_MIB,true
+BAMI-MI,,Banco BPM,FTSE_MIB,false
+BPE-MI,,BPER Banca,FTSE_MIB,false
+BC-MI,,Brunello Cucinelli,FTSE_MIB,false
+BZU-MI,,Buzzi,FTSE_MIB,false
+CPR-MI,,Campari,FTSE_MIB,false
+DIA-MI,,Diasorin,FTSE_MIB,false
+ENEL-MI,,Enel,FTSE_MIB,false
+E,0001002242,Eni Spa,FTSE_MIB,true
+RACE,0001648416,Ferrari N.V.,FTSE_MIB,true
+FCT-MI,,Fincantieri,FTSE_MIB,false
+FBK-MI,,FinecoBank,FTSE_MIB,false
+G-MI,,Generali,FTSE_MIB,false
+HER-MI,,Hera,FTSE_MIB,false
+ISP-MI,,Intesa Sanpaolo,FTSE_MIB,false
+INW-MI,,INWIT,FTSE_MIB,false
+IG-MI,,Italgas,FTSE_MIB,false
+IVG-MI,,Iveco,FTSE_MIB,false
+LDO-MI,,Leonardo,FTSE_MIB,false
+LTMC-MI,,Lottomatica Group,FTSE_MIB,false
+MB-MI,,Mediobanca,FTSE_MIB,false
+MONC-MI,,Moncler,FTSE_MIB,false
+NEXI-MI,,Nexi,FTSE_MIB,false
+PST-MI,,Poste italiane,FTSE_MIB,false
+PRYMF,0001437672,Prysmian S.P.A.,FTSE_MIB,true
+REC-MI,,Recordati,FTSE_MIB,false
+SPM-MI,,Saipem,FTSE_MIB,false
+SRG-MI,,Snam,FTSE_MIB,false
+STLA,0001605484,Stellantis N.V.,FTSE_MIB,true
+STM,0000932787,Stmicroelectronics N.V.,FTSE_MIB,true
+TIT-MI,,Telecom Italia,FTSE_MIB,false
+TS,0001190723,Tenaris Sa,FTSE_MIB,true
+TRN-MI,,Terna,FTSE_MIB,false
+UCG-MI,,UniCredit,FTSE_MIB,false
+UNI-MI,,Unipol,FTSE_MIB,false
+ACS-MC,,ACS,IBEX35,false
+ACX-MC,,Acerinox,IBEX35,false
+AMS-MC,,Amadeus IT Group,IBEX35,false
+ANA-MC,,Acciona,IBEX35,false
+ANE-MC,,Acciona Energía,IBEX35,false
+BBVA-MC,,BBVA,IBEX35,false
+BKT-MC,,Bankinter,IBEX35,false
+CABK-MC,,CaixaBank,IBEX35,false
+CLNX-MC,,Cellnex Telecom,IBEX35,false
+COL-MC,,Inmobiliaria Colonial,IBEX35,false
+AENA-MC,,AENA,IBEX35,false
+ELE-MC,,Endesa,IBEX35,false
+ENG-MC,,Enagás,IBEX35,false
+FDR-MC,,Fluidra,IBEX35,false
+FER,0001468522,Ferrovial N.V.,IBEX35,true
+GRFS,0001438569,Grifols Sa,IBEX35,true
+IAG-MC,,International Airlines Group,IBEX35,false
+IBE-MC,,Iberdrola,IBEX35,false
+IDR-MC,,Indra,IBEX35,false
+ITX-MC,,Inditex,IBEX35,false
+LOG-MC,,Logista,IBEX35,false
+MAP-MC,,Mapfre,IBEX35,false
+MRL-MC,,Merlin Properties,IBEX35,false
+MT,0001243429,Arcelormittal,IBEX35,true
+NTGY-MC,,Naturgy,IBEX35,false
+PUIG-MC,,Puig,IBEX35,false
+RED-MC,,Redeia Corporación,IBEX35,false
+REP-MC,,Repsol,IBEX35,false
+ROVI-MC,,Laboratorios Rovi [es],IBEX35,false
+SAB-MC,,Banco Sabadell,IBEX35,false
+SAN-MC,,Santander,IBEX35,false
+SCYR-MC,,Sacyr,IBEX35,false
+SLR-MC,,Solaria,IBEX35,false
+TEF-MC,,Telefónica,IBEX35,false
+UNI-MC,,Unicaja,IBEX35,false
+MAERSKA,,A.P. Møller-Mærsk (class A),OMXC25,false
+MAERSKB,,A.P. Møller-Mærsk (class B),OMXC25,false
+ALSYDB,,AL Sydbank,OMXC25,false
+AMBUB,,Ambu,OMXC25,false
+CARLB,,Carlsberg Group,OMXC25,false
+COLOB,,Coloplast,OMXC25,false
+DANSKE,,Danske Bank,OMXC25,false
+DEMANT,,Demant,OMXC25,false
+DSV,,DSV,OMXC25,false
+FLIDY,0001433087,Flsmidth & Co. A/S,OMXC25,true
+GMAB,0001434265,Genmab A/S,OMXC25,true
+GN,,GN Store Nord,OMXC25,false
+ISS,,ISS,OMXC25,false
+JYSK,,Jyske Bank,OMXC25,false
+NKT,,NKT,OMXC25,false
+NDA,,Nordea Bank Abp,OMXC25,false
+NVO,0000353278,Novo Nordisk A S,OMXC25,true
+NSISB,,Novonesis,OMXC25,false
+PNDORA,,Pandora,OMXC25,false
+ROCKB,,Rockwool International,OMXC25,false
+RBREW,,Royal Unibrew,OMXC25,false
+TRYG,,Tryg,OMXC25,false
+VWSYF,0001330306,Vestas Wind Systems A/S,OMXC25,true
+ZEAL,,Zealand Pharma,OMXC25,false
+ORSTED,,Ørsted,OMXC25,false
+ABBNY,0001091587,Abb Ltd,OMXS30,true
+ADDT-B-ST,,Addtech B,OMXS30,false
+ALFA-ST,,Alfa Laval,OMXS30,false
+ASSA-B-ST,,Assa Abloy B,OMXS30,false
+AZN,0000901832,Astrazeneca Plc,OMXS30,true
+ATCO-A-ST,,Atlas Copco A,OMXS30,false
+BOL-ST,,Boliden,OMXS30,false
+EPI-A-ST,,Epiroc A,OMXS30,false
+EQT,0000033213,Eqt Corp,OMXS30,true
+ERIC-B-ST,,Ericsson B,OMXS30,false
+ESSITY-B-ST,,Essity B,OMXS30,false
+EVO-ST,,Evolution,OMXS30,false
+SHB-A-ST,,Handelsbanken A,OMXS30,false
+HM-B-ST,,Hennes & Mauritz B,OMXS30,false
+HEXA-B-ST,,Hexagon B,OMXS30,false
+INDU-C-ST,,Industrivärden C,OMXS30,false
+INVE-B-ST,,Investor B,OMXS30,false
+LIFCO-B-ST,,Lifco B,OMXS30,false
+NIBE-B-ST,,Nibe Industrier B,OMXS30,false
+NDA-SE-ST,,Nordea Bank Abp,OMXS30,false
+SAAB-B-ST,,Saab B,OMXS30,false
+SAND-ST,,Sandvik,OMXS30,false
+SCA-B-ST,,SCA B,OMXS30,false
+SEB-A-ST,,SEB A,OMXS30,false
+SKA-B-ST,,Skanska B,OMXS30,false
+SKF-B-ST,,SKF B,OMXS30,false
+SWED-A-ST,,Swedbank A,OMXS30,false
+TEL2-B-ST,,Tele2 B,OMXS30,false
+TELIA-ST,,Telia Company,OMXS30,false
+VOLV-B-ST,,Volvo B,OMXS30,false
+NOVN,,Novartis International AG,SMI,false
+ROP,,Roche Holding AG,SMI,false
+NESN,,Nestlé SA,SMI,false
+ABBNY,0001091587,Abb Ltd,SMI,true
+UBS,0001610520,Ubs Group Ag,SMI,true
+CFR,,Compagnie Financière Richemont SA,SMI,false
+ZURN,,Zurich Insurance Group AG,SMI,false
+HOLN,,Holcim Limited,SMI,false
+SREN,,Swiss Reinsurance Company Ltd,SMI,false
+LONN,,Lonza Group AG,SMI,false
+SCMWY,0001069336,Swisscom Ag,SMI,true
+GIVN,,Givaudan SA,SMI,false
+ALC,0001167379,Alcon Inc,SMI,true
+SIKA,,Sika AG,SMI,false
+AMRZ,0002035989,Amrize Ltd,SMI,true
+SLHN,,Swiss Life Holding AG,SMI,false
+KNIN,,Kuehne + Nagel,SMI,false
+GEBN,,Geberit AG,SMI,false
+PGHN,,Partners Group Holding AG,SMI,false
+LOGI,0001032975,Logitech International S.A.,SMI,true
