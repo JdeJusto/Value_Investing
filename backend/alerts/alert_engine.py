@@ -20,7 +20,11 @@ from backend.alerts.triggers import (
     trigger_label,
 )
 from backend.screener.ranking_engine import rank_score
-from backend.screener.signals import detect_trigger, generate_signal
+from backend.screener.signals import (
+    calibrate_trigger_thresholds,
+    detect_trigger,
+    generate_signal,
+)
 
 
 @dataclass
@@ -39,9 +43,11 @@ class Alert:
         }
 
 
-def _buy_alert(ticker: str, analysis: dict) -> Optional[Alert]:
+def _buy_alert(
+    ticker: str, analysis: dict, thresholds: Optional[dict] = None
+) -> Optional[Alert]:
     rank = rank_score(analysis)
-    signal = generate_signal(analysis, rank)
+    signal = generate_signal(analysis, rank, thresholds=thresholds)
     if signal["signal"] != "BUY":
         return None
     confidence = signal["confidence"]
@@ -56,7 +62,12 @@ def _buy_alert(ticker: str, analysis: dict) -> Optional[Alert]:
     )
 
 
-def _sell_alert(ticker: str, current: dict, previous: dict) -> Optional[Alert]:
+def _sell_alert(
+    ticker: str,
+    current: dict,
+    previous: dict,
+    thresholds: Optional[dict] = None,
+) -> Optional[Alert]:
     prev_score = composite_score(previous)
     current_score = composite_score(current)
     if prev_score is None or current_score is None:
@@ -67,7 +78,7 @@ def _sell_alert(ticker: str, current: dict, previous: dict) -> Optional[Alert]:
     reasons = [
         f"score total {prev_score:.1f} -> {current_score:.1f} " f"(-{drop:.0f} puntos)"
     ]
-    trigger = trigger_label(detect_trigger(current))
+    trigger = trigger_label(detect_trigger(current, thresholds=thresholds))
     if trigger:
         reasons.append(f"trigger {trigger}")
     return Alert(
@@ -78,8 +89,12 @@ def _sell_alert(ticker: str, current: dict, previous: dict) -> Optional[Alert]:
     )
 
 
-def _trigger_alert(ticker: str, analysis: dict) -> Optional[Alert]:
-    trigger = trigger_label(detect_trigger(analysis))
+def _trigger_alert(
+    ticker: str, analysis: dict, thresholds: Optional[dict] = None
+) -> Optional[Alert]:
+    trigger = trigger_label(
+        detect_trigger(analysis, thresholds=thresholds)
+    )
     if trigger is None:
         return None
     rank = rank_score(analysis)
@@ -93,21 +108,30 @@ def _trigger_alert(ticker: str, analysis: dict) -> Optional[Alert]:
 
 
 def evaluate_company(
-    ticker: str, current: dict, previous: Optional[dict] = None
+    ticker: str,
+    current: dict,
+    previous: Optional[dict] = None,
+    thresholds: Optional[dict] = None,
 ) -> list[Alert]:
-    """All alerts for one company given its current (and past) state."""
+    """All alerts for one company given its current (and past) state.
+
+    ``thresholds`` carries the universe-calibrated trigger floors (see
+    ``calibrate_trigger_thresholds``); when None the absolute floors apply.
+    """
     alerts: list[Alert] = []
 
-    trigger = _trigger_alert(ticker, current)
+    trigger = _trigger_alert(ticker, current, thresholds=thresholds)
     if trigger is not None:
         alerts.append(trigger)
 
-    buy = _buy_alert(ticker, current)
+    buy = _buy_alert(ticker, current, thresholds=thresholds)
     if buy is not None:
         alerts.append(buy)
 
     if previous is not None:
-        sell = _sell_alert(ticker, current, previous)
+        sell = _sell_alert(
+            ticker, current, previous, thresholds=thresholds
+        )
         if sell is not None:
             alerts.append(sell)
 
@@ -120,16 +144,22 @@ def run(
 ) -> list[Alert]:
     """Evaluate every company and return the deduplicated alert list.
 
+    Trigger thresholds are calibrated across the whole analyzed universe so
+    only cross-sectionally standout improvements fire a TRIGGER_EVENT.
     Companies whose current analysis is None (insufficient data, failed
     analysis) are skipped: an alert cannot be derived from no analysis.
     """
+    thresholds = calibrate_trigger_thresholds(analyses.values())
     alerts: list[Alert] = []
     for ticker, current in analyses.items():
         if current is None:
             continue
         alerts.extend(
             evaluate_company(
-                ticker, current, previous.get(ticker) if previous else None
+                ticker,
+                current,
+                previous.get(ticker) if previous else None,
+                thresholds=thresholds,
             )
         )
     return dedupe(alerts)
