@@ -122,7 +122,11 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
 
 
 def _run(args) -> None:
-    from backend.app.cli import build_analysis_service, build_financial_repository
+    from backend.app.cli import (
+        build_analysis_service,
+        build_financial_repository,
+    )
+    from backend.providers.snapshot import SnapshotMarketProvider
     from backend.screener.screener_service import ScreenerService
     from backend.services.daily_report_service import (
         DailyReport,
@@ -161,37 +165,47 @@ def _run(args) -> None:
     timings["refresh"] = time.time() - tick
     tick = time.time()
 
-    analysis_service = build_analysis_service()
     fdb_repo = build_financial_repository()
     price_service = get_price_service()
     cache: dict[str, dict | None] = {}
 
-    if not args.no_prices:
-        # Concurrent history() bursts throttle harder at Yahoo than the
-        # .info calls inside analysis: benchmarked on the 500-universe, 3+
-        # concurrent prefetch workers add latency and can intermittently
-        # return empty history ("possibly delisted"). Cap the prefetch at 2
-        # workers regardless of --workers (the analysis pool still uses the
-        # full worker count).
-        price_workers = min(args.workers, 2)
+    # One Yahoo quote-summary (.info) request per ticker carries price, market
+    # cap, enterprise value, beta and shares — prefetched once here so the
+    # parallel analysis below runs with *zero* further network calls. With
+    # --no-prices the provider is empty and all market fields degrade to
+    # N/A (truly network-free).
+    if args.no_prices:
+        market_provider = SnapshotMarketProvider({})
+    else:
+        # Quote-summary bursts are far more tolerant than history() bursts: a
+        # 100-ticker probe saw 0 failures at 4 and 6 workers, while history()
+        # throttled at 3+. Still cap at min(workers, 4) and keep the paced,
+        # batched fetch so transient errors are absorbed by the retry-once.
+        snapshot_workers = min(args.workers, 4)
         logger.info(
-            "prefetching real-time prices for %d tickers (batch=%d, delay=%.2fs, workers=%d)",
+            "prefetching market snapshots (.info) for %d tickers "
+            "(batch=%d, delay=%.2fs, workers=%d)",
             len(universe),
             args.batch_size,
             args.batch_delay,
-            price_workers,
+            snapshot_workers,
         )
-        prices = price_service.get_current_prices(
+        snapshots = price_service.get_market_snapshots(
             list(universe),
             batch_size=args.batch_size,
             delay=args.batch_delay,
-            workers=price_workers,
+            workers=snapshot_workers,
         )
-        unavailable = [t for t, p in prices.items() if p is None]
+        unavailable = [t for t, s in snapshots.items() if s is None]
         if unavailable:
-            logger.warning("no real-time price for %d ticker(s)", len(unavailable))
+            logger.warning(
+                "no market quote for %d ticker(s)", len(unavailable)
+            )
+        market_provider = SnapshotMarketProvider(snapshots)
     timings["prices"] = time.time() - tick
     tick = time.time()
+
+    analysis_service = build_analysis_service(market_provider=market_provider)
 
     def analyzer(ticker: str):
         if ticker not in cache:

@@ -22,6 +22,20 @@ import yfinance as yf
 DEFAULT_CACHE_TTL_SECONDS = 900  # 15 minutes
 
 
+def _snapshot_price(snap: dict) -> Optional[float]:
+    """Extract the live price from a Yahoo .info dict, or None.
+
+    ``regularMarketPrice`` is the current quote (identical to the latest
+    ``period="1d"`` close for actively-traded names); ``currentPrice`` is the
+    fallback used for some instruments. Prefers a positive number.
+    """
+    for key in ("regularMarketPrice", "currentPrice", "lastPrice"):
+        value = snap.get(key)
+        if value is not None and float(value) > 0:
+            return float(value)
+    return None
+
+
 class PriceService:
     """Fetch real-time prices from Yahoo Finance without persisting them.
 
@@ -183,6 +197,77 @@ class PriceService:
                 return shares
         except Exception:  # noqa: BLE001 — provider failure must not break analysis
             pass
+        return None
+
+    # ------------------------------------------------------------------
+    # market snapshots (single .info call per ticker)
+    # ------------------------------------------------------------------
+    def get_market_snapshots(
+        self,
+        tickers: List[str],
+        batch_size: int = 25,
+        delay: float = 0.2,
+        workers: int = 1,
+    ) -> Dict[str, Optional[dict]]:
+        """Batch current market-quote snapshot fetch (Yahoo .info, one call).
+
+        Each ticker yields the parsed Yahoo ``.info`` quote dict — which
+        carries the price, market cap, enterprise value, beta and shares in a
+        single request — so a whole universe can be snapshotted once and the
+        per-ticker analysis can then run *without* any further network calls.
+        Not cached itself (a new snapshot is requested on each call) but the
+        derived ``current:{ticker}`` price and ``shares:{ticker}`` entries are
+        warmed into the memory cache so downstream reads reuse identical
+        values. Batching/pacing mirrors ``get_current_prices``. Nothing is
+        persisted. Returns ``{TICKER: snapshot-dict-or-None}``.
+        """
+        snapshots: Dict[str, Optional[dict]] = {}
+        remaining = [t.upper() for t in tickers if t]
+        while remaining:
+            batch, remaining = remaining[:batch_size], remaining[batch_size:]
+            if workers > 1:
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    for ticker, snap in zip(
+                        batch, pool.map(self._fetch_market_snapshot, batch)
+                    ):
+                        snapshots[ticker] = snap
+            else:
+                for ticker in batch:
+                    snapshots[ticker] = self._fetch_market_snapshot(ticker)
+            if remaining and delay > 0:
+                time.sleep(delay)
+
+        for ticker, snap in snapshots.items():
+            if not snap:
+                continue
+            price = _snapshot_price(snap)
+            if price is not None:
+                self._set_cached(f"current:{ticker}", float(price))
+            shares = snap.get("sharesOutstanding")
+            if shares is not None:
+                try:
+                    self._set_cached(f"shares:{ticker}", int(shares))
+                except (TypeError, ValueError):
+                    pass
+        return snapshots
+
+    def _fetch_market_snapshot(self, ticker: str) -> Optional[dict]:
+        """One Yahoo .info parse for ``ticker``, or None on failure.
+
+        The .info quote summary is far more resilient than the chart endpoint
+        used for history() — it keeps working for lightly-traded names and
+        delisted-with-data issues — but a single short retry still absorbs
+        transient network errors. Nothing is persisted.
+        """
+        for attempt in (1, 2):
+            try:
+                info = yf.Ticker(ticker).info
+                if isinstance(info, dict) and info:
+                    return info
+            except Exception:  # noqa: BLE001 — transient Yahoo errors
+                pass
+            if attempt == 1:
+                time.sleep(0.75)
         return None
 
     def get_split_adjustment(self, ticker: str, target_date: date) -> float:

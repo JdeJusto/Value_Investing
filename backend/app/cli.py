@@ -14,6 +14,7 @@ from backend.analytics.service import CompanyAnalysisService
 from backend.config.settings import get_output_dir
 from backend.domain.entities.company import Company
 from backend.domain.interfaces.financial_repository import FinancialRepository
+from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.domain.value_objects.financials_normalized import ProviderName
 from backend.providers.edgar import EdgarProvider
@@ -84,11 +85,20 @@ def build_data_pipeline() -> DataPipelineService:
     )
 
 
-def build_analysis_service() -> CompanyAnalysisService:
-    yahoo = YahooFinanceProvider()
+def build_analysis_service(
+    market_provider: Optional[MarketDataProvider] = None,
+) -> CompanyAnalysisService:
+    """CompanyAnalysisService reading from Financial-DataBase.
+
+    ``market_provider`` defaults to the live Yahoo provider. The daily
+    workflow passes a SnapshotMarketProvider (prefetched quote snapshots) so
+    batch analysis runs with zero per-ticker network calls.
+    """
+    if market_provider is None:
+        market_provider = YahooFinanceProvider()
     return CompanyAnalysisService(
         repository=build_financial_repository(),
-        market_provider=yahoo,
+        market_provider=market_provider,
         loader=build_data_pipeline(),
     )
 
