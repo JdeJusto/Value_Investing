@@ -97,6 +97,43 @@ Defined in `backend/screener/signals.py` (thresholds are on the calibrated
 The AVOID lower bound is anchored to buffett_score < 40 (weak company),
 not just a low calibrated rank.
 
+## Alerts and trigger calibration
+
+The daily workflow evaluates three alert types in `backend/alerts`
+(`run()` in `alert_engine.py`), summarized in `docs/runbook_daily.md`:
+
+| Alert          | Condition                                                        |
+|----------------|------------------------------------------------------------------|
+| `BUY_SIGNAL`   | signal is BUY (`rank >= 75`, composite `>= 70`, confidence HIGH/MEDIUM, buffett `>= 50`) |
+| `SELL_WARNING` | composite `total_score` drops `>= 10` (HIGH `>= 15`) vs the previous day's state |
+| `TRIGGER_EVENT`| dominant *positive* fundamental improvement clearing both floors below |
+
+### TRIGGER_EVENT calibration
+
+Defined in `backend/screener/signals.py`. A trigger fires only for the
+dominant **positive** improvement of the latest period when:
+
+1. its raw delta clears an **absolute floor**:
+   - `MARGIN_EXPANSION` — gross margin `>= +2 pp`
+   - `REVENUE_ACCELERATION` — revenue growth-rate acceleration `>= +5 pp`
+   - `ROIC_IMPROVEMENT` — ROIC `>= +3 pp`
+   - `FCF_SURGE` — FCF growth `>= +20%` **and** FCF itself positive
+2. it also clears a **cross-sectional percentile floor** of that delta
+   across the analyzed universe (`calibrate_trigger_thresholds`, default
+   quantile `q = 0.92`, effective threshold `= max(floor, percentile)`).
+   With fewer than 20 analyses the universe percentile is skipped and the
+   absolute floors apply alone (deterministic single-company behavior).
+3. the improvement is **persistent** where data permits: two consecutive
+   periods moving up (`gross_margin_delta_prev`, `roic_delta_prev`, and two
+   consecutive positive revenue-growth years).
+
+Deterioration is deliberately **not** a `TRIGGER_EVENT` — score drops
+(`SELL_WARNING`) and anomaly reporting cover it. Expected counts on the
+~500-company universe: `TRIGGER_EVENT` ≈ 5-10% of the universe (25-50,
+ceiling 80), `BUY_SIGNAL` ≈ 10-40, `SELL_WARNING` ≈ 0-5 and only when
+scores really drop ≥ 10 points vs the previous day (0 fires when the
+universe is stable).
+
 ## Calibration targets
 
 | Universe position | Target score band |

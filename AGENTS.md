@@ -196,8 +196,10 @@ all-empty fiscal year rows before computing ratios.
 The default daily universe comes from `config/universe.csv` (S&P 500 +
 Nasdaq-100 deduplicated, regenerated with `scripts/fetch_universe.py`,
 tickers resolved to SEC CIKs via Financial-DataBase). `scripts/daily_workflow.py`
-supports `--limit`, `--batch-size`, `--batch-delay` and pre-warms the price
-cache before analysis.
+supports `--limit`, `--batch-size`, `--batch-delay`, `--workers` (parallel
+price prefetch + analysis; the price prefetch is capped at 2 concurrent
+workers because denser `history()` bursts throttle at Yahoo) and pre-warms
+the price cache before analysis.
 - Compares 6 fundamental fields (revenue, net income, assets, liabilities,
   operating cash flow, capital expenditures); prices are never compared
 - Flags significant discrepancies (>5%) for further investigation
@@ -231,6 +233,35 @@ analysis commands and Financial-DataBase ingestion:
   `REFRESH_SKIP_FLAG`, and CLI flags
   `--refresh` / `--no-refresh` / `--freshness-hours N` (added with
   `backend.app.cli.add_refresh_arguments`).
+
+### 5d. Alert calibration (BUY_SIGNAL / SELL_WARNING / TRIGGER_EVENT)
+
+The daily alert evaluation (`backend/alerts/alert_engine.py::run`, wired in
+`scripts/daily_workflow.py`) produces three alert types:
+
+- **TRIGGER_EVENT** — only the dominant *positive* fundamental improvement
+  (margin expansion / revenue acceleration / ROIC improvement / FCF surge).
+  A positive delta must clear an absolute floor (margin ≥ 2pp, revenue
+  acceleration ≥ 5pp, ROIC ≥ 3pp, FCF growth ≥ 20% **with positive FCF**)
+  **and** a cross-sectional percentile floor of that delta across the
+  analyzed universe (`calibrate_trigger_thresholds` in
+  `backend/screener/signals.py`, default quantile 0.92; effective threshold
+  = max(floor, percentile); skipped below 20 samples so isolated,
+  single-company evaluations keep the absolute floors). Improvements must be
+  persistent over two consecutive periods where the data permits
+  (`*_delta_prev` fields in `backend/intelligence/delta_metrics.py`).
+  Deterioration is deliberately **not** a trigger — SELL_WARNING (score
+  drops ≥ 10 pts vs the previous day's `daily_state.json`) and anomaly
+  reporting cover it.
+- **BUY_SIGNAL** — `generate_signal` = BUY (rank ≥ 75, composite ≥ 70,
+  confidence HIGH/MEDIUM, buffett ≥ 50).
+- **SELL_WARNING** — composite total score drops ≥ 10 pts (HIGH ≥ 15) vs
+  the previous day; universe-wide, 0 fires when scores are stable.
+
+Expected counts on the ~500-company daily universe: TRIGGER_EVENT ≈ 5-10%
+(~25-50, ceiling 80), BUY_SIGNAL ≈ 10-40, SELL_WARNING ≈ 0-5. See
+`docs/scoring_methodology.md` (Alerts and trigger calibration) and
+`docs/runbook_daily.md`.
 
 ### 5. Configuration Updates
 - Add `FINANCIAL_DATABASE_URL` environment variable

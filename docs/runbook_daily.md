@@ -74,6 +74,10 @@ python scripts/daily_workflow.py --limit 200
 # Pace price fetching to stay under Yahoo's rate limits
 python scripts/daily_workflow.py --batch-size 25 --batch-delay 0.2
 
+# Parallel fetch + analysis (8 workers): much faster on large universes, still
+# paces price requests per batch; uses one PostgreSQL connection per thread
+python scripts/daily_workflow.py --workers 8
+
 # Use a custom universe / output dir / no prices
 python scripts/daily_workflow.py --universe config/universe.txt \
   --out data/reports --no-prices
@@ -87,11 +91,16 @@ What it does:
 2. **Screen the universe** with the quality (Buffett) engine, enriched with
    real-time prices fetched **only for the universe tickers** in paced
    batches (`PriceService.get_current_prices`, default batch size 25,
-   0.2 s pause between batches). Rankings use the calibrated cross-sectional
-   `rank_score` (see `docs/scoring_methodology.md`).
+   0.2 s pause between batches; `--workers N` fetches each batch in
+   parallel). Rankings use the calibrated cross-sectional `rank_score`
+   (see `docs/scoring_methodology.md`).
 3. **Alerts** from `backend/alerts`: `BUY_SIGNAL`, `SELL_WARNING` (chained to
    the previous day's state in `data/reports/daily_state.json`), and
-   `TRIGGER_EVENT` (margin/ROIC/FCF/REV movements).
+   `TRIGGER_EVENT` — calibrated fundamental improvements only (see
+   `docs/scoring_methodology.md` for thresholds). Expected counts on the
+   ~500-company universe: TRIGGER_EVENT ≈ 5-10% (~25-50, ceiling 80),
+   BUY_SIGNAL ≈ 10-40, SELL_WARNING ≈ 0-5 (only when scores actually drop
+   ≥ 10 points vs the previous day).
 4. **Report** written to `data/reports/daily_YYYY-MM-DD.md` (includes the
    `rank_score` column, data-coverage column, and the runtime in seconds) and
    the new state persisted for the next `SELL_WARNING` comparison.
