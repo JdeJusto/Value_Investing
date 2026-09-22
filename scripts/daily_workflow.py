@@ -145,6 +145,12 @@ def _run(args) -> None:
         logger.info("constrained to first %d tickers of the universe", args.limit)
     logger.info("universe loaded: %d tickers", len(universe))
 
+    # Phase timing — a lightweight wall-clock trace of the workflow so runs
+    # can be benchmarked and regressions spotted (refresh / prices / analysis
+    # / alerts / report). Cost is negligible.
+    timings: dict[str, float] = {}
+    tick = time.time()
+
     # Targeted SEC refresh of ONLY the analyzed tickers (stale companies via
     # per-CIK `sec sync`). Dry-run computes a read-only staleness estimate;
     # --no-update skips the refresh but still screens + writes.
@@ -152,6 +158,8 @@ def _run(args) -> None:
         sec_update_status = "SEC refresh: skipped (--no-update)"
     else:
         sec_update_status = _run_targeted_refresh(universe, args)
+    timings["refresh"] = time.time() - tick
+    tick = time.time()
 
     analysis_service = build_analysis_service()
     fdb_repo = build_financial_repository()
@@ -171,6 +179,8 @@ def _run(args) -> None:
         unavailable = [t for t, p in prices.items() if p is None]
         if unavailable:
             logger.warning("no real-time price for %d ticker(s)", len(unavailable))
+    timings["prices"] = time.time() - tick
+    tick = time.time()
 
     def analyzer(ticker: str):
         if ticker not in cache:
@@ -191,6 +201,8 @@ def _run(args) -> None:
     )
     screened = screener.run()
     logger.info("screened %d of %d tickers", len(screened), len(universe))
+    timings["analysis"] = time.time() - tick
+    tick = time.time()
 
     previous = (
         {}
@@ -198,6 +210,8 @@ def _run(args) -> None:
         else load_state(str(Path(args.out) / "daily_state.json"))
     )
     alerts = run_alerts(cache, previous)
+    timings["alerts"] = time.time() - tick
+    tick = time.time()
 
     def name_resolver(ticker: str) -> str | None:
         getter = getattr(fdb_repo, "get_company_name", None)
@@ -236,6 +250,10 @@ def _run(args) -> None:
         runtime_seconds=time.time() - start_time,
     )
     body = build_markdown(report)
+    timings["report"] = time.time() - tick
+    timings["total"] = time.time() - start_time
+    for name, elapsed in timings.items():
+        logger.info("[timing] %s: %.1fs", name, elapsed)
 
     if args.dry_run:
         print("=== DRY-RUN — no files written ===")
@@ -252,6 +270,8 @@ def _run(args) -> None:
     save_state(str(state_path), trim_state(cache))
     print(f"State written: {state_path}")
 
+    print(f"Timings: {_format_timings(timings)}")
+
     print(sec_update_status)
     print(f"Universe: {len(universe)} | Passed screen: {len(screened)}")
     if alerts:
@@ -267,6 +287,16 @@ def run_alerts(analyses: dict, previous: dict) -> list:
     from backend.alerts import run
 
     return run(analyses, previous or None)
+
+
+def _format_timings(timings: dict[str, float]) -> str:
+    """Compact wall-clock summary: `refresh 12s · prices 34s · analysis 210s ...`."""
+    order = ("refresh", "prices", "analysis", "alerts", "report", "total")
+    parts = []
+    for name in order:
+        if name in timings:
+            parts.append(f"{name} {timings[name]:.0f}s")
+    return " · ".join(parts)
 
 
 def _row_of(item, name_resolver=None) -> dict:
@@ -334,6 +364,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.2,
         help="Seconds to pause between price-fetch batches (default: 0.2)",
+    )
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=int(os.getenv("WORKFLOW_WORKERS", "1")),
+        help="Parallel workers for price prefetch and analysis "
+        "(default: 1; override with WORKFLOW_WORKERS)",
     )
     p.add_argument(
         "--no-update", action="store_true", help="Skip the SEC refresh but still screen + write"
