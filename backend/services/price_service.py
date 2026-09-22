@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -75,20 +76,28 @@ class PriceService:
         tickers: List[str],
         batch_size: int = 25,
         delay: float = 0.2,
+        workers: int = 1,
     ) -> Dict[str, Optional[float]]:
         """Batch current-price fetch with rate-limit pacing.
 
         Prices already in the in-memory cache are reused; the rest are
         fetched in batches of ``batch_size`` with a ``delay`` pause between
-        batches so a large universe does not hammer Yahoo Finance. Nothing is
-        persisted. Returns ``{TICKER: price-or-None}``.
+        batches so a large universe does not hammer Yahoo Finance. When
+        ``workers`` > 1 the per-ticker fetches of each batch run concurrently
+        in a bounded thread pool (the pause between batches still paces the
+        requests). Nothing is persisted. Returns ``{TICKER: price-or-None}``.
         """
         prices: Dict[str, Optional[float]] = {}
         remaining = [t.upper() for t in tickers if t]
         while remaining:
             batch, remaining = remaining[:batch_size], remaining[batch_size:]
-            for ticker in batch:
-                prices[ticker] = self.get_current_price(ticker)
+            if workers > 1:
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    for ticker, price in zip(batch, pool.map(self.get_current_price, batch)):
+                        prices[ticker] = price
+            else:
+                for ticker in batch:
+                    prices[ticker] = self.get_current_price(ticker)
             if remaining and delay > 0:
                 time.sleep(delay)
         return prices
