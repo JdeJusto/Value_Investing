@@ -49,6 +49,18 @@ class TestPriceService:
 
         assert price is None
 
+    def test_get_current_price_retries_after_transient_empty(self, service):
+        """A transient empty history window is retried once and recovers."""
+        hist = _make_history([date(2024, 1, 2)], [88.5])
+        mock_ticker = Mock()
+        mock_ticker.history.side_effect = [pd.DataFrame(), hist]
+
+        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+            price = service.get_current_price("SWKS")
+
+        assert price == 88.5
+        assert mock_ticker.history.call_count == 2
+
     def test_get_current_price_exception(self, service):
         """Test current price when yfinance raises."""
         mock_ticker = Mock()
