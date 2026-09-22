@@ -225,3 +225,129 @@ found.
   documented interpretation flag, not a score change.
 - If the environment's auto-push is unwanted, review the remote
   integration outside this repo (no local hooks/config were present).
+
+---
+
+# Daily-universe expansion — Russell 2000 + European SEC filers (final report, 2026-09-22)
+
+Second task of the day. Part 1 (review/push of the 4 pending commits) was
+verified at start of session: both repos clean and synced to `origin/main`,
+suite green (432 passed, 1 skipped). Parts 2–3 below.
+
+## 1. Executive summary
+
+| Gate | Result | Status |
+|---|---|---|
+| Universe covered | Russell 2000 (IWM holdings) + 9 European indices — SEC filings only | ✅ |
+| Default 500-ticker run preserved | `--universe sp500` = **500** tickers (old default was 500; 6-ticker S&P rebalancing delta documented) | ✅ |
+| FDB coverage gate | **99.6%** (2518/2528) ≥ 80% threshold, validator exit **0** | ✅ |
+| Named subsets | sp500 500 / nasdaq100 100 / sp500,nasdaq100 515 / russell2000 1957 / european 59 / all 2528 | ✅ |
+| No test regression | **474 passed, 1 skipped** (41 new universe tests + collision test) | ✅ |
+| `prices` table untouched | **152 rows** before and after every run (read-only, never persisted) | ✅ |
+| Refresh bounded | `--max-refresh` (default 200) caps per-run `sec sync` to the most-recently-synced stale companies | ✅ |
+| Audited European SEC matches | 72 flagged pairs manually checked vs EDGAR; **4 false positives** excluded | ✅ |
+
+## 2. What was delivered
+
+**Pipeline (`scripts/universe_common.py` + 4 scripts).** The master universe
+`config/universe.csv` is now built from per-index files:
+
+1. `fetch_universe.py` → `config/universe_sp500_nasdaq.csv` (S&P 500 +
+   Nasdaq-100; the Nasdaq-100 parser now uses the dedicated "List of
+   NASDAQ-100 companies" page).
+2. `fetch_russell2000.py` → `config/universe_russell2000.csv` (official
+   iShares IWM holdings snapshot, Equity rows only; CIKs via SEC EDGAR map).
+3. `fetch_european_indices.py` → `config/universe_european.csv` (FTSE 100,
+   DAX 40, CAC 40, IBEX 35, FTSE MIB, AEX, SMI, OMXS30, OMXC20/25) with a
+   `has_sec_filings` flag. **Feasibility rule:** fundamentals come only from
+   SEC EDGAR filings, so only European ADR/20-F/40-F filers are analyzable;
+   non-filers stay in the per-index file, flagged, out of the master.
+4. `build_universe.py` merges + dedups (by ticker then CIK), keeps only
+   rows with a CIK, and writes the master.
+5. `validate_universe_against_fdb.py` gates coverage ≥ 80% (default) with a
+   non-zero exit code and an unresolved list capped at 100.
+
+**Daily workflow (`daily_workflow.py`).**
+- `--universe sp500|nasdaq100|sp500,nasdaq100|russell2000|european|all|<file>`
+  (default `sp500`), filtered from the master by `source_index`.
+- `--max-refresh N` (default 200) caps the targeted `sec sync` per run;
+  `RefreshService.staleness_ranked` orders stale companies most-recently-
+  synced-first so the cap refreshes the closest-to-current data and defers
+  the rest. Never applies to an explicit `--refresh`.
+- `--resume` skips tickers already in the previous `daily_state.json`;
+  progress is logged every 100 analyzed tickers.
+
+## 3. Data quality finding — US name-collisions
+
+Name-only SEC matching (used because domestic European tickers collide with
+unrelated US symbols) has the *reverse* failure mode: a European name key
+can coincide with a different US SEC filer. Auditing all 72 flagged
+European rows against SEC EDGAR surfaced **4 false positives**, now curated
+in `SEC_NAME_COLLISIONS` (index code + name key → reason) and demoted to
+non-filers keeping their domestic ticker:
+
+- AEX **NN Group** → NN, Inc. (NNBR)
+- DAX40 **Merck** (KGaA) → Merck & Co. (MRK)
+- FTSE100 **Compass Group** (CPG) → Compass, Inc. (COMP)
+- OMXS30 **EQT** (AB) → EQT Corp (EQT)
+
+MRK/EQT legitimately remain in the master via S&P 500, COMP/NN via Russell
+2000 — they just no longer carry a false European tag; only Compass, Inc.
+left the master entirely (2529 → 2528, no other subset). Coverage 99.6%
+unchanged.
+
+Also fixed `sec_company_tickers` to never serve its process-wide cache for
+an explicit `raw_json`, making hermetic tests/verification order-independent.
+
+## 4. Coverage stats (final)
+
+```
+master config/universe.csv    2528 tickers
+SP500 500 / NASDAQ100 100 / Russell2000 1957 / European 59 rows (distinct)
+FDB resolved                   2518  (99.6%; gate ≥ 80%, exit 0)
+unresolved                     10    — all Russell small-caps, listed in
+                                     the validator output (BELFB, BATRK,
+                                     CENTA, HOS, LILAK, GLIBK, ATLC, BH,
+                                     AIRJ, FGBI — class-variant tickers or
+                                     not yet ingested in FDB)
+European file                  355 index slots → 68 SEC filers, 287 non-filers
+Russell file                   1981 rows, 1967 with SEC CIK (non-constituent
+                                     cash/futures/CVR rows already excluded)
+```
+
+## 5. Commits (all `jdejusto <jdejusto@users.noreply.github.com>`)
+
+| Commit | Type | Summary |
+|---|---|---|
+| `52913f8` | feat | universe pipeline — Russell 2000 + European fetchers, merge, coverage gate |
+| `171dde6` | feat(workflow) | named `--universe` subsets, `--max-refresh` cap, `--resume`, progress |
+| `7dadc42` | feat(refresh) | `staleness_ranked` — most-recently-synced-first stale ordering |
+| `2d4340c` | test | universe expansion tests (SEC matching, fetchers, merge, validator, workflow) |
+| `d28b06a` | data | regenerate master universe — Russell 2000 + European SEC filers |
+| `18d7663` | docs | universe expansion in runbook, README, AGENTS |
+| `cca0a80` | fix | exclude US name-collisions from the European SEC-filer flag |
+| `847c13b` | docs | note SEC_NAME_COLLISIONS handling |
+
+## 6. Constraints honored
+
+- **Prices never persisted** — `prices` stayed at 152 rows; `PriceService`
+  in-memory only.
+- **SEC refresh targeted + bounded** — only stale CIKs of the analyzed
+  tickers can trigger `sec sync`, capped per run by `--max-refresh`;
+  universe-wide runs still skip sync without flags.
+- **European feasibility documented before implementation** — SEC-filings-only
+  rule in `fetch_european_indices.py` docstring, AGENTS.md, runbook.
+- **Validator gate** — ≥ 80% FDB coverage required before pointing the daily
+  job at a changed universe (exit-code gate, unresolved list capped).
+- **Deterministic, no generated paths/secrets** — working tree clean; no
+  temp/debug/secret files tracked.
+
+## 7. Known limitations / follow-ups
+
+- 10 Russell names remain FDB-unresolved by ticker (share-class variants or
+  not-yet-ingested); they stay visible in `universe_russell2000.csv`.
+- `SEC_NAME_COLLISIONS` is a curated list; a same-name US collision for a
+  *new* European index member would need a manual audit pass (the
+  validator reports unresolved/flagged rows).
+- If the environment's auto-push is unwanted, review the remote
+  integration outside this repo (no local hooks/config were present).
