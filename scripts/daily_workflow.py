@@ -168,13 +168,17 @@ def _run(args) -> None:
 
     if not args.no_prices:
         logger.info(
-            "prefetching real-time prices for %d tickers (batch=%d, delay=%.2fs)",
+            "prefetching real-time prices for %d tickers (batch=%d, delay=%.2fs, workers=%d)",
             len(universe),
             args.batch_size,
             args.batch_delay,
+            args.workers,
         )
         prices = price_service.get_current_prices(
-            list(universe), batch_size=args.batch_size, delay=args.batch_delay
+            list(universe),
+            batch_size=args.batch_size,
+            delay=args.batch_delay,
+            workers=args.workers,
         )
         unavailable = [t for t, p in prices.items() if p is None]
         if unavailable:
@@ -198,6 +202,7 @@ def _run(args) -> None:
         universe=universe,
         price_service=price_service,
         no_prices=args.no_prices,
+        workers=args.workers,
     )
     screened = screener.run()
     logger.info("screened %d of %d tickers", len(screened), len(universe))
