@@ -48,6 +48,24 @@ EUROPEAN_INDEXES: dict[str, tuple[str, int]] = {
 # under ABBNY, so the European fetcher uses that one.
 SEC_TICKER_PREFERENCES = {"ABLZF": "ABBNY"}
 
+# European constituents whose SEC name-match is a FALSE POSITIVE: a different
+# US company happens to share the same name key after company-type token
+# stripping, and the European company does not file with the SEC (no ADR /
+# 20-F / 40-F). Keyed by ``(index_code, company_key(name))``; the value is the
+# human reason. Name-only matching can never distinguish these two, so they
+# need a curated exclusion (audited manually against the index constituents
+# and SEC EDGAR in 2026-09).
+SEC_NAME_COLLISIONS: dict[tuple[str, str], str] = {
+    ("AEX", "nn"): "NN Group N.V. (AEX) does not file with the SEC — the "
+    "match is NN, Inc. (US, NASDAQ: NNBR)",
+    ("DAX40", "merck"): "Merck KGaA (Frankfurt) does not file with the SEC — "
+    "the match is Merck & Co. (US, NYSE: MRK)",
+    ("FTSE100", "compass"): "Compass Group plc (LSE: CPG) does not file with "
+    "the SEC — the match is Compass, Inc. (US, NYSE: COMP)",
+    ("OMXS30", "eqt"): "EQT AB (Stockholm) does not file with the SEC — the "
+    "match is EQT Corp (US, NYSE: EQT)",
+}
+
 
 # Company-type tokens that commonly differ between the Wikipedia constituent
 # table and the SEC company title (dropped from the matching key for both).
@@ -162,6 +180,10 @@ def sec_company_tickers(
             fetch = _http_get_bytes
         payload = fetch(url)
         raw_json = payload.decode("utf-8")
+    else:
+        # An explicit raw_json identifies the *exact* map (tests/verification);
+        # never serve a process-cached map built from a different dataset.
+        cache_key = None
 
     data = json.loads(raw_json)  # {"0": {"cik_str": 320193, "ticker": ..., "title": ...}}
 
@@ -181,7 +203,8 @@ def sec_company_tickers(
         "stripped": by_stripped,
         "titles": titles,
     }
-    setattr(sec_company_tickers, cache_key, result)
+    if cache_key is not None:
+        setattr(sec_company_tickers, cache_key, result)
     return result
 
 

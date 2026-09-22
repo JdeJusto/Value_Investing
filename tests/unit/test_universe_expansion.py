@@ -224,6 +224,42 @@ class TestEuropeanConstituents:
                 "SMI", frames=[pd.DataFrame({"Year": [1], "Level": [2]})]
             )
 
+    def test_sec_name_collision_excluded(self, tmp_path):
+        """A US company sharing the European name must not be flagged as a
+        filer of the European company (SEC_NAME_COLLISIONS)."""
+        import json as _json
+
+        from scripts.fetch_european_indices import build_universe_european
+
+        # SEC map contains NN, Inc. (US) whose name key collides with
+        # "NN Group" after company-type stripping -> a perfect name match
+        # that is factually the wrong company.
+        sec = sec_company_tickers(
+            raw_json=_json.dumps(
+                {"0": {"cik_str": 918541, "ticker": "NNBR", "title": "NN INC"}}
+            )
+        )
+        # Under AEX the NN Group collision is curated out -> non-filer row.
+        out = tmp_path / "eu.csv"
+        stats = build_universe_european(
+            output=str(out),
+            frames_by_code={"AEX": [_frame(["NN Group"], ["NN.AS"])]},
+            sec=sec,
+        )
+        assert stats["with_sec"] == 0
+        assert stats["without_sec"] == 1
+        text = out.read_text(encoding="utf-8")
+        assert "false" in text and "NNBR" not in text
+
+        # The same name under a different index has no curated collision,
+        # so the (imperfect but uncurated) name match still flags a filer.
+        stats2 = build_universe_european(
+            output=str(tmp_path / "eu2.csv"),
+            frames_by_code={"OMXC25": [_frame(["NN Group"], ["NN.CO"])]},
+            sec=sec,
+        )
+        assert stats2["with_sec"] == 1
+
 
 # ---------------------------------------------------------------------------
 # build_universe — merge, dedup, european filter

@@ -15,7 +15,7 @@ HKHHY,0001142231,Heineken Holding N V,AEX,true
 IMCD-AS,,IMCD,AEX,false
 INGA-AS,,ING Group,AEX,false
 KPN-AS,,KPN,AEX,false
-NNBR,0000918541,Nn Inc,AEX,true
+NN-AS,,NN Group,AEX,false
 PHIA-AS,,Philips,AEX,false
 PRX-AS,,Prosus,AEX,false
 RAND-AS,,Randstad,AEX,false
@@ -88,7 +88,7 @@ HEI-DE,,Heidelberg Materials,DAX40,false
 HEN3-DE,,Henkel,DAX40,false
 IFNNY,0001107457,Infineon Technologies Ag,DAX40,true
 MBG-DE,,Mercedes-Benz Group,DAX40,false
-MRK,0000310158,"Merck & Co., Inc.",DAX40,true
+MRK-DE,,Merck,DAX40,false
 MTX-DE,,MTU Aero Engines,DAX40,false
 MUV2-DE,,Munich Re,DAX40,false
 PAH3-DE,,Porsche SE,DAX40,false
@@ -129,7 +129,7 @@ BRBY,,Burberry Group,FTSE100,false
 CNA,,Centrica,FTSE100,false
 CCEP,0001650107,Coca-Cola Europacific Partners Plc,FTSE100,true
 CCH,,Coca-Cola HBC,FTSE100,false
-COMP,0001563190,"Compass, Inc.",FTSE100,true
+CPG,,Compass Group,FTSE100,false
 CCC,,Computacenter,FTSE100,false
 CTEC,,Convatec,FTSE100,false
 CRDA,,Croda International,FTSE100,false
@@ -312,7 +312,7 @@ AZN,0000901832,Astrazeneca Plc,OMXS30,true
 ATCO-A-ST,,Atlas Copco A,OMXS30,false
 BOL-ST,,Boliden,OMXS30,false
 EPI-A-ST,,Epiroc A,OMXS30,false
-EQT,0000033213,Eqt Corp,OMXS30,true
+EQT-ST,,EQT,OMXS30,false
 ERIC-B-ST,,Ericsson B,OMXS30,false
 ESSITY-B-ST,,Essity B,OMXS30,false
 EVO-ST,,Evolution,OMXS30,false

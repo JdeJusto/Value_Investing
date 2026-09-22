@@ -41,7 +41,9 @@ if str(ROOT) not in sys.path:
 
 from scripts.universe_common import (  # noqa: E402
     EUROPEAN_INDEXES,
+    SEC_NAME_COLLISIONS,
     SEC_USER_AGENT,
+    company_key,
     match_sec_company,
     normalize_ticker,
     sec_company_tickers,
@@ -145,6 +147,17 @@ def build_universe_european(
         filings = non_filings = 0
         for c in constituents:
             info = match_sec_company(c["company"], sec)
+            collision = SEC_NAME_COLLISIONS.get((code, company_key(c["company"])))
+            if collision:
+                # Name-only matching caught the wrong US company (a different
+                # SEC filer sharing the name). Exclude it, keeping the
+                # domestic row flagged as a non-filer so the decision is
+                # auditable — the master universe must not contain it.
+                info = None
+                logger.warning(
+                    "SEC name-match excluded for %s (%s): %s",
+                    c["company"], code, collision,
+                )
             domestic = re.sub(r"\s+", "", c["ticker"].upper())
             if info:
                 filings += 1
