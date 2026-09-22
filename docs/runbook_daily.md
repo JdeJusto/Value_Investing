@@ -60,26 +60,28 @@ cd /home/caudillo/Value_Investing
 source .venv/bin/activate
 
 # Full run: SEC update + screen + alerts + report
-python scripts/daily_workflow.py
+# (module invocation is required — running scripts/daily_workflow.py directly
+#  fails because `backend` is not on sys.path)
+python -m scripts.daily_workflow
 
 # Skip the SEC update but still screen and write the report/state
-python scripts/daily_workflow.py --no-update
+python -m scripts.daily_workflow --no-update
 
 # Validate without touching anything (no SEC update, no files written)
-python scripts/daily_workflow.py --dry-run
+python -m scripts.daily_workflow --dry-run
 
 # Analyze only the first 200 tickers of the universe (staging / fast loop)
-python scripts/daily_workflow.py --limit 200
+python -m scripts.daily_workflow --limit 200
 
 # Pace price fetching to stay under Yahoo's rate limits
-python scripts/daily_workflow.py --batch-size 25 --batch-delay 0.2
+python -m scripts.daily_workflow --batch-size 25 --batch-delay 0.2
 
 # Parallel fetch + analysis (8 workers): much faster on large universes, still
 # paces price requests per batch; uses one PostgreSQL connection per thread
-python scripts/daily_workflow.py --workers 8
+python -m scripts.daily_workflow --workers 8
 
 # Use a custom universe / output dir / no prices
-python scripts/daily_workflow.py --universe config/universe.txt \
+python -m scripts.daily_workflow --universe config/universe.txt \
   --out data/reports --no-prices
 ```
 
