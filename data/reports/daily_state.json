@@ -138,5 +138,3358 @@
       "rating": "A",
       "confidence": "HIGH"
     }
+  },
+  "ALB": {
+    "composite_score": {
+      "total_score": 54.1,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ALGN": {
+    "composite_score": {
+      "total_score": 78.0,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ALL": {
+    "composite_score": {
+      "total_score": 47.36,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ALLE": {
+    "composite_score": {
+      "total_score": 66.9,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AMAT": {
+    "composite_score": {
+      "total_score": 78.23,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "AMCR": {
+    "composite_score": {
+      "total_score": 82.52,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "AMD": {
+    "composite_score": {
+      "total_score": 64.02,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AME": {
+    "composite_score": {
+      "total_score": 83.17,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "AMGN": {
+    "composite_score": {
+      "total_score": 66.27,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AMP": {
+    "composite_score": {
+      "total_score": 52.81,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "AMT": {
+    "composite_score": {
+      "total_score": 64.45,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AMZN": {
+    "composite_score": {
+      "total_score": 49.96,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ANET": {
+    "composite_score": {
+      "total_score": 78.09,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "AON": {
+    "composite_score": {
+      "total_score": 62.9,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AOS": {
+    "composite_score": {
+      "total_score": 93.74,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "APA": {
+    "composite_score": {
+      "total_score": 46.78,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "APD": {
+    "composite_score": {
+      "total_score": 71.51,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "APH": {
+    "composite_score": {
+      "total_score": 79.32,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "APO": {
+    "composite_score": {
+      "total_score": 16.02,
+      "rating": "D",
+      "confidence": "MEDIUM"
+    }
+  },
+  "APP": {
+    "composite_score": {
+      "total_score": 67.39,
+      "rating": "B",
+      "confidence": "MEDIUM"
+    }
+  },
+  "APTV": {
+    "composite_score": {
+      "total_score": 88.01,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ARE": {
+    "composite_score": {
+      "total_score": 23.4,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ARES": {
+    "composite_score": {
+      "total_score": 36.27,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ATO": {
+    "composite_score": {
+      "total_score": 61.46,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AVGO": {
+    "composite_score": {
+      "total_score": 78.59,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "AVY": {
+    "composite_score": {
+      "total_score": 67.27,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AWK": {
+    "composite_score": {
+      "total_score": 37.42,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "AXON": {
+    "composite_score": {
+      "total_score": 67.86,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "AXP": {
+    "composite_score": {
+      "total_score": 52.62,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "AZO": {
+    "composite_score": {
+      "total_score": 57.58,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BA": {
+    "composite_score": {
+      "total_score": 45.6,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BAC": {
+    "composite_score": {
+      "total_score": 28.95,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "BALL": {
+    "composite_score": {
+      "total_score": 74.87,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "BAX": {
+    "composite_score": {
+      "total_score": 64.27,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "BBY": {
+    "composite_score": {
+      "total_score": 82.69,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "BDX": {
+    "composite_score": {
+      "total_score": 82.83,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "BEN": {
+    "composite_score": {
+      "total_score": 71.17,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "BF-B": {
+    "composite_score": {
+      "total_score": 90.07,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "BG": {
+    "composite_score": {
+      "total_score": 45.75,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "BIIB": {
+    "composite_score": {
+      "total_score": 81.84,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "BKNG": {
+    "composite_score": {
+      "total_score": 54.54,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BKR": {
+    "composite_score": {
+      "total_score": 42.54,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "BLDR": {
+    "composite_score": {
+      "total_score": 64.36,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "BLK": {
+    "composite_score": {
+      "total_score": 63.13,
+      "rating": "B",
+      "confidence": "MEDIUM"
+    }
+  },
+  "BMY": {
+    "composite_score": {
+      "total_score": 59.88,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BNY": {
+    "composite_score": {
+      "total_score": 48.81,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BR": {
+    "composite_score": {
+      "total_score": 80.69,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "BRK-B": {
+    "composite_score": {
+      "total_score": 57.96,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BRO": {
+    "composite_score": {
+      "total_score": 48.68,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BSX": {
+    "composite_score": {
+      "total_score": 62.97,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "BX": {
+    "composite_score": {
+      "total_score": 47.73,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "BXP": {
+    "composite_score": {
+      "total_score": 44.78,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "C": {
+    "composite_score": {
+      "total_score": 49.22,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CAH": {
+    "composite_score": {
+      "total_score": 56.87,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CARR": {
+    "composite_score": {
+      "total_score": 57.21,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CASY": {
+    "composite_score": {
+      "total_score": 56.55,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CAT": {
+    "composite_score": {
+      "total_score": 85.63,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CB": {
+    "composite_score": {
+      "total_score": 29.03,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "CBOE": {
+    "composite_score": {
+      "total_score": 79.62,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CBRE": {
+    "composite_score": {
+      "total_score": 68.56,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CCI": {
+    "composite_score": {
+      "total_score": 69.78,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CCL": {
+    "composite_score": {
+      "total_score": 45.75,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CDNS": {
+    "composite_score": {
+      "total_score": 84.16,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CDW": {
+    "composite_score": {
+      "total_score": 81.27,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CEG": {
+    "composite_score": {
+      "total_score": 55.14,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "CF": {
+    "composite_score": {
+      "total_score": 75.7,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CFG": {
+    "composite_score": {
+      "total_score": 49.72,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CHD": {
+    "composite_score": {
+      "total_score": 88.87,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CHRW": {
+    "composite_score": {
+      "total_score": 83.97,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CHTR": {
+    "composite_score": {
+      "total_score": 50.45,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CI": {
+    "composite_score": {
+      "total_score": 65.63,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CIEN": {
+    "composite_score": {
+      "total_score": 51.82,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CINF": {
+    "composite_score": {
+      "total_score": 45.39,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CL": {
+    "composite_score": {
+      "total_score": 70.15,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CLX": {
+    "composite_score": {
+      "total_score": 68.19,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CMCSA": {
+    "composite_score": {
+      "total_score": 74.83,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CME": {
+    "composite_score": {
+      "total_score": 56.59,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CMG": {
+    "composite_score": {
+      "total_score": 68.46,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CMI": {
+    "composite_score": {
+      "total_score": 87.72,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CMS": {
+    "composite_score": {
+      "total_score": 55.6,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CNC": {
+    "composite_score": {
+      "total_score": 71.22,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CNP": {
+    "composite_score": {
+      "total_score": 57.93,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "COF": {
+    "composite_score": {
+      "total_score": 46.48,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "COHR": {
+    "composite_score": {
+      "total_score": 57.95,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "COIN": {
+    "composite_score": {
+      "total_score": 50.36,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "COO": {
+    "composite_score": {
+      "total_score": 64.16,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "COP": {
+    "composite_score": {
+      "total_score": 51.61,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "COR": {
+    "composite_score": {
+      "total_score": 62.8,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "COST": {
+    "composite_score": {
+      "total_score": 88.16,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CPAY": {
+    "composite_score": {
+      "total_score": 80.99,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CPRT": {
+    "composite_score": {
+      "total_score": 74.59,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CPT": {
+    "composite_score": {
+      "total_score": 41.02,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "CRH": {
+    "composite_score": {
+      "total_score": 82.77,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CRL": {
+    "composite_score": {
+      "total_score": 71.91,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CRM": {
+    "composite_score": {
+      "total_score": 66.57,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CRWD": {
+    "composite_score": {
+      "total_score": 64.2,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CSCO": {
+    "composite_score": {
+      "total_score": 86.38,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CSGP": {
+    "composite_score": {
+      "total_score": 62.36,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CSX": {
+    "composite_score": {
+      "total_score": 70.94,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CTAS": {
+    "composite_score": {
+      "total_score": 80.05,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "CTSH": {
+    "composite_score": {
+      "total_score": 69.81,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "CTVA": {
+    "composite_score": {
+      "total_score": 51.3,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CVNA": {
+    "composite_score": {
+      "total_score": 55.54,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CVS": {
+    "composite_score": {
+      "total_score": 50.84,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "CVX": {
+    "composite_score": {
+      "total_score": 58.61,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "D": {
+    "composite_score": {
+      "total_score": 57.94,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DAL": {
+    "composite_score": {
+      "total_score": 52.25,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DASH": {
+    "composite_score": {
+      "total_score": 33.5,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DD": {
+    "composite_score": {
+      "total_score": 38.99,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DDOG": {
+    "composite_score": {
+      "total_score": 50.38,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DE": {
+    "composite_score": {
+      "total_score": 82.48,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "DECK": {
+    "composite_score": {
+      "total_score": 78.12,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "DELL": {
+    "composite_score": {
+      "total_score": 47.9,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DG": {
+    "composite_score": {
+      "total_score": 81.55,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "DGX": {
+    "composite_score": {
+      "total_score": 85.72,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "DHI": {
+    "composite_score": {
+      "total_score": 58.43,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DHR": {
+    "composite_score": {
+      "total_score": 78.85,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "DIS": {
+    "composite_score": {
+      "total_score": 41.43,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DLR": {
+    "composite_score": {
+      "total_score": 21.82,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DLTR": {
+    "composite_score": {
+      "total_score": 75.23,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "DOC": {
+    "composite_score": {
+      "total_score": 43.66,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DOV": {
+    "composite_score": {
+      "total_score": 53.04,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DOW": {
+    "composite_score": {
+      "total_score": 41.02,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DPZ": {
+    "composite_score": {
+      "total_score": 60.28,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "DRI": {
+    "composite_score": {
+      "total_score": 73.27,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "DTE": {
+    "composite_score": {
+      "total_score": 52.87,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DUK": {
+    "composite_score": {
+      "total_score": 55.23,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "DVA": {
+    "composite_score": {
+      "total_score": 71.34,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "DVN": {
+    "composite_score": {
+      "total_score": 44.55,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "DXCM": {
+    "composite_score": {
+      "total_score": 49.32,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "EBAY": {
+    "composite_score": {
+      "total_score": 75.91,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ECHO": {
+    "composite_score": {
+      "total_score": 30.45,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ECL": {
+    "composite_score": {
+      "total_score": 87.31,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ED": {
+    "composite_score": {
+      "total_score": 43.04,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "EFX": {
+    "composite_score": {
+      "total_score": 67.03,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "EG": {
+    "composite_score": {
+      "total_score": 26.04,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "EIX": {
+    "composite_score": {
+      "total_score": 44.22,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "EL": {
+    "composite_score": {
+      "total_score": 62.59,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ELV": {
+    "composite_score": {
+      "total_score": 80.78,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "EME": {
+    "composite_score": {
+      "total_score": 82.39,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "EMR": {
+    "composite_score": {
+      "total_score": 59.34,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "EOG": {
+    "composite_score": {
+      "total_score": 35.98,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "EQIX": {
+    "composite_score": {
+      "total_score": 55.66,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "EQT": {
+    "composite_score": {
+      "total_score": 41.82,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ERIE": {
+    "composite_score": {
+      "total_score": 70.9,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ES": {
+    "composite_score": {
+      "total_score": 47.45,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ESS": {
+    "composite_score": {
+      "total_score": 29.61,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ETN": {
+    "composite_score": {
+      "total_score": 81.0,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ETR": {
+    "composite_score": {
+      "total_score": 50.62,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "EVRG": {
+    "composite_score": {
+      "total_score": 50.57,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "EW": {
+    "composite_score": {
+      "total_score": 78.4,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "EXC": {
+    "composite_score": {
+      "total_score": 50.72,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "EXE": {
+    "composite_score": {
+      "total_score": 32.81,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "EXPD": {
+    "composite_score": {
+      "total_score": 68.74,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "EXPE": {
+    "composite_score": {
+      "total_score": 66.55,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "EXR": {
+    "composite_score": {
+      "total_score": 74.07,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "F": {
+    "composite_score": {
+      "total_score": 49.14,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FANG": {
+    "composite_score": {
+      "total_score": 28.22,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "FAST": {
+    "composite_score": {
+      "total_score": 83.66,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "FCX": {
+    "composite_score": {
+      "total_score": 57.57,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FDS": {
+    "composite_score": {
+      "total_score": 82.22,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "FDX": {
+    "composite_score": {
+      "total_score": 69.44,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "FDXF": {
+    "composite_score": {
+      "total_score": 8.5,
+      "rating": "D",
+      "confidence": "LOW"
+    }
+  },
+  "FE": {
+    "composite_score": {
+      "total_score": 39.95,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "FERG": {
+    "composite_score": {
+      "total_score": 64.09,
+      "rating": "B",
+      "confidence": "LOW"
+    }
+  },
+  "FFIV": {
+    "composite_score": {
+      "total_score": 65.67,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "FICO": {
+    "composite_score": {
+      "total_score": 61.12,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "FIS": {
+    "composite_score": {
+      "total_score": 53.64,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FISV": {
+    "composite_score": {
+      "total_score": 78.64,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "FITB": {
+    "composite_score": {
+      "total_score": 52.61,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FIX": {
+    "composite_score": {
+      "total_score": 81.97,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "FLEX": {
+    "composite_score": {
+      "total_score": 79.45,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "FOXA": {
+    "composite_score": {
+      "total_score": 51.22,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FRT": {
+    "composite_score": {
+      "total_score": 52.11,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FSLR": {
+    "composite_score": {
+      "total_score": 43.32,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "FTNT": {
+    "composite_score": {
+      "total_score": 56.58,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "FTV": {
+    "composite_score": {
+      "total_score": 82.39,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GD": {
+    "composite_score": {
+      "total_score": 79.1,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GDDY": {
+    "composite_score": {
+      "total_score": 61.71,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "GE": {
+    "composite_score": {
+      "total_score": 55.86,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "GEHC": {
+    "composite_score": {
+      "total_score": 53.12,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "GEN": {
+    "composite_score": {
+      "total_score": 77.76,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GEV": {
+    "composite_score": {
+      "total_score": 55.97,
+      "rating": "C",
+      "confidence": "LOW"
+    }
+  },
+  "GILD": {
+    "composite_score": {
+      "total_score": 78.71,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GIS": {
+    "composite_score": {
+      "total_score": 81.44,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GL": {
+    "composite_score": {
+      "total_score": 71.62,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "GLW": {
+    "composite_score": {
+      "total_score": 46.98,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "GM": {
+    "composite_score": {
+      "total_score": 65.04,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "GNRC": {
+    "composite_score": {
+      "total_score": 83.79,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GOOGL": {
+    "composite_score": {
+      "total_score": 83.36,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GPC": {
+    "composite_score": {
+      "total_score": 83.58,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GPN": {
+    "composite_score": {
+      "total_score": 74.28,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "GRMN": {
+    "composite_score": {
+      "total_score": 81.41,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "GS": {
+    "composite_score": {
+      "total_score": 40.73,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "GWW": {
+    "composite_score": {
+      "total_score": 82.78,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HAL": {
+    "composite_score": {
+      "total_score": 72.19,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "HAS": {
+    "composite_score": {
+      "total_score": 63.07,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "HBAN": {
+    "composite_score": {
+      "total_score": 46.25,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "HCA": {
+    "composite_score": {
+      "total_score": 43.4,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "HD": {
+    "composite_score": {
+      "total_score": 66.41,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "HIG": {
+    "composite_score": {
+      "total_score": 48.86,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "HII": {
+    "composite_score": {
+      "total_score": 85.83,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HLT": {
+    "composite_score": {
+      "total_score": 59.11,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "HON": {
+    "composite_score": {
+      "total_score": 82.96,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HOOD": {
+    "composite_score": {
+      "total_score": 21.0,
+      "rating": "D",
+      "confidence": "MEDIUM"
+    }
+  },
+  "HPE": {
+    "composite_score": {
+      "total_score": 54.44,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "HPQ": {
+    "composite_score": {
+      "total_score": 35.05,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "HRL": {
+    "composite_score": {
+      "total_score": 89.39,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HSIC": {
+    "composite_score": {
+      "total_score": 91.01,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HST": {
+    "composite_score": {
+      "total_score": 44.56,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "HSY": {
+    "composite_score": {
+      "total_score": 77.2,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HUBB": {
+    "composite_score": {
+      "total_score": 84.2,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "HUM": {
+    "composite_score": {
+      "total_score": 69.16,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "HWM": {
+    "composite_score": {
+      "total_score": 59.47,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "IBKR": {
+    "composite_score": {
+      "total_score": 26.06,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "IBM": {
+    "composite_score": {
+      "total_score": 50.97,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ICE": {
+    "composite_score": {
+      "total_score": 62.28,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "IDXX": {
+    "composite_score": {
+      "total_score": 70.52,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "IEX": {
+    "composite_score": {
+      "total_score": 84.05,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "IFF": {
+    "composite_score": {
+      "total_score": 69.12,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "INCY": {
+    "composite_score": {
+      "total_score": 65.34,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "INTC": {
+    "composite_score": {
+      "total_score": 61.2,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "INTU": {
+    "composite_score": {
+      "total_score": 79.53,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "INVH": {
+    "composite_score": {
+      "total_score": 33.64,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "IP": {
+    "composite_score": {
+      "total_score": 76.66,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "IQV": {
+    "composite_score": {
+      "total_score": 57.43,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "IR": {
+    "composite_score": {
+      "total_score": 68.44,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "IRM": {
+    "composite_score": {
+      "total_score": 45.75,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ISRG": {
+    "composite_score": {
+      "total_score": 79.71,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "IT": {
+    "composite_score": {
+      "total_score": 57.67,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "ITW": {
+    "composite_score": {
+      "total_score": 61.42,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "IVZ": {
+    "composite_score": {
+      "total_score": 54.51,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "J": {
+    "composite_score": {
+      "total_score": 79.11,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "JBHT": {
+    "composite_score": {
+      "total_score": 68.82,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "JBL": {
+    "composite_score": {
+      "total_score": 79.7,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "JCI": {
+    "composite_score": {
+      "total_score": 60.91,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "JKHY": {
+    "composite_score": {
+      "total_score": 71.75,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "JNJ": {
+    "composite_score": {
+      "total_score": 84.9,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "JPM": {
+    "composite_score": {
+      "total_score": 32.5,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "KDP": {
+    "composite_score": {
+      "total_score": 79.24,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "KEY": {
+    "composite_score": {
+      "total_score": 41.42,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "KEYS": {
+    "composite_score": {
+      "total_score": 88.63,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "KHC": {
+    "composite_score": {
+      "total_score": 71.29,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "KIM": {
+    "composite_score": {
+      "total_score": 43.12,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "KKR": {
+    "composite_score": {
+      "total_score": 32.2,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "KLAC": {
+    "composite_score": {
+      "total_score": 79.2,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "KMB": {
+    "composite_score": {
+      "total_score": 83.52,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "KMI": {
+    "composite_score": {
+      "total_score": 63.52,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "KO": {
+    "composite_score": {
+      "total_score": 86.42,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "KR": {
+    "composite_score": {
+      "total_score": 83.71,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "KVUE": {
+    "composite_score": {
+      "total_score": 68.14,
+      "rating": "B",
+      "confidence": "MEDIUM"
+    }
+  },
+  "L": {
+    "composite_score": {
+      "total_score": 58.46,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "LDOS": {
+    "composite_score": {
+      "total_score": 78.16,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "LEN": {
+    "composite_score": {
+      "total_score": 70.09,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "LH": {
+    "composite_score": {
+      "total_score": 82.34,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "LHX": {
+    "composite_score": {
+      "total_score": 76.87,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "LII": {
+    "composite_score": {
+      "total_score": 72.62,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "LIN": {
+    "composite_score": {
+      "total_score": 62.79,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "LITE": {
+    "composite_score": {
+      "total_score": 48.44,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "LLY": {
+    "composite_score": {
+      "total_score": 42.58,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "LMT": {
+    "composite_score": {
+      "total_score": 80.54,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "LNT": {
+    "composite_score": {
+      "total_score": 66.43,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "LOW": {
+    "composite_score": {
+      "total_score": 66.03,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "LRCX": {
+    "composite_score": {
+      "total_score": 78.69,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "LULU": {
+    "composite_score": {
+      "total_score": 78.67,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "LUV": {
+    "composite_score": {
+      "total_score": 52.39,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "LVS": {
+    "composite_score": {
+      "total_score": 47.29,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "LYB": {
+    "composite_score": {
+      "total_score": 67.05,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "LYV": {
+    "composite_score": {
+      "total_score": 42.18,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "MA": {
+    "composite_score": {
+      "total_score": 68.48,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MAA": {
+    "composite_score": {
+      "total_score": 40.98,
+      "rating": "D",
+      "confidence": "MEDIUM"
+    }
+  },
+  "MAR": {
+    "composite_score": {
+      "total_score": 59.33,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MAS": {
+    "composite_score": {
+      "total_score": 53.41,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MCD": {
+    "composite_score": {
+      "total_score": 56.11,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MCHP": {
+    "composite_score": {
+      "total_score": 69.4,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MCK": {
+    "composite_score": {
+      "total_score": 74.28,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MCO": {
+    "composite_score": {
+      "total_score": 71.77,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MDLZ": {
+    "composite_score": {
+      "total_score": 81.14,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MDT": {
+    "composite_score": {
+      "total_score": 72.1,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MET": {
+    "composite_score": {
+      "total_score": 48.3,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "META": {
+    "composite_score": {
+      "total_score": 79.4,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MGM": {
+    "composite_score": {
+      "total_score": 59.31,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MKC": {
+    "composite_score": {
+      "total_score": 88.36,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MLM": {
+    "composite_score": {
+      "total_score": 72.89,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MMM": {
+    "composite_score": {
+      "total_score": 78.91,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MNST": {
+    "composite_score": {
+      "total_score": 81.22,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MO": {
+    "composite_score": {
+      "total_score": 76.21,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MOS": {
+    "composite_score": {
+      "total_score": 53.85,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MPC": {
+    "composite_score": {
+      "total_score": 77.26,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MPWR": {
+    "composite_score": {
+      "total_score": 77.04,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "MRK": {
+    "composite_score": {
+      "total_score": 65.43,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MRNA": {
+    "composite_score": {
+      "total_score": 41.42,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "MRSH": {
+    "composite_score": {
+      "total_score": 45.79,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MRVL": {
+    "composite_score": {
+      "total_score": 48.89,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "MS": {
+    "composite_score": {
+      "total_score": 27.61,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "MSCI": {
+    "composite_score": {
+      "total_score": 55.51,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MSFT": {
+    "composite_score": {
+      "total_score": 67.0,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MSI": {
+    "composite_score": {
+      "total_score": 51.4,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MTB": {
+    "composite_score": {
+      "total_score": 47.43,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "MTD": {
+    "composite_score": {
+      "total_score": 60.58,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "MU": {
+    "composite_score": {
+      "total_score": 47.55,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NCLH": {
+    "composite_score": {
+      "total_score": 37.1,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "NDAQ": {
+    "composite_score": {
+      "total_score": 77.14,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "NDSN": {
+    "composite_score": {
+      "total_score": 84.16,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "NEE": {
+    "composite_score": {
+      "total_score": 51.05,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NEM": {
+    "composite_score": {
+      "total_score": 36.93,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "NFLX": {
+    "composite_score": {
+      "total_score": 76.1,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "NI": {
+    "composite_score": {
+      "total_score": 57.19,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NKE": {
+    "composite_score": {
+      "total_score": 67.97,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "NOC": {
+    "composite_score": {
+      "total_score": 84.34,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "NOW": {
+    "composite_score": {
+      "total_score": 68.69,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "NRG": {
+    "composite_score": {
+      "total_score": 63.28,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "NSC": {
+    "composite_score": {
+      "total_score": 70.83,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "NTAP": {
+    "composite_score": {
+      "total_score": 83.53,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "NTRS": {
+    "composite_score": {
+      "total_score": 50.95,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NUE": {
+    "composite_score": {
+      "total_score": 48.4,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NVDA": {
+    "composite_score": {
+      "total_score": 75.35,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "NVR": {
+    "composite_score": {
+      "total_score": 49.49,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NWSA": {
+    "composite_score": {
+      "total_score": 48.0,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "NXPI": {
+    "composite_score": {
+      "total_score": 76.25,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "O": {
+    "composite_score": {
+      "total_score": 23.89,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "ODFL": {
+    "composite_score": {
+      "total_score": 67.53,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "OKE": {
+    "composite_score": {
+      "total_score": 49.6,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "OMC": {
+    "composite_score": {
+      "total_score": 63.67,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ON": {
+    "composite_score": {
+      "total_score": 63.83,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ORCL": {
+    "composite_score": {
+      "total_score": 78.43,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ORLY": {
+    "composite_score": {
+      "total_score": 58.68,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "OTIS": {
+    "composite_score": {
+      "total_score": 43.12,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "OXY": {
+    "composite_score": {
+      "total_score": 47.99,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PANW": {
+    "composite_score": {
+      "total_score": 54.42,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PAYX": {
+    "composite_score": {
+      "total_score": 84.64,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PCAR": {
+    "composite_score": {
+      "total_score": 63.67,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "PCG": {
+    "composite_score": {
+      "total_score": 25.18,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PEG": {
+    "composite_score": {
+      "total_score": 51.2,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PEP": {
+    "composite_score": {
+      "total_score": 91.08,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PFE": {
+    "composite_score": {
+      "total_score": 59.79,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PFG": {
+    "composite_score": {
+      "total_score": 32.68,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PG": {
+    "composite_score": {
+      "total_score": 75.65,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PGR": {
+    "composite_score": {
+      "total_score": 48.08,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PH": {
+    "composite_score": {
+      "total_score": 77.92,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PHM": {
+    "composite_score": {
+      "total_score": 46.87,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PKG": {
+    "composite_score": {
+      "total_score": 82.14,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PLD": {
+    "composite_score": {
+      "total_score": 26.52,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PLTR": {
+    "composite_score": {
+      "total_score": 45.92,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PM": {
+    "composite_score": {
+      "total_score": 62.51,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "PNC": {
+    "composite_score": {
+      "total_score": 33.92,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PNR": {
+    "composite_score": {
+      "total_score": 56.68,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PNW": {
+    "composite_score": {
+      "total_score": 55.3,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PODD": {
+    "composite_score": {
+      "total_score": 59.83,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "PPG": {
+    "composite_score": {
+      "total_score": 85.53,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PPL": {
+    "composite_score": {
+      "total_score": 41.97,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PRU": {
+    "composite_score": {
+      "total_score": 28.18,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PSA": {
+    "composite_score": {
+      "total_score": 71.3,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "PSKY": {
+    "composite_score": {
+      "total_score": 16.0,
+      "rating": "D",
+      "confidence": "LOW"
+    }
+  },
+  "PSX": {
+    "composite_score": {
+      "total_score": 42.57,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "PTC": {
+    "composite_score": {
+      "total_score": 83.51,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "PWR": {
+    "composite_score": {
+      "total_score": 69.36,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "PYPL": {
+    "composite_score": {
+      "total_score": 68.91,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "Q": {
+    "composite_score": {
+      "total_score": 23.32,
+      "rating": "D",
+      "confidence": "LOW"
+    }
+  },
+  "QCOM": {
+    "composite_score": {
+      "total_score": 62.58,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "RCL": {
+    "composite_score": {
+      "total_score": 34.18,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "RDDT": {
+    "composite_score": {
+      "total_score": 37.24,
+      "rating": "D",
+      "confidence": "LOW"
+    }
+  },
+  "REG": {
+    "composite_score": {
+      "total_score": 39.55,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "REGN": {
+    "composite_score": {
+      "total_score": 66.44,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "RF": {
+    "composite_score": {
+      "total_score": 28.53,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "RJF": {
+    "composite_score": {
+      "total_score": 41.23,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "RL": {
+    "composite_score": {
+      "total_score": 94.17,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "RMD": {
+    "composite_score": {
+      "total_score": 79.91,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ROK": {
+    "composite_score": {
+      "total_score": 85.78,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ROL": {
+    "composite_score": {
+      "total_score": 81.76,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ROP": {
+    "composite_score": {
+      "total_score": 72.14,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ROST": {
+    "composite_score": {
+      "total_score": 81.35,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "RSG": {
+    "composite_score": {
+      "total_score": 80.52,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "RTX": {
+    "composite_score": {
+      "total_score": 70.85,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "RVTY": {
+    "composite_score": {
+      "total_score": 67.38,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SBAC": {
+    "composite_score": {
+      "total_score": 57.04,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "SBUX": {
+    "composite_score": {
+      "total_score": 74.82,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SCHW": {
+    "composite_score": {
+      "total_score": 46.48,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "SHW": {
+    "composite_score": {
+      "total_score": 80.72,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "SJM": {
+    "composite_score": {
+      "total_score": 66.64,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SLB": {
+    "composite_score": {
+      "total_score": 59.81,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "SMCI": {
+    "composite_score": {
+      "total_score": 65.37,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SNA": {
+    "composite_score": {
+      "total_score": 67.91,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SNDK": {
+    "composite_score": {
+      "total_score": 44.58,
+      "rating": "D",
+      "confidence": "LOW"
+    }
+  },
+  "SNPS": {
+    "composite_score": {
+      "total_score": 74.44,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SO": {
+    "composite_score": {
+      "total_score": 50.84,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "SOLV": {
+    "composite_score": {
+      "total_score": 55.02,
+      "rating": "C",
+      "confidence": "LOW"
+    }
+  },
+  "SPG": {
+    "composite_score": {
+      "total_score": 70.75,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SPGI": {
+    "composite_score": {
+      "total_score": 77.56,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "SRE": {
+    "composite_score": {
+      "total_score": 32.36,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "STE": {
+    "composite_score": {
+      "total_score": 56.71,
+      "rating": "C",
+      "confidence": "MEDIUM"
+    }
+  },
+  "STLD": {
+    "composite_score": {
+      "total_score": 65.49,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "STT": {
+    "composite_score": {
+      "total_score": 41.98,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "STX": {
+    "composite_score": {
+      "total_score": 52.67,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "STZ": {
+    "composite_score": {
+      "total_score": 64.6,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "SW": {
+    "composite_score": {
+      "total_score": 47.83,
+      "rating": "C",
+      "confidence": "LOW"
+    }
+  },
+  "SWK": {
+    "composite_score": {
+      "total_score": 76.31,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "SWKS": {
+    "composite_score": {
+      "total_score": 85.25,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "SYF": {
+    "composite_score": {
+      "total_score": 37.94,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "SYK": {
+    "composite_score": {
+      "total_score": 80.99,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "SYY": {
+    "composite_score": {
+      "total_score": 79.28,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "T": {
+    "composite_score": {
+      "total_score": 61.64,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TAP": {
+    "composite_score": {
+      "total_score": 58.77,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "TDG": {
+    "composite_score": {
+      "total_score": 52.73,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "TDY": {
+    "composite_score": {
+      "total_score": 66.28,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TECH": {
+    "composite_score": {
+      "total_score": 74.33,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TEL": {
+    "composite_score": {
+      "total_score": 81.76,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TER": {
+    "composite_score": {
+      "total_score": 85.66,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TFC": {
+    "composite_score": {
+      "total_score": 42.69,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "TGT": {
+    "composite_score": {
+      "total_score": 82.76,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TJX": {
+    "composite_score": {
+      "total_score": 80.64,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TKO": {
+    "composite_score": {
+      "total_score": 16.52,
+      "rating": "D",
+      "confidence": "MEDIUM"
+    }
+  },
+  "TMO": {
+    "composite_score": {
+      "total_score": 75.83,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TMUS": {
+    "composite_score": {
+      "total_score": 62.89,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TPL": {
+    "composite_score": {
+      "total_score": 68.84,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TPR": {
+    "composite_score": {
+      "total_score": 65.48,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TRGP": {
+    "composite_score": {
+      "total_score": 60.43,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TRMB": {
+    "composite_score": {
+      "total_score": 66.48,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TROW": {
+    "composite_score": {
+      "total_score": 69.23,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TRV": {
+    "composite_score": {
+      "total_score": 41.9,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "TSCO": {
+    "composite_score": {
+      "total_score": 88.05,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TSLA": {
+    "composite_score": {
+      "total_score": 49.31,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "TSN": {
+    "composite_score": {
+      "total_score": 73.98,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TT": {
+    "composite_score": {
+      "total_score": 89.36,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TTD": {
+    "composite_score": {
+      "total_score": 73.77,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TTWO": {
+    "composite_score": {
+      "total_score": 45.25,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "TXN": {
+    "composite_score": {
+      "total_score": 79.92,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "TXT": {
+    "composite_score": {
+      "total_score": 65.56,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "TYL": {
+    "composite_score": {
+      "total_score": 76.7,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "UAL": {
+    "composite_score": {
+      "total_score": 42.05,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "UBER": {
+    "composite_score": {
+      "total_score": 36.83,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "UDR": {
+    "composite_score": {
+      "total_score": 43.04,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "UHS": {
+    "composite_score": {
+      "total_score": 67.11,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ULTA": {
+    "composite_score": {
+      "total_score": 78.87,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "UNH": {
+    "composite_score": {
+      "total_score": 85.3,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "UNP": {
+    "composite_score": {
+      "total_score": 71.79,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "UPS": {
+    "composite_score": {
+      "total_score": 73.69,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "URI": {
+    "composite_score": {
+      "total_score": 62.34,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "USB": {
+    "composite_score": {
+      "total_score": 35.86,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "V": {
+    "composite_score": {
+      "total_score": 73.03,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "VEEV": {
+    "composite_score": {
+      "total_score": 77.66,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "VICI": {
+    "composite_score": {
+      "total_score": 58.6,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "VLO": {
+    "composite_score": {
+      "total_score": 72.45,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "VLTO": {
+    "composite_score": {
+      "total_score": 74.9,
+      "rating": "B",
+      "confidence": "MEDIUM"
+    }
+  },
+  "VMC": {
+    "composite_score": {
+      "total_score": 56.05,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "VMRK": {
+    "composite_score": {
+      "total_score": 54.38,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "VRSK": {
+    "composite_score": {
+      "total_score": 83.81,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "VRSN": {
+    "composite_score": {
+      "total_score": 61.95,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "VRT": {
+    "composite_score": {
+      "total_score": 81.75,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "VRTX": {
+    "composite_score": {
+      "total_score": 52.4,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "VST": {
+    "composite_score": {
+      "total_score": 57.46,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "VTR": {
+    "composite_score": {
+      "total_score": 31.99,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "VTRS": {
+    "composite_score": {
+      "total_score": 47.67,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "VZ": {
+    "composite_score": {
+      "total_score": 49.97,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "WAB": {
+    "composite_score": {
+      "total_score": 76.81,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "WAT": {
+    "composite_score": {
+      "total_score": 84.41,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "WBD": {
+    "composite_score": {
+      "total_score": 54.27,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "WDAY": {
+    "composite_score": {
+      "total_score": 37.5,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "WDC": {
+    "composite_score": {
+      "total_score": 64.34,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "WEC": {
+    "composite_score": {
+      "total_score": 51.47,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "WELL": {
+    "composite_score": {
+      "total_score": 54.13,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "WFC": {
+    "composite_score": {
+      "total_score": 34.07,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "WM": {
+    "composite_score": {
+      "total_score": 71.77,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "WMB": {
+    "composite_score": {
+      "total_score": 56.3,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "WMT": {
+    "composite_score": {
+      "total_score": 86.62,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "WRB": {
+    "composite_score": {
+      "total_score": 50.63,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "WSM": {
+    "composite_score": {
+      "total_score": 71.04,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "WST": {
+    "composite_score": {
+      "total_score": 79.83,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "WTW": {
+    "composite_score": {
+      "total_score": 62.63,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "WY": {
+    "composite_score": {
+      "total_score": 68.51,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "WYNN": {
+    "composite_score": {
+      "total_score": 31.23,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "XEL": {
+    "composite_score": {
+      "total_score": 42.43,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "XOM": {
+    "composite_score": {
+      "total_score": 51.29,
+      "rating": "C",
+      "confidence": "HIGH"
+    }
+  },
+  "XYL": {
+    "composite_score": {
+      "total_score": 67.72,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "XYZ": {
+    "composite_score": {
+      "total_score": 39.5,
+      "rating": "D",
+      "confidence": "HIGH"
+    }
+  },
+  "YUM": {
+    "composite_score": {
+      "total_score": 68.68,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ZBH": {
+    "composite_score": {
+      "total_score": 67.77,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
+  },
+  "ZBRA": {
+    "composite_score": {
+      "total_score": 75.23,
+      "rating": "A",
+      "confidence": "HIGH"
+    }
+  },
+  "ZTS": {
+    "composite_score": {
+      "total_score": 65.43,
+      "rating": "B",
+      "confidence": "HIGH"
+    }
   }
 }
