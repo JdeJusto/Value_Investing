@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Fetch the current S&P 500 and Nasdaq-100 constituent lists.
 
-De-duplicates overlapping tickers and writes ``config/universe.csv`` with
-columns ``ticker,cik,company_name,source_index``.  The CIK values and
+De-duplicates overlapping tickers and writes ``config/universe_sp500_nasdaq.csv``
+with columns ``ticker,cik,company_name,source_index``.  The CIK values and
 company names are read from the Financial-DataBase (SEC EDGAR
 ``company_identifiers`` table) when available.  Tickers not present in
 the database — primarily foreign-listed ADRs such as ASML and NVO — are
 skipped entirely with a warning.
+
+After running the other fetch scripts (``fetch_russell2000.py``,
+``fetch_european_indices.py``), run ``scripts/build_universe.py`` to merge
+everything into the master ``config/universe.csv``.
 
 Regenerate after each index-rebalance date (typically quarterly).
 """
@@ -28,6 +32,7 @@ if str(ROOT) not in sys.path:
 
 WIKI_SP500_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 WIKI_NASDAQ100_URL = "https://en.wikipedia.org/wiki/Nasdaq-100"
+WIKI_NASDAQ100_LIST_URL = "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies"
 
 _USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -68,21 +73,50 @@ def _wiki_sp500() -> list[str]:
 def _wiki_nasdaq100() -> list[str]:
     """Return Nasdaq-100 tickers as a list of strings (BF.B → BF-B).
 
-    Wikipedia renders the constituents using a responsive list, not a
-    standard HTML table that ``pd.read_html`` can parse.  As a fallback
-    we extract tickers from MediaWiki template markup
-    ``{{NASDAQ|SYMBOL}}`` present in the raw page source.
+    The constituents are on the dedicated "List of NASDAQ-100 companies"
+    page (the main article renders them via templates that ``pd.read_html``
+    cannot parse). We parse the largest table that has a Ticker column and
+    fall back to the legacy MediaWiki template regex on the main article.
     """
     import re
     import urllib.request
 
     try:
         request = urllib.request.Request(
+            WIKI_NASDAQ100_LIST_URL, headers={"User-Agent": _USER_AGENT}
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            html = response.read().decode("utf-8")
+
+        import io
+        import pandas as pd
+
+        frames = pd.read_html(io.StringIO(html))
+        best = None
+        for df in frames:
+            cols = [str(c) for c in df.columns]
+            if "Ticker" not in cols:
+                continue
+            n = len(df)
+            if best is None or n > best[0]:
+                best = (n, df)
+        if best is not None:
+            col = "Ticker"
+            return sorted(
+                {
+                    str(v).strip().upper().replace(".", "-")
+                    for v in best[1][col]
+                    if str(v).strip()
+                }
+            )
+
+        # Legacy fallback: MediaWiki templates {{NASDAQ|ADBE}} on the main
+        # article page.
+        request = urllib.request.Request(
             WIKI_NASDAQ100_URL, headers={"User-Agent": _USER_AGENT}
         )
         with urllib.request.urlopen(request, timeout=30) as response:
             html = response.read().decode("utf-8")
-        # MediaWiki templates: {{NASDAQ|ADBE}} or {{nasdaq|adbe}}
         tickers = re.findall(
             r"\{\{[Nn][Aa][Ss][Dd][Aa][Qq]\|([A-Za-z0-9\.\-]+)(?:\|[^}]*)?\}\}",
             html,
@@ -90,11 +124,7 @@ def _wiki_nasdaq100() -> list[str]:
         if tickers:
             return sorted({t.upper().replace(".", "-") for t in tickers})
 
-        # Ultimate fallback: try pd.read_html and look for any table with
-        # a 'Symbol'/'Ticker' column.
-        import io
-        import pandas as pd
-
+        # Ultimate fallback: any table with a 'Symbol'/'Ticker' column.
         frames = pd.read_html(io.StringIO(html))
         for df in frames:
             for col in df.columns:
@@ -112,7 +142,7 @@ def _wiki_nasdaq100() -> list[str]:
         return []
 
 
-def fetch_universe(output: str = "config/universe.csv") -> dict:
+def fetch_universe(output: str = "config/universe_sp500_nasdaq.csv") -> dict:
     """Fetch constituents, resolve CIKs, write ``output``. Returns stats."""
     sp500 = set(_wiki_sp500())
     nasdaq = set(_wiki_nasdaq100())
@@ -212,4 +242,8 @@ if __name__ == "__main__":
         f"NASDAQ100-only: {stats['nasdaq100_only']} | "
         f"Both: {stats['both']} | "
         f"Skipped (no CIK): {stats['skipped_count']}"
+    )
+    print(
+        "Now run scripts/fetch_russell2000.py + scripts/fetch_european_indices.py, "
+        "then scripts/build_universe.py to merge all indices into config/universe.csv."
     )
