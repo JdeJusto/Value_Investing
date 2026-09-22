@@ -3,7 +3,9 @@
 
 1. (optional) Targeted SEC refresh in Financial-DataBase — only the analyzed
    tickers are checked for staleness and only the stale ones are synced
-   (per-CIK `sec sync`); the full universe is never synced wholesale.
+   (per-CIK `sec sync`); the full universe is never synced wholesale. A
+   per-run cap (--max-refresh, default 200) defers the least-recent
+   companies to later runs.
 2. Screen a configurable universe (default config/universe.csv) with
    real-time prices (fetched in batches ONLY for the analyzed tickers,
    never persisted).
@@ -16,6 +18,11 @@ Flags:
                     report without writing any file
   --no-update       skip the SEC refresh but still screen + write report/state
   --limit N         analyze only the first N tickers of the universe
+  --universe        named subset (sp500, nasdaq100, sp500,nasdaq100,
+                    russell2000, european, all) or a path to a universe file
+  --max-refresh N   cap the number of stale companies SEC-synced per run
+                    (default 200; the most-recently-synced are prioritized)
+  --resume          skip tickers already present in the last daily_state.json
   --refresh         force a targeted SEC refresh of the analyzed tickers
   --no-refresh      skip the targeted SEC refresh entirely
   --freshness-hours override the freshness threshold (default: 168)
@@ -27,6 +34,7 @@ import logging
 import os
 import sys
 import time
+import threading
 from datetime import date, datetime
 from pathlib import Path
 
@@ -35,6 +43,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger("daily_workflow")
+
+# Master universe produced by scripts/build_universe.py. Named --universe
+# subsets (sp500 / nasdaq100 / russell2000 / european / all) are filtered
+# from this file by the source_index column.
+MASTER_UNIVERSE = "config/universe.csv"
+MAX_REFRESH_DEFAULT = 200
+NAMED_UNIVERSE_TOKENS = frozenset({"sp500", "nasdaq100", "russell2000", "european"})
+# source_index tokens naming European indices (--universe european).
+EUROPEAN_INDEX_SOURCES = frozenset(
+    {"FTSE100", "DAX40", "CAC40", "IBEX35", "FTSE_MIB", "AEX", "SMI", "OMXS30", "OMXC25"}
+)
 
 
 def _load_universe(path: str) -> list[str]:
@@ -67,6 +86,82 @@ def _load_universe(path: str) -> list[str]:
     return tickers
 
 
+def _row_sources(source_index: str) -> set[str]:
+    """source_index column -> set of index tokens (legacy BOTH expanded)."""
+    sources = {s.strip() for s in source_index.split(",") if s.strip()}
+    if "BOTH" in sources:
+        sources = (sources - {"BOTH"}) | {"SP500", "NASDAQ100"}
+    return sources
+
+
+def resolve_universe(
+    spec: str, master_path: str = MASTER_UNIVERSE
+) -> list[str]:
+    """Resolve a ``--universe`` value into a ticker list.
+
+    ``spec`` may be a file path (existing behaviour — the file is loaded
+    verbatim) or one of the named subsets:
+
+      sp500              only rows whose source_index contains SP500
+      nasdaq100          only rows whose source_index contains NASDAQ100
+      sp500,nasdaq100    the union (default — the classic ~500 universe)
+      russell2000        only Russell 2000 rows
+      european           only SEC-filing European companies
+      all                every row of the master file
+
+    Named subsets are filtered from the master universe file
+    (config/universe.csv, built by scripts/build_universe.py) by their
+    source_index column, preserving file order.
+    """
+    if spec and os.path.isfile(spec):
+        return _load_universe(spec)
+
+    tokens = {t.strip().lower() for t in spec.split(",") if t.strip()} if spec else set()
+    if not tokens or "all" in tokens:
+        if not os.path.isfile(master_path):
+            raise SystemExit(
+                f"ERROR: master universe file not found: {master_path}. "
+                "Run scripts/build_universe.py (after the fetch scripts)."
+            )
+        return _load_universe(master_path)
+
+    invalid = tokens - NAMED_UNIVERSE_TOKENS
+    if invalid:
+        raise SystemExit(
+            f"ERROR: unknown --universe subset(s): {', '.join(sorted(invalid))}. "
+            f"Valid subsets: {', '.join(sorted(NAMED_UNIVERSE_TOKENS))}, all, "
+            "or a path to a universe file."
+        )
+    if not os.path.isfile(master_path):
+        raise SystemExit(
+            f"ERROR: master universe file not found: {master_path}. "
+            "Run scripts/build_universe.py (after the fetch scripts)."
+        )
+
+    tickers: list[str] = []
+    seen: set[str] = set()
+    with open(master_path, encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            ticker = (row.get("ticker") or "").strip().upper()
+            if not ticker:
+                continue
+            sources = _row_sources(row.get("source_index") or "")
+            matched = (
+                ("sp500" in tokens and "SP500" in sources)
+                or ("nasdaq100" in tokens and "NASDAQ100" in sources)
+                or ("russell2000" in tokens and "Russell2000" in sources)
+                or ("european" in tokens and bool(sources & EUROPEAN_INDEX_SOURCES))
+            )
+            if matched and ticker not in seen:
+                seen.add(ticker)
+                tickers.append(ticker)
+    if not tickers:
+        raise SystemExit(
+            f"ERROR: no tickers matched --universe {spec!r} in {master_path}"
+        )
+    return tickers
+
+
 def _run_targeted_refresh(universe: list[str], args) -> str:
     """Targeted per-CIK SEC refresh of ONLY the analyzed tickers.
 
@@ -82,6 +177,7 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
     force = getattr(args, "refresh", False)
     no_refresh = getattr(args, "no_refresh", False)
     freshness_hours = getattr(args, "freshness_hours", None)
+    max_refresh = getattr(args, "max_refresh", None)
     service = RefreshService(fdb_repo_path=str(Path(args.fdb_dir).resolve()))
 
     if args.dry_run:
@@ -95,8 +191,28 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
             f"{len(unknown)} unmapped ({elapsed:.0f}s)"
         )
 
+    # Cap: with more stale companies than --max-refresh, refresh only those
+    # with the most recent filings and defer the rest to the next run. The
+    # cap never applies to an explicit --refresh (force).
+    pool = list(universe)
+    deferred: list[str] = []
+    stale_count = fresh_count = unknown_count = 0
+    if max_refresh is not None and not force:
+        stale_ranked, fresh_count, unknown_count = service.staleness_ranked(
+            list(universe), max_age_hours=freshness_hours
+        )
+        stale_count = len(stale_ranked)
+        if stale_count > max_refresh:
+            pool = stale_ranked[:max_refresh]
+            deferred = stale_ranked[max_refresh:]
+            logger.info(
+                "refresh cap: %d stale > max-refresh %d — refreshing the %d "
+                "most-recently-synced and deferring %d to the next run",
+                stale_count, max_refresh, len(pool), len(deferred),
+            )
+
     result = service.ensure_fresh_and_prices(
-        list(universe),
+        list(pool),
         force=force,
         max_age_hours=freshness_hours,
         skip_refresh=no_refresh or None,
@@ -104,10 +220,23 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
     )
     elapsed = time.time() - start
 
-    parts = [f"{len(result.refreshed)} refreshed", f"{len(result.skipped)} fresh/skipped"]
-    if result.failed:
-        parts.append(f"{len(result.failed)} failed")
-    parts.append(f"{elapsed:.0f}s")
+    if max_refresh is not None and not force:
+        parts = []
+        parts.append(f"{len(result.refreshed)} refreshed")
+        if result.failed:
+            parts.append(f"{len(result.failed)} failed")
+        parts.append(f"{stale_count} stale")
+        parts.append(f"{fresh_count} fresh")
+        if unknown_count:
+            parts.append(f"{unknown_count} unmapped")
+        if deferred:
+            parts.append(f"{len(deferred)} deferred (--max-refresh)")
+        parts.append(f"{elapsed:.0f}s")
+    else:
+        parts = [f"{len(result.refreshed)} refreshed", f"{len(result.skipped)} fresh/skipped"]
+        if result.failed:
+            parts.append(f"{len(result.failed)} failed")
+        parts.append(f"{elapsed:.0f}s")
     status = "SEC refresh (targeted): " + " · ".join(parts)
 
     if result.failed:
@@ -149,11 +278,36 @@ def _run(args) -> None:
         date.fromisoformat(args.date) if args.date else datetime.now().date()
     )
     start_time = time.time()
-    universe = _load_universe(args.universe)
+    universe = resolve_universe(args.universe)
     if args.limit:
         universe = universe[: args.limit]
         logger.info("constrained to first %d tickers of the universe", args.limit)
     logger.info("universe loaded: %d tickers", len(universe))
+
+    # --resume: skip tickers already analyzed in the last daily_state.json so
+    # an interrupted large run can continue without redoing finished work.
+    if getattr(args, "resume", False):
+        prior = {}
+        state_path = Path(args.out) / "daily_state.json"
+        if state_path.exists():
+            try:
+                prior = load_state(str(state_path)) or {}
+            except Exception:  # noqa: BLE001 — a corrupt state must not block
+                prior = {}
+        if prior:
+            universe = [t for t in universe if t not in prior]
+            resumed = len(universe)
+            done = len(prior)
+            logger.info(
+                "resume: %d/%d universe tickers already in state; continuing "
+                "with %d", done, done + resumed, resumed,
+            )
+        if not universe:
+            print(
+                "nothing to resume — all universe tickers are already in "
+                "daily_state.json"
+            )
+            return
 
     # Phase timing — a lightweight wall-clock trace of the workflow so runs
     # can be benchmarked and regressions spotted (refresh / prices / analysis
@@ -213,6 +367,11 @@ def _run(args) -> None:
 
     analysis_service = build_analysis_service(market_provider=market_provider)
 
+    # Thread-safe progress counter: logs every 100 analyzed tickers so large
+    # universes stay visibly alive during the analysis phase.
+    _progress_lock = threading.Lock()
+    _progress = {"done": 0}
+
     def analyzer(ticker: str):
         if ticker not in cache:
             try:
@@ -220,6 +379,13 @@ def _run(args) -> None:
             except Exception as e:  # noqa: BLE001
                 logger.warning("analyze failed for %s: %s", ticker, e)
                 cache[ticker] = None
+            with _progress_lock:
+                _progress["done"] += 1
+                done = _progress["done"]
+            if done % 100 == 0:
+                logger.info(
+                    "analysis progress: %d / %d tickers", done, len(universe)
+                )
         return cache[ticker]
 
     # Real-time price enrichment served from the warm cache above, fetched
@@ -463,9 +629,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="daily_workflow.py")
     p.add_argument(
         "--universe",
-        default="config/universe.csv",
-        help="Universe file — CSV (ticker,cik,company_name,source_index) or "
-        "plain text (default: config/universe.csv)",
+        default="sp500",
+        help="Universe to screen: a named subset (sp500, nasdaq100, "
+        "sp500,nasdaq100, russell2000, european, all — filtered from "
+        "config/universe.csv) or a path to a universe file "
+        "(default: sp500)",
     )
     p.add_argument(
         "--out",
@@ -518,6 +686,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override the freshness threshold (hours) for the targeted SEC refresh "
         "(default: 168)",
+    )
+    p.add_argument(
+        "--max-refresh",
+        type=int,
+        default=MAX_REFRESH_DEFAULT,
+        help=f"Cap stale companies SEC-synced per run, most-recent-synced "
+        f"first (default: {MAX_REFRESH_DEFAULT}; ignored with --refresh/force)",
+    )
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip tickers already present in the last daily_state.json "
+        "(continue an interrupted run)",
     )
     p.add_argument(
         "--dry-run",
