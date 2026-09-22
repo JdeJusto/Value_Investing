@@ -58,6 +58,7 @@ class ScreenerService:
         enrich: Optional[Callable[[str, dict], dict]] = None,
         price_service=None,
         no_prices: bool = False,
+        workers: int = 1,
     ):
         """``analyzer`` must return the analysis dict (or None when no data).
 
@@ -68,12 +69,20 @@ class ScreenerService:
         real-time valuation metrics (price, market cap, P/E, FCF yield,
         EV/EBIT) fetched only for the tickers in the current screen — never
         persisted. Pass ``no_prices=True`` to skip that entirely.
+
+        ``workers`` > 1 runs the per-ticker analysis+enrichment step of the
+        screen in a bounded thread pool (results keep their input order). The
+        default of 1 preserves the historical sequential behavior. Workers
+        must be safe for the injected analyzer/repository (the
+        FinancialDatabaseRepository opens one PostgreSQL connection per
+        thread).
         """
         self._analyzer = analyzer
         self._universe = list(universe) if universe is not None else None
         self._enrich = enrich
         self._price_service = price_service
         self._no_prices = no_prices
+        self._workers = max(1, int(workers or 1))
 
     # ------------------------------------------------------------------
     def run(self, **criteria) -> list[ScreenedCompany]:
@@ -100,20 +109,39 @@ class ScreenerService:
         return sorted(results, key=lambda o: o["rank_score"], reverse=True)
 
     # ------------------------------------------------------------------
+    def _process(self, ticker: str, criteria: ScreenCriteria) -> Optional[dict]:
+        """Analyze, enrich, and filter one ticker; None when it fails or
+        does not match the criteria."""
+        result = self._analyzer(ticker)
+        if result is None:
+            return None
+        result["ticker"] = result.get("ticker", ticker.upper())
+        if self._enrich is not None:
+            result = self._enrich(ticker, result)
+        if not self._no_prices:
+            self._enrich_realtime_price(ticker, result)
+        if not matches(result, criteria):
+            return None
+        return result
+
     def _collect(self, criteria: ScreenCriteria) -> list[dict]:
+        from concurrent.futures import ThreadPoolExecutor
+
         tickers = criteria.tickers or (self._universe or [])
+        if self._workers > 1:
+            with ThreadPoolExecutor(max_workers=self._workers) as pool:
+                return [
+                    item
+                    for item in pool.map(
+                        lambda t: self._process(t, criteria), tickers
+                    )
+                    if item is not None
+                ]
         items: list[dict] = []
         for ticker in tickers:
-            result = self._analyzer(ticker)
-            if result is None:
-                continue
-            result["ticker"] = result.get("ticker", ticker.upper())
-            if self._enrich is not None:
-                result = self._enrich(ticker, result)
-            if not self._no_prices:
-                self._enrich_realtime_price(ticker, result)
-            if matches(result, criteria):
-                items.append(result)
+            item = self._process(ticker, criteria)
+            if item is not None:
+                items.append(item)
         return items
 
     def _enrich_realtime_price(self, ticker: str, item: dict) -> None:
