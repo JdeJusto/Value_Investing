@@ -137,7 +137,13 @@ def _run(args) -> None:
         save_state,
         trim_state,
     )
-    from backend.services.price_service import get_price_service
+    from backend.services.price_service import (
+        PRICE_FAILURE_DELISTED,
+        PRICE_FAILURE_GLITCH,
+        PRICE_FAILURE_MAPPING,
+        PRICE_FAILURE_UNKNOWN,
+        get_price_service,
+    )
 
     report_date = (
         date.fromisoformat(args.date) if args.date else datetime.now().date()
@@ -176,6 +182,7 @@ def _run(args) -> None:
     # N/A (truly network-free).
     if args.no_prices:
         market_provider = SnapshotMarketProvider({})
+        price_failures: dict[str, str] = {}
     else:
         # Quote-summary bursts are far more tolerant than history() bursts: a
         # 100-ticker probe saw 0 failures at 4 and 6 workers, while history()
@@ -197,10 +204,9 @@ def _run(args) -> None:
             workers=snapshot_workers,
         )
         unavailable = [t for t, s in snapshots.items() if s is None]
-        if unavailable:
-            logger.warning(
-                "no market quote for %d ticker(s)", len(unavailable)
-            )
+        price_failures = _classify_price_failures(
+            unavailable, price_service, fdb_repo
+        )
         market_provider = SnapshotMarketProvider(snapshots)
     timings["prices"] = time.time() - tick
     tick = time.time()
@@ -262,6 +268,39 @@ def _run(args) -> None:
             price_notes.append(
                 f"real-time price unavailable for: {', '.join(unavailable)}"
             )
+        # Categorized price-fetch failures: glitches surface as warnings and
+        # mapping gaps as errors in the report; delisted/unknown tickers are
+        # skipped silently (INFO only) so a known-dead symbol never clutters
+        # the daily report.
+        glitches = sorted(
+            t for t, c in price_failures.items()
+            if c == PRICE_FAILURE_GLITCH
+        )
+        mapping_gaps = sorted(
+            t for t, c in price_failures.items()
+            if c == PRICE_FAILURE_MAPPING
+        )
+        undetermined = sorted(
+            t for t, c in price_failures.items()
+            if c not in (
+                PRICE_FAILURE_GLITCH, PRICE_FAILURE_MAPPING, PRICE_FAILURE_DELISTED
+            )
+        )
+        if glitches:
+            price_notes.append(
+                "Yahoo quote glitch (transient; analyzed with market fields N/A): "
+                + ", ".join(glitches)
+            )
+        if mapping_gaps:
+            price_notes.append(
+                "ERROR — ticker not mapped to a listed company "
+                "(universe/mapping gap): " + ", ".join(mapping_gaps)
+            )
+        if undetermined:
+            price_notes.append(
+                "no market data and listing state undetermined: "
+                + ", ".join(undetermined)
+            )
 
     report = DailyReport(
         report_date=report_date,
@@ -313,6 +352,67 @@ def run_alerts(analyses: dict, previous: dict) -> list:
     from backend.alerts import run
 
     return run(analyses, previous or None)
+
+
+def _classify_price_failures(
+    unavailable: list[str],
+    price_service,
+    fdb_repo,
+) -> dict[str, str]:
+    """Categorize failed quote fetches and route them by severity.
+
+    Returns ``{TICKER: category}`` and logs each failure once:
+
+    - ``delisted``/``unknown`` — INFO only (silently skipped in the report);
+    - ``yahoo_glitch``        — WARNING (transient; company is still screened
+      with market fields N/A);
+    - ``mapping``             — ERROR (universe ticker cannot be resolved to
+      a listed company).
+
+    Classification re-probes Yahoo per failed ticker (the failure itself is
+    ambiguous — chart-endpoint rate limits trigger false ``possibly
+    delisted`` noise on very liquid names), so it is parallelized with a
+    small worker pool when more than one symbol failed.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    known = getattr(fdb_repo, "has_active_listing", None)
+    known_ticker = known if callable(known) else None
+
+    failures: dict[str, str] = {}
+    if not unavailable:
+        return failures
+
+    def _one(ticker: str) -> tuple[str, str]:
+        return ticker, price_service.classify_price_failure(
+            ticker, known_ticker=known_ticker
+        )
+
+    if len(unavailable) > 1:
+        workers = min(4, len(unavailable))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for ticker, category in pool.map(_one, unavailable):
+                failures[ticker] = category
+    else:
+        ticker = unavailable[0]
+        failures[ticker] = _one(ticker)[1]
+
+    for ticker in unavailable:
+        category = failures[ticker]
+        if category == PRICE_FAILURE_MAPPING:
+            logger.error(
+                "%s: ticker cannot be mapped to a listed company "
+                "(universe/mapping gap)",
+                ticker,
+            )
+        elif category == PRICE_FAILURE_GLITCH:
+            logger.warning(
+                "%s: transient Yahoo quote glitch (data available on retry)",
+                ticker,
+            )
+        else:  # delisted / unknown — silently skipped, INFO only
+            logger.info("skipping %s: no market data (%s)", ticker, category)
+    return failures
 
 
 def _format_timings(timings: dict[str, float]) -> str:

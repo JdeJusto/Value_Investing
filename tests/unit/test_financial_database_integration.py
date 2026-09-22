@@ -201,6 +201,18 @@ class TestFinancialDatabaseIntegration:
             elif "FINANCIAL_DATABASE_URL" in os.environ:
                 del os.environ["FINANCIAL_DATABASE_URL"]
 
+    def test_has_active_listing(self, financial_db_repo) -> None:
+        """has_active_listing separates known listings from mapping gaps."""
+        if not financial_db_repo.available():
+            pytest.skip("Financial-DataBase not available")
+
+        # A well-known active S&P ticker must resolve.
+        assert financial_db_repo.has_active_listing("AAPL") is True
+        # Garbage symbols are not listed companies -> False (mapping gap).
+        assert financial_db_repo.has_active_listing("ZZZZQQ") is False
+        # Tickers are matched case-insensitively.
+        assert financial_db_repo.has_active_listing("aapl") is True
+
 
 if __name__ == "__main__":
     # Allow running the test directly for manual verification

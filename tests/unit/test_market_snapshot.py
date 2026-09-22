@@ -57,6 +57,113 @@ class TestGetMarketSnapshots:
         assert snapshots["ZZZZ"] is None
 
 
+class TestPriceFailureClassification:
+    """Categorize failed quote fetches (glitch vs mapping vs delisted)."""
+
+    @pytest.fixture(autouse=True)
+    def no_sleep(self):
+        with patch("backend.services.price_service.time.sleep"):
+            yield
+
+    @staticmethod
+    def _quote(info):
+        t = Mock()
+        t.info = info
+        return t
+
+    def test_data_available_on_retry_is_a_glitch(self):
+        service = PriceService()
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=[self._quote({"quoteType": "EQUITY"})],
+        ):
+            category = service.classify_price_failure(
+                "ON", known_ticker=lambda _: True
+            )
+        assert category == "yahoo_glitch"
+
+    def test_no_data_and_unknown_listing_is_mapping(self):
+        service = PriceService()
+        ticker = Mock()
+        ticker.info = None
+        hist = Mock()
+        hist.empty = True
+        side_effect = [ticker, ticker]
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=side_effect,
+        ) as t:
+            t.return_value.history.return_value = hist
+            category = service.classify_price_failure(
+                "ZZZZQQ", known_ticker=lambda _: False
+            )
+        assert category == "mapping"
+
+    def test_no_data_and_active_listing_is_delisted(self):
+        service = PriceService()
+        ticker = Mock()
+        ticker.info = None
+        hist = Mock()
+        hist.empty = True
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=[ticker, ticker],
+        ) as t:
+            t.return_value.history.return_value = hist
+            category = service.classify_price_failure(
+                "DED", known_ticker=lambda _: True
+            )
+        assert category == "delisted"
+
+    def test_no_data_and_no_listing_opinion_is_unknown(self):
+        service = PriceService()
+        ticker = Mock()
+        ticker.info = None
+        hist = Mock()
+        hist.empty = True
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=[ticker, ticker],
+        ) as t:
+            t.return_value.history.return_value = hist
+            category = service.classify_price_failure("MYST")
+        assert category == "unknown"
+
+    def test_history_fallback_also_means_glitch(self):
+        """.info returns nothing but the chart endpoint responds: glitch."""
+        service = PriceService()
+        ticker = Mock()
+        ticker.info = None
+        hist = Mock()
+        hist.empty = False
+        third = Mock()
+        third.history.return_value = hist
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=[ticker, ticker, third],
+        ):
+            category = service.classify_price_failure(
+                "ON", known_ticker=lambda _: True
+            )
+        assert category == "yahoo_glitch"
+
+    def test_empty_info_dict_is_not_data(self):
+        """.info={} (no quoteType) is treated as no data, not a glitch."""
+        service = PriceService()
+        ticker = Mock()
+        ticker.info = {}
+        hist = Mock()
+        hist.empty = True
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=[ticker, ticker],
+        ) as t:
+            t.return_value.history.return_value = hist
+            category = service.classify_price_failure(
+                "JUNK", known_ticker=lambda _: False
+            )
+        assert category == "mapping"
+
 class TestSnapshotMarketProvider:
     def test_serves_all_market_fields_from_snapshot(self):
         provider = SnapshotMarketProvider({"AAPL": dict(_INFO)})

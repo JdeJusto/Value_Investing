@@ -361,6 +361,42 @@ class FinancialDatabaseRepository(FinancialRepository):
         except Exception:
             return None
 
+    def has_active_listing(self, ticker: str) -> Optional[bool]:
+        """Is ``ticker`` a known listed company? Tri-state for classification.
+
+        Returns True when the ticker maps to an active exchange listing (or a
+        TICKER identifier of a known company), False when the database has no
+        such listing at all (a universe/mapping gap), and None when the
+        lookup itself cannot be answered (database unavailable). Used by
+        PriceService.classify_price_failure to separate `mapping` failures
+        from `delisted` ones. Metadata-only — never touches price data.
+        """
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 1 FROM company_listings
+                    WHERE UPPER(ticker) = %s AND is_active
+                    LIMIT 1
+                    """,
+                    (str(ticker).upper(),),
+                )
+                if cur.fetchone() is not None:
+                    return True
+                cur.execute(
+                    """
+                    SELECT 1 FROM company_identifiers
+                    WHERE identifier_type = 'TICKER'
+                      AND UPPER(identifier_value) = %s
+                    LIMIT 1
+                    """,
+                    (str(ticker).upper(),),
+                )
+                return False if cur.fetchone() is None else True
+        except Exception:
+            return None
+
     def get_cik(self, ticker: str) -> Optional[str]:
         """SEC CIK for a ticker, or None when the company is not in the DB.
 

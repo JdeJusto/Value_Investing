@@ -15,11 +15,17 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import yfinance as yf
 
 DEFAULT_CACHE_TTL_SECONDS = 900  # 15 minutes
+
+# Categories for a failed price/quote fetch (see classify_price_failure).
+PRICE_FAILURE_DELISTED = "delisted"
+PRICE_FAILURE_GLITCH = "yahoo_glitch"
+PRICE_FAILURE_MAPPING = "mapping"
+PRICE_FAILURE_UNKNOWN = "unknown"
 
 
 def _snapshot_price(snap: dict) -> Optional[float]:
@@ -269,6 +275,76 @@ class PriceService:
             if attempt == 1:
                 time.sleep(0.75)
         return None
+
+    # ------------------------------------------------------------------
+    # failure categorization
+    # ------------------------------------------------------------------
+    def classify_price_failure(
+        self,
+        ticker: str,
+        known_ticker: Optional[Callable[[str], Optional[bool]]] = None,
+    ) -> str:
+        """Categorize a failed quote fetch for ``ticker``.
+
+        Yahoo's chart endpoint emits ``possibly delisted; no price data found``
+        for transient rate-limit windows on very liquid names (CBOE, BBY,
+        BRK-B, NXPI…), so a bare failure tells us nothing. This probe-based
+        classifier distinguishes the real cases:
+
+        - ``yahoo_glitch``  — a fresh probe *does* find data: the original
+          failure was transient (rate limiting / empty window). Reported as a
+          warning; the company is analyzed with market fields N/A.
+        - ``mapping``       — Yahoo has no data at all AND ``known_ticker``
+          says the symbol is not a known listed company: the universe entry
+          cannot be resolved to a company (universe/mapping gap). Reported as
+          an error.
+        - ``delisted``       — ``known_ticker`` says the company IS listed but
+          Yahoo has no data anywhere: genuinely unquoted (delisted /
+          suspended). Skipped with an INFO log only.
+        - ``unknown``        — no Yahoo data and no listing opinion
+          available; treated like delisted but surfaced for follow-up.
+
+        ``known_ticker`` is optional and must be side-effect free; when it is
+        omitted the mapping/delisted split degrades to ``unknown``.
+        """
+        ticker = ticker.upper()
+        if self._probe_has_data(ticker):
+            return PRICE_FAILURE_GLITCH
+        known: Optional[bool] = None
+        if known_ticker is not None:
+            try:
+                known = known_ticker(ticker)
+            except Exception:  # noqa: BLE001 — listing lookup must not break
+                known = None
+        if known is False:
+            return PRICE_FAILURE_MAPPING
+        if known is True:
+            return PRICE_FAILURE_DELISTED
+        return PRICE_FAILURE_UNKNOWN
+
+    def _probe_has_data(self, ticker: str) -> bool:
+        """True when Yahoo can currently quote ``ticker`` at all.
+
+        Tries the resilient quote summary (.info) first, then the chart
+        endpoint (history) as a fallback — either proves the earlier failure
+        was transient.
+        """
+        for attempt in (1, 2):
+            try:
+                info = yf.Ticker(ticker).info
+                if isinstance(info, dict) and info.get("quoteType") is not None:
+                    return True
+            except Exception:  # noqa: BLE001 — probe must never raise
+                pass
+            if attempt == 1:
+                time.sleep(0.75)
+        try:
+            hist = yf.Ticker(ticker).history(period="1d")
+            if hist is not None and not hist.empty:
+                return True
+        except Exception:  # noqa: BLE001 — probe must never raise
+            pass
+        return False
 
     def get_split_adjustment(self, ticker: str, target_date: date) -> float:
         """Return the split multiplier converting a value at ``target_date``
