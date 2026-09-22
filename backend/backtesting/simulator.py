@@ -46,7 +46,7 @@ def equity_curve(
 
 
 def cagr(curve: list[float]) -> Optional[float]:
-    if len(curve) < 2 or curve[0] <= 0:
+    if len(curve) < 2 or curve[0] <= 0 or curve[-1] <= 0:
         return None
     periods = len(curve) - 1
     return (curve[-1] / curve[0]) ** (1.0 / periods) - 1.0

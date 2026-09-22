@@ -207,6 +207,11 @@ class TestSimulator:
             or sharpe([0.1, -0.1]) is None
         )
 
+    def test_cagr_none_when_final_value_non_positive(self):
+        # A negative final equity value must not produce a complex CAGR.
+        assert cagr([1.0, 0.5, -0.2]) is None
+        assert cagr([1.0, 0.5, 0.0]) is None
+
     def test_win_rate_none_empty(self):
         assert win_rate([]) is None
 

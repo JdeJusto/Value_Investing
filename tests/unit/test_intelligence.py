@@ -105,6 +105,18 @@ def test_revenue_cagr_none_with_single_year():
     assert revenue_cagr([_make(2024)]) is None
 
 
+def test_revenue_cagr_none_with_negative_latest_revenue():
+    """A negative latest-year revenue must not produce a complex CAGR.
+
+    Regression: ``(-ratio) ** (1 / years)`` yields a Python complex, which
+    then breaks downstream comparisons (HBNC surfaced this in the daily
+    universe run with a -26.9M latest-year revenue).
+    """
+    rows = _history(range(2020, 2024))
+    rows[-1].revenue = -1_000_000
+    assert revenue_cagr(rows) is None
+
+
 def test_earnings_cv_reflects_volatility():
     stable = _history(range(2020, 2025))
     stable_cv = earnings_cv(stable)

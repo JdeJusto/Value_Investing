@@ -126,7 +126,7 @@ def max_yoy_decline(rows: list[NormalizedFinancials]) -> Optional[float]:
 def revenue_cagr(rows: list[NormalizedFinancials]) -> Optional[float]:
     """Compound annual growth rate of revenue over the available period."""
     ordered = [r.revenue for r in ordered_asc(rows) if r.revenue is not None]
-    if len(ordered) < 2 or ordered[0] <= 0:
+    if len(ordered) < 2 or ordered[0] <= 0 or ordered[-1] <= 0:
         return None
     years = len(ordered) - 1
     return (ordered[-1] / ordered[0]) ** (1.0 / years) - 1.0
