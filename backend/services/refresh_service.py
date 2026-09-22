@@ -368,15 +368,36 @@ class RefreshService:
         for reporting the pre-run state. A ticker is "unknown" when it has
         no CIK mapping in Financial-DataBase or the DB is unreachable.
         """
-        threshold = (
-            max_age_hours if max_age_hours is not None else self.config.freshness_max_age_hours
+        stale, fresh, unknown = self.staleness_ranked(
+            tickers, max_age_hours=max_age_hours
         )
-        stale: list[str] = []
+        return stale, fresh, unknown
+
+    def staleness_ranked(
+        self,
+        tickers: list[str],
+        *,
+        max_age_hours: Optional[int] = None,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """One-pass staleness scan: ``(stale, fresh, unknown)``.
+
+        ``stale`` is ordered by recency of the last sync (most recently
+        synced first); companies never ingested sort last. This ordering
+        lets the daily workflow apply --max-refresh by refreshing the stale
+        companies whose data is closest to current and deferring the rest.
+        Read-only — never syncs, never touches prices.
+        """
+        threshold = (
+            max_age_hours
+            if max_age_hours is not None
+            else self.config.freshness_max_age_hours
+        )
+        ranked: list[tuple[Optional[float], str]] = []
         fresh: list[str] = []
         unknown: list[str] = []
 
         if not self._gateway.available():
-            return stale, fresh, self._dedup(tickers)
+            return [], [], self._dedup(tickers)
 
         for ticker in self._dedup(tickers):
             resolved = self._gateway.resolve_company(ticker)
@@ -390,17 +411,23 @@ class RefreshService:
             except Exception:  # noqa: BLE001 — estimate must never crash the dry run
                 last = None
             if last is None:
-                stale.append(ticker)  # never ingested → a real run would sync it
+                ranked.append((None, ticker))  # never ingested → refreshable, oldest
                 continue
             try:
                 age_hours = (
                     _dt.datetime.now(_dt.timezone.utc) - last
                 ).total_seconds() / 3600.0
             except TypeError:
-                stale.append(ticker)  # unparseable timestamp → treat as stale
+                ranked.append((None, ticker))  # unparseable timestamp → treat as stale
                 continue
-            (stale if age_hours > threshold else fresh).append(ticker)
+            if age_hours > threshold:
+                ranked.append((age_hours, ticker))
+            else:
+                fresh.append(ticker)
 
+        # Most recently synced first; never-ingested (None) last.
+        ranked.sort(key=lambda item: (item[0] is None, item[0] or 0.0))
+        stale = [ticker for _, ticker in ranked]
         return stale, fresh, unknown
 
     # ------------------------------------------------------------------
