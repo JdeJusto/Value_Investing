@@ -2,8 +2,10 @@
 
 import pytest
 from argparse import Namespace
+from unittest.mock import Mock
 
 from backend.domain.value_objects.screener_result import ScreenerRow
+from backend.services.screener_service import StockScreenerService
 from cli.commands import analyze_full
 
 
@@ -167,6 +169,107 @@ class TestAnalyzeFullRunner:
         assert "5) Valoracion historica" in out
         assert "tabla historica fake" in out
         assert "6) Riesgos" in out
+
+
+class TestAnalyzeFullMockedPrice:
+    """The real-time price reaches the report through the real
+    `_analyze_ticker` wiring with a mocked PriceService (deterministic);
+    the analytics layer is stubbed so the flow stays DB-free."""
+
+    def _build_service(self, price=200.0, shares=5_000_000_000):
+        analysis = _analysis_dict()
+        analysis.update(
+            {
+                "shares_outstanding": None,
+                "market_cap": None,
+                "per": None,
+                "pb": None,
+                "fcf_yield": None,
+                "ev_ebit": None,
+                "net_income": 100_000_000_000,
+                "ebit": 120_000_000_000,
+                "total_debt": 100_000_000_000,
+                "cash_and_equivalents": 30_000_000_000,
+                "fcf": 90_000_000_000,
+            }
+        )
+        repo = Mock()
+        market = Mock()
+        market.get_company_name.return_value = "Apple Inc."
+        prices = Mock()
+        prices.get_current_price.return_value = price
+        prices.get_shares_outstanding.return_value = shares
+        service = StockScreenerService(
+            repository=repo, market_provider=market, price_service=prices
+        )
+        service._analysis.analyze = Mock(return_value=analysis)
+        return service, prices
+
+    def _patch_deps(self, monkeypatch, service):
+        monkeypatch.setattr(analyze_full, "build_screener_service", lambda: service)
+        monkeypatch.setattr(
+            analyze_full, "refresh_analysis_inputs", lambda *a, **k: None
+        )
+
+        class _FakeHist:
+            def format_valuation_table(self, ticker):
+                return "     [tabla historica fake]"
+
+        monkeypatch.setattr(
+            analyze_full, "HistoricalValuationService", lambda: _FakeHist()
+        )
+
+    def test_runner_renders_realtime_price_from_price_service(
+        self, monkeypatch, capsys
+    ):
+        """Section 2 shows the mocked price and the valuation metrics derived
+        from it (P/E, FCF yield, EV/EBIT) — i.e. the row price is not
+        hard-coded or dropped, it flows through the PriceService."""
+        service, prices = self._build_service()
+        self._patch_deps(monkeypatch, service)
+
+        analyze_full._run(
+            Namespace(
+                tickers=["AAPL"],
+                no_prices=False,
+                refresh=False,
+                no_refresh=False,
+                freshness_hours=None,
+            )
+        )
+
+        out = capsys.readouterr().out
+        prices.get_current_price.assert_called_once_with("AAPL")
+        assert "2) Precio y valoracion" in out
+        # 200.0 * 5e9 = 1e12 market cap -> P/E 10.0, FCF yield 9.0%, EV/EBIT 8.9
+        assert "$200.00" in out
+        assert "PER" in out and "10.0" in out
+        assert "9.0%" in out
+        assert "EV/EBIT" in out and "8.9" in out
+        assert "6) Riesgos" in out
+
+    def test_runner_no_prices_never_calls_price_service(
+        self, monkeypatch, capsys
+    ):
+        """With --no-prices the PriceService is never consulted and section 2
+        says so — real-time prices stay optional for the report."""
+        service, prices = self._build_service()
+        self._patch_deps(monkeypatch, service)
+
+        analyze_full._run(
+            Namespace(
+                tickers=["AAPL"],
+                no_prices=True,
+                refresh=False,
+                no_refresh=False,
+                freshness_hours=None,
+            )
+        )
+
+        out = capsys.readouterr().out
+        prices.get_current_price.assert_not_called()
+        prices.get_shares_outstanding.assert_not_called()
+        assert "--no-prices" in out
 
 
 if __name__ == "__main__":
