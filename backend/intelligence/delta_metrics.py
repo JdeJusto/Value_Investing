@@ -35,6 +35,24 @@ def _margin_delta(rows: list[NormalizedFinancials], margin_fn) -> Optional[float
     )
 
 
+def _prev_margin_delta(rows: list[NormalizedFinancials], margin_fn) -> Optional[float]:
+    """Year-over-year margin change of the *previous* period pair.
+
+    ``delta`` is the change between the two most recent years; the *prev*
+    variant is the change between the two years before that. It exists so
+    trigger logic can require an improvement to be persistent (positive in
+    both consecutive periods) instead of a one-off.
+    """
+    if len(rows) < 3:
+        return None
+    ordered = ordered_asc(rows)
+    cur = margin_fn(ordered[-2])
+    prev = margin_fn(ordered[-3])
+    if cur is None or prev is None:
+        return None
+    return cur - prev
+
+
 def _net_margin(row: NormalizedFinancials) -> Optional[float]:
     if row.revenue is not None and row.net_income is not None and row.revenue != 0:
         return row.net_income / row.revenue
@@ -72,10 +90,17 @@ def compute_delta_metrics(rows: list[NormalizedFinancials]) -> dict:
             "revenue_growth_prev": None,
             "revenue_growth_delta": None,
             "gross_margin_delta": None,
+            "gross_margin_delta_prev": None,
             "net_margin_delta": None,
+            "net_margin_delta_prev": None,
             "operating_margin_delta": None,
+            "operating_margin_delta_prev": None,
             "roic_delta": None,
+            "roic_delta_prev": None,
             "fcf_delta": None,
+            "fcf_growth_last": None,
+            "fcf_growth_prev": None,
+            "fcf_growth_delta": None,
             "debt_delta": None,
             "net_income_change": None,
         }
@@ -113,6 +138,13 @@ def compute_delta_metrics(rows: list[NormalizedFinancials]) -> dict:
         else None
     )
 
+    roic_prev_prev = roic(ordered[-3]) if len(ordered) >= 3 else None
+    roic_delta_prev = (
+        roic_prev - roic_prev_prev
+        if roic_prev_prev is not None and roic_prev is not None
+        else None
+    )
+
     de_prev = _debt_equity(ordered[-2])
     de_last = _debt_equity(ordered[-1])
     debt_delta = (
@@ -131,9 +163,13 @@ def compute_delta_metrics(rows: list[NormalizedFinancials]) -> dict:
             else None
         ),
         "gross_margin_delta": _margin_delta(ordered, gross_margin),
+        "gross_margin_delta_prev": _prev_margin_delta(ordered, gross_margin),
         "net_margin_delta": _margin_delta(ordered, _net_margin),
+        "net_margin_delta_prev": _prev_margin_delta(ordered, _net_margin),
         "operating_margin_delta": _margin_delta(ordered, _operating_margin),
+        "operating_margin_delta_prev": _prev_margin_delta(ordered, _operating_margin),
         "roic_delta": roic_delta,
+        "roic_delta_prev": roic_delta_prev,
         "fcf_delta": fcf_delta,
         "fcf_growth_last": fcf_growth_last,
         "fcf_growth_prev": fcf_growth_prev,
