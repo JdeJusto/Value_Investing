@@ -129,8 +129,8 @@ dominant **positive** improvement of the latest period when:
 
 Deterioration is deliberately **not** a `TRIGGER_EVENT` — score drops
 (`SELL_WARNING`) and anomaly reporting cover it. Expected counts on the
-~500-company universe: `TRIGGER_EVENT` ≈ 5-10% of the universe (25-50,
-ceiling 80), `BUY_SIGNAL` ≈ 10-40, `SELL_WARNING` ≈ 0-5 and only when
+~500-company universe: `TRIGGER_EVENT` ≈ 6-12% (30-60 observed 58 on
+2026-09-22, ceiling 80), `BUY_SIGNAL` ≈ 10-40, `SELL_WARNING` ≈ 0-5 and only when
 scores really drop ≥ 10 points vs the previous day (0 fires when the
 universe is stable).
 

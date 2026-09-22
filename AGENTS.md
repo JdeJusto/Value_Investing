@@ -258,8 +258,9 @@ The daily alert evaluation (`backend/alerts/alert_engine.py::run`, wired in
 - **SELL_WARNING** — composite total score drops ≥ 10 pts (HIGH ≥ 15) vs
   the previous day; universe-wide, 0 fires when scores are stable.
 
-Expected counts on the ~500-company daily universe: TRIGGER_EVENT ≈ 5-10%
-(~25-50, ceiling 80), BUY_SIGNAL ≈ 10-40, SELL_WARNING ≈ 0-5. See
+Expected counts on the ~500-company daily universe: TRIGGER_EVENT ≈ 6-12%
+(~30-60, 58 observed on 2026-09-22, ceiling 80), BUY_SIGNAL ≈ 10-40,
+SELL_WARNING ≈ 0-5. See
 `docs/scoring_methodology.md` (Alerts and trigger calibration) and
 `docs/runbook_daily.md`.
 

@@ -100,7 +100,7 @@ What it does:
    the previous day's state in `data/reports/daily_state.json`), and
    `TRIGGER_EVENT` — calibrated fundamental improvements only (see
    `docs/scoring_methodology.md` for thresholds). Expected counts on the
-   ~500-company universe: TRIGGER_EVENT ≈ 5-10% (~25-50, ceiling 80),
+   ~500-company universe: TRIGGER_EVENT ≈ 6-12% (~30-60, ceiling 80),
    BUY_SIGNAL ≈ 10-40, SELL_WARNING ≈ 0-5 (only when scores actually drop
    ≥ 10 points vs the previous day).
 4. **Report** written to `data/reports/daily_YYYY-MM-DD.md` (includes the
