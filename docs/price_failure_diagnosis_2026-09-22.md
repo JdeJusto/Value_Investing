@@ -64,9 +64,9 @@ rejects excess requests with a payload whose message is
 `possibly delisted; no price data found` error. It is endpoint-generic, not
 ticker-specific. Evidence from archives:
 
-- On the 500-universe run with the old history-based prefetch
-  (`bench_full500.log`) the exact same error appeared for `$NXPI` — yet NXPI
-  screened normally, and the quote pipeline recovered on retry.
+- On the pre-change 500-universe run with the old history-based prefetch the
+  exact same error appeared for `$NXPI` — yet NXPI screened normally, and the
+  quote pipeline recovered on retry.
 - Earlier logs show the same message for `$AON`, `$AXON`, `$CBOE`, `$BBY`,
   `$CMG`, `$BRK-B`, `$BALL`, etc. — all liquid, actively-traded names that are
   definitively not delisted.
