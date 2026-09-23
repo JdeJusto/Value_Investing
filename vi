@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Value Investing CLI launcher — uses the project virtualenv directly.
+#
+# Works without pipenv (which is not installed on this machine by default):
+#   ./vi load-data AAPL
+#   ./vi screener
+# It is equivalent to:  source .venv/bin/activate && python main.py "$@"
+#
+# If you prefer pipenv,  `pip install --user pipenv`  then all the usual
+# `pipenv run python main.py ...` commands from the README work as written.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python"
+
+if [ ! -x "$VENV_PYTHON" ]; then
+    echo "ERROR: no virtualenv found at $VENV_PYTHON" >&2
+    echo "Create it with:  python3 -m venv .venv && .venv/bin/pip install -e ." >&2
+    exit 1
+fi
+
+exec "$VENV_PYTHON" "$SCRIPT_DIR/main.py" "$@"

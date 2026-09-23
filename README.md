@@ -25,7 +25,8 @@ y alertas. Todo determinista, sin ML y sin dependencias de redes sociales.
 ## Requisitos
 
 - Python >= 3.11
-- Pipenv
+- Pipenv (solo necesario para *instalar* dependencias; no hace falta para usar el
+  CLI si ya existe `.venv/` — ver `vi` abajo)
 - PostgreSQL (opcional; sin él se usa el repositorio JSON)
 
 ## Instalación
@@ -37,6 +38,23 @@ pipenv install --dev
 ```
 
 El entorno virtual se crea automáticamente en `.venv/`.
+
+**¿No tienes `pipenv`?** El CLI y el UI arrancan directamente contra el venv del
+proyecto, sin depender de pipenv:
+
+```bash
+./vi load-data AAPL              # equivale a: source .venv/bin/activate && python main.py load-data AAPL
+./run_ui.sh                      # UI Streamlit en http://localhost:8501
+```
+
+`vi` es un lanzador (script) que ejecuta `main.py` con `.venv/bin/python`; solo
+falla si el directorio `.venv/` no existe (en ese caso usa `pipenv install --dev`
+para crearlo). Para scripts como el flujo diario:
+
+```bash
+source .venv/bin/activate
+python -m scripts.daily_workflow --universe sp500
+```
 
 ## Configuración
 
@@ -58,41 +76,47 @@ pipenv run python main.py debug   # verifica que todo funciona
 
 ## Empezar en 2 minutos
 
+> 💡 **Sin pipenv:** los ejemplos usan `./vi` (equivale a
+> `source .venv/bin/activate && python main.py ...`). Si tienes pipenv, las
+> mismas órdenes funcionan con `pipenv run python main.py ...`.
+
 ```bash
 # 1. Carga datos de un ticker (10 años fiscales, multi-fuente)
-pipenv run python main.py load-data AAPL
+./vi load-data AAPL
 
 # 2. Calidad empresarial estilo Buffett + moat + insights
-pipenv run python main.py buffett-analysis AAPL
+./vi buffett-analysis AAPL
 
 # 3. Busca oportunidades en todo lo cargado
-pipenv run python main.py screener --tickers AAPL,KO --filter moat=STRONG min_score=80
-pipenv run python main.py opportunities
+./vi screener --tickers AAPL,KO --filter moat=STRONG min_score=80
+./vi opportunities
 
 # 4. Sigue tu cartera
-pipenv run python main.py portfolio add AAPL 10 180 --thesis "moat fuerte" --signal BUY
-pipenv run python main.py portfolio view
-pipenv run python main.py portfolio performance
+./vi portfolio add AAPL 10 180 --thesis "moat fuerte" --signal BUY
+./vi portfolio view
+./vi portfolio performance
 
 # 5. Backtest y alertas
-pipenv run python main.py backtest --strategy momentum --top 3
-pipenv run python main.py alerts
+./vi backtest --strategy momentum --top 3
+./vi alerts
 
 # 6. Análisis histórico de valoración (P/E y FCF yield)
-pipenv run python main.py historical-valuation AAPL MSFT
+./vi historical-valuation AAPL MSFT
 
 # 7. Comparar datos entre fuentes
-pipenv run python scripts/compare_sources.py AAPL MSFT KO
+source .venv/bin/activate
+python scripts/compare_sources.py AAPL MSFT KO
 
 # 8. Ejecutar scripts SQL reutilizables de Financial-DataBase
-pipenv run python main.py sql-analysis --script company_overview --cik 0000320193
-pipenv run python main.py sql-analysis --script financial_series --cik 0000320193
-pipenv run python main.py sql-analysis compare --ciks 0000320193,0000789019
+./vi sql-analysis --script company_overview --cik 0000320193
+./vi sql-analysis --script financial_series --cik 0000320193
+./vi sql-analysis compare --ciks 0000320193,0000789019
 ```
 
 ## Referencia de comandos
 
-Todos los comandos se ejecutan con `pipenv run python main.py <comando>`.
+Todos los comandos se ejecutan con `pipenv run python main.py <comando>` —
+equivalente sin pipenv: `./vi <comando>`.
 
 Índice rápido:
 
@@ -337,6 +361,9 @@ dos artefactos en `--out`:
 
 ```bash
 pipenv run python -m scripts.daily_workflow [opciones]
+# sin pipenv:
+#   source .venv/bin/activate
+#   python -m scripts.daily_workflow [opciones]
 ```
 
 Opciones:
@@ -366,20 +393,23 @@ Ejemplos:
 
 ```bash
 # Día normal (S&P 500): refresh de hasta 200 vencidos en paralelo, 4 workers
-pipenv run python -m scripts.daily_workflow
+python -m scripts.daily_workflow
 
 # Russell 2000 completo con cap de refresh y resume para vaciarlo en varios días
-pipenv run python -m scripts.daily_workflow --universe russell2000 --resume
+python -m scripts.daily_workflow --universe russell2000 --resume
 
 # Europa: los no-filers SEC ya quedan fuera del maestro; se puede correr sin refresh
-pipenv run python -m scripts.daily_workflow --universe european --no-refresh
+python -m scripts.daily_workflow --universe european --no-refresh
 
 # Todo el universo maestro (S&P 500 + Nasdaq-100 + Russell 2000 + Europa, ~2.5k)
-pipenv run python -m scripts.daily_workflow --universe all
+python -m scripts.daily_workflow --universe all
 
-# Smoke test rápido de 50 tickers sin tocar nada
-pipenv run python -m scripts.daily_workflow --universe sp500 --limit 50 --dry-run
+# Smoke test rápido de 50 tickers sin tocar nada (requiere venv activado)
+python -m scripts.daily_workflow --universe sp500 --limit 50 --dry-run
 ```
+
+> Los ejemplos asumen `source .venv/bin/activate` (o `pipenv run python -m ...`
+> si usas pipenv).
 
 Optimización integrada: el paso de refresh ejecuta `sec sync <CIK>` con
 `--refresh-workers` procesos concurrentes (el arranque de subprocesos libera el

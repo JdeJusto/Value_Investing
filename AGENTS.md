@@ -308,7 +308,12 @@ The on-demand refresh step also honors:
 
 ## Key Commands (CLI)
 
-All standard CLI commands will automatically use Financial-DataBase when available:
+All standard CLI commands will automatically use Financial-DataBase when available.
+`pipenv run python ...` is the documented form; on machines without pipenv the
+wrapper `./vi <argv>` is equivalent to
+`<repo>/.venv/bin/python main.py <argv>`, and scripts run via
+`<repo>/.venv/bin/python scripts/<script>.py` or
+`.venv/bin/python -m scripts.daily_workflow` (venv activated).
 - `pipenv run python main.py load-data AAPL` - Load data from Financial-DataBase
 - `pipenv run python main.py analyze AAPL` - Analyze using cached data
 - `pipenv run python main.py screener` - Screen using cached data
