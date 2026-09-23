@@ -7,6 +7,7 @@ financial facts and reconstructing NormalizedFinancials objects.
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 from typing import Optional, List
@@ -151,6 +152,18 @@ CASH_FLOW_FIELD_PRIORITY = {
         'CapitalExpenditures',
         'CapitalExpenditure',
     ],
+    'depreciation_amortization': [
+        'DepreciationDepletionAndAmortization',
+        'DepreciationAndAmortization',
+        # Variant add-back tags used by utilities (AEE: ...AccretionNet) and
+        # capital-intensive filers (PWR: Depreciation).
+        'DepreciationAmortizationAndAccretionNet',
+        'Depreciation',
+        # Single-line-item (non-add-back) tags ranked last; only chosen when no
+        # complete add-back tag exists.
+        'UtilitiesOperatingExpenseDepreciationAndAmortization',
+        'CostOfGoodsSoldDepreciationDepletionAndAmortization',
+    ],
 }
 CASH_FLOW_CONCEPT_RANK = {
     concept: rank
@@ -262,6 +275,11 @@ CASH_FLOW_CONCEPTS = {
     # Depreciation and Amortization
     'DepreciationDepletionAndAmortization': 'depreciation_amortization',
     'DepreciationAndAmortization': 'depreciation_amortization',
+    # Utilities/multi-entity filers use variant tags for the D&A add-back
+    'DepreciationAmortizationAndAccretionNet': 'depreciation_amortization',
+    'Depreciation': 'depreciation_amortization',
+    'UtilitiesOperatingExpenseDepreciationAndAmortization': 'depreciation_amortization',
+    'CostOfGoodsSoldDepreciationDepletionAndAmortization': 'depreciation_amortization',
 
     # Dividends Paid
     'PaymentsOfDividends': 'dividends_paid',
@@ -1178,6 +1196,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 return None
 
             conn = self._get_connection()
+            candidate = None
             with conn.cursor() as cur:
                 # Try multiple concepts, preferring the annual ('FY') fact with
                 # the latest period_end (the actual fiscal-year-end figure).
@@ -1195,25 +1214,61 @@ class FinancialDatabaseRepository(FinancialRepository):
 
                     result = cur.fetchone()
                     if result and result['value'] is not None:
-                        return float(result['value'])
+                        candidate = float(result['value'])
+                        break
 
                 # Fallback: no annual fact — accept any period (rare)
-                for concept in concepts_to_try:
+                if candidate is None:
+                    for concept in concepts_to_try:
+                        cur.execute("""
+                            SELECT f.value
+                            FROM financial_facts f
+                            WHERE f.company_id = %s
+                              AND f.fiscal_year = %s
+                              AND f.concept = %s
+                            ORDER BY f.updated_at DESC
+                            LIMIT 1
+                        """, (company_id, fiscal_year, concept))
+
+                        result = cur.fetchone()
+                        if result and result['value'] is not None:
+                            candidate = float(result['value'])
+                            break
+
+                # Legacy SEC filings (pre-2011) sometimes tag weighted-average
+                # share counts in thousands while the cover-page share count is
+                # correct (e.g. Ball Corp 2010 weighted-average basic = 180,746
+                # but outstanding stood at 169,198,602). Detect the scale
+                # mismatch against EntityCommonStockSharesOutstanding and repair
+                # the candidate so per-share metrics are not inflated ~1000x.
+                if candidate is not None and candidate > 0:
                     cur.execute("""
                         SELECT f.value
                         FROM financial_facts f
                         WHERE f.company_id = %s
                           AND f.fiscal_year = %s
-                          AND f.concept = %s
-                        ORDER BY f.updated_at DESC
+                          AND f.concept = 'EntityCommonStockSharesOutstanding'
+                          AND UPPER(f.fiscal_period) = 'FY'
+                        ORDER BY f.period_end DESC NULLS LAST
                         LIMIT 1
-                    """, (company_id, fiscal_year, concept))
+                    """, (company_id, fiscal_year))
 
                     result = cur.fetchone()
-                    if result and result['value'] is not None:
-                        return float(result['value'])
+                    anchor = (
+                        float(result['value'])
+                        if result and result['value'] is not None
+                        else None
+                    )
+                    if anchor and anchor > 0:
+                        ratio = anchor / candidate
+                        # A legitimate weighted-average count never diverges
+                        # from the end-of-period count by 100x+; this only
+                        # happens when one side is unit-scaled.
+                        if ratio >= 100.0:
+                            scale = 10 ** round(math.log10(ratio))
+                            candidate = candidate * scale
 
-                return None
+            return candidate
 
         except Exception:
             return None

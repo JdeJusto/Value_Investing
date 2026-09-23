@@ -258,6 +258,40 @@ class TestNormalizeFiscalYearDedup:
         assert normalized["balance"]["cash_and_equivalents"] == 3.57e9
         assert normalized["balance"]["total_debt"] == 2.36e9
 
+    def test_depreciation_prefers_complete_add_back_over_partial_tag(self):
+        # A filer reporting both the generic D&A add-back and a partial
+        # COGS-only tag keeps the complete figure.
+        facts = [
+            _fact("DepreciationAndAmortization", 1.5e9, date(2025, 12, 31)),
+            _fact(
+                "CostOfGoodsSoldDepreciationDepletionAndAmortization",
+                0.4e9,
+                date(2025, 12, 31),
+            ),
+            _fact("NetCashProvidedByUsedInOperatingActivities", 2e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["depreciation_amortization"] == 1.5e9
+
+    def test_depreciation_falls_back_to_utilities_add_back(self):
+        # AEE files D&A only as DepreciationAmortizationAndAccretionNet; it
+        # must still populate the field.
+        facts = [
+            _fact("DepreciationAmortizationAndAccretionNet", 1.524e9, date(2025, 12, 31)),
+            _fact("NetCashProvidedByUsedInOperatingActivities", 2.2e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["depreciation_amortization"] == 1.524e9
+
+    def test_depreciation_falls_back_to_depreciation_tag(self):
+        # PWR files D&A only as Depreciation (capital-intensive contractor).
+        facts = [
+            _fact("Depreciation", 359.363e6, date(2025, 12, 31)),
+            _fact("NetCashProvidedByUsedInOperatingActivities", 1e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["depreciation_amortization"] == 359.363e6
+
 
 class TestFiscalYearEndMode:
     """get_fiscal_year_end_date must use the latest period_end among the core
@@ -372,6 +406,77 @@ class TestSharesOutstandingPreference:
         )
         repo.get_shares_outstanding("BF-B", 2026)
         assert concepts and concepts[0] == "CommonStockSharesOutstanding"
+
+    def test_repairs_legacy_thousands_scaled_shares(self, monkeypatch):
+        # Ball 2010: the weighted-average basic share count was filed in
+        # thousands (180,746) while the cover-page outstanding count is
+        # 169,198,602. The candidate must be rescaled so EPS is not inflated
+        # ~1000x.
+        repo = FinancialDatabaseRepository()
+
+        values = iter(
+            [
+                None,          # CommonStockSharesOutstanding: not filed
+                "180746",      # WeightedAverageNumberOfSharesOutstandingBasic
+                "169198602",   # EntityCommonStockSharesOutstanding anchor
+            ]
+        )
+
+        class FakeCursor:
+            def execute(self, sql, par):
+                self._result = {"value": next(values)}
+
+            def fetchone(self):
+                return {"value": self._result["value"]}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class FakeConn:
+            def cursor(self):
+                return FakeCursor()
+
+        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
+        monkeypatch.setattr(
+            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
+        )
+
+        result = repo.get_shares_outstanding("BALL", 2010)
+        assert result == 180746000.0
+
+    def test_no_rescale_when_counts_are_close(self, monkeypatch):
+        # A legitimate weighted-average / outstanding pair must be untouched.
+        repo = FinancialDatabaseRepository()
+
+        values = iter(["466733000", "469000000", "470000000"])
+
+        class FakeCursor:
+            def execute(self, sql, par):
+                self._result = {"value": next(values)}
+
+            def fetchone(self):
+                return {"value": self._result["value"]}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class FakeConn:
+            def cursor(self):
+                return FakeCursor()
+
+        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
+        monkeypatch.setattr(
+            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
+        )
+
+        result = repo.get_shares_outstanding("CRM", 2026, prefer_diluted=True)
+        assert result == 466733000.0
 
 
 class TestYahooEps:
