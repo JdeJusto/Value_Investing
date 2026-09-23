@@ -94,6 +94,31 @@ pipenv run python main.py sql-analysis compare --ciks 0000320193,0000789019
 
 Todos los comandos se ejecutan con `pipenv run python main.py <comando>`.
 
+Índice rápido:
+
+| Comando | Qué hace |
+| --- | --- |
+| `load-data TICKERS...` | Carga fundamentales (Yahoo + EDGAR) de los tickers indicados. |
+| `data-status TICKERS...` | Frescura y calidad por ticker/año fiscal. |
+| `company TICKER` | Ficha rápida: nombre, precio, métricas clave. |
+| `analyze TICKERS...` | Análisis completo (ratios, DCF, scoring). |
+| `buffett-analysis TICKERS...` | Calidad estilo Buffett + moat + insights. |
+| `screener` | Screening por criterios de mercado o calidad. |
+| `opportunities` | Oportunidades (margin of safety, etc.). |
+| `momentum TICKERS...` | Análisis de momentum. |
+| `anomalies TICKERS...` | Detecta anomalías contables. |
+| `portfolio` | Gestión de cartera (add/exit/remove/view/performance). |
+| `backtest` | Backtest de estrategias (buffett/momentum). |
+| `alerts` | Evalúa triggers, BUY signals y sell warnings vs el día previo. |
+| `historical-valuation TICKERS...` | P/E y FCF yield históricos (fundamentales + precio real). |
+| `sql-analysis SCRIPT` | Ejecuta scripts SQL reutilizables de Financial-DataBase. |
+| `debug` | Diagnóstico del sistema completo. |
+| `scripts/daily_workflow.py` | Flujo diario del universo (ver sección dedicada abajo). |
+
+La mayoría de comandos de análisis aceptan también `--refresh` / `--no-refresh`
+/ `--freshness-hours N` para controlar el refresh SEC bajo demanda (sección
+"Refresco de datos SEC bajo demanda").
+
 ### `load-data TICKERS... [--years N] [--force]`
 Pipeline completo (fetch → normalizar → almacenar). Multi-fuente con
 fallback: Yahoo primero, EDGAR si falla; por defecto 10 años fiscales.
@@ -247,6 +272,10 @@ por empresa) — nunca un sync masivo del universo completo.
   existen); los precios se siguen consultando.
 - `--freshness-hours N`: antigüedad máxima para considerar los datos frescos
   (por defecto 168 h = 7 días, configurable en `config/refresh.yaml`).
+- `--refresh-workers N` (solo `daily_workflow`): syncs SEC concurrentes; por
+  defecto 2 (`config/refresh.yaml` → `refresh_workers`, override con env
+  `REFRESH_WORKERS`). Como cada sync es un subproceso, 2-3 workers reducen a
+  la mitad el tiempo de refresh sin disparar el throttle de SEC.
 
 Cuando el comando corre sobre el universo amplio sin tickers explícitos
 (p. ej. `screener` o `momentum` sin argumentos), el refresh se omite por
@@ -293,6 +322,72 @@ pipenv run python main.py sql-analysis compare --ciks 0000320193,0000789019
 
 ### `debug`
 Verifica que todas las piezas del sistema funcionan (BD, repositorios, CLI).
+
+## Análisis diario del universo completo (`scripts/daily_workflow.py`)
+
+Es el comando del flujo diario: selecciona un subconjunto del universo maestro,
+refresca **solo** los fundamentales SEC vencidos de esos tickers (sync acotado
+por CIK, nunca un sync masivo), precarga los precios en tiempo real (que **nunca
+se persisten**), analiza cada empresa con el motor de ranking calibrado y escribe
+dos artefactos en `--out`:
+
+- `daily_<fecha>.md` — reporte del día (rankings, alertas, triggers, sell warnings).
+- `daily_state.json` — estado por ticker de ese día; lo consume `alerts` para
+  comparar con el día anterior y `--resume` para continuar una corrida cortada.
+
+```bash
+pipenv run python -m scripts.daily_workflow [opciones]
+```
+
+Opciones:
+
+| Opción | Descripción |
+| --- | --- |
+| `--universe SUBSET\|ARCHIVO` | Subconjunto: `sp500` (default), `nasdaq100`, `sp500,nasdaq100`, `russell2000`, `european`, `all` — filtrados de `config/universe.csv` — o la ruta a un archivo de universe (CSV) o de tickers (txt). |
+| `--out DIR` | Directorio de reportes y estado (default: `data/reports`). |
+| `--date YYYY-MM-DD` | Fecha del reporte (default: hoy). |
+| `--limit N` | Analiza solo los primeros N tickers del subconjunto. |
+| `--batch-size N` | Tamaño de lote de la precarga de precios (default: 25). |
+| `--batch-delay SEG` | Pausa entre lotes de precios (default: 0.2 s). |
+| `--workers N` | Workers paralelos de la precarga de precios y del análisis (default: **4**; override con env `WORKFLOW_WORKERS`). La precarga de cotizaciones tolera hasta 6 (cap `SNAPSHOT_WORKERS_CAP`). |
+| `--refresh-workers N` | Syncs SEC acotados concurrentes del paso de refresh (default: **2**, de `config/refresh.yaml` / env `REFRESH_WORKERS`). |
+| `--refresh` / `--no-refresh` | Fuerza / omite el refresh SEC (mutuamente excluyentes). |
+| `--freshness-hours N` | Antigüedad máxima para considerar datos frescos (default: 168 h). |
+| `--max-refresh N` | Tope de empresas vencidas que se sincronizan por corrida, las más recientes primero (default: 200; el resto queda diferido). Se ignora con `--refresh`. |
+| `--resume` | Salta tickers ya presentes en el último `daily_state.json` (continúa una corrida interrumpida). |
+| `--dry-run` | No sincroniza SEC ni escribe nada; solo imprime el reporte (estima staleness en solo-lectura). |
+| `--no-prices` | No consulta precios en tiempo real (la valoración puede salir como N/A). |
+| `--top N` | Filas visibles en la tabla del reporte (default: 20). |
+| `--fdb-dir DIR` | Repositorio de Financial-DataBase (default: `../Financial-DataBase`, env `FDB_DIR`). |
+| `--fdb-python PY` | Python del venv de Financial-DataBase (default: `<fdb-dir>/.venv/bin/python`). |
+| `--verbose` | Log detallado. |
+
+Ejemplos:
+
+```bash
+# Día normal (S&P 500): refresh de hasta 200 vencidos en paralelo, 4 workers
+pipenv run python -m scripts.daily_workflow
+
+# Russell 2000 completo con cap de refresh y resume para vaciarlo en varios días
+pipenv run python -m scripts.daily_workflow --universe russell2000 --resume
+
+# Europa: los no-filers SEC ya quedan fuera del maestro; se puede correr sin refresh
+pipenv run python -m scripts.daily_workflow --universe european --no-refresh
+
+# Todo el universo maestro (S&P 500 + Nasdaq-100 + Russell 2000 + Europa, ~2.5k)
+pipenv run python -m scripts.daily_workflow --universe all
+
+# Smoke test rápido de 50 tickers sin tocar nada
+pipenv run python -m scripts.daily_workflow --universe sp500 --limit 50 --dry-run
+```
+
+Optimización integrada: el paso de refresh ejecuta `sec sync <CIK>` con
+`--refresh-workers` procesos concurrentes (el arranque de subprocesos libera el
+GIL), la precarga de precios usa lotes con reintento único y hasta 6 workers, y
+el análisis corre en threads porque es intensivo en I/O de PostgreSQL. Referencia
+de tiempos y mejoras medidas en `docs/expanded_universe_test_2026-09-22.md` §11.
+Esperados en el universo de ~500-2.5k: TRIGGER_EVENT ≈ 6-12%, BUY_SIGNAL
+≈ 10-40, SELL_WARNING ≈ 0-5 (ver `docs/runbook_daily.md`).
 
 ## Interfaz Web (Streamlit)
 
@@ -365,6 +460,38 @@ python scripts/build_universe.py            # 4) Merge + dedup -> config/univers
 python scripts/validate_universe_against_fdb.py   # 5) Gate de cobertura (>= 80%)
 ```
 
+Cada paso es independiente y genera su propio archivo por índice:
+
+- `fetch_universe.py` → `config/universe_sp500_nasdaq.csv` (S&P 500 + Nasdaq-100
+  desde Wikipedia, deduplicados).
+- `fetch_russell2000.py` → `config/universe_russell2000.csv` (holdings oficiales
+  del ETF iShares IWM).
+- `fetch_european_indices.py` → `config/universe_european.csv` (nueve índices
+  europeos; marca cada empresa como "SEC-filer" o no según tenga o no CIK).
+- `build_universe.py` → fusiona los archivos por índice, deduplica y escribe el
+  maestro `config/universe.csv` (ticker, cik, company_name, source_index).
+- `validate_universe_against_fdb.py` → gate de calidad: exige ≥ 80% de cobertura
+  de los tickers del maestro en Financial-DataBase; si baja de ahí termina con
+  código de salida ≠ 0 (lista de no-resueltos acotada a 100).
+
+Si solo se cambia un índice (p. ej. una rotación de Russell 2000), basta
+refrescar ese paso y `build_universe.py`, y revalidar:
+
+```bash
+python scripts/fetch_russell2000.py && \
+python scripts/build_universe.py && \
+python scripts/validate_universe_against_fdb.py
+```
+
+Validación cruzada de fundamentales S&P 500 (opcional, por lotes):
+
+```bash
+python -m scripts.validate_sp500 compare          # compara con Yahoo y escribe el reporte
+```
+
+Respeta `config/validation_exclusions.yaml`; detalle de metodología y umbrales
+en `docs/validation_methodology.md`.
+
 Solo se mantienen en el maestro las empresas con **CIK de SEC EDGAR**: los
 fundamentales se derivan exclusivamente de los filings SEC, de modo que las
 empresas europeas que no presentan ante la SEC (sin ADR/20-F/40-F) y las
@@ -377,7 +504,7 @@ european|all` o una ruta a un archivo, y limita el sync SEC acotado por CIK con
 ## Testing y calidad
 
 ```bash
-pipenv run pytest tests/unit -q     # suite unitaria (274 tests, sin red)
+pipenv run pytest tests/unit -q     # suite unitaria (479 tests, sin red)
 pipenv run black .
 pipenv run flake8
 ```

@@ -208,9 +208,13 @@ at ≥ 80% FDB coverage (exit code ≠ 0 below it; unresolved list capped at 100
 sp500|nasdaq100|sp500,nasdaq100|russell2000|european|all|<file>` (default
 `sp500`), caps the targeted SEC refresh with `--max-refresh N` (default 200,
 stale companies with the most recent filings first, deferred the rest), supports
-`--limit`, `--batch-size`, `--batch-delay`, `--workers` (parallel
-price prefetch + analysis; the price prefetch is capped at 2 concurrent
-workers because denser `history()` bursts throttle at Yahoo), `--resume`
+`--limit`, `--batch-size`, `--batch-delay`, `--workers` (parallel price
+prefetch + analysis; default 4, env `WORKFLOW_WORKERS`; the quote-summary
+snapshot prefetch tolerates up to 6 — `SNAPSHOT_WORKERS_CAP` — because a
+100-ticker probe saw 0 failures there, while `history()` bursts throttle at
+2; the prefetch stays batched and retries once), `--refresh-workers N`
+(concurrent targeted `sec sync <CIK>` subprocesses, default 2 from
+`config/refresh.yaml` → `refresh_workers`, env `REFRESH_WORKERS`), `--resume`
 (skips tickers already in the previous `daily_state.json`) and pre-warms
 the price cache before analysis.
 - Compares 6 fundamental fields (revenue, net income, assets, liabilities,

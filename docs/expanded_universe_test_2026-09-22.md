@@ -244,6 +244,26 @@ baseline de 500 con datos mayoritariamente frescos).
 6. La anomalía analysis 327 s (full) vs 885 s (Russell-only) merece un
    benchmark; sugiere variabilidad por carga, no un bug.
 
+**Estado de implementación (2026-09-23):** las palancas 1 y 2 ya están
+implementadas en el código y la configuración por defecto:
+
+- **Refresh SEC paralelo**: `RefreshService` ejecuta los `sec sync <CIK>`
+  de las empresas vencidas con hasta `refresh_workers` subprocesos
+  concurrentes (por defecto **2**, `config/refresh.yaml` y env `REFRESH_WORKERS`;
+  flag `--refresh-workers N` en `daily_workflow`). Los resultados se agrupan
+  preservando el orden de entrada. Como `sec sync` es un subproceso (libera el
+  GIL), 2 workers recortan ~a la mitad la fase de refresh manteniendo modesto
+  el burst a SEC. Tests: `tests/unit/test_refresh_service.py`.
+- **Snapshot de precios 4 → 6 workers**: nuevo cap `SNAPSHOT_WORKERS_CAP = 6`
+  en `daily_workflow.py` y **workers por defecto 1 → 4** (env `WORKFLOW_WORKERS`
+  sigue sobreescribiendo). La precarga de cotizaciones sigue en lotes con
+  reintento único; el análisis gana con threads porque es I/O-bound a
+  PostgreSQL.
+
+Estimación actualizada del objetivo: con refresh paralelo (2 workers) + workers
+4 en precios/análisis, el run completo de ~2 500 tickers debería bajar de
+**~52 min a ~30–35 min**; es la referencia a validar en la próxima corrida.
+
 ---
 
 ### 11.1 Stage-level timings
@@ -311,4 +331,4 @@ not needed for daily cadence unless universe size grows materially.
 | No DB corruption (companies stable; facts +3,188; filings +173) | ✅ |
 | Reports generated in `data/reports/` | ✅ |
 | Comprehensive report written and committed | ✅ |
-| All tests pass | ✅ 476 passed, 1 skipped |
+| All tests pass | ✅ 479 passed, 1 skipped |
