@@ -35,9 +35,12 @@ class NetDebtToEbitdaCalculator(MetricCalculator):
         ebitda: Optional[float] = None,
         **kwargs
     ) -> Optional[float]:
-        if ebitda is None or ebitda == 0:
+        if total_debt is None or ebitda is None or ebitda == 0:
             return None
-        net_debt = (total_debt or 0) - (cash or 0)
+        # A missing share count is not a zero net debt: without debt data the
+        # ratio cannot be computed, so it degrades to N/A instead of returning
+        # a misleading negative number ((-cash) / ebitda).
+        net_debt = total_debt - (cash or 0)
         return net_debt / ebitda
 
 

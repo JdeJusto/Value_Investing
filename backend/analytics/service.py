@@ -337,7 +337,19 @@ class CompanyAnalysisService:
                 logger.warning("analytics: could not load data for %s", ticker)
         # Drop all-empty (in-progress) years so the "current year" is always a
         # completed fiscal year with actual values.
-        return [row for row in rows if self._row_has_data(row)]
+        rows = [row for row in rows if self._row_has_data(row)]
+        # A fiscal-year bucket can still be a partial year: when a sync has
+        # tagged a filing into the wrong fiscal_year (see FinancialDatabase
+        # Repository), the newest bucket may hold a stray field (e.g. net
+        # income) but no revenue. It must not anchor the analysis when the
+        # previous completed year has a full income statement.
+        while (
+            len(rows) > 1
+            and rows[0].revenue is None
+            and rows[1].revenue is not None
+        ):
+            rows = rows[1:]
+        return rows
 
     def _refresh_history(self, ticker: str) -> list[NormalizedFinancials]:
         if self._loader is None:
@@ -415,7 +427,12 @@ class CompanyAnalysisService:
         price = self._safe_market(self._market.get_current_price, ticker)
         market_cap = self._safe_market(self._market.get_market_cap, ticker)
         margin = None
-        if dcf_value and market_cap is not None and market_cap > 0:
+        if (
+            dcf_value
+            and dcf_value > 0
+            and market_cap is not None
+            and market_cap > 0
+        ):
             margin = (dcf_value - market_cap) / dcf_value
         return {
             "current_price": price,

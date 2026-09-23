@@ -28,6 +28,22 @@ from backend.domain.entities.financials import (
 )
 
 
+def _period_end_year(value) -> Optional[int]:
+    """Calendar year of a ``period_end`` value, or None when unknown.
+
+    Used by ``_normalize_financial_facts`` to keep each fiscal-year bucket
+    scoped to the rows belonging to its own labelled year.
+    """
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value.year
+    try:
+        return date.fromisoformat(str(value)[:10]).year
+    except (ValueError, TypeError):
+        return None
+
+
 # Concept mapping from Financial-DataBase XBRL concepts to Value Investing fields
 # This maps common XBRL concepts to the financial statement fields we use
 INCOME_STATEMENT_CONCEPTS = {
@@ -60,8 +76,8 @@ INCOME_STATEMENT_CONCEPTS = {
     'OperatingIncomeLoss': 'operating_income',
     'OperatingIncome': 'operating_income',
 
-    # EBIT (often same as operating income)
-    'OperatingIncomeLoss': 'ebit',
+    # EBIT (rarely reported separately; filers of OperatingIncomeLoss get a
+    # matching ebit via the fallback in _normalize_financial_facts)
     'EBIT': 'ebit',
 
     # EBITDA
@@ -142,6 +158,38 @@ CASH_FLOW_CONCEPT_RANK = {
     for rank, concept in enumerate(concepts)
 }
 
+# Total debt = current + non-current portion, each taken from the newest
+# balance comparative. Companies file several interchangeable tags for the
+# same portion (LongTermDebt / DebtNoncurrent / LongTermDebtNoncurrent for
+# non-current; DebtCurrent / ShortTermBorrowings / CommercialPaper for
+# current), so ONE concept per portion is preferred by priority: summing
+# every distinct tag would double count aliases (e.g. Newmont reports
+# LongTermDebt and LongTermDebtNoncurrent with the same value, and D reports
+# LongTermDebt plus the overlapping LongTermDebtAndCapitalLeaseObligations).
+DEBT_CURRENT_PRIORITY = [
+    'DebtCurrent',
+    'ShortTermBorrowings',
+    'CommercialPaper',
+    'LongTermDebtAndCapitalLeaseObligationsCurrent',
+    'LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities',
+]
+DEBT_NONCURRENT_PRIORITY = [
+    'LongTermDebtAndCapitalLeaseObligations',
+    'LongTermDebt',
+    'DebtNoncurrent',
+    'LongTermDebtNoncurrent',
+    'LongTermNotesPayable',
+    'SeniorNotes',
+]
+DEBT_CURRENT_RANK = {
+    concept: rank
+    for rank, concept in enumerate(DEBT_CURRENT_PRIORITY)
+}
+DEBT_NONCURRENT_RANK = {
+    concept: rank
+    for rank, concept in enumerate(DEBT_NONCURRENT_PRIORITY)
+}
+
 BALANCE_SHEET_CONCEPTS = {
     # Total Assets
     'Assets': 'total_assets',
@@ -164,7 +212,6 @@ BALANCE_SHEET_CONCEPTS = {
 
     # Long Term Liabilities
     'LongTermLiabilities': 'long_term_liabilities',
-    'LongTermDebtNoncurrent': 'long_term_debt',
 
     # Total Debt (approximation)
     'DebtCurrent': 'total_debt',
@@ -175,6 +222,9 @@ BALANCE_SHEET_CONCEPTS = {
     # Cash and Equivalents
     'CashAndCashEquivalentsAtCarryingValue': 'cash_and_equivalents',
     'CashAndCashEquivalents': 'cash_and_equivalents',
+    # Asset managers/others that report only the restricted-inclusive total
+    # (e.g. BEN: CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents)
+    'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents': 'cash_and_equivalents',
 
     # Working Capital (calculated as Current Assets - Current Liabilities)
     # We'll calculate this separately since it's not typically stored directly
@@ -504,11 +554,17 @@ class FinancialDatabaseRepository(FinancialRepository):
         except Exception:
             return None
 
-    def _normalize_financial_facts(self, facts: List[dict]) -> dict:
+    def _normalize_financial_facts(
+        self, facts: List[dict], bucket_year: Optional[int] = None
+    ) -> dict:
         """Normalize a list of financial facts into financial statement components.
 
         Args:
             facts: List of financial fact dictionaries from database
+            bucket_year: Fiscal year this facts list is supposed to represent.
+                When given, rows whose ``period_end`` falls outside that
+                calendar year are dropped so the newest-period_end dedup cannot
+                pick a value from a neighbouring year (see below).
 
         Returns:
             Dictionary with financial statement data organized by statement type
@@ -517,6 +573,22 @@ class FinancialDatabaseRepository(FinancialRepository):
         income_data = {}
         balance_data = {}
         cash_flow_data = {}
+
+        # A fiscal-year bucket can hold facts from other years: the latest 10-K
+        # embeds its comparatives, and a sync may tag the SAME filing under two
+        # different fiscal_years (e.g. a Jan-31 fiscal-year-end company whose
+        # 10-K was ingested as both FY2025 and FY2026). Each bucket is only
+        # responsible for the rows whose period_end falls within the labelled
+        # year; dropping the rest keeps a next-year value from winning the
+        # newest-period_end dedup and keeps as-of-date cover-page facts (like
+        # EntityCommonStockSharesOutstanding) out of the balance snapshot.
+        if bucket_year is not None:
+            year_rows = [
+                f for f in facts
+                if _period_end_year(f.get('period_end')) == bucket_year
+            ]
+            if year_rows:
+                facts = year_rows
 
         # A fiscal-year bucket stores the latest 10-K plus its comparative
         # years (each fact carries its own period_start/period_end), and some
@@ -547,14 +619,17 @@ class FinancialDatabaseRepository(FinancialRepository):
             )
 
         facts = sorted(facts, key=_sort_key, reverse=True)
+        # The newest balance-sheet comparative drives total-debt aggregation.
+        # Cover-page / as-of facts (e.g. EntityCommonStockSharesOutstanding,
+        # which post-dates the fiscal year end) are not part of the balance
+        # snapshot and must not lift MAX(): doing so would drop every balance
+        # line, leaving total debt empty.
         max_pe = next(
-            (f.get('period_end') for f in facts if f.get('period_end') is not None),
+            (f.get('period_end') for f in facts
+             if f.get('period_end') is not None
+             and f.get('concept') in BALANCE_SHEET_CONCEPTS),
             None,
         )
-
-        # Track debt concepts already summed within the newest comparative so a
-        # quarterly + annual occurrence of the same element is not double added.
-        summed_debt_concepts = set()
 
         # Banks/brokers present a net-of-interest top line. Capture their
         # interest + non-interest income so their revenue can be reconstructed
@@ -563,6 +638,10 @@ class FinancialDatabaseRepository(FinancialRepository):
         bank_noninterest = None
         # REIT rental income (see the value-based override below).
         rental_income = None
+        # Best current / non-current debt figure within the newest comparative
+        # (concept-priority single pick per portion, see DEBT_*_PRIORITY).
+        debt_current = None
+        debt_noncurrent = None
 
         # Process each fact
         for fact in facts:
@@ -586,21 +665,26 @@ class FinancialDatabaseRepository(FinancialRepository):
                     income_data[field_name] = value
 
             # Map to balance sheet
-            elif concept in BALANCE_SHEET_CONCEPTS:
-                field_name = BALANCE_SHEET_CONCEPTS[concept]
-                # For total debt, we want to sum current and non-current debt
-                # from the SAME (newest) comparative, not across years or
-                # duplicate periods.
+            elif (
+                concept in BALANCE_SHEET_CONCEPTS
+                or concept in DEBT_CURRENT_RANK
+                or concept in DEBT_NONCURRENT_RANK
+            ):
+                field_name = BALANCE_SHEET_CONCEPTS.get(concept, 'total_debt')
+                # Total debt: take the current and non-current portions from the
+                # SAME (newest) comparative, preferring one tag per portion so
+                # equivalent aliases are not double counted.
                 if field_name == 'total_debt':
                     if max_pe is not None and fact.get('period_end') != max_pe:
                         continue
-                    if concept in summed_debt_concepts:
-                        continue
-                    summed_debt_concepts.add(concept)
-                    if field_name not in balance_data:
-                        balance_data[field_name] = 0.0
-                    if value is not None:
-                        balance_data[field_name] += value
+                    cur_rank = DEBT_CURRENT_RANK.get(concept)
+                    noncur_rank = DEBT_NONCURRENT_RANK.get(concept)
+                    if cur_rank is not None:
+                        if debt_current is None or cur_rank < debt_current[1]:
+                            debt_current = (value, cur_rank)
+                    elif noncur_rank is not None:
+                        if debt_noncurrent is None or noncur_rank < debt_noncurrent[1]:
+                            debt_noncurrent = (value, noncur_rank)
                 else:
                     # Handle duplicates by taking the newest-comparative value
                     if field_name not in balance_data or balance_data[field_name] is None:
@@ -624,6 +708,23 @@ class FinancialDatabaseRepository(FinancialRepository):
                 bank_noninterest = value
             elif concept == 'OperatingLeaseLeaseIncome' and rental_income is None:
                 rental_income = value
+
+        # Combine the current + non-current debt portions (single preferred tag
+        # each) into total_debt. Absent both, the field stays unset.
+        if debt_current is not None or debt_noncurrent is not None:
+            balance_data['total_debt'] = (debt_current[0] if debt_current else 0.0) + (
+                debt_noncurrent[0] if debt_noncurrent else 0.0
+            )
+
+        # Most filers present operating income (OperatingIncomeLoss) with no
+        # separate EBIT tag; treat the two as equivalent so the EBIT-based
+        # multiples (EV/EBIT, ROIC) keep working when only operating income is
+        # filed.
+        if (
+            income_data.get('ebit') is None
+            and income_data.get('operating_income') is not None
+        ):
+            income_data['ebit'] = income_data['operating_income']
 
         # REITs whose rental income is the whole top line (no revenue tag filed,
         # or only a small contract-revenue tag) report it as OperatingLease
@@ -849,7 +950,9 @@ class FinancialDatabaseRepository(FinancialRepository):
                     return None
 
                 # Normalize the facts
-                statements = self._normalize_financial_facts(facts)
+                statements = self._normalize_financial_facts(
+                    facts, bucket_year=fiscal_year
+                )
                 statements = self._calculate_derived_fields(statements)
 
                 # Build and return NormalizedFinancials
@@ -936,7 +1039,9 @@ class FinancialDatabaseRepository(FinancialRepository):
             results: List[NormalizedFinancials] = []
             for year in sorted(by_year, reverse=True):
                 try:
-                    statements = self._normalize_financial_facts(by_year[year])
+                    statements = self._normalize_financial_facts(
+                        by_year[year], bucket_year=year
+                    )
                     statements = self._calculate_derived_fields(statements)
                     financials = self._build_normalized_financials(
                         ticker=ticker.upper(),

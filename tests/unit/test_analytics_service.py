@@ -3,6 +3,7 @@
 import pytest
 
 from backend.analytics.service import CompanyAnalysisService
+from backend.analytics.ratios.leverage import NetDebtToEbitdaCalculator
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
@@ -124,6 +125,71 @@ def test_analyze_computes_metrics_from_normalized_rows(repo, market, service):
     assert result["market_cap"] == 1_000_000_000
     assert result["total_debt"] == 50_000
     assert result["equity"] == 100_000
+
+
+def test_net_debt_to_ebitda_requires_debt_data():
+    calc = NetDebtToEbitdaCalculator()
+    # A missing total debt must not be treated as zero: that would fabricate a
+    # negative net debt whenever cash > 0 ((0 - cash) / ebitda < 0).
+    assert calc.calculate(total_debt=None, cash=1e9, ebitda=1e10) is None
+    assert calc.calculate(total_debt=None, cash=0, ebitda=1e10) is None
+    # With real data the sign and magnitude come from (debt - cash) / ebitda.
+    assert calc.calculate(
+        total_debt=40e9, cash=1e9, ebitda=10e9
+    ) == pytest.approx(3.9)
+    assert calc.calculate(
+        total_debt=0.5e9, cash=1e9, ebitda=10e9
+    ) == pytest.approx(-0.05)
+
+
+def test_analyze_skips_partial_latest_year_without_revenue(repo, market, service):
+    # A fiscal-year bucket can hold a stray net income but no revenue (sync
+    # tagged the filing into the wrong fiscal_year). The analysis must anchor
+    # on the previous completed year instead of a revenue-less "current year".
+    full = _full_record(2024)
+    partial = NormalizedFinancials(
+        ticker="AAPL",
+        fiscal_year=2025,
+        revenue=None,
+        net_income=5_000,
+        source=ProviderName.YAHOO,
+    )
+    repo.upsert_many([partial, full])
+
+    result = service.analyze("AAPL")
+
+    assert result is not None
+    assert result["revenue"] == full.revenue
+    assert result["net_income"] == full.net_income
+
+
+def test_negative_dcf_has_no_margin_of_safety(repo, market, service):
+    # A negative DCF must not render a positive margin of safety: the formula
+    # (dcf - market_cap) / dcf inverts the sign when the denominator is
+    # negative, so AEE-style companies showed a misleading +155% "safety".
+    # Build a row small enough that the DCF lands below zero.
+    row = NormalizedFinancials(
+        ticker="AAPL",
+        fiscal_year=2024,
+        revenue=1_000,
+        net_income=-200,
+        ebit=-180,
+        operating_cash_flow=50,
+        capital_expenditure=600,
+        free_cash_flow=-550,
+        total_debt=900,
+        cash_and_equivalents=300,
+        stockholders_equity=100,
+        total_assets=1_200,
+        source=ProviderName.YAHOO,
+    )
+    repo.upsert_many([row])
+
+    result = service.analyze("AAPL")
+
+    assert result is not None
+    assert result["dcf_value"] is not None and result["dcf_value"] < 0
+    assert result["dcf_margin_of_safety"] is None
 
 
 def test_analyze_derives_equity_from_assets_minus_liabilities(repo, market, service):

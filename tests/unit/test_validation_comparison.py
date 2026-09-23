@@ -146,6 +146,118 @@ class TestNormalizeFiscalYearDedup:
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["income"]["net_income"] == 0.984e9
 
+    def test_operating_income_loss_populates_operating_income_and_ebit(self):
+        # OperatingIncomeLoss is the operating-income tag most filers use and
+        # must populate BOTH operating_income (for operating margin) and ebit
+        # (for EV/EBIT, ROIC). It must not be shadowed into only one field by
+        # a duplicate dict key.
+        facts = [
+            _fact("OperatingIncomeLoss", 2.026e9, date(2025, 12, 31)),
+            _fact("Revenues", 8.799e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["operating_income"] == 2.026e9
+        assert normalized["income"]["ebit"] == 2.026e9
+
+    def test_explicit_ebit_wins_over_operating_income_fallback(self):
+        # A filer that reports both keeps its own EBIT figure; operating income
+        # stays available on its own field.
+        facts = [
+            _fact("OperatingIncomeLoss", 2.5e9, date(2025, 12, 31)),
+            _fact("EBIT", 2.2e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["operating_income"] == 2.5e9
+        assert normalized["income"]["ebit"] == 2.2e9
+
+    def test_bucket_year_filter_drops_neighbour_year_facts(self):
+        # A fiscal-year bucket can hold next year's facts (a sync tagged the
+        # same filing under two fiscal_years). With bucket_year given, the
+        # next-year value must not win the newest-period_end dedup, and the
+        # as-of-date cover-page fact must not lift max period_end for total
+        # debt.
+        facts = [
+            _fact("Revenues", 37.895e9, date(2025, 1, 31)),
+            _fact("Revenues", 41.525e9, date(2026, 1, 31)),  # next year
+            _fact("LongTermDebt", 30e9, date(2025, 1, 31)),
+            _fact(
+                "EntityCommonStockSharesOutstanding",
+                950e6,
+                date(2026, 2, 20),  # as-of cover-page fact
+            ),
+            _fact("LongTermDebt", 32e9, date(2026, 1, 31)),  # next year
+        ]
+        normalized = self._repo._normalize_financial_facts(facts, bucket_year=2025)
+        assert normalized["income"]["revenue"] == 37.895e9
+        assert normalized["balance"]["total_debt"] == 30e9
+
+    def test_bucket_year_filter_falls_back_when_no_row_matches(self):
+        # When no row has a period_end within the labelled year (unusual label
+        # scheme), the bucket is normalized unfiltered rather than emptied.
+        facts = [
+            _fact("Revenues", 100e9, date(2026, 1, 31)),
+            _fact("NetIncomeLoss", 10e9, date(2026, 1, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts, bucket_year=2025)
+        assert normalized["income"]["revenue"] == 100e9
+
+    def test_total_debt_no_double_count_of_alias_concepts(self):
+        # Newmont reports LongTermDebt and LongTermDebtNoncurrent with the same
+        # value (aliases of one non-current portion). Only a single preferred
+        # tag per portion may count, otherwise total debt is overstated 2x.
+        facts = [
+            _fact("LongTermDebt", 5.115e9, date(2025, 12, 31)),
+            _fact("LongTermDebtNoncurrent", 5.115e9, date(2025, 12, 31)),
+            _fact("CashAndCashEquivalents", 1e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["balance"]["total_debt"] == 5.115e9
+
+    def test_total_debt_sums_current_and_noncurrent_portions(self):
+        # A filer with separate current and non-current tags gets both summed…
+        facts = [
+            _fact("DebtCurrent", 1.0e9, date(2025, 12, 31)),
+            _fact("LongTermDebtAndCapitalLeaseObligations", 18.7e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["balance"]["total_debt"] == 19.7e9
+
+        # …while a filer that reports the same non-current debt under several
+        # tags (D's LongTermDebt + LongTermDebtAndCapitalLeaseObligations) keeps
+        # only the preferred one, plus its short-term borrowings.
+        facts = [
+            _fact("LongTermDebt", 46.33e9, date(2025, 12, 31)),
+            _fact("LongTermDebtAndCapitalLeaseObligations", 44.08e9, date(2025, 12, 31)),
+            _fact("ShortTermBorrowings", 2.46e9, date(2025, 12, 31)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["balance"]["total_debt"] == 44.08e9 + 2.46e9
+
+    def test_total_debt_max_pe_scoped_to_balance_facts(self):
+        # An as-of cover-page fact with a later period_end must not push the
+        # balance snapshot to an empty bucket, or total debt would be dropped.
+        facts = [
+            _fact("LongTermDebt", 8.5e9, date(2025, 9, 30)),
+            _fact("EntityCommonStockSharesOutstanding", 400e6, date(2025, 11, 15)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["balance"]["total_debt"] == 8.5e9
+
+    def test_cash_falls_back_to_restricted_inclusive_concept(self):
+        # BEN reports cash only under the restricted-inclusive tag; it must
+        # still land in cash_and_equivalents when the standard tags are absent.
+        facts = [
+            _fact(
+                "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                3.57e9,
+                date(2025, 9, 30),
+            ),
+            _fact("LongTermDebt", 2.36e9, date(2025, 9, 30)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["balance"]["cash_and_equivalents"] == 3.57e9
+        assert normalized["balance"]["total_debt"] == 2.36e9
+
 
 class TestFiscalYearEndMode:
     """get_fiscal_year_end_date must use the latest period_end among the core
