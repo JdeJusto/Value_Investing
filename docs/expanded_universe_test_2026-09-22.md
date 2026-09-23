@@ -254,15 +254,35 @@ implementadas en el código y la configuración por defecto:
   preservando el orden de entrada. Como `sec sync` es un subproceso (libera el
   GIL), 2 workers recortan ~a la mitad la fase de refresh manteniendo modesto
   el burst a SEC. Tests: `tests/unit/test_refresh_service.py`.
+  ⚠️ **Límite real: 2 workers.** El cliente SEC de Financial-DataBase limita a
+  10 req/s *por proceso*, así que 3 procesos concurrentes lanzarían ~30 req/s
+  agregados — sobre el límite oficial de SEC (riesgo de throttling/429). 2 es
+  el máximo práctico a menos que se aplique pacing manual entre procesos.
 - **Snapshot de precios 4 → 6 workers**: nuevo cap `SNAPSHOT_WORKERS_CAP = 6`
   en `daily_workflow.py` y **workers por defecto 1 → 4** (env `WORKFLOW_WORKERS`
   sigue sobreescribiendo). La precarga de cotizaciones sigue en lotes con
   reintento único; el análisis gana con threads porque es I/O-bound a
   PostgreSQL.
 
+**Estado de implementación (2026-09-23, 2ª tanda):** dos palancas más:
+
+- **Escaneo de staleness en bulk** (si aplicaba "address the per-ticker scan"):
+  `FdbGateway.staleness_bulk(tickers)` resuelve (company_id, CIK, last ingest)
+  de todo el universo en **2 queries** en lugar de 2 round-trips por ticker
+  (~58 s → ~21 s en 2 528 tickers; los tests de `test_refresh_service.py`
+  siguen verificando qué tickers/empresas se consultaron vía el fake). Si la
+  query bulk falla, se degrada automáticamente al path secuencial por ticker.
+- **Solapamiento precios × refresh** (palanca 5 simplificada): la precarga de
+  snapshots Yahoo arranca en un hilo *antes* del refresh (los precios no
+  dependen del sync) y se hace `join()` tras el refresh; la fase de precios
+  (~350 s) queda oculta bajo la de sync (~830 s). El log `[timing]` distingue
+  `prices` (duración real de la precarga) y `prices_critical` (tiempo que
+  realmente bloqueó la corrida ≈ 0 en runs normales).
+
 Estimación actualizada del objetivo: con refresh paralelo (2 workers) + workers
-4 en precios/análisis, el run completo de ~2 500 tickers debería bajar de
-**~52 min a ~30–35 min**; es la referencia a validar en la próxima corrida.
+4 en precios/análisis + solapamiento precios×refresh + scan bulk, el run
+completo de ~2 500 tickers debería bajar de **~52 min a ~25–30 min**;
+es la referencia a validar en la próxima corrida.
 
 ---
 

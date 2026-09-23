@@ -413,9 +413,15 @@ python -m scripts.daily_workflow --universe sp500 --limit 50 --dry-run
 
 Optimización integrada: el paso de refresh ejecuta `sec sync <CIK>` con
 `--refresh-workers` procesos concurrentes (el arranque de subprocesos libera el
-GIL), la precarga de precios usa lotes con reintento único y hasta 6 workers, y
-el análisis corre en threads porque es intensivo en I/O de PostgreSQL. Referencia
-de tiempos y mejoras medidas en `docs/expanded_universe_test_2026-09-22.md` §11.
+GIL) y el escaneo de staleness usa **una pasada SQL en bulk** (2 queries para
+todo el universo en lugar de 2 round-trips por ticker). La precarga de precios
+corre **en paralelo con el refresh** (los precios no dependen del sync; la fase
+Yahoo queda oculta bajo la de sincronización) y el análisis gana con threads
+porque es intensivo en I/O de PostgreSQL. Los `[timing]` del log distinguen
+`prices` (duración real de la precarga) y `prices_critical` (lo que realmente
+bloqueó la corrida tras el refresh; ≈ 0 cuando la precarga acaba durante el
+sync). Referencia de tiempos y mejoras medidas en
+`docs/expanded_universe_test_2026-09-22.md` §11.
 Esperados en el universo de ~500-2.5k: TRIGGER_EVENT ≈ 6-12%, BUY_SIGNAL
 ≈ 10-40, SELL_WARNING ≈ 0-5 (ver `docs/runbook_daily.md`).
 

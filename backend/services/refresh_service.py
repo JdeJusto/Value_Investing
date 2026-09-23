@@ -112,6 +112,75 @@ class FdbGateway:
         except Exception:
             return False
 
+    def staleness_bulk(
+        self, tickers: list[str]
+    ) -> dict[str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]]:
+        """Resolve (company_id, CIK, last ingestion timestamp) for many tickers.
+
+        The whole scan runs in two queries instead of two round-trips per
+        ticker (the sequential resolve_company/last_synced_at path), with the
+        same semantics. Returns ``{ticker: (company_id, cik, last)}``;
+        company_id/cik are None when the ticker has no listing or CIK, and
+        ``last`` is None when the company has no ingestion timestamps.
+        """
+        lookup: list[str] = []
+        seen: set[str] = set()
+        for ticker in tickers or []:
+            t = str(ticker).strip().upper()
+            if t and t not in seen:
+                seen.add(t)
+                lookup.append(t)
+        out: dict[str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]] = {
+            t: (None, None, None) for t in lookup
+        }
+        if not lookup:
+            return out
+        cur = self._connection().cursor()
+        try:
+            cur.execute(
+                """
+                SELECT upper(cl.ticker) AS ticker, c.id::text AS company_id,
+                       ci.identifier_value AS cik
+                FROM company_listings cl
+                JOIN companies c ON c.id = cl.company_id
+                JOIN company_identifiers ci
+                  ON ci.company_id = c.id AND ci.identifier_type = 'CIK'
+                WHERE upper(cl.ticker) = ANY(%s)
+                ORDER BY cl.is_active DESC, ci.identifier_value
+                """,
+                (lookup,),
+            )
+            for row in cur.fetchall():
+                t = str(row["ticker"]).upper()
+                if t in out and out[t][0] is None:
+                    out[t] = (str(row["company_id"]), str(row["cik"]), None)
+            ids = [v[0] for v in out.values() if v[0] is not None]
+            if ids:
+                cur.execute(
+                    """
+                    SELECT c.id::text AS company_id, GREATEST(
+                        (SELECT max(updated_at) FROM financial_facts
+                          WHERE company_id = c.id),
+                        (SELECT max(created_at) FROM filings
+                          WHERE company_id = c.id),
+                        (SELECT updated_at FROM companies WHERE id = c.id)
+                    ) AS last_ingested
+                    FROM companies c
+                    WHERE c.id = ANY(%s::uuid[])
+                    """,
+                    (ids,),
+                )
+                by_id = {
+                    str(row["company_id"]): row["last_ingested"]
+                    for row in cur.fetchall()
+                }
+                for ticker, (cid, cik, _) in out.items():
+                    if cid in by_id and by_id[cid] is not None:
+                        out[ticker] = (cid, cik, by_id[cid])
+        finally:
+            cur.close()
+        return out
+
     # ------------------------------------------------------------------
     def resolve_company(self, ticker: str) -> Optional[tuple[str, str]]:
         """Return (company_id, CIK) for a ticker, preferring active listings.
@@ -328,6 +397,9 @@ class RefreshService:
             dedup.append(t)
 
         work: list[tuple[str, str]] = []  # (ticker, CIK) companies to sync
+        # No DB lookups at all when the refresh step is disabled, so that
+        # --no-refresh keeps working on a totally unreachable database.
+        meta = {} if skip_refresh else self._staleness_map(dedup)
         for ticker in dedup:
             if skip_refresh:
                 # No sync requested: mark skipped without DB work; the only
@@ -335,27 +407,21 @@ class RefreshService:
                 result.skipped.append(ticker)
                 continue
 
-            resolved = self._gateway.resolve_company(ticker)
-            company_id = cik = None
-            if resolved is not None:
-                company_id, cik = resolved
+            company_id, cik, last = meta.get(ticker, (None, None, None))
             if company_id is None or cik is None:
                 result.failed.append(
                     (ticker, "no CIK mapping in Financial-DataBase")
                 )
                 continue
 
-            try:
-                last = self._gateway.last_synced_at(company_id)
-            except Exception as exc:  # noqa: BLE001
-                result.failed.append((ticker, f"freshness check failed: {exc}"))
-                last = None
-
             age_hours = None
             if last is not None:
-                age_hours = (
-                    _dt.datetime.now(_dt.timezone.utc) - last
-                ).total_seconds() / 3600.0
+                try:
+                    age_hours = (
+                        _dt.datetime.now(_dt.timezone.utc) - last
+                    ).total_seconds() / 3600.0
+                except TypeError:
+                    age_hours = None
 
             if force or last is None or age_hours is None or age_hours > threshold:
                 work.append((ticker, cik))
@@ -457,23 +523,19 @@ class RefreshService:
         if not self._gateway.available():
             return [], [], self._dedup(tickers)
 
+        now = _dt.datetime.now(_dt.timezone.utc)
+        meta = self._staleness_map(self._dedup(tickers))
         for ticker in self._dedup(tickers):
-            resolved = self._gateway.resolve_company(ticker)
-            if resolved is None:
+            company_id, _cik, last = meta.get(ticker, (None, None, None))
+            if company_id is None:
                 unknown.append(ticker)
                 continue
-            company_id, _ = resolved
-            last = None
-            try:
-                last = self._gateway.last_synced_at(company_id)
-            except Exception:  # noqa: BLE001 — estimate must never crash the dry run
-                last = None
             if last is None:
                 ranked.append((None, ticker))  # never ingested → refreshable, oldest
                 continue
             try:
                 age_hours = (
-                    _dt.datetime.now(_dt.timezone.utc) - last
+                    now - last
                 ).total_seconds() / 3600.0
             except TypeError:
                 ranked.append((None, ticker))  # unparseable timestamp → treat as stale
@@ -501,6 +563,42 @@ class RefreshService:
             seen.add(t)
             dedup.append(t)
         return dedup
+
+    def _staleness_map(
+        self, tickers: list[str]
+    ) -> dict[str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]]:
+        """Resolve (company_id, CIK, last sync time) for many tickers.
+
+        Prefers the gateway's two-query bulk scan and transparently falls
+        back to the sequential per-ticker resolve/last_synced_at path when
+        the gateway does not implement it or the bulk query fails.
+        """
+        dedup = self._dedup(tickers)
+        bulk = getattr(self._gateway, "staleness_bulk", None)
+        if bulk is not None:
+            try:
+                return bulk(dedup)
+            except Exception:  # noqa: BLE001 — fall back to per-ticker reads
+                pass
+        meta: dict[
+            str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]
+        ] = {}
+        for ticker in dedup:
+            try:
+                resolved = self._gateway.resolve_company(ticker)
+            except Exception:  # noqa: BLE001
+                resolved = None
+            if resolved is None:
+                meta[ticker] = (None, None, None)
+                continue
+            company_id, cik = resolved
+            last = None
+            try:
+                last = self._gateway.last_synced_at(company_id)
+            except Exception:  # noqa: BLE001
+                last = None
+            meta[ticker] = (company_id, cik, last)
+        return meta
 
     def _fetch_prices(self, tickers: list[str]) -> dict[str, Optional[float]]:
         try:

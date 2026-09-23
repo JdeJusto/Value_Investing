@@ -325,16 +325,6 @@ def _run(args) -> None:
     timings: dict[str, float] = {}
     tick = time.time()
 
-    # Targeted SEC refresh of ONLY the analyzed tickers (stale companies via
-    # per-CIK `sec sync`). Dry-run computes a read-only staleness estimate;
-    # --no-update skips the refresh but still screens + writes.
-    if args.no_update:
-        sec_update_status = "SEC refresh: skipped (--no-update)"
-    else:
-        sec_update_status = _run_targeted_refresh(universe, args)
-    timings["refresh"] = time.time() - tick
-    tick = time.time()
-
     fdb_repo = build_financial_repository()
     price_service = get_price_service()
     cache: dict[str, dict | None] = {}
@@ -344,37 +334,74 @@ def _run(args) -> None:
     # parallel analysis below runs with *zero* further network calls. With
     # --no-prices the provider is empty and all market fields degrade to
     # N/A (truly network-free).
-    if args.no_prices:
-        market_provider = SnapshotMarketProvider({})
-        price_failures: dict[str, str] = {}
+    #
+    # Overlap: snapshot prices do NOT depend on the SEC sync, so the prefetch
+    # runs in a background thread *while* the targeted refresh runs and the
+    # Yahoo phase is hidden under the sync phase (the longest stage). The
+    # thread's own duration is still reported as ``prices`` so timings stay
+    # honest; ``prices_critical`` is how much of it actually blocked the run.
+    prefetch_thread: threading.Thread | None = None
+    prefetch_result: dict = {}
+
+    def _do_prefetch() -> None:
+        t0 = time.time()
+        try:
+            snapshot_workers = min(args.workers, SNAPSHOT_WORKERS_CAP)
+            logger.info(
+                "prefetching market snapshots (.info) for %d tickers "
+                "(batch=%d, delay=%.2fs, workers=%d) [overlapped with refresh]",
+                len(universe),
+                args.batch_size,
+                args.batch_delay,
+                snapshot_workers,
+            )
+            snapshots = price_service.get_market_snapshots(
+                list(universe),
+                batch_size=args.batch_size,
+                delay=args.batch_delay,
+                workers=snapshot_workers,
+            )
+            unavailable = [t for t, s in snapshots.items() if s is None]
+            prefetch_result["provider"] = SnapshotMarketProvider(snapshots)
+            prefetch_result["failures"] = _classify_price_failures(
+                unavailable, price_service, fdb_repo
+            )
+        except BaseException as exc:  # noqa: BLE001 — re-raised on join
+            prefetch_result["exc"] = exc
+        finally:
+            prefetch_result["elapsed"] = time.time() - t0
+
+    if not args.no_prices:
+        prefetch_thread = threading.Thread(target=_do_prefetch, daemon=True)
+        prefetch_thread.start()
+
+    # Targeted SEC refresh of ONLY the analyzed tickers (stale companies via
+    # per-CIK `sec sync`). Dry-run computes a read-only staleness estimate;
+    # --no-update skips the refresh but still screens + writes. The snapshot
+    # prefetch above runs concurrently because prices are independent of it.
+    if args.no_update:
+        sec_update_status = "SEC refresh: skipped (--no-update)"
     else:
-        # Quote-summary bursts are far more tolerant than history() bursts: a
-        # 100-ticker probe saw 0 failures at 4 and 6 workers, while history()
-        # throttled at 3+. Cap at min(workers, SNAPSHOT_WORKERS_CAP) and keep
-        # the paced, batched fetch so transient errors are absorbed by the
-        # retry-once. These snapshots are the only Yahoo calls the analysis
-        # makes, so a higher cap directly shrinks the price phase.
-        snapshot_workers = min(args.workers, SNAPSHOT_WORKERS_CAP)
-        logger.info(
-            "prefetching market snapshots (.info) for %d tickers "
-            "(batch=%d, delay=%.2fs, workers=%d)",
-            len(universe),
-            args.batch_size,
-            args.batch_delay,
-            snapshot_workers,
+        sec_update_status = _run_targeted_refresh(universe, args)
+    timings["refresh"] = time.time() - tick
+    tick = time.time()
+
+    if prefetch_thread is not None:
+        prefetch_thread.join()
+        if "exc" in prefetch_result:
+            raise prefetch_result["exc"]
+        market_provider = prefetch_result.get(
+            "provider", SnapshotMarketProvider({})
         )
-        snapshots = price_service.get_market_snapshots(
-            list(universe),
-            batch_size=args.batch_size,
-            delay=args.batch_delay,
-            workers=snapshot_workers,
-        )
-        unavailable = [t for t, s in snapshots.items() if s is None]
-        price_failures = _classify_price_failures(
-            unavailable, price_service, fdb_repo
-        )
-        market_provider = SnapshotMarketProvider(snapshots)
-    timings["prices"] = time.time() - tick
+        price_failures = prefetch_result.get("failures", {})
+        timings["prices"] = prefetch_result.get("elapsed", 0.0)
+        # wall time that blocked the run after the refresh (≈0 when the
+        # prefetch finished during the sync phase)
+        timings["prices_critical"] = time.time() - tick
+    else:
+        market_provider = SnapshotMarketProvider({})
+        price_failures = {}
+        timings["prices"] = 0.0
     tick = time.time()
 
     analysis_service = build_analysis_service(market_provider=market_provider)

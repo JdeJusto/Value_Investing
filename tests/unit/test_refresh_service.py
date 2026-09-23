@@ -53,6 +53,19 @@ class FakeGateway:
         self.last_synced_calls.append(company_id)
         return self._last_synced.get(company_id)
 
+    def staleness_bulk(self, tickers):
+        """Two-query standalone not used by the fakes: emulate the per-ticker
+        reads so tests keep asserting which tickers/companies were queried."""
+        out = {}
+        for ticker in tickers:
+            resolved = self.resolve_company(ticker)
+            if resolved is None:
+                out[ticker] = (None, None, None)
+                continue
+            company_id, cik = resolved
+            out[ticker] = (company_id, cik, self.last_synced_at(company_id))
+        return out
+
     def close(self) -> None:
         pass
 
