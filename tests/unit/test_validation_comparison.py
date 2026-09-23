@@ -131,6 +131,24 @@ class TestNormalizeFiscalYearDedup:
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["income"]["revenue"] == 6.849e9
 
+    def test_annual_fact_wins_over_later_quarter_retagged_fy(self):
+        # Salesforce (Jan-31 fiscal year): the FY2014 10-K supplemental
+        # quarterly table retags Q1-Q3 FY2014 (period_ends Apr/Jul/Oct 2013)
+        # as 'FY'. After calendar-year bucketing those land in the FY2013
+        # bucket with a LATER period_end than the real annual figure
+        # (2013-01-31). The ANNUAL period span must win the dedup instead of
+        # the newest period_end.
+        facts = [
+            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
+                  0.853e9, date(2013, 4, 30), period_start=date(2013, 2, 1)),
+            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
+                  2.925e9, date(2013, 10, 31), period_start=date(2013, 2, 1)),
+            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
+                  3.050195e9, date(2013, 1, 31), period_start=date(2012, 2, 1)),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["income"]["revenue"] == 3.050195e9
+
     def test_net_income_prefers_available_to_common(self):
         # Consolidated net income includes amounts attributable to
         # non-controlling interests; for EPS/ROE/net-margin purposes the
@@ -358,12 +376,16 @@ class TestFiscalYearEndMode:
         )
 
         assert repo.get_fiscal_year_end_date("CRM", 2025) == date(2026, 1, 31)
-        # The query must anchor MAX() on the mapped statement concepts and not
-        # on Entity% cover-page facts or one-off disclosures.
+        # The query must anchor on the mapped statement concepts (not Entity%
+        # cover-page facts or one-off disclosures) and prefer the LONGEST
+        # annual period so 10-K supplemental quarterly rows retagged 'FY'
+        # (which land in the previous bucket with a later period_end for a
+        # Jan-31 fiscal-year-end filer) cannot shift the year end.
         sql = executed[-1]
-        assert "MAX(f.period_end::date)" in sql
         assert "concept = ANY" in sql
         assert "Entity" not in sql
+        assert "period_end - COALESCE(f.period_start, f.period_end" in sql
+        assert "LIMIT 1" in sql
 
 
 class TestSharesOutstandingPreference:

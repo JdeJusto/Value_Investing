@@ -622,10 +622,14 @@ class FinancialDatabaseRepository(FinancialRepository):
         # years (each fact carries its own period_start/period_end), and some
         # elements are reported both quarterly and year-to-date with the same
         # period_end. Order candidates so the true annual figure wins:
-        #   1. newest period_end (the target comparative year),
-        #   2. preferred concept for the field (e.g. 'Revenues' over
+        #   1. longest period span (the ANNUAL fact; 10-K supplemental
+        #      quarterly tables are re-tagged 'FY' by SEC, so a quarter can
+        #      carry a LATER period_end than the real annual figure — e.g.
+        #      Salesforce's Jan-31 fiscal year), 
+        #   2. newest period_end (the target comparative year),
+        #   3. preferred concept for the field (e.g. 'Revenues' over
         #      RevenueFromContractWithCustomerExcludingAssessedTax),
-        #   3. earliest period_start (longest cumulative duration).
+        #   4. earliest period_start (longest cumulative duration).
         def _date_ord(value):
             if value is None:
                 return 0
@@ -636,9 +640,17 @@ class FinancialDatabaseRepository(FinancialRepository):
             except (ValueError, TypeError):
                 return 0
 
+        def _span_days(fact):
+            pe = fact.get('period_end')
+            ps = fact.get('period_start')
+            if pe is None or ps is None:
+                return 0
+            return _date_ord(pe) - _date_ord(ps)
+
         def _sort_key(fact):
             concept = fact.get('concept') or ''
             return (
+                _span_days(fact),
                 _date_ord(fact.get('period_end')),
                 -INCOME_CONCEPT_RANK.get(
                     concept, CASH_FLOW_CONCEPT_RANK.get(concept, 10**9)
@@ -1243,7 +1255,8 @@ class FinancialDatabaseRepository(FinancialRepository):
                           AND f.fiscal_year = %s
                           AND f.concept = %s
                           AND UPPER(f.fiscal_period) = 'FY'
-                        ORDER BY f.period_end DESC NULLS LAST,
+                        ORDER BY (f.period_end - COALESCE(f.period_start, f.period_end)) DESC,
+                                 f.period_end DESC NULLS LAST,
                                  f.filing_date ASC NULLS LAST
                         LIMIT 2
                     """, (company_id, fiscal_year, concept))
@@ -1265,7 +1278,8 @@ class FinancialDatabaseRepository(FinancialRepository):
                             WHERE f.company_id = %s
                               AND f.fiscal_year = %s
                               AND f.concept = %s
-                            ORDER BY f.filing_date ASC NULLS LAST
+                            ORDER BY (f.period_end - COALESCE(f.period_start, f.period_end)) DESC,
+                                     f.filing_date ASC NULLS LAST
                             LIMIT 2
                         """, (company_id, fiscal_year, concept))
 
@@ -1386,13 +1400,17 @@ class FinancialDatabaseRepository(FinancialRepository):
     def get_fiscal_year_end_date(self, ticker: str, fiscal_year: int) -> Optional[date]:
         """Return the best-known fiscal year end date for a ticker/year.
 
-        The value is the latest ``period_end`` among the annual ('FY') facts of
-        the *core statement line items* (the concepts mapped onto the
-        statements).  Only the core concepts are considered because one-off
-        disclosures tagged 'FY' (fee schedules, Entity% cover-page facts) can
-        carry a later period_end that is not the fiscal year end.  This keeps
-        e.g. Apple's late-September year-end intact while rejecting stray
-        longer-dated facts.
+        The value is the ``period_end`` of the LONGEST annual ('FY') core
+        statement fact in the bucket.  Only the core concepts are considered
+        because one-off disclosures tagged 'FY' (fee schedules, Entity%
+        cover-page facts) can carry a later period_end that is not the fiscal
+        year end.  Sorting by period span (instead of MAX period_end) also
+        rejects the quarterly rows of a 10-K supplemental quarterly table —
+        SEC retags those 'FY', and for a Jan-31 fiscal-year-end company they
+        land in the PREVIOUS bucket with a LATER calendar period_end (e.g.
+        Salesforce FY2013 bucket holds Q1-Q3 FY2014 quarters ending Apr/Jul/Oct
+        2013).  This keeps e.g. Apple's late-September year-end intact while
+        rejecting stray longer-dated facts.
 
         Args:
             ticker: Company ticker symbol
@@ -1409,13 +1427,16 @@ class FinancialDatabaseRepository(FinancialRepository):
             conn = self._get_connection()
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT MAX(f.period_end::date) AS period_end
+                    SELECT f.period_end::date AS period_end
                     FROM financial_facts f
                     WHERE f.company_id = %s
                       AND f.fiscal_year = %s
                       AND UPPER(f.fiscal_period) = 'FY'
                       AND f.period_end IS NOT NULL
                       AND f.concept = ANY(%s::text[])
+                    ORDER BY (f.period_end - COALESCE(f.period_start, f.period_end)) DESC,
+                             f.period_end DESC
+                    LIMIT 1
                 """, (company_id, fiscal_year, CORE_STATEMENT_CONCEPTS))
 
                 result = cur.fetchone()
