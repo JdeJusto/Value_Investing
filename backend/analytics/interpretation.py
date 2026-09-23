@@ -14,6 +14,8 @@ def interpret_roe(val):
 def interpret_pb(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return "Sin datos"
+    if val < 1.0:
+        return "Muy barato (<1)"
     if val < 1.5:
         return "Bueno (<1.5)"
     if val < 3.0:
