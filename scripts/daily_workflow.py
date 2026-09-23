@@ -40,6 +40,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from backend.services.price_service import (
+    PRICE_FAILURE_DELISTED,
+    PRICE_FAILURE_GLITCH,
+    PRICE_FAILURE_MAPPING,
+    get_price_service,
+)
+
 load_dotenv()
 
 logger = logging.getLogger("daily_workflow")
@@ -275,13 +282,6 @@ def _run(args) -> None:
         render_alerts,
         save_state,
         trim_state,
-    )
-    from backend.services.price_service import (
-        PRICE_FAILURE_DELISTED,
-        PRICE_FAILURE_GLITCH,
-        PRICE_FAILURE_MAPPING,
-        PRICE_FAILURE_UNKNOWN,
-        get_price_service,
     )
 
     report_date = (

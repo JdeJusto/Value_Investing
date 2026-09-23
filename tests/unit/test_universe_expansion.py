@@ -532,3 +532,50 @@ class TestStalenessRanked:
         stale, fresh, unknown = service.check_freshness(["A"])
         assert stale == ["A"]
         assert fresh == [] and unknown == []
+
+
+class TestClassifyPriceFailures:
+    """Regression: price-failure constants must be resolvable at module scope.
+
+    _classify_price_failures is a module-level helper but previously read the
+    PRICE_FAILURE_* constants from an import scoped inside _run(); as soon as
+    ANY ticker had no market snapshot the classifier raised
+    NameError: PRICE_FAILURE_MAPPING and aborted the workflow. Verify the
+    helper returns categorized failures (never raises).
+    """
+
+    def _price_service(self, mapping):
+        class P:
+            def __init__(self, mapping):
+                self.mapping = mapping
+
+            def classify_price_failure(self, ticker, known_ticker=None):
+                return self.mapping.get(ticker, "unknown")
+
+        return P(mapping)
+
+    def _repo(self, active):
+        class R:
+            def __init__(self, active):
+                self.active = active
+
+            def has_active_listing(self, ticker):
+                return self.active.get(ticker)
+
+        return R(active)
+
+    def test_classifies_without_raising(self):
+        from scripts.daily_workflow import _classify_price_failures
+
+        price_service = self._price_service({"A": "mapping"})
+        repo = self._repo({"A": True, "B": True})
+        failures = _classify_price_failures(["A", "B"], price_service, repo)
+        assert failures == {"A": "mapping", "B": "unknown"}
+
+    def test_empty_unavailable_returns_empty(self):
+        from scripts.daily_workflow import _classify_price_failures
+
+        assert (
+            _classify_price_failures([], self._price_service({}), self._repo({}))
+            == {}
+        )
