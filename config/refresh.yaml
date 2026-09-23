@@ -10,10 +10,11 @@
 #   --refresh                 force refresh regardless of age
 #   --no-refresh              skip the SEC sync step
 #   --freshness-hours N       override freshness_max_age_hours
+#   --refresh-workers N       override refresh_workers (daily_workflow)
 #
 # Environment overrides:
 #   REFRESH_AUTO, FRESHNESS_MAX_AGE_HOURS, REFRESH_TIMEOUT_SECONDS,
-#   REFRESH_SKIP_FLAG
+#   REFRESH_SKIP_FLAG, REFRESH_WORKERS
 
 # Refresh stale companies before analysis by default.
 auto_refresh: true
@@ -28,3 +29,8 @@ refresh_timeout_seconds: 300
 
 # Global kill-switch equivalent to always passing --no-refresh.
 skip_refresh_flag: false
+
+# Concurrent targeted `sec sync <CIK>` subprocesses during refresh. 2 roughly
+# halves refresh wall time vs sequential while keeping the SEC request burst
+# small; raise to 3-4 on fast links only if SEC does not throttle.
+refresh_workers: 2

@@ -49,6 +49,9 @@ logger = logging.getLogger("daily_workflow")
 # from this file by the source_index column.
 MASTER_UNIVERSE = "config/universe.csv"
 MAX_REFRESH_DEFAULT = 200
+# Quote-summary prefetch tolerates higher concurrency than history() bursts
+# (a 100-ticker probe saw 0 failures up to 6 workers).
+SNAPSHOT_WORKERS_CAP = 6
 NAMED_UNIVERSE_TOKENS = frozenset({"sp500", "nasdaq100", "russell2000", "european"})
 # source_index tokens naming European indices (--universe european).
 EUROPEAN_INDEX_SOURCES = frozenset(
@@ -171,14 +174,21 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
     of this universe, degrading gracefully per company. In dry-run mode it
     only estimates staleness (read-only), it never syncs.
     """
-    from backend.services.refresh_service import RefreshService
+    from backend.services.refresh_service import (
+        RefreshService,
+        load_refresh_config,
+    )
 
     start = time.time()
     force = getattr(args, "refresh", False)
     no_refresh = getattr(args, "no_refresh", False)
     freshness_hours = getattr(args, "freshness_hours", None)
     max_refresh = getattr(args, "max_refresh", None)
-    service = RefreshService(fdb_repo_path=str(Path(args.fdb_dir).resolve()))
+    refresh_workers = getattr(args, "refresh_workers", None)
+    config = load_refresh_config()
+    if refresh_workers:
+        config.refresh_workers = max(1, int(refresh_workers))
+    service = RefreshService(config=config, fdb_repo_path=str(Path(args.fdb_dir).resolve()))
 
     if args.dry_run:
         stale, fresh, unknown = service.check_freshness(
@@ -340,9 +350,11 @@ def _run(args) -> None:
     else:
         # Quote-summary bursts are far more tolerant than history() bursts: a
         # 100-ticker probe saw 0 failures at 4 and 6 workers, while history()
-        # throttled at 3+. Still cap at min(workers, 4) and keep the paced,
-        # batched fetch so transient errors are absorbed by the retry-once.
-        snapshot_workers = min(args.workers, 4)
+        # throttled at 3+. Cap at min(workers, SNAPSHOT_WORKERS_CAP) and keep
+        # the paced, batched fetch so transient errors are absorbed by the
+        # retry-once. These snapshots are the only Yahoo calls the analysis
+        # makes, so a higher cap directly shrinks the price phase.
+        snapshot_workers = min(args.workers, SNAPSHOT_WORKERS_CAP)
         logger.info(
             "prefetching market snapshots (.info) for %d tickers "
             "(batch=%d, delay=%.2fs, workers=%d)",
@@ -662,9 +674,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--workers",
         type=int,
-        default=int(os.getenv("WORKFLOW_WORKERS", "1")),
+        default=int(os.getenv("WORKFLOW_WORKERS", "4")),
         help="Parallel workers for price prefetch and analysis "
-        "(default: 1; override with WORKFLOW_WORKERS)",
+        "(default: 4; override with WORKFLOW_WORKERS)",
+    )
+    p.add_argument(
+        "--refresh-workers",
+        type=int,
+        default=None,
+        help="Concurrent targeted SEC syncs during refresh "
+        "(default: config/refresh.yaml refresh_workers, 2)",
     )
     p.add_argument(
         "--no-update", action="store_true", help="Skip the SEC refresh but still screen + write"

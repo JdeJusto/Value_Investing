@@ -18,6 +18,7 @@ import pytest
 
 from backend.services.refresh_service import (
     DEFAULT_FRESHNESS_MAX_AGE_HOURS,
+    DEFAULT_REFRESH_WORKERS,
     FdbGateway,
     RefreshConfig,
     RefreshService,
@@ -85,18 +86,21 @@ def make_service(gateway=None, price=None, runner=None, config=None, **kwargs):
 
 def test_load_config_defaults(monkeypatch):
     for var in ("REFRESH_AUTO", "FRESHNESS_MAX_AGE_HOURS",
-                "REFRESH_TIMEOUT_SECONDS", "REFRESH_SKIP_FLAG"):
+                "REFRESH_TIMEOUT_SECONDS", "REFRESH_SKIP_FLAG",
+                "REFRESH_WORKERS"):
         monkeypatch.delenv(var, raising=False)
     cfg = load_refresh_config("/nonexistent/refresh.yaml")
     assert cfg.auto_refresh is True
     assert cfg.freshness_max_age_hours == DEFAULT_FRESHNESS_MAX_AGE_HOURS
     assert cfg.refresh_timeout_seconds == 300
     assert cfg.skip_refresh_flag is False
+    assert cfg.refresh_workers == DEFAULT_REFRESH_WORKERS
 
 
 def test_load_config_from_file(tmp_path, monkeypatch):
     for var in ("REFRESH_AUTO", "FRESHNESS_MAX_AGE_HOURS",
-                "REFRESH_TIMEOUT_SECONDS", "REFRESH_SKIP_FLAG"):
+                "REFRESH_TIMEOUT_SECONDS", "REFRESH_SKIP_FLAG",
+                "REFRESH_WORKERS"):
         monkeypatch.delenv(var, raising=False)
     path = tmp_path / "refresh.yaml"
     path.write_text(
@@ -105,12 +109,14 @@ def test_load_config_from_file(tmp_path, monkeypatch):
         "freshness_max_age_hours: 24\n"
         "refresh_timeout_seconds: 60\n"
         "skip_refresh_flag: true\n"
+        "refresh_workers: 4\n"
     )
     cfg = load_refresh_config(str(path))
     assert cfg.auto_refresh is False
     assert cfg.freshness_max_age_hours == 24
     assert cfg.refresh_timeout_seconds == 60
     assert cfg.skip_refresh_flag is True
+    assert cfg.refresh_workers == 4
 
 
 def test_env_overrides_file(tmp_path, monkeypatch):
@@ -119,6 +125,19 @@ def test_env_overrides_file(tmp_path, monkeypatch):
     monkeypatch.setenv("FRESHNESS_MAX_AGE_HOURS", "12")
     cfg = load_refresh_config(str(path))
     assert cfg.freshness_max_age_hours == 12
+
+
+def test_refresh_workers_override_and_floor(tmp_path, monkeypatch):
+    path = tmp_path / "refresh.yaml"
+    path.write_text("refresh_workers: 1\n")
+    monkeypatch.setenv("REFRESH_WORKERS", "6")
+    cfg = load_refresh_config(str(path))
+    assert cfg.refresh_workers == 6
+    # invalid values fall back to the current (floored) value, never < 1
+    monkeypatch.setenv("REFRESH_WORKERS", "0")
+    assert load_refresh_config(str(path)).refresh_workers == 1
+    monkeypatch.setenv("REFRESH_WORKERS", "abc")
+    assert load_refresh_config(str(path)).refresh_workers == 1
 
 
 # ----------------------------------------------------------------------
@@ -195,6 +214,50 @@ def test_freshness_hours_override():
 
     assert result.refreshed == ["AAPL"]
     assert runner_ciks == ["0000320193"]
+
+
+def test_parallel_sync_preserves_order_and_results():
+    """2+ stale companies are synced concurrently but reported in input order."""
+    gateway = FakeGateway(
+        companies={
+            "MSFT": ("c2", "0000789019"),
+            "AAPL": ("c1", "0000320193"),
+            "ZZZ": ("c9", "0000999999"),
+        },
+        last_synced={"c2": STALE, "c1": STALE, "c9": STALE},
+    )
+    runner_ciks = []
+    service = make_service(
+        gateway=gateway,
+        config=RefreshConfig(refresh_workers=2),
+        runner=lambda cik: runner_ciks.append(cik) or True,
+    )
+
+    result = service.ensure_fresh_and_prices(["MSFT", "AAPL", "ZZZ"], fetch_prices=False)
+
+    assert result.refreshed == ["MSFT", "AAPL", "ZZZ"]  # original order
+    assert result.failed == []
+    assert sorted(runner_ciks) == ["0000320193", "0000789019", "0000999999"]
+
+
+def test_parallel_sync_reports_failures_in_order():
+    gateway = FakeGateway(
+        companies={
+            "MSFT": ("c2", "0000789019"),
+            "AAPL": ("c1", "0000320193"),
+        },
+        last_synced={"c2": STALE, "c1": STALE},
+    )
+    service = make_service(
+        gateway=gateway,
+        config=RefreshConfig(refresh_workers=2),
+        runner=lambda cik: False if cik == "0000789019" else True,
+    )
+
+    result = service.ensure_fresh_and_prices(["MSFT", "AAPL"], fetch_prices=False)
+
+    assert result.refreshed == ["AAPL"]
+    assert result.failed == [("MSFT", False)]
 
 
 def test_no_cik_mapping_is_reported_not_fatal():

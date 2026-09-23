@@ -35,6 +35,10 @@ DEFAULT_AUTO_REFRESH = True
 DEFAULT_FRESHNESS_MAX_AGE_HOURS = 168  # 7 days
 DEFAULT_REFRESH_TIMEOUT_SECONDS = 300
 DEFAULT_SKIP_REFRESH_FLAG = False
+# Concurrent targeted ``sec sync`` subprocesses. 2 halves the refresh wall
+# time vs sequential while keeping the SEC request burst small (each sync is
+# a handful of requests; the scheduler still applies its own pacing).
+DEFAULT_REFRESH_WORKERS = 2
 
 # Well-known location of the Financial-DataBase checkout, overridable with
 # FINANCIAL_DATABASE_REPO_PATH. The FDB project lives as a sibling of this
@@ -52,6 +56,7 @@ class RefreshConfig:
     freshness_max_age_hours: int = DEFAULT_FRESHNESS_MAX_AGE_HOURS
     refresh_timeout_seconds: int = DEFAULT_REFRESH_TIMEOUT_SECONDS
     skip_refresh_flag: bool = DEFAULT_SKIP_REFRESH_FLAG
+    refresh_workers: int = DEFAULT_REFRESH_WORKERS
 
 
 @dataclass
@@ -175,7 +180,7 @@ def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
     is parsed without a YAML dependency. Missing file or keys fall back to
     the defaults; environment variables win over the file:
       REFRESH_AUTO, FRESHNESS_MAX_AGE_HOURS, REFRESH_TIMEOUT_SECONDS,
-      REFRESH_SKIP_FLAG
+      REFRESH_SKIP_FLAG, REFRESH_WORKERS
     """
     config = RefreshConfig()
 
@@ -214,6 +219,11 @@ def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
                         pass
                 elif key == "skip_refresh_flag":
                     config.skip_refresh_flag = raw.lower() in ("true", "1", "yes")
+                elif key == "refresh_workers":
+                    try:
+                        config.refresh_workers = max(1, int(raw))
+                    except ValueError:
+                        pass
 
     # Environment overrides.
     env = os.environ
@@ -233,6 +243,11 @@ def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
         config.skip_refresh_flag = (
             env["REFRESH_SKIP_FLAG"].strip().lower() in ("true", "1", "yes")
         )
+    if env.get("REFRESH_WORKERS", "").strip():
+        try:
+            config.refresh_workers = max(1, int(env["REFRESH_WORKERS"]))
+        except ValueError:
+            pass
 
     return config
 
@@ -312,6 +327,7 @@ class RefreshService:
             seen.add(t)
             dedup.append(t)
 
+        work: list[tuple[str, str]] = []  # (ticker, CIK) companies to sync
         for ticker in dedup:
             if skip_refresh:
                 # No sync requested: mark skipped without DB work; the only
@@ -342,18 +358,60 @@ class RefreshService:
                 ).total_seconds() / 3600.0
 
             if force or last is None or age_hours is None or age_hours > threshold:
+                work.append((ticker, cik))
+            else:
+                result.skipped.append(ticker)
+
+        # Targeted syncs. `sec sync` is subprocess-bound (the GIL is released
+        # while waiting), so stale companies are synced concurrently up to
+        # config.refresh_workers — a 2-3 worker pool roughly halves refresh
+        # wall time while keeping the SEC burst modest.
+        workers = max(1, int(self.config.refresh_workers or 1))
+        if workers > 1 and len(work) > 1:
+            outcomes = self._sync_many(work, workers)
+            for ticker, _cik in work:  # order-preserving result grouping
+                status = outcomes.get(ticker)
+                if status is True:
+                    result.refreshed.append(ticker)
+                else:
+                    result.failed.append((ticker, status))
+        else:
+            for ticker, cik in work:
                 status = self._sync_company(cik)
                 if status is True:
                     result.refreshed.append(ticker)
                 else:
                     result.failed.append((ticker, status))
-            else:
-                result.skipped.append(ticker)
 
         if fetch_prices:
             result.prices = self._fetch_prices(dedup)
 
         return result
+
+    def _sync_many(
+        self, work: list[tuple[str, str]], workers: int
+    ) -> dict[str, bool | str]:
+        """Run several targeted CIK syncs concurrently.
+
+        Each worker is a subprocess/runner call, so this is thread-safe: the
+        only shared state is the ``outcomes`` dict built by the main thread
+        as futures complete.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        outcomes: dict[str, bool | str] = {}
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(self._sync_company, cik): ticker
+                for ticker, cik in work
+            }
+            for future in futures:
+                ticker = futures[future]
+                try:
+                    outcomes[ticker] = future.result()
+                except Exception as exc:  # noqa: BLE001 — never break the batch
+                    outcomes[ticker] = f"SEC sync raised: {exc}"
+        return outcomes
 
     def check_freshness(
         self,
