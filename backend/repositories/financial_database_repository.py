@@ -1200,39 +1200,71 @@ class FinancialDatabaseRepository(FinancialRepository):
             with conn.cursor() as cur:
                 # Try multiple concepts, preferring the annual ('FY') fact with
                 # the latest period_end (the actual fiscal-year-end figure).
+                #
+                # Duplicate rows for the same period_end come from later
+                # filings restating the comparative column. Their magnitude
+                # tells us which one to trust for per-share metrics:
+                #   * ratio >= 10x — legacy thousands-tagged fact vs the true
+                #     count (Ball 2009/2010: 187,572 vs 187,572,000). The
+                #     larger value is authoritative.
+                #   * small ratio — a stock-split restatement (Ball restated
+                #     2015/2016 ~2x after its 2017 2:1 split). Keep the
+                #     ORIGINAL (earliest-filled) disclosure: PriceService's
+                #     split adjustment already carries the share count onto the
+                #     current basis, so combining both would double count.
+                def _pick(values, period_ends):
+                    if not values:
+                        return None
+                    nums = [float(v) for v in values]
+                    if (
+                        len(nums) > 1
+                        and period_ends[0] == period_ends[1]
+                        and min(nums) > 0
+                        and max(nums) / min(nums) >= 10.0
+                    ):
+                        return max(nums)
+                    return nums[0]
+
                 for concept in concepts_to_try:
                     cur.execute("""
-                        SELECT f.value
+                        SELECT f.value, f.filing_date, f.period_end
                         FROM financial_facts f
                         WHERE f.company_id = %s
                           AND f.fiscal_year = %s
                           AND f.concept = %s
                           AND UPPER(f.fiscal_period) = 'FY'
-                        ORDER BY f.period_end DESC NULLS LAST
-                        LIMIT 1
+                        ORDER BY f.period_end DESC NULLS LAST,
+                                 f.filing_date ASC NULLS LAST
+                        LIMIT 2
                     """, (company_id, fiscal_year, concept))
 
-                    result = cur.fetchone()
-                    if result and result['value'] is not None:
-                        candidate = float(result['value'])
+                    rows = cur.fetchall()
+                    candidate = _pick(
+                        [r['value'] for r in rows if r['value'] is not None],
+                        [r['period_end'] for r in rows if r['value'] is not None],
+                    ) if rows else None
+                    if candidate is not None:
                         break
 
                 # Fallback: no annual fact — accept any period (rare)
                 if candidate is None:
                     for concept in concepts_to_try:
                         cur.execute("""
-                            SELECT f.value
+                            SELECT f.value, f.filing_date, f.period_end
                             FROM financial_facts f
                             WHERE f.company_id = %s
                               AND f.fiscal_year = %s
                               AND f.concept = %s
-                            ORDER BY f.updated_at DESC
-                            LIMIT 1
+                            ORDER BY f.filing_date ASC NULLS LAST
+                            LIMIT 2
                         """, (company_id, fiscal_year, concept))
 
-                        result = cur.fetchone()
-                        if result and result['value'] is not None:
-                            candidate = float(result['value'])
+                        rows = cur.fetchall()
+                        candidate = _pick(
+                            [r['value'] for r in rows if r['value'] is not None],
+                            [r['period_end'] for r in rows if r['value'] is not None],
+                        ) if rows else None
+                        if candidate is not None:
                             break
 
                 # Legacy SEC filings (pre-2011) sometimes tag weighted-average
@@ -1267,6 +1299,13 @@ class FinancialDatabaseRepository(FinancialRepository):
                         if ratio >= 100.0:
                             scale = 10 ** round(math.log10(ratio))
                             candidate = candidate * scale
+
+            # Implausibly small share counts (legacy thousands-tagged facts
+            # with no anchor to repair against, e.g. Ball Corp 2008) are
+            # unusable for per-share metrics — surface None instead of a
+            # ~1000x-inflated EPS.
+            if candidate is not None and candidate < 1_000_000:
+                candidate = None
 
             return candidate
 

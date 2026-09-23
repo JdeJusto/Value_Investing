@@ -337,23 +337,40 @@ class TestFiscalYearEndMode:
 
 
 class TestSharesOutstandingPreference:
-    """EPS must be computed on a diluted, weighted-average share basis."""
+    """EPS must be computed on a diluted, weighted-average share basis, and
+    duplicate share rows for the same fiscal-year end must be resolved
+    deterministically:
 
-    def test_prefer_diluted_queries_weighted_average_concept(self, monkeypatch):
+    * a *scale* duplicate (legacy thousands-tagged, ratio >= 10x) picks the
+      larger, correct value (Ball 2009/2010);
+    * a *split-restatement* duplicate (small ratio, e.g. the ~2x restatement
+      of Ball 2015/2016 after its 2017 2:1 split) keeps the ORIGINAL
+      earliest-filed disclosure, because PriceService's split adjustment
+      already carries the count onto the current basis — combining both would
+      double-count the split;
+    * implausibly small counts with no anchor degrade to None.
+    """
+
+    @staticmethod
+    def _make_repo(monkeypatch, queue):
         repo = FinancialDatabaseRepository()
-
         executed: list[str] = []
         params: list[tuple] = []
-        values = iter(["466733000", "466335000", "470000000"])
 
         class FakeCursor:
+            def __init__(self):
+                self._rows: list[dict] = []
+
             def execute(self, sql, par):
                 executed.append(sql)
                 params.append(par)
-                self._result = {"value": next(values)}
+                self._rows = queue.pop(0)
+
+            def fetchall(self):
+                return self._rows
 
             def fetchone(self):
-                return {"value": self._result["value"]}
+                return self._rows[0] if self._rows else None
 
             def __enter__(self):
                 return self
@@ -369,114 +386,101 @@ class TestSharesOutstandingPreference:
         monkeypatch.setattr(
             repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
         )
+        return repo, executed, params
 
+    @staticmethod
+    def _row(value, period_end=date(2025, 12, 31), filing_date=date(2026, 2, 1)):
+        return {"value": value, "period_end": period_end, "filing_date": filing_date}
+
+    def test_prefer_diluted_queries_weighted_average_concept(self, monkeypatch):
+        repo, executed, params = self._make_repo(monkeypatch, [
+            [self._row("466733000")],   # diluted weighted-average
+            [self._row("469000000")],   # cover-page anchor
+        ])
         result = repo.get_shares_outstanding("BF-B", 2026, prefer_diluted=True)
         assert result == 466733000.0
         # The diluted weighted-average concept must be tried first.
         assert params and "WeightedAverageNumber" in params[0][2]
 
     def test_default_preference_starts_with_end_of_period(self, monkeypatch):
-        repo = FinancialDatabaseRepository()
-        executed: list[str] = []
-        concepts: list[str] = []
-        values = iter(["466335000", "470000000"])
-
-        class FakeCursor:
-            def execute(self, sql, par):
-                executed.append(sql)
-                concepts.append(par[2])
-                self._result = {"value": next(values)}
-
-            def fetchone(self):
-                return {"value": self._result["value"]}
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *exc):
-                return False
-
-        class FakeConn:
-            def cursor(self):
-                return FakeCursor()
-
-        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
-        monkeypatch.setattr(
-            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
-        )
+        repo, executed, params = self._make_repo(monkeypatch, [
+            [self._row("466335000")],   # CommonStockSharesOutstanding
+            [self._row("470000000")],   # cover-page anchor
+        ])
         repo.get_shares_outstanding("BF-B", 2026)
-        assert concepts and concepts[0] == "CommonStockSharesOutstanding"
+        assert params and params[0][2] == "CommonStockSharesOutstanding"
+
+    def test_legacy_thousands_duplicates_pick_larger(self, monkeypatch):
+        # Ball 2009 carries BOTH the thousands-tagged (187,572, filed in the
+        # FY2009 10-K) and the correct (187,572,000, filed a year later) rows
+        # for the same period_end. The ratio (1000x) identifies the scale
+        # duplicate and the larger, correct value must win deterministically.
+        repo, executed, _ = self._make_repo(monkeypatch, [
+            [],  # CommonStockSharesOutstanding: not filed
+            [
+                self._row("187572", date(2009, 12, 31), date(2010, 2, 2)),
+                self._row("187572000", date(2009, 12, 31), date(2011, 2, 1)),
+            ],
+            [],  # EntityCommonStockSharesOutstanding anchor: absent
+        ])
+        result = repo.get_shares_outstanding("BALL", 2009)
+        assert result == 187572000.0
+        # The candidate query must fetch up to two rows per period_end,
+        # earliest-filed first, so the duplicate resolver can compare them.
+        assert "filing_date ASC NULLS LAST" in executed[1]
+
+    def test_split_restatement_keeps_original_disclosure(self, monkeypatch):
+        # Ball 2015/2016 were restated ~2x by the post-2017-split 10-K. That
+        # small-ratio duplicate must NOT win: PriceService already applies the
+        # 2:1 split adjustment to the as-reported count, so picking the
+        # restated value would double-count the split and halve EPS.
+        repo, executed, _ = self._make_repo(monkeypatch, [
+            [],  # CommonStockSharesOutstanding: not filed
+            [
+                self._row("137300000", date(2015, 12, 31), date(2016, 2, 16)),
+                self._row("274600000", date(2015, 12, 31), date(2018, 3, 1)),
+            ],
+            [],  # EntityCommonStockSharesOutstanding anchor: absent
+        ])
+        result = repo.get_shares_outstanding("BALL", 2015)
+        assert result == 137300000.0
 
     def test_repairs_legacy_thousands_scaled_shares(self, monkeypatch):
         # Ball 2010: the weighted-average basic share count was filed in
-        # thousands (180,746) while the cover-page outstanding count is
-        # 169,198,602. The candidate must be rescaled so EPS is not inflated
-        # ~1000x.
-        repo = FinancialDatabaseRepository()
-
-        values = iter(
+        # thousands (180,746). The 1000x duplicate and the cover-page anchor
+        # (169,198,602) both resolve to the correct 180,746,000.
+        repo, _, _ = self._make_repo(monkeypatch, [
+            [],  # CommonStockSharesOutstanding: not filed
             [
-                None,          # CommonStockSharesOutstanding: not filed
-                "180746",      # WeightedAverageNumberOfSharesOutstandingBasic
-                "169198602",   # EntityCommonStockSharesOutstanding anchor
-            ]
-        )
-
-        class FakeCursor:
-            def execute(self, sql, par):
-                self._result = {"value": next(values)}
-
-            def fetchone(self):
-                return {"value": self._result["value"]}
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *exc):
-                return False
-
-        class FakeConn:
-            def cursor(self):
-                return FakeCursor()
-
-        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
-        monkeypatch.setattr(
-            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
-        )
-
+                self._row("180746", date(2010, 12, 31), date(2011, 2, 1)),
+                self._row("180746000", date(2010, 12, 31), date(2012, 2, 1)),
+            ],
+            [self._row("169198602", date(2010, 12, 31), date(2011, 2, 1))],
+        ])
         result = repo.get_shares_outstanding("BALL", 2010)
         assert result == 180746000.0
 
     def test_no_rescale_when_counts_are_close(self, monkeypatch):
         # A legitimate weighted-average / outstanding pair must be untouched.
-        repo = FinancialDatabaseRepository()
-
-        values = iter(["466733000", "469000000", "470000000"])
-
-        class FakeCursor:
-            def execute(self, sql, par):
-                self._result = {"value": next(values)}
-
-            def fetchone(self):
-                return {"value": self._result["value"]}
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *exc):
-                return False
-
-        class FakeConn:
-            def cursor(self):
-                return FakeCursor()
-
-        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
-        monkeypatch.setattr(
-            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
-        )
-
+        repo, _, _ = self._make_repo(monkeypatch, [
+            [self._row("466733000")],   # diluted weighted-average
+            [self._row("469000000")],   # cover-page anchor
+        ])
         result = repo.get_shares_outstanding("CRM", 2026, prefer_diluted=True)
         assert result == 466733000.0
+
+    def test_implausibly_small_shares_return_none(self, monkeypatch):
+        # Ball 2008: only the thousands-tagged weighted-average rows exist and
+        # there is no cover-page anchor to repair against. A sub-1M share
+        # count is unusable for per-share metrics, so None must be returned
+        # instead of a ~1000x-inflated EPS.
+        repo, _, _ = self._make_repo(monkeypatch, [
+            [],  # CommonStockSharesOutstanding: not filed
+            [self._row("191714", date(2008, 12, 31), date(2009, 2, 2))],
+            [],  # EntityCommonStockSharesOutstanding anchor: absent
+        ])
+        result = repo.get_shares_outstanding("BALL", 2008)
+        assert result is None
 
 
 class TestYahooEps:
