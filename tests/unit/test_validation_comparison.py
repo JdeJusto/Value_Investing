@@ -292,6 +292,36 @@ class TestNormalizeFiscalYearDedup:
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["cash_flow"]["depreciation_amortization"] == 359.363e6
 
+    def test_operating_cash_flow_falls_back_to_continuing_operations(self):
+        # JCI tags OCF only as NetCashProvidedByUsedInOperatingActivities
+        # ContinuingOperations (it divested its residential HVAC business);
+        # the variant must still populate operating_cash_flow.
+        facts = [
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                2.554e9, date(2025, 12, 31),
+            ),
+            _fact(
+                "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
+                -1.155e9, date(2025, 12, 31),
+            ),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["operating_cash_flow"] == 2.554e9
+
+    def test_operating_cash_flow_prefers_plain_tag_when_both_filed(self):
+        # A filer with both tags (plain total + continuing-only variant) keeps
+        # the plain figure; the variant is only a fallback.
+        facts = [
+            _fact("NetCashProvidedByUsedInOperatingActivities", 12e9, date(2025, 12, 31)),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                10e9, date(2025, 12, 31),
+            ),
+        ]
+        normalized = self._repo._normalize_financial_facts(facts)
+        assert normalized["cash_flow"]["operating_cash_flow"] == 12e9
+
 
 class TestFiscalYearEndMode:
     """get_fiscal_year_end_date must use the latest period_end among the core

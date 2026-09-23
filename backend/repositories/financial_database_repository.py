@@ -144,6 +144,14 @@ INCOME_CONCEPT_RANK = {
 # SegmentExpenditureAdditionToLongLivedAssets). Rank the concepts so the most
 # complete figure wins instead of an arbitrary first-match.
 CASH_FLOW_FIELD_PRIORITY = {
+    'operating_cash_flow': [
+        'NetCashProvidedByUsedInOperatingActivities',
+        'OperatingCashFlow',
+        # Filers with discontinued operations (e.g. JCI after divesting its
+        # residential HVAC business) tag OCF only under the continuing-
+        # operations variant; the plain tag is preferred when both exist.
+        'NetCashProvidedByUsedInOperatingActivitiesContinuingOperations',
+    ],
     'capital_expenditure': [
         'PaymentsToAcquirePropertyPlantAndEquipment',
         'SegmentExpenditureAdditionToLongLivedAssets',
@@ -261,6 +269,8 @@ CASH_FLOW_CONCEPTS = {
     # Operating Cash Flow
     'NetCashProvidedByUsedInOperatingActivities': 'operating_cash_flow',
     'OperatingCashFlow': 'operating_cash_flow',
+    # see CASH_FLOW_FIELD_PRIORITY['operating_cash_flow']
+    'NetCashProvidedByUsedInOperatingActivitiesContinuingOperations': 'operating_cash_flow',
 
     # Capital Expenditure (positive value)
     'PaymentsToAcquireProductiveAssets': 'capital_expenditure',
