@@ -24,6 +24,7 @@ class StockScreenerService:
         )
         self._market = market_provider
         self._repository = repository
+        self._loader = loader
         self._price_service = price_service or PriceService()
 
     def screen(
@@ -37,6 +38,30 @@ class StockScreenerService:
         if tickers is None:
             tickers = TICKERS
         filters = filters or []
+        tickers = [t.upper() for t in tickers if t]
+
+        # Pool every per-ticker Yahoo .info call into ONE parallel snapshot
+        # pass (PriceService.get_market_snapshots), then serve the sequential
+        # analysis loop from memory via SnapshotMarketProvider — zero per-ticker
+        # network round trips. Prices/shares are warmed into the in-memory
+        # cache and never persisted; everything degrades gracefully when the
+        # snapshot fetch fails (live provider remains in place).
+        if not no_prices and self._price_service is not None:
+            try:
+                from backend.providers.snapshot import SnapshotMarketProvider
+
+                snapshots = self._price_service.get_market_snapshots(
+                    tickers, batch_size=20, delay=0.1, workers=6
+                )
+                # Only a real dict (a dict subclass triggers the swap; Mock
+                # return values from unit tests keep the injected analysis).
+                if isinstance(snapshots, dict):
+                    self._market = SnapshotMarketProvider(snapshots)
+                    self._analysis = CompanyAnalysisService(
+                        self._repository, self._market, loader=self._loader
+                    )
+            except Exception:  # noqa: BLE001 - fall back to the live provider
+                pass
 
         results: list[ScreenerRow] = []
         total = len(tickers)
@@ -54,8 +79,10 @@ class StockScreenerService:
             except Exception:
                 continue
 
+            # With snapshots prefetched the loop is CPU/DB-bound; the pacing
+            # sleep only matters on the exceptional live-provider path.
             if idx < total - 1:
-                time.sleep(0.15)
+                time.sleep(0.02)
 
         results.sort(key=lambda r: r.score or 0, reverse=True)
         if top_n is not None:
@@ -65,17 +92,41 @@ class StockScreenerService:
     def search(self, query: str) -> list[str]:
         q = query.upper().strip()
         matches = []
-        for t in TICKERS:
+        tickers = list(TICKERS)
+        # Prefer the repository's name metadata (a local DB read — no
+        # network), so `screener --search` stays fast over the whole universe.
+        # Only when the repository has no name lookup do we fall back to a
+        # single parallel quote-snapshot pass for the names.
+        repo_name = getattr(self._repository, "get_company_name", None)
+        snapshots: dict = {}
+        if repo_name is None and self._price_service is not None:
+            try:
+                snapshots = self._price_service.get_market_snapshots(
+                    tickers, batch_size=25, delay=0.1, workers=6
+                )
+            except Exception:  # noqa: BLE001 - fall back to per-ticker lookups
+                snapshots = {}
+        for t in tickers:
+            if len(matches) >= 20:
+                break
             if q in t:
                 matches.append(t)
-            else:
+                continue
+            if repo_name is not None:
                 try:
-                    name = self._market.get_company_name(t)
-                    if name and query.lower() in name.lower():
-                        if t not in matches:
-                            matches.append(t)
-                except Exception:
-                    continue
+                    name = repo_name(t)
+                except Exception:  # noqa: BLE001
+                    name = None
+            else:
+                snap = snapshots.get(t) or {}
+                name = snap.get("longName") or snap.get("shortName")
+                if not name and not snapshots:
+                    try:
+                        name = self._market.get_company_name(t)
+                    except Exception:  # noqa: BLE001
+                        name = None
+            if name and query.lower() in name.lower():
+                matches.append(t)
         return matches[:20]
 
     def _analyze_ticker(
