@@ -1,7 +1,5 @@
 from typing import Optional
 
-from edgar import Company, set_identity
-
 from backend.domain.entities.financials import (
     BalanceSheet,
     CashFlowStatement,
@@ -12,6 +10,11 @@ from backend.domain.interfaces.provider import FinancialDataProvider
 
 class EdgarProvider(FinancialDataProvider):
     def __init__(self, email: str, name: str):
+        # edgartools is heavy (~1.4 s) and is only needed when EDGAR fallback
+        # data is actually fetched — import lazily so `import backend.app.cli`
+        # and the FDB-backed commands stay fast.
+        from edgar import set_identity
+
         set_identity(f"{name} {email}")
         self._companies: dict[str, Company] = {}
         self._financials: dict[str, object] = {}
@@ -19,6 +22,8 @@ class EdgarProvider(FinancialDataProvider):
     def _get_company(self, ticker: str) -> Optional[Company]:
         if ticker not in self._companies:
             try:
+                from edgar import Company
+
                 self._companies[ticker] = Company(ticker)
             except Exception:
                 return None

@@ -5,10 +5,8 @@ import sys
 import time
 from typing import Optional
 
-import pandas as pd
 from dotenv import load_dotenv
 
-from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.analytics.interpretation import print_analysis
 from backend.analytics.service import CompanyAnalysisService
 from backend.config.settings import get_output_dir
@@ -17,10 +15,7 @@ from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.domain.value_objects.financials_normalized import ProviderName
-from backend.providers.edgar import EdgarProvider
 from backend.providers.tickers import TICKERS
-from backend.providers.yahoo import YahooFinanceProvider
-from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
 from backend.repositories.financial_database_repository import FinancialDatabaseRepository
 from backend.screener.screener_service import ScreenerService
@@ -49,6 +44,9 @@ def build_financial_repository() -> FinancialRepository:
         logger.warning(f"Financial-DataBase repository unavailable: {e}")
 
     # Fall back to existing PostgreSQL repository
+    # (imported lazily — SQLAlchemy is heavy and is only needed on this path)
+    from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
+
     repository = SqlAlchemyFinancialRepository()
     if repository.available():
         logger.info("Using PostgreSQL financial repository")
@@ -60,6 +58,16 @@ def build_financial_repository() -> FinancialRepository:
 
 
 def build_data_pipeline() -> DataPipelineService:
+    # Providers are imported lazily here (not at module import) because
+    # edgartools and yfinance are heavy (~1.6s combined) and are only needed
+    # for live-fetch commands, never for FDB-backed reads.
+    from backend.adapters.database.repositories.company_repository import (
+        CompanyRepository,
+    )
+    from backend.providers.edgar import EdgarProvider
+    from backend.providers.yahoo import YahooFinanceProvider
+    from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
+
     yahoo = YahooFinanceProvider()
     edgar = EdgarProvider(email=sec_email, name=sec_name)
     repository = build_financial_repository()
@@ -95,6 +103,8 @@ def build_analysis_service(
     batch analysis runs with zero per-ticker network calls.
     """
     if market_provider is None:
+        from backend.providers.yahoo import YahooFinanceProvider
+
         market_provider = YahooFinanceProvider()
     return CompanyAnalysisService(
         repository=build_financial_repository(),
@@ -104,6 +114,8 @@ def build_analysis_service(
 
 
 def build_screener_service() -> StockScreenerService:
+    from backend.providers.yahoo import YahooFinanceProvider
+
     yahoo = YahooFinanceProvider()
     return StockScreenerService(
         repository=build_financial_repository(),
@@ -300,6 +312,9 @@ def build_financial_repository() -> FinancialRepository:
         logger.warning(f"Financial-DataBase repository unavailable: {e}")
 
     # Fall back to existing PostgreSQL repository
+    # (imported lazily — SQLAlchemy is heavy and is only needed on this path)
+    from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
+
     repository = SqlAlchemyFinancialRepository()
     if repository.available():
         logger.info("Using PostgreSQL financial repository")
@@ -372,6 +387,8 @@ def cmd_analyze(args):
     if not results:
         print("\nNo se pudo extraer datos para ningun ticker.")
         return
+
+    import pandas as pd
 
     df = pd.DataFrame(results).sort_values("score", ascending=False)
     output_dir = get_output_dir()
@@ -494,6 +511,8 @@ def cmd_screener(args):
         )
 
     if args.save:
+        import pandas as pd
+
         path = os.path.join(get_output_dir(), "screener_resultados.csv")
         os.makedirs(get_output_dir(), exist_ok=True)
         rows = [

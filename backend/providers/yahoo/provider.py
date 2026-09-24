@@ -1,8 +1,6 @@
-from typing import Optional
+from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-import yfinance as yf
+from typing import Optional
 
 from backend.domain.entities.financials import (
     BalanceSheet,
@@ -14,15 +12,22 @@ from backend.domain.interfaces.provider import FinancialDataProvider, MarketData
 
 class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
     def __init__(self):
+        # Heavy third-party libraries (numpy, pandas ~0.75s, yfinance ~0.22s)
+        # are imported lazily at first use so `import backend.app.cli` and the
+        # FDB-backed commands stay fast.
         self._cache: dict[str, yf.Ticker] = {}
 
     def _get_ticker(self, ticker: str) -> yf.Ticker:
+        import yfinance as yf
+
         if ticker not in self._cache:
             self._cache[ticker] = yf.Ticker(ticker)
         return self._cache[ticker]
 
     @staticmethod
     def _is_nan(value) -> bool:
+        import numpy as np
+
         try:
             return bool(np.isnan(value))
         except (TypeError, ValueError):
@@ -221,6 +226,8 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         Each entry has 'year' (Yahoo's fiscal-year label) and 'end_date' (the
         actual fiscal-period-end date), letting callers anchor on the *period*
         rather than the label."""
+        import pandas as pd
+
         t = self._get_ticker(ticker)
         try:
             cols = t.income_stmt.columns
@@ -242,6 +249,8 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             return []
 
     def get_risk_free_rate(self) -> float:
+        import yfinance as yf
+
         try:
             treasury = yf.Ticker("^TNX")
             rate = treasury.info.get("regularMarketPrice", 4.0)

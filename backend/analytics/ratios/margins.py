@@ -1,7 +1,5 @@
 from typing import Optional
 
-import numpy as np
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -72,5 +70,7 @@ class GrossMarginStabilityCalculator(MetricCalculator):
         self, gross_margins: Optional[list] = None, **kwargs
     ) -> Optional[float]:
         if gross_margins is not None and len(gross_margins) > 1:
+            import numpy as np
+
             return float(np.std(gross_margins))
         return None
