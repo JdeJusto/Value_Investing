@@ -10,20 +10,29 @@ from backend.domain.interfaces.provider import FinancialDataProvider
 
 class EdgarProvider(FinancialDataProvider):
     def __init__(self, email: str, name: str):
-        # edgartools is heavy (~1.4 s) and is only needed when EDGAR fallback
-        # data is actually fetched — import lazily so `import backend.app.cli`
-        # and the FDB-backed commands stay fast.
-        from edgar import set_identity
-
-        set_identity(f"{name} {email}")
+        # edgartools is heavy (~2.7 s import) and is only needed when EDGAR
+        # fallback data is actually fetched — nothing imports it here, so
+        # building the pipeline for FDB-backed commands never pays the cost.
+        self._email = email
+        self._name = name
+        self._identity_set = False
         self._companies: dict[str, Company] = {}
         self._financials: dict[str, object] = {}
+
+    def _set_identity(self) -> None:
+        if self._identity_set:
+            return
+        from edgar import set_identity
+
+        set_identity(f"{self._name} {self._email}")
+        self._identity_set = True
 
     def _get_company(self, ticker: str) -> Optional[Company]:
         if ticker not in self._companies:
             try:
                 from edgar import Company
 
+                self._set_identity()
                 self._companies[ticker] = Company(ticker)
             except Exception:
                 return None
