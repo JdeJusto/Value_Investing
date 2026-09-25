@@ -609,14 +609,9 @@ class FinancialDatabaseRepository(FinancialRepository):
         # responsible for the rows whose period_end falls within the labelled
         # year; dropping the rest keeps a next-year value from winning the
         # newest-period_end dedup and keeps as-of-date cover-page facts (like
-        # EntityCommonStockSharesOutstanding) out of the balance snapshot.
-        if bucket_year is not None:
-            year_rows = [
-                f for f in facts
-                if _period_end_year(f.get('period_end')) == bucket_year
-            ]
-            if year_rows:
-                facts = year_rows
+        # EntityCommonStockSharesOutstanding) out of the balance snapshot. That
+        # filter runs in the single precompute pass below (same walk that
+        # builds the sort keys, so each fact parses its dates only once).
 
         # A fiscal-year bucket stores the latest 10-K plus its comparative
         # years (each fact carries its own period_start/period_end), and some
@@ -640,25 +635,36 @@ class FinancialDatabaseRepository(FinancialRepository):
             except (ValueError, TypeError):
                 return 0
 
-        def _span_days(fact):
-            pe = fact.get('period_end')
-            ps = fact.get('period_start')
-            if pe is None or ps is None:
-                return 0
-            return _date_ord(pe) - _date_ord(ps)
-
-        def _sort_key(fact):
-            concept = fact.get('concept') or ''
-            return (
-                _span_days(fact),
-                _date_ord(fact.get('period_end')),
+        # Precompute each fact's sort key ONCE, before sorting. The previous
+        # implementation re-parsed the two ISO dates inside every comparison
+        # of sorted() (and re-parsed period_end again in the bucket filter),
+        # which dominated the CPU time of large fact buckets. Each row now
+        # parses period_end/period_start a single time.
+        keyed = []
+        for f in facts:
+            pe = f.get('period_end')
+            ps = f.get('period_start')
+            pe_ord = _date_ord(pe)
+            ps_ord = _date_ord(ps)
+            concept = f.get('concept') or ''
+            key = (
+                pe_ord - ps_ord if pe is not None and ps is not None else 0,
+                pe_ord,
                 -INCOME_CONCEPT_RANK.get(
                     concept, CASH_FLOW_CONCEPT_RANK.get(concept, 10**9)
                 ),
-                -_date_ord(fact.get('period_start')),
+                -ps_ord,
             )
+            year = date.fromordinal(pe_ord).year if pe_ord else None
+            keyed.append(((key, year), f))
 
-        facts = sorted(facts, key=_sort_key, reverse=True)
+        if bucket_year is not None:
+            year_rows = [f for ((_key, year), f) in keyed if year == bucket_year]
+            if year_rows:
+                keyed = [entry for entry in keyed if entry[0][1] == bucket_year]
+
+        keyed.sort(key=lambda entry: entry[0][0], reverse=True)
+        facts = [f for _, f in keyed]
         # The newest balance-sheet comparative drives total-debt aggregation.
         # Cover-page / as-of facts (e.g. EntityCommonStockSharesOutstanding,
         # which post-dates the fiscal year end) are not part of the balance
