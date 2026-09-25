@@ -128,6 +128,58 @@ def test_earnings_cv_reflects_volatility():
     assert earnings_cv(rows) > stable_cv
 
 
+def test_compute_quality_metrics_empty_history_never_crashes():
+    """Regression: an empty history used to raise IndexError on
+    ``ordered_asc(rows)[-1]`` (reachable when every row of a company is
+    filtered out). Every metric must come back as None."""
+    metrics = compute_quality_metrics([])
+    assert metrics == {
+        "roic_mean": None,
+        "roic_strong_years": None,
+        "roe_mean": None,
+        "book_value_per_share": None,
+        "owner_earnings": None,
+        "earnings_cv": None,
+        "max_yoy_decline": None,
+        "revenue_cagr": None,
+        "revenue_cv": None,
+        "gross_margin_mean": None,
+        "gross_margin_cv": None,
+        "gross_margin_trend": None,
+        "capital_intensity": None,
+        "positive_fcf_ratio": None,
+        "fcf_growth": None,
+        "debt_to_equity": None,
+        "interest_coverage": None,
+        "debt_trend": None,
+        "net_income_change": None,
+        "retained_earnings_positive": None,
+    }
+
+
+def test_fcf_growth_requires_three_years():
+    """With exactly two FCF years the first/last windows are the same pair,
+    which used to return a trivial, misleading 0.0. "No trend" is None."""
+    two = _history(range(2023, 2025))
+    assert all(r.free_cash_flow is not None for r in two)
+    metrics = compute_quality_metrics(two)
+    assert metrics["fcf_growth"] is None
+
+
+def test_analyze_moat_empty_history_returns_none_type():
+    """An empty history must yield a NONE moat, not crash."""
+    result = analyze_moat([])
+    assert result["moat_type"] == "NONE"
+    assert result["moat_score"] == 0.0
+
+
+def test_analyze_moat_tolerates_partial_metrics_dict():
+    """A caller-supplied partial metrics dict must not raise KeyError."""
+    result = analyze_moat(_history(range(2020, 2025)), metrics={})
+    assert result["moat_type"] == "NONE"
+    assert result["moat_score"] == 0.0
+
+
 # ----------------------------------------------------------------------
 # Buffett filter
 # ----------------------------------------------------------------------

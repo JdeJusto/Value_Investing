@@ -133,10 +133,15 @@ def revenue_cagr(rows: list[NormalizedFinancials]) -> Optional[float]:
 
 
 def fcf_growth(rows: list[NormalizedFinancials]) -> Optional[float]:
-    """FCF trend: change between the first 3-year and last 3-year averages."""
+    """FCF trend: change between the first 3-year and last 3-year averages.
+
+    Requires at least three FCF years: with exactly two the first and last
+    windows are the same pair of values and would trivially produce 0.0,
+    which is a misleading "flat" signal rather than an unknown trend.
+    """
     ordered = ordered_asc(rows)
     fcfs = [r.free_cash_flow for r in ordered if r.free_cash_flow is not None]
-    if len(fcfs) < 2:
+    if len(fcfs) < 3:
         return None
     first = sum(fcfs[:3]) / min(len(fcfs), 3)
     last = sum(fcfs[-3:]) / min(len(fcfs), 3)
@@ -263,7 +268,33 @@ def compute_quality_metrics(
     """Compute the full metric set once, for reuse across scoring modules."""
     roes = [v for v in multi_year_roe(rows) if v is not None]
     roics = [v for v in multi_year_roic(rows) if v is not None]
-    last = ordered_asc(rows)[-1]
+    ordered = ordered_asc(rows)
+    if not ordered:
+        # No history at all: every metric is unknown. Never crash on an
+        # empty history (e.g. a company whose rows were all filtered out).
+        return {
+            "roic_mean": None,
+            "roic_strong_years": None,
+            "roe_mean": None,
+            "book_value_per_share": None,
+            "owner_earnings": None,
+            "earnings_cv": None,
+            "max_yoy_decline": None,
+            "revenue_cagr": None,
+            "revenue_cv": None,
+            "gross_margin_mean": None,
+            "gross_margin_cv": None,
+            "gross_margin_trend": None,
+            "capital_intensity": None,
+            "positive_fcf_ratio": None,
+            "fcf_growth": None,
+            "debt_to_equity": None,
+            "interest_coverage": None,
+            "debt_trend": None,
+            "net_income_change": None,
+            "retained_earnings_positive": None,
+        }
+    last = ordered[-1]
     margins = margin_statistics(rows)
     equity = equity_of(last)
     interest = (

@@ -46,27 +46,29 @@ def _scale(value: Optional[float], good: float, bad: float) -> float:
 
 def roic_persistence(metrics: dict) -> float:
     """Sustained high ROIC: strength of the average plus how often it stays high."""
-    mean_score = _scale(metrics["roic_mean"], ROIC_STRONG, ROIC_FLOOR)
-    streak = metrics["roic_strong_years"] or 0.0
+    mean_score = _scale(metrics.get("roic_mean"), ROIC_STRONG, ROIC_FLOOR)
+    streak = metrics.get("roic_strong_years") or 0.0
     return 0.7 * mean_score + 0.3 * streak
 
 
 def margin_signal(metrics: dict) -> float:
     """Stable or increasing gross margins indicate pricing power."""
-    cv_score = _scale(metrics["gross_margin_cv"], GROSS_CV_STABLE, GROSS_CV_UNSTABLE)
-    trend = metrics["gross_margin_trend"]
+    cv_score = _scale(
+        metrics.get("gross_margin_cv"), GROSS_CV_STABLE, GROSS_CV_UNSTABLE
+    )
+    trend = metrics.get("gross_margin_trend")
     bonus = 0.2 if trend is not None and trend >= GROSS_TREND_BONUS else 0.0
     return min(1.0, cv_score + bonus)
 
 
 def capital_signal(metrics: dict) -> float:
     """Low capital intensity: a moat lets a business grow without heavy capex."""
-    return _scale(metrics["capital_intensity"], CAPEX_LOW, CAPEX_HIGH)
+    return _scale(metrics.get("capital_intensity"), CAPEX_LOW, CAPEX_HIGH)
 
 
 def revenue_signal(metrics: dict) -> float:
     """Predictable revenue: low volatility supports durable returns."""
-    return _scale(metrics["revenue_cv"], REVENUE_CV_STABLE, REVENUE_CV_UNSTABLE)
+    return _scale(metrics.get("revenue_cv"), REVENUE_CV_STABLE, REVENUE_CV_UNSTABLE)
 
 
 def classify_moat(moat_score: float) -> str:
@@ -113,20 +115,20 @@ def analyze_moat(
 
     strengths: list[str] = []
     weaknesses: list[str] = []
-    if metrics["roic_mean"] is not None and metrics["roic_mean"] >= ROIC_STRONG:
+    if metrics.get("roic_mean") is not None and metrics.get("roic_mean") >= ROIC_STRONG:
         strengths.append("ROIC persistently above 12%")
-    if metrics["gross_margin_cv"] is not None:
+    if metrics.get("gross_margin_cv") is not None:
         if metrics["gross_margin_cv"] <= GROSS_CV_STABLE:
             strengths.append("Gross margins stable or improving")
         elif metrics["gross_margin_cv"] >= GROSS_CV_UNSTABLE:
             weaknesses.append("Gross margins volatile")
-    if metrics["capital_intensity"] is not None:
+    if metrics.get("capital_intensity") is not None:
         if metrics["capital_intensity"] <= CAPEX_LOW:
             strengths.append("Low capital intensity")
         elif metrics["capital_intensity"] >= CAPEX_HIGH:
             weaknesses.append("High capital intensity")
     if (
-        metrics["revenue_cv"] is not None
+        metrics.get("revenue_cv") is not None
         and metrics["revenue_cv"] >= REVENUE_CV_UNSTABLE
     ):
         weaknesses.append("Revenue predictability is low")
