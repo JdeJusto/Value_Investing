@@ -342,10 +342,12 @@ class TestNormalizeFiscalYearDedup:
 
 
 class TestFiscalYearEndMode:
-    """get_fiscal_year_end_date must use the latest period_end among the core
-    statement concepts: one-off facts tagged 'FY' (fee schedules, Entity%
-    cover-page rows) must not shift the fiscal year-end used for cross-source
-    anchoring, while the genuine newest 10-K comparative still wins."""
+    """get_fiscal_year_end_date must return the bucket's OWN fiscal year end:
+    one-off facts tagged 'FY' (fee schedules, Entity% cover-page rows) must not
+    shift it, the quarterly rows of a 10-K supplemental table retagged 'FY'
+    must not hijack it, and — critically — an OLDER comparative with a LONGER
+    annual span that a sync mislabelled under the current fiscal_year must not
+    win over the bucket's own calendar-year facts."""
 
     def test_restricts_fiscal_year_end_to_core_concepts(self, monkeypatch):
         repo = FinancialDatabaseRepository()
@@ -377,15 +379,85 @@ class TestFiscalYearEndMode:
 
         assert repo.get_fiscal_year_end_date("CRM", 2025) == date(2026, 1, 31)
         # The query must anchor on the mapped statement concepts (not Entity%
-        # cover-page facts or one-off disclosures) and prefer the LONGEST
-        # annual period so 10-K supplemental quarterly rows retagged 'FY'
-        # (which land in the previous bucket with a later period_end for a
-        # Jan-31 fiscal-year-end filer) cannot shift the year end.
+        # cover-page facts or one-off disclosures), rank the facts whose
+        # period_end falls in the bucket's OWN calendar year first (so a
+        # longer-span prior comparative mislabelled into the bucket cannot
+        # win), then prefer the LONGEST annual period so 10-K supplemental
+        # quarterly rows retagged 'FY' (which land in the previous bucket with
+        # a later period_end for a Jan-31 fiscal-year-end filer) cannot shift
+        # the year end either.
         sql = executed[-1]
         assert "concept = ANY" in sql
         assert "Entity" not in sql
         assert "period_end - COALESCE(f.period_start, f.period_end" in sql
         assert "LIMIT 1" in sql
+        # The calendar-year-match ranking must come BEFORE the span ranking.
+        assert "EXTRACT(YEAR FROM f.period_end)" in sql
+        assert sql.index("EXTRACT(YEAR FROM f.period_end)") < sql.index(
+            "period_end - COALESCE(f.period_start, f.period_end"
+        )
+
+    def test_prefers_bucket_calendar_year_over_longer_prior_comparative(
+        self, monkeypatch
+    ):
+        """AAPL-style pollution: the bucket holds an older comparative with a
+        LONGER annual span (FY2023, 370 days) than its own facts (363 days).
+        The calendar-year match must win — not the longest span."""
+        repo = FinancialDatabaseRepository()
+
+        executed: list[str] = []
+        captured_params: list[tuple] = []
+
+        # AAPL FY2025 bucket rows: own fiscal-year facts (period_end 2025-09-27,
+        # span 363), the FY2024 comparative (2024-09-28, span 363) and a
+        # mislabelled FY2023 comparative (2023-09-30, span 370). Under the old
+        # span-first ordering the 370-day comparative hijacked every year.
+        rows = [
+            {"period_end": date(2025, 9, 27), "span": 363},
+            {"period_end": date(2024, 9, 28), "span": 363},
+            {"period_end": date(2023, 9, 30), "span": 370},
+        ]
+
+        class FakeCursor:
+            def execute(self, sql, par):
+                executed.append(sql)
+                captured_params.append(par)
+                fiscal_year = int(par[1])
+                # Simulate the SQL ranking: calendar-year match first, then
+                # period span, then period_end.
+                self._result = sorted(
+                    rows,
+                    key=lambda r: (
+                        r["period_end"].year == fiscal_year,
+                        r["span"],
+                        r["period_end"],
+                    ),
+                    reverse=True,
+                )[0]
+
+            def fetchone(self):
+                return self._result
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class FakeConn:
+            def cursor(self):
+                return FakeCursor()
+
+        monkeypatch.setattr(repo, "_get_connection", lambda: FakeConn())
+        monkeypatch.setattr(
+            repo, "_get_company_id_by_ticker", lambda ticker: "company-1"
+        )
+
+        # The bucket's own fiscal year end wins over the longer-span mislabelled
+        # comparative.
+        assert repo.get_fiscal_year_end_date("AAPL", 2025) == date(2025, 9, 27)
+        # A polluted 2024 bucket must equally yield its own calendar-year end.
+        assert repo.get_fiscal_year_end_date("AAPL", 2024) == date(2024, 9, 28)
 
 
 class TestSharesOutstandingPreference:

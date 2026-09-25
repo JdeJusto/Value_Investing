@@ -112,6 +112,26 @@ class TestFinancialDatabaseIntegration:
         if shares is not None:
             assert shares > 0
 
+    def test_fiscal_year_end_prefers_bucket_calendar_year(
+        self,
+        financial_db_repo: FinancialRepository,
+    ) -> None:
+        """Regression: AAPL's 10-K comparatives were mislabelled under the
+        current fiscal_year, and a prior-year comparative with a LONGER annual
+        span (FY2023, 370 days vs 363) used to hijack the span-first ordering,
+        returning 2023-09-30 for every recent year. The fiscal year end must be
+        the bucket's OWN calendar-year end."""
+        if not financial_db_repo.available():
+            pytest.skip("Financial-DataBase not available")
+
+        got = {
+            year: financial_db_repo.get_fiscal_year_end_date("AAPL", year)
+            for year in (2023, 2024, 2025)
+        }
+        assert got[2025] == date(2025, 9, 27)
+        assert got[2024] == date(2024, 9, 28)
+        assert got[2023] == date(2023, 9, 30)
+
     def test_repository_exposes_no_price_methods(self, financial_db_repo: FinancialRepository) -> None:
         """Prices must NOT be read from Financial-DataBase."""
         assert not hasattr(financial_db_repo, "get_latest_price")
