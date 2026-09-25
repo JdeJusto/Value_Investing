@@ -777,19 +777,29 @@ class FinancialDatabaseRepository(FinancialRepository):
         # LeaseIncome. Prefer the rental figure when it dominates whatever
         # contract-revenue tag was picked (e.g. CPT's 1.57B rental vs a 13M
         # contract tag) while leaving e.g. DD (6.85B sales vs 74M rental)
-        # untouched.
-        if rental_income is not None and (
+        # untouched. A non-positive rental figure never replaces a real top
+        # line.
+        if rental_income is not None and rental_income > 0 and (
             income_data.get('revenue') is None
             or rental_income > income_data['revenue']
         ):
             income_data['revenue'] = rental_income
 
         # Banks/brokers report a net-of-interest top line. When both
-        # components exist, treat the total as revenue (overrides a partial
-        # contract-revenue tag and matches the net-revenue presentation
-        # used by financial data providers).
+        # components exist, reconstruct revenue as their sum — but only when
+        # the pair *dominates* whatever revenue tag was picked (mirrors the
+        # REIT rule). A filer that reports a genuine, larger net-revenue tag
+        # (some financial holding companies file `Revenues`) must never have
+        # it clobbered by a smaller or non-positive reconstructed total; a
+        # small incidental interest+non-interest pair must not shadow a
+        # manufacturer's real sales either (e.g. 7M pair vs 1,000M Revenues).
         if bank_interest is not None and bank_noninterest is not None:
-            income_data['revenue'] = bank_interest + bank_noninterest
+            bank_total = bank_interest + bank_noninterest
+            current_rev = income_data.get('revenue')
+            if bank_total > 0 and (
+                current_rev is None or bank_total > current_rev
+            ):
+                income_data['revenue'] = bank_total
 
         return {
             'income': income_data,
@@ -1406,17 +1416,31 @@ class FinancialDatabaseRepository(FinancialRepository):
     def get_fiscal_year_end_date(self, ticker: str, fiscal_year: int) -> Optional[date]:
         """Return the best-known fiscal year end date for a ticker/year.
 
-        The value is the ``period_end`` of the LONGEST annual ('FY') core
-        statement fact in the bucket.  Only the core concepts are considered
-        because one-off disclosures tagged 'FY' (fee schedules, Entity%
-        cover-page facts) can carry a later period_end that is not the fiscal
-        year end.  Sorting by period span (instead of MAX period_end) also
-        rejects the quarterly rows of a 10-K supplemental quarterly table —
-        SEC retags those 'FY', and for a Jan-31 fiscal-year-end company they
-        land in the PREVIOUS bucket with a LATER calendar period_end (e.g.
-        Salesforce FY2013 bucket holds Q1-Q3 FY2014 quarters ending Apr/Jul/Oct
-        2013).  This keeps e.g. Apple's late-September year-end intact while
-        rejecting stray longer-dated facts.
+        The value is the ``period_end`` of the core 'FY' statement fact that
+        most plausibly describes the bucket's own fiscal year.  Only the core
+        concepts are considered because one-off disclosures tagged 'FY' (fee
+        schedules, Entity% cover-page facts) can carry a later period_end that
+        is not the fiscal year end.
+
+        Three rules, in priority order:
+
+        1. *Calendar-year match wins.* The bucket label is the calendar year of
+           the fiscal year end (Apple FY2025 ends 2025-09-27, Salesforce FY2025
+           ends 2025-01-31), so facts whose ``period_end`` falls *outside* that
+           calendar year are comparatives or cross-year leaks from a 10-K that
+           a sync tagged under several fiscal years at once.  AAPL's FY2025
+           bucket, for example, holds its FY2023 comparatives (period_end
+           2023-09-30) whose *longer* annual span (370 days vs 363) used to
+           hijack the span-first ordering and return the wrong year end for
+           every recent year.
+        2. *Annual span over quarterly rows.* The quarterly rows of a 10-K
+           supplemental quarterly table are retagged 'FY' by SEC, and for a
+           Jan-31 fiscal-year-end company they land in the PREVIOUS bucket with
+           a LATER calendar period_end (e.g. Salesforce FY2013 bucket holds
+           Q1-Q3 FY2014 quarters ending Apr/Jul/Oct 2013, all inside calendar
+           2013).  Among calendar-year-matched facts the longest span wins, so
+           the ~91-273 day quarters lose to the ~365 day annual.
+        3. *Latest period_end breaks ties* among equally plausible annual facts.
 
         Args:
             ticker: Company ticker symbol
@@ -1440,10 +1464,12 @@ class FinancialDatabaseRepository(FinancialRepository):
                       AND UPPER(f.fiscal_period) = 'FY'
                       AND f.period_end IS NOT NULL
                       AND f.concept = ANY(%s::text[])
-                    ORDER BY (f.period_end - COALESCE(f.period_start, f.period_end)) DESC,
+                    ORDER BY (EXTRACT(YEAR FROM f.period_end) = %s) DESC,
+                             (f.period_end - COALESCE(f.period_start, f.period_end)) DESC,
                              f.period_end DESC
                     LIMIT 1
-                """, (company_id, fiscal_year, CORE_STATEMENT_CONCEPTS))
+                """, (company_id, fiscal_year,
+                      CORE_STATEMENT_CONCEPTS, fiscal_year))
 
                 result = cur.fetchone()
                 if result and result['period_end'] is not None:
