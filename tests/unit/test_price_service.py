@@ -300,6 +300,26 @@ class TestPriceService:
 
         assert m_after == pytest.approx(1.0)
 
+    def test_get_split_adjustment_accepts_int_fiscal_year(self, service):
+        """An integer fiscal year resolves to December 31 like the price-on-
+        fiscal-year-end fallback, so an int never raises a TypeError."""
+        splits = pd.Series(
+            {datetime(2014, 6, 9): 7.0, datetime(2020, 8, 31): 4.0}
+        )
+        mock_ticker = Mock()
+        mock_ticker.splits = splits
+
+        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+            # 2010-12-31 is before both splits -> 7 * 4 = 28; identical to
+            # passing an explicit date for the same day.
+            m_int = service.get_split_adjustment("AAPL", 2010)
+            m_date = service.get_split_adjustment("AAPL", date(2010, 12, 31))
+            m_later = service.get_split_adjustment("AAPL", 2021)
+
+        assert m_int == pytest.approx(28.0)
+        assert m_int == m_date
+        assert m_later == pytest.approx(1.0)
+
     def test_get_split_adjustment_failure(self, service):
         """Test that a provider failure yields 1.0 (graceful fallback)."""
         mock_ticker = Mock()

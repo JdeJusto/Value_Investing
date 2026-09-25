@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import time
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, List, Optional, Tuple
@@ -40,7 +41,13 @@ class _LazyModuleProxy:
 
 yf = _LazyModuleProxy("yfinance")
 
+logger = logging.getLogger("backend.price_service")
+
 DEFAULT_CACHE_TTL_SECONDS = 900  # 15 minutes
+# Maximum number of yfinance requests per minute to avoid rate limiting
+MAX_REQUESTS_PER_MINUTE = 60
+# Minimum delay between batches of requests (seconds)
+MIN_BATCH_DELAY = 1.0
 
 # Categories for a failed price/quote fetch (see classify_price_failure).
 PRICE_FAILURE_DELISTED = "delisted"
@@ -116,7 +123,7 @@ class PriceService:
         self,
         tickers: List[str],
         batch_size: int = 25,
-        delay: float = 0.2,
+        delay: float = 0.5,
         workers: int = 1,
     ) -> Dict[str, Optional[float]]:
         """Batch current-price fetch with rate-limit pacing.
@@ -130,6 +137,7 @@ class PriceService:
         """
         prices: Dict[str, Optional[float]] = {}
         remaining = [t.upper() for t in tickers if t]
+        request_count = 0
         while remaining:
             batch, remaining = remaining[:batch_size], remaining[batch_size:]
             if workers > 1:
@@ -139,6 +147,12 @@ class PriceService:
             else:
                 for ticker in batch:
                     prices[ticker] = self.get_current_price(ticker)
+            request_count += len(batch)
+            # Enforce rate limit: after ~60 requests, sleep 60s
+            if request_count >= 60:
+                logger.debug("Rate limit threshold reached, sleeping 60s")
+                time.sleep(60)
+                request_count = 0
             if remaining and delay > 0:
                 time.sleep(delay)
         return prices
@@ -227,6 +241,66 @@ class PriceService:
         return None
 
     # ------------------------------------------------------------------
+    # additional MarketDataProvider methods (required by CompanyAnalysisService)
+    # ------------------------------------------------------------------
+    def get_market_cap(self, ticker: str) -> Optional[float]:
+        """Return the current market capitalization from Yahoo, or None."""
+        key = f"market_cap:{ticker.upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return float(cached)
+
+        try:
+            info = yf.Ticker(ticker).info
+            market_cap = info.get("marketCap")
+            if market_cap is not None:
+                market_cap = float(market_cap)
+                self._set_cached(key, market_cap)
+                return market_cap
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+            pass
+        return None
+
+    def get_enterprise_value(self, ticker: str) -> Optional[float]:
+        """Return the current enterprise value from Yahoo, or None."""
+        key = f"enterprise_value:{ticker.upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return float(cached)
+
+        try:
+            info = yf.Ticker(ticker).info
+            ev = info.get("enterpriseValue")
+            if ev is not None:
+                ev = float(ev)
+                self._set_cached(key, ev)
+                return ev
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+            pass
+        return None
+
+    def get_beta(self, ticker: str) -> Optional[float]:
+        """Return the current beta from Yahoo, or None."""
+        key = f"beta:{ticker.upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return float(cached)
+
+        try:
+            info = yf.Ticker(ticker).info
+            beta = info.get("beta")
+            if beta is not None:
+                try:
+                    beta = float(beta)
+                    self._set_cached(key, beta)
+                    return beta
+                except (TypeError, ValueError):
+                    pass
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+            pass
+        return None
+
+    # ------------------------------------------------------------------
     # market snapshots (single .info call per ticker)
     # ------------------------------------------------------------------
     def get_market_snapshots(
@@ -283,18 +357,20 @@ class PriceService:
 
         The .info quote summary is far more resilient than the chart endpoint
         used for history() — it keeps working for lightly-traded names and
-        delisted-with-data issues — but a single short retry still absorbs
-        transient network errors. Nothing is persisted.
+        delisted-with-data issues — but transients are handled with retries
+        and slightly longer delays to avoid triggering rate limits.
         """
-        for attempt in (1, 2):
+        for attempt in range(3):
             try:
                 info = yf.Ticker(ticker).info
                 if isinstance(info, dict) and info:
                     return info
             except Exception:  # noqa: BLE001 — transient Yahoo errors
                 pass
-            if attempt == 1:
-                time.sleep(0.75)
+            # Exponential backoff: 1s, 2s between retries
+            wait_time = 1.0 * (2 ** attempt)
+            logger.debug("Yahoo .info attempt %d failed for %s, retrying in %.1fs", attempt + 1, ticker, wait_time)
+            time.sleep(wait_time)
         return None
 
     # ------------------------------------------------------------------
@@ -384,9 +460,15 @@ class PriceService:
 
         Returns 1.0 when there is no split data (or on provider failure), so
         callers can safely fall back to the as-reported numbers.
+
+        ``target_date`` may also be given as an ISO string or as an integer
+        fiscal year; an integer is resolved to December 31 of that year,
+        matching the convention used by ``get_price_at_fiscal_year_end``.
         """
         if isinstance(target_date, str):
             target_date = date.fromisoformat(target_date)
+        elif isinstance(target_date, int):
+            target_date = date(target_date, 12, 31)
 
         splits = self._fetch_splits(ticker)
         if not splits:
