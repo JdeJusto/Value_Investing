@@ -17,7 +17,28 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, List, Optional, Tuple
 
-import yfinance as yf
+class _LazyModuleProxy:
+    """Lazy module attribute proxy.
+
+    ``yf`` keeps working as ``yf.Ticker(...)`` (and stays patchable by the
+    tests as ``backend.services.price_service.yf.Ticker``) while the actual
+    yfinance import — which pulls in numpy/pandas, ~0.5s — only happens on
+    first attribute access, so importing this service never pays it.
+    """
+
+    def __init__(self, module_name: str) -> None:
+        self._yf_module_name = module_name
+
+    def __getattr__(self, attr: str):
+        import importlib
+
+        mod = importlib.import_module(self._yf_module_name)
+        value = getattr(mod, attr)
+        object.__setattr__(self, attr, value)
+        return value
+
+
+yf = _LazyModuleProxy("yfinance")
 
 DEFAULT_CACHE_TTL_SECONDS = 900  # 15 minutes
 
