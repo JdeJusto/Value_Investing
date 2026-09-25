@@ -23,9 +23,12 @@ USABLE_QUALITY_THRESHOLD = 0.5
 
 def _usable(record: NormalizedFinancials) -> bool:
     quality = record.data_quality_score
-    # Rows without a score (hand-built records) are treated as usable;
-    # scored empty shells are filtered by the threshold.
-    return quality is None or quality >= USABLE_QUALITY_THRESHOLD
+    if quality is not None:
+        return quality >= USABLE_QUALITY_THRESHOLD
+    # Rows without a score (hand-built records) must still carry core
+    # fundamentals to count towards a source's coverage; an unscored empty
+    # shell is not usable data, only a placeholder row.
+    return record.revenue is not None or record.net_income is not None
 
 
 def record_rank(record: NormalizedFinancials) -> tuple:

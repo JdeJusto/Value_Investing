@@ -235,3 +235,42 @@ def test_json_legacy_single_source_format_migrates(tmp_path):
     # re-saving must keep working in the new multi-source shape
     repo.upsert(_record(2025, ProviderName.EDGAR))
     assert len(repo.list_all("AAPL")) == 2
+
+
+def test_choose_history_ignores_unscored_empty_shell():
+    """An unscored record without core fundamentals is a placeholder row,
+    never usable data — it must not pad a source's coverage."""
+    shell = NormalizedFinancials(
+        ticker="XYZ",
+        fiscal_year=2025,
+        source=ProviderName.EDGAR,
+    )
+    assert choose_history([shell]) == []
+
+
+def test_choose_history_accepts_unscored_record_with_fundamentals():
+    """Hand-built, unscored records carrying real fundamentals stay usable."""
+    record = NormalizedFinancials(
+        ticker="XYZ",
+        fiscal_year=2025,
+        source=ProviderName.EDGAR,
+        revenue=100.0,
+        net_income=20.0,
+    )
+    assert choose_history([record]) == [record]
+
+
+def test_choose_history_mixes_unscored_shell_and_real_parts():
+    """A source with unscored shells only must lose to one with real data."""
+    shell = NormalizedFinancials(
+        ticker="XYZ", fiscal_year=2024, source=ProviderName.EDGAR
+    )
+    real = NormalizedFinancials(
+        ticker="XYZ",
+        fiscal_year=2024,
+        source=ProviderName.YAHOO,
+        revenue=100.0,
+        net_income=20.0,
+    )
+    selected = choose_history([shell, real])
+    assert [r.source for r in selected] == [ProviderName.YAHOO]
