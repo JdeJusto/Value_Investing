@@ -140,6 +140,10 @@ Repository implementation in `backend/repositories/financial_database_repository
 - Handles provider mapping (SEC EDGAR → ProviderName.EDGAR)
 - Includes fallback logic to existing providers
 - Provides fundamentals, shares outstanding, fiscal year end dates
+  (`get_fiscal_year_end_date` ranks core 'FY' facts by calendar-year match —
+  the bucket's own fiscal year — first, then period span, then latest
+  period_end, so a 10-K comparative that a sync mislabels under the current
+  fiscal_year cannot hijack the year end even when its annual span is longer)
 - Does NOT expose price methods (prices live in PriceService, not the DB)
 
 ### 2. PriceService
@@ -271,7 +275,8 @@ The daily alert evaluation (`backend/alerts/alert_engine.py::run`, wired in
   drops ≥ 10 pts vs the previous day's `daily_state.json`) and anomaly
   reporting cover it.
 - **BUY_SIGNAL** — `generate_signal` = BUY (rank ≥ 75, composite ≥ 70,
-  confidence HIGH/MEDIUM, buffett ≥ 50).
+  confidence HIGH/MEDIUM, buffett ≥ 50; with LOW confidence a materially
+  stronger bar applies: rank ≥ 80, composite ≥ 75, buffett ≥ 50).
 - **SELL_WARNING** — composite total score drops ≥ 10 pts (HIGH ≥ 15) vs
   the previous day; universe-wide, 0 fires when scores are stable.
 
