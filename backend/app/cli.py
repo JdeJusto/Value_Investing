@@ -23,7 +23,7 @@ from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.price_service import get_price_service
 from backend.services.screener_service import StockScreenerService
 from backend.utils.input import get_tickers
-from cli.formatters import dim, green, red
+from cli.formatters import dim, green, red, yellow
 
 load_dotenv()
 
@@ -238,6 +238,8 @@ def _print_refresh_summary(result, *, universe_wide: bool = False) -> None:
         pieces.append(dim(f"{len(result.skipped)} sin tocar"))
     if sync_failures:
         pieces.append(red(f"{len(sync_failures)} con fallo"))
+    if getattr(result, "sec_skipped_reason", None):
+        pieces.append(yellow("SEC no disponible — refresh SEC omitido"))
     if universe_wide:
         pieces.append(
             dim("universo amplio: refresh acotado (usa --refresh para forzar)")

@@ -24,6 +24,7 @@ from backend.services.refresh_service import (
     RefreshService,
     load_refresh_config,
 )
+from backend.services.sec_health import SecHealth
 
 NOW = dt.datetime.now(dt.timezone.utc)
 STALE = NOW - dt.timedelta(hours=200)  # older than the 168h threshold
@@ -82,12 +83,27 @@ class FakePriceService:
         return {t: self.prices.get(t) for t in tickers}
 
 
-def make_service(gateway=None, price=None, runner=None, config=None, **kwargs):
+def _sec_ok() -> SecHealth:
+    """Default preflight for the fake services: SEC reachable."""
+    return SecHealth(True, "ok", 200, 0.0)
+
+
+def _sec_down(reason: str = "SEC returned HTTP 403 (rate limit)", status: int = 403):
+    def probe() -> SecHealth:
+        return SecHealth(False, reason, status, 0.0)
+
+    return probe
+
+
+def make_service(
+    gateway=None, price=None, runner=None, config=None, sec_health=None, **kwargs
+):
     return RefreshService(
         config=config or RefreshConfig(),
         gateway=gateway or FakeGateway(),
         price_service=price or FakePriceService(),
         sync_runner=runner,
+        sec_health_fn=sec_health or _sec_ok,
         **kwargs,
     )
 
@@ -474,3 +490,112 @@ def test_check_freshness_db_down_lists_everything_unknown():
     assert stale == []
     assert fresh == []
     assert unknown == ["AAPL", "MSFT"]
+
+
+# ----------------------------------------------------------------------
+# SEC availability preflight (PART: refresh resume strategy)
+# ----------------------------------------------------------------------
+
+
+def test_sec_unavailable_skips_sync_but_keeps_prices():
+    """SEC 403: no sync subprocess is launched; the company is skipped (not
+    failed) with a clear reason, and prices still flow for the analysis."""
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={"c1": STALE},
+    )
+    price = FakePriceService(prices={"AAPL": 123.0})
+    calls: list[str] = []
+    service = make_service(
+        gateway=gateway,
+        price=price,
+        runner=lambda cik: calls.append(cik) or True,
+        sec_health=_sec_down(),
+    )
+
+    result = service.ensure_fresh_and_prices(["AAPL"])
+
+    assert calls == []  # preflight stopped the sync
+    assert result.refreshed == []
+    assert result.skipped == ["AAPL"]
+    assert result.failed == []
+    assert result.sec_skipped_reason and "403" in result.sec_skipped_reason
+    assert any("SEC unavailable" in note for note in result.notes)
+    assert result.prices == {"AAPL": 123.0}
+
+
+def test_sec_available_refreshes_stale_company():
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={"c1": STALE},
+    )
+    calls: list[str] = []
+    service = make_service(
+        gateway=gateway,
+        runner=lambda cik: calls.append(cik) or True,
+        sec_health=_sec_ok,
+    )
+
+    result = service.ensure_fresh_and_prices(["AAPL"])
+
+    assert calls == ["0000320193"]
+    assert result.refreshed == ["AAPL"]
+    assert result.sec_skipped_reason is None
+
+
+def test_sec_preflight_is_not_run_when_nothing_is_stale():
+    probes: list[int] = []
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={"c1": FRESH},
+    )
+    service = make_service(
+        gateway=gateway,
+        sec_health=lambda: probes.append(1) or _sec_ok(),
+    )
+
+    result = service.ensure_fresh_and_prices(["AAPL"])
+
+    assert result.skipped == ["AAPL"]
+    assert probes == []  # fresh data → zero SEC traffic, not even a probe
+
+
+def test_sec_preflight_is_not_run_with_no_refresh_flag():
+    probes: list[int] = []
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={"c1": STALE},
+    )
+    service = make_service(
+        gateway=gateway,
+        sec_health=lambda: probes.append(1) or _sec_ok(),
+    )
+
+    result = service.ensure_fresh_and_prices(["AAPL"], skip_refresh=True)
+
+    assert probes == []  # --no-refresh touches neither the DB nor the network
+    assert result.skipped == ["AAPL"]
+
+
+def test_sec_preflight_exception_degrades_to_skip():
+    """A broken probe must never break the analysis command."""
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={"c1": STALE},
+    )
+    calls: list[str] = []
+
+    def boom() -> SecHealth:
+        raise RuntimeError("probe exploded")
+
+    service = make_service(
+        gateway=gateway,
+        runner=lambda cik: calls.append(cik) or True,
+        sec_health=boom,
+    )
+
+    result = service.ensure_fresh_and_prices(["AAPL"])
+
+    assert calls == []
+    assert result.skipped == ["AAPL"]
+    assert result.sec_skipped_reason and "probe exploded" in result.sec_skipped_reason

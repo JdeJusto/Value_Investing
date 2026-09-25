@@ -254,6 +254,8 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
         if result.failed:
             parts.append(f"{len(result.failed)} failed")
         parts.append(f"{elapsed:.0f}s")
+    if getattr(result, "sec_skipped_reason", None):
+        parts.append("SEC unavailable — refresh skipped")
     status = "SEC refresh (targeted): " + " · ".join(parts)
 
     if result.failed:

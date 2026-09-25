@@ -15,19 +15,28 @@ Degradation contract
   ``failed`` entry but the command still runs (prices may still be fetched).
 - If ``SEC_USER_AGENT`` is not set, the targeted sync is reported as failed
   with that reason instead of crashing the whole command.
-- If SEC is unreachable or the sync times out, the company is reported as
-  failed and analysis proceeds with the data that exists.
+- Before any sync, a SEC availability preflight (``sec_health.py``) turns a
+  403 rate-limit / unreachable EDGAR into a single skip: the companies move
+  to ``RefreshResult.skipped`` and ``sec_skipped_reason`` records why,
+  instead of one doomed ``sec sync`` subprocess per company. Analysis
+  proceeds with the stored fundamentals.
+- If SEC is unreachable or the sync times out mid-run, the company is
+  reported as failed and analysis proceeds with the data that exists.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
+import logging
 import os
 import subprocess
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from backend.services.price_service import PriceService
+from backend.services.sec_health import SecHealth, check_sec_availability
+
+logger = logging.getLogger("backend.refresh_service")
 
 # Defaults for config/refresh.yaml (the file itself is optional and only
 # overrides these).
@@ -68,6 +77,10 @@ class RefreshResult:
     failed: list[tuple[str, str]] = field(default_factory=list)
     prices: dict[str, Optional[float]] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    # Set when the SEC preflight declared EDGAR unavailable and the whole
+    # targeted sync step was skipped (companies move to ``skipped``). The
+    # reason is the human-readable probe outcome.
+    sec_skipped_reason: Optional[str] = None
 
     @property
     def ok(self) -> bool:
@@ -332,6 +345,7 @@ class RefreshService:
         price_service: Optional[PriceService] = None,
         gateway: Optional[FdbGateway] = None,
         sync_runner: Optional[Callable[[list[str], dict, Optional[str]], int]] = None,
+        sec_health_fn: Optional[Callable[[], SecHealth]] = None,
     ):
         self.config = config or load_refresh_config()
         self._gateway = gateway or FdbGateway(database_url)
@@ -342,6 +356,9 @@ class RefreshService:
         self._price_service = price_service or PriceService()
         # Injectable for tests; production uses _run_fdb_cli below.
         self._sync_runner = sync_runner
+        # SEC availability preflight (backend/services/sec_health.py); the
+        # probe itself is injectable so tests never touch the network.
+        self._sec_health_fn = sec_health_fn or check_sec_availability
 
     # ------------------------------------------------------------------
     # public API
@@ -427,6 +444,25 @@ class RefreshService:
                 work.append((ticker, cik))
             else:
                 result.skipped.append(ticker)
+
+        # SEC availability preflight: if EDGAR is rate-limiting or refusing
+        # the request (403), skip every sync with one clear reason instead of
+        # launching a burst of doomed subprocesses. Analysis proceeds with the
+        # fundamentals already stored — prices come from Yahoo and are
+        # unaffected.
+        if work:
+            health = self._probe_sec()
+            if not health.available:
+                reason = (
+                    f"SEC unavailable ({health.reason}) — targeted refresh "
+                    "skipped; analysis uses the stored fundamentals"
+                )
+                result.notes.append(reason)
+                result.sec_skipped_reason = health.reason
+                logger.warning("%s", reason)
+                for ticker, _cik in work:
+                    result.skipped.append(ticker)
+                work = []
 
         # Targeted syncs. `sec sync` is subprocess-bound (the GIL is released
         # while waiting), so stale companies are synced concurrently up to
@@ -605,6 +641,13 @@ class RefreshService:
             return self._price_service.get_current_prices(tickers)
         except Exception:  # noqa: BLE001 — prices must never break the command
             return {}
+
+    def _probe_sec(self) -> SecHealth:
+        """Run the injectable SEC preflight; never let it break the command."""
+        try:
+            return self._sec_health_fn()
+        except Exception as exc:  # noqa: BLE001 — probe failure ≠ command failure
+            return SecHealth(False, f"SEC preflight failed: {exc}", None, 0.0)
 
     def _sync_company(self, cik: str) -> bool | str:
         """Run a targeted sec sync for one CIK. True on success, reason on failure."""
