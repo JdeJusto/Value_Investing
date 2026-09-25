@@ -599,3 +599,45 @@ def test_sec_preflight_exception_degrades_to_skip():
     assert calls == []
     assert result.skipped == ["AAPL"]
     assert result.sec_skipped_reason and "probe exploded" in result.sec_skipped_reason
+
+
+# ----------------------------------------------------------------------
+# progress callback (daily-workflow checkpointing)
+# ----------------------------------------------------------------------
+
+
+def test_progress_callback_reports_each_attempted_sync():
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "1"), "MSFT": ("c2", "2"), "KO": ("c3", "3")},
+        last_synced={"c1": STALE, "c2": STALE, "c3": FRESH},
+    )
+    events: list[tuple[str, object]] = []
+    service = make_service(
+        gateway=gateway,
+        runner=lambda cik: True if cik != "2" else "SEC sync timed out after 300s",
+    )
+
+    result = service.ensure_fresh_and_prices(
+        ["AAPL", "MSFT", "KO"], progress_cb=lambda t, s: events.append((t, s))
+    )
+
+    assert ("AAPL", True) in events
+    assert ("MSFT", "SEC sync timed out after 300s") in events
+    assert all(t != "KO" for t, _ in events)  # fresh → never attempted
+    assert "MSFT" in [t for t, _ in result.failed]
+
+
+def test_progress_callback_failure_does_not_break_refresh():
+    gateway = FakeGateway(
+        companies={"AAPL": ("c1", "0000320193")},
+        last_synced={"c1": STALE},
+    )
+
+    def boom(ticker, status):
+        raise RuntimeError("callback exploded")
+
+    service = make_service(gateway=gateway, runner=lambda cik: True)
+
+    result = service.ensure_fresh_and_prices(["AAPL"], progress_cb=boom)
+
+    assert result.refreshed == ["AAPL"]

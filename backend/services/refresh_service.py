@@ -371,6 +371,7 @@ class RefreshService:
         max_age_hours: Optional[int] = None,
         skip_refresh: Optional[bool] = None,
         fetch_prices: bool = True,
+        progress_cb: Optional[Callable[[str, "bool | str"], None]] = None,
     ) -> RefreshResult:
         """Ensure freshness of the given tickers and fetch their prices.
 
@@ -385,6 +386,11 @@ class RefreshService:
             skip_refresh: skip the SEC sync step entirely (CLI --no-refresh
                 or config skip_refresh_flag). Prices are still fetched.
             fetch_prices: when False, prices are not fetched.
+            progress_cb: optional ``(ticker, status)`` hook invoked after
+                every attempted sync (``status`` is True on success or the
+                failure reason string). Used by the daily workflow to
+                checkpoint progress; a raising callback is logged and never
+                breaks the refresh.
         """
         threshold = (
             max_age_hours if max_age_hours is not None else self.config.freshness_max_age_hours
@@ -477,6 +483,7 @@ class RefreshService:
                     result.refreshed.append(ticker)
                 else:
                     result.failed.append((ticker, status))
+                self._notify_progress(progress_cb, ticker, status)
         else:
             for ticker, cik in work:
                 status = self._sync_company(cik)
@@ -484,6 +491,7 @@ class RefreshService:
                     result.refreshed.append(ticker)
                 else:
                     result.failed.append((ticker, status))
+                self._notify_progress(progress_cb, ticker, status)
 
         if fetch_prices:
             result.prices = self._fetch_prices(dedup)
@@ -648,6 +656,20 @@ class RefreshService:
             return self._sec_health_fn()
         except Exception as exc:  # noqa: BLE001 — probe failure ≠ command failure
             return SecHealth(False, f"SEC preflight failed: {exc}", None, 0.0)
+
+    @staticmethod
+    def _notify_progress(
+        progress_cb: Optional[Callable[[str, "bool | str"], None]],
+        ticker: str,
+        status: "bool | str",
+    ) -> None:
+        """Fire the optional progress hook; never let it break the refresh."""
+        if progress_cb is None:
+            return
+        try:
+            progress_cb(ticker, status)
+        except Exception as exc:  # noqa: BLE001 — checkpointing must not crash
+            logger.warning("progress callback failed for %s: %s", ticker, exc)
 
     def _sync_company(self, cik: str) -> bool | str:
         """Run a targeted sec sync for one CIK. True on success, reason on failure."""
