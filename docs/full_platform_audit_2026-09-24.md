@@ -293,3 +293,104 @@ cProfile + wall-clock/RSS (wrapper `resource.RUSAGE_CHILDREN`, `/usr/bin/time` n
 - Código de referencia: `backend/repositories/financial_database_repository.py`, `backend/services/refresh_service.py`, `scripts/daily_workflow.py`, FDB `src/financial_database/cli.py`, `providers/sec/importer.py`
 
 *Fin del reporte.*
+---
+
+## 13. Fixes de rendimiento aplicados (2026-09-24, tarde)
+
+Ronda 2 por requerimiento del usuario ("aplica todos los fixes de rendimiento"):
+**P0/P1/P2 implementados y verificados; P3 documentado como bloqueado** (no hay
+admin/sudo de PostgreSQL para activar `pg_stat_statements`).
+
+### P0 — Hotspot `_normalize_financial_facts` (`backend/repositories/financial_database_repository.py`)
+- *Antes:* cada fact re-parsaba las fechas ISO dentro de CADA comparación de
+  `sorted()` (y `period_end` de nuevo en el filtro `bucket_year`): **22.7 s cum / 10 calls**.
+- *Ahora:* un único pase de precompute por fact (clave de orden + año del bucket),
+  luego un `sorted()` por tupla. **0.148 s cum / 17 calls** (~150×).
+- La query de facts ya pedía solo las columnas necesarias (nada de `SELECT *`).
+- ⚠ Archivo con WIP del usuario: el cambio quedó **sin commitear**, mezclado con su
+  WIP para que lo revise y commitee junto.
+
+### P1 — Import en frío del CLI (3.31 s → 0.18 s)
+- `edgar/provider.py`: edgartools (+`set_identity`) diferidos al primer fetch real;
+  construir el pipeline ya no paga ~2.7 s.
+- `yahoo/provider.py`: `from __future__ import annotations` + imports locales de
+  numpy/pandas/yfinance en los 4 sitios runtime.
+- `analytics/ratios/margins.py`: numpy lazy (1 uso).
+- `repositories/__init__.py`: exposición vía `__getattr__` (PEP 562) — SQLAlchemy
+  ya no se importa al importar el paquete.
+- `app/cli.py`: pandas movido a los 2 comandos que lo usan; providers y repo
+  SQLAlchemy importados solo dentro de los builders.
+- `price_service.py`: yfinance vía proxy de módulo lazy (sigue parcheable por
+  tests como `backend.services.price_service.yf.Ticker`). ⚠ en archivo WIP, sin commitear.
+- Medidas: `import backend.app.cli` **3.31 s → 0.18 s** · `analyze AAPL`
+  **6.42 s → 4.11 s**.
+
+### P2 — Screener (scruti secuencial 43 s @34% CPU)
+- `screen()`: un único pase **paralelo** de snapshots (.info) vía
+  `PriceService.get_market_snapshots` + `SnapshotMarketProvider`; el loop
+  secuencial hace **0 llamadas de red por ticker**; sleep 0.15 → 0.02 (solo ruta
+  live excepcional); se conserva el `_analysis` inyectado en tests (Mock).
+- `search()`: nombres desde `get_company_name` del repositorio (lectura DB local)
+  en vez de `.info` secuencial por ticker; early-exit a 20 matches.
+  `screener --search "Apple"` **58.5 s → 6.4 s**.
+
+### P3 — `pg_stat_statements`
+- **BLOQUEADO:** requiere editar `postgresql.conf` + reiniciar el servicio
+  (systemd) → necesita sudo de postgres/root, no disponible en este entorno.
+  Documentado como pendiente de infraestructura.
+
+### Gates
+- `prices`: **152 filas** (intacto, sin escrituras).
+- Suite unit: **524 passed, 1 skipped**.
+- Commits (como `jdejusto`, sin push): `f3fea7c` (import P1), `ee8eef4` (screener P2),
+  `69843fb` (edgar deferral).
+- Sin commitear por estar en WIP del usuario: `financial_database_repository.py`
+  (P0) y `price_service.py` (yfinance lazy).
+- FDB: suite **189 passed**; DB principal intacta (8,023 companies · 76,117,485
+  facts · 1,093,944 filings · **prices 152** · last_synced NULL 1,223). El único
+  cambio es +1 `import_run` `failed` (intento live bloqueado por 403, 0 records).
+  Benchmarks sobre la test DB con rollback. 7 commits: 5 ya en `origin/main`
+  (push externo a mi sesión), 2 locales. Yo no hice push.
+
+### FDB — import SEC (completado y verificado)
+
+El subagente fue interrumpido a mitad (rate limit del proveedor LLM); sus commits
+quedaron en el repo FDB y su trabajo se completó y verificó aquí (2 commits más).
+SEC sigue inaccesible desde este entorno (**HTTP 403** en todos los endpoints), así
+que la metodología es *offline* sobre la DB de test (`financial_database_test`) con
+client mockeado, reproduciendo el camino exacto del importer.
+
+**Rendimiento de facts (medición propia, una transacción + rollback, fiel a
+producción — la conexión del CLI es transaccional con un commit por compañía):**
+
+| Camino | ms/fact | 25k facts (escala Apple) | Proyección 50k |
+|---|---|---|---|
+| Viejo: SELECT existencia + INSERT por fact | 1.85 | **46.4 s** | ~92 s |
+| Nuevo: INSERT multi-fila ×1000 + `ON CONFLICT` | 0.25 | **6.3 s** | ~12.6 s |
+
+→ **7.3–7.5× en la capa DB** (estable a 5k/15k/25k facts). El throughput nuevo
+coincide con el del subagente (0.24 vs 0.25 ms/fact), pero su baseline de 47×
+(11.37 ms/fact) medía un harness que aparentemente commiteaba por fact; no es
+reproducible con la conexión real del CLI (psycopg default, autocommit off), por
+lo que el número honesto y verificado es ~7.3–7.5×.
+
+**Commits FDB (autor `jdejusto`; 5 ya en `origin/main` por un push externo a mi
+sesión el 25-Sep 10:52, 2 locales pendientes):**
+- `5cbe3a0` bulk-insert de `financial_facts` (`create_batch_rowcount`, chunks de
+  1000, `ON CONFLICT DO NOTHING` sobre la UNIQUE NULLS NOT DISTINCT) — idempotente.
+- `8dcf8f2` memoiza `get_company_tickers` por instancia de `SECClient` —
+  `update-incremental` bajaba y parseaba el JSON de ~12k compañías por CADA empresa.
+- `a9307a2` `--limit` aplica al run real de `update-incremental` (antes solo al dry-run).
+- `984807a` `sec sync` estampa `companies.last_synced_at` (antes la compañía seguía
+  contando como stale tras un sync manual); coherente con `update-incremental`.
+- `45b894a` cierra import_runs colgados en `running` a `failed` + motivo (el CHECK
+  del schema no admite `interrupted` sin migración).
+- `09d7db9` `flush=True` en los prints de progreso del CLI (los runs largos no
+  volcaban nada con stdout redirigido).
+- `1ac8e3e` `COALESCE(errors, '{}')` en el cierre de colgados para no perder el
+  motivo si `errors` es NULL (verificado con transacción + rollback en Postgres).
+
+**Verificación:** suite FDB **189 passed** · SQL validado con `EXPLAIN` en la DB
+principal y transacción con rollback en la test DB · inserción exacta N/N en ambos
+caminos del benchmark. El end-to-end live (timing real con red SEC) queda pendiente
+de re-medir en un entorno con acceso a SEC.
