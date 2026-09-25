@@ -22,16 +22,27 @@ Flags:
                     russell2000, european, all) or a path to a universe file
   --max-refresh N   cap the number of stale companies SEC-synced per run
                     (default 200; the most-recently-synced are prioritized)
-  --resume          skip tickers already present in the last daily_state.json
+  --resume          resume an interrupted run from the per-run checkpoint
+                    (data/reports/daily_run_state.json; default). Completed
+                    tickers are not refreshed again and transient refresh
+                    failures are retried; the report/analysis is recomputed
+                    for the whole universe.
+  --no-resume       archive any previous run state and start a fresh run
+  --run-id ID       resume a specific run id (live state or archived copy)
   --refresh         force a targeted SEC refresh of the analyzed tickers
   --no-refresh      skip the targeted SEC refresh entirely
   --freshness-hours override the freshness threshold (default: 168)
+
+Interruptions (SIGTERM/SIGINT) finish the current ticker, flush the run
+state atomically and exit 0; a SIGKILL/power loss leaves the last flushed
+state, which the next run resumes. See docs/runbook_daily.md.
 """
 
 import argparse
 import csv
 import logging
 import os
+import signal
 import sys
 import time
 import threading
@@ -45,6 +56,12 @@ from backend.services.price_service import (
     PRICE_FAILURE_GLITCH,
     PRICE_FAILURE_MAPPING,
     get_price_service,
+)
+from backend.services.run_state import (
+    RUN_STATE_FILENAME,
+    RunState,
+    is_transient_failure,
+    options_fingerprint,
 )
 
 load_dotenv()
@@ -172,7 +189,13 @@ def resolve_universe(
     return tickers
 
 
-def _run_targeted_refresh(universe: list[str], args) -> str:
+def _run_targeted_refresh(
+    universe: list[str],
+    args,
+    *,
+    skip: set[str] | None = None,
+    progress_cb=None,
+) -> str:
     """Targeted per-CIK SEC refresh of ONLY the analyzed tickers.
 
     Replaces the old blanket ``sec update-incremental`` (which scanned the
@@ -180,6 +203,11 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
     resolves each analyzed ticker's CIK and syncs just the stale companies
     of this universe, degrading gracefully per company. In dry-run mode it
     only estimates staleness (read-only), it never syncs.
+
+    ``skip`` excludes tickers a resumed run must not refresh again
+    (completed in a previous run, or permanent data failures); transient
+    failures are not skipped, so they get another chance.
+    ``progress_cb`` is forwarded to the refresh service for checkpointing.
     """
     from backend.services.refresh_service import (
         RefreshService,
@@ -197,26 +225,29 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
         config.refresh_workers = max(1, int(refresh_workers))
     service = RefreshService(config=config, fdb_repo_path=str(Path(args.fdb_dir).resolve()))
 
+    skip = skip or set()
+    eligible = [t for t in universe if t not in skip]
+
     if args.dry_run:
         stale, fresh, unknown = service.check_freshness(
-            list(universe), max_age_hours=freshness_hours
+            eligible, max_age_hours=freshness_hours
         )
         elapsed = time.time() - start
         return (
             f"SEC refresh (dry-run estimate): {len(stale)} stale of "
-            f"{len(universe)} analyzed · {len(fresh)} fresh · "
+            f"{len(eligible)} analyzed · {len(fresh)} fresh · "
             f"{len(unknown)} unmapped ({elapsed:.0f}s)"
         )
 
     # Cap: with more stale companies than --max-refresh, refresh only those
     # with the most recent filings and defer the rest to the next run. The
     # cap never applies to an explicit --refresh (force).
-    pool = list(universe)
+    pool = list(eligible)
     deferred: list[str] = []
     stale_count = fresh_count = unknown_count = 0
     if max_refresh is not None and not force:
         stale_ranked, fresh_count, unknown_count = service.staleness_ranked(
-            list(universe), max_age_hours=freshness_hours
+            eligible, max_age_hours=freshness_hours
         )
         stale_count = len(stale_ranked)
         if stale_count > max_refresh:
@@ -234,6 +265,7 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
         max_age_hours=freshness_hours,
         skip_refresh=no_refresh or None,
         fetch_prices=False,  # the workflow prefetches prices separately below
+        progress_cb=progress_cb,
     )
     elapsed = time.time() - start
 
@@ -269,6 +301,108 @@ def _run_targeted_refresh(universe: list[str], args) -> str:
     return status
 
 
+def _open_run_state(args, universe: list[str]):
+    """Create, load or archive the per-run checkpoint for this invocation.
+
+    Returns ``None`` for --dry-run, which must not touch disk. Explicit
+    ``--run-id`` resumes the stored run (live state or archive) even if the
+    current options differ; otherwise a stored run with the same universe
+    and options is continued, and anything else is archived first.
+    """
+    if args.dry_run:
+        return None
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / RUN_STATE_FILENAME
+    options = options_fingerprint(args)
+    target_id = getattr(args, "run_id", None)
+
+    if target_id:
+        state = RunState.find(out_dir, target_id)
+        if state is None:
+            raise SystemExit(
+                f"ERROR: no run state for --run-id {target_id!r} in {out_dir} "
+                "(looked for the live state and the archive)"
+            )
+        if not state.matches(universe_spec=args.universe, options=options):
+            logger.warning(
+                "--run-id %s: stored universe/options differ from this "
+                "invocation — resuming the stored run anyway (explicit request)",
+                target_id,
+            )
+        logger.info(
+            "resuming run %s: stage=%s completed=%d/%d failed=%d",
+            state.run_id,
+            state.current_stage,
+            len(state.completed),
+            state.total_tickers,
+            len(state.failed),
+        )
+        return state
+
+    state = RunState.load(path) if path.exists() else None
+
+    if state is not None and not args.resume:
+        archived = state.archive()
+        logger.info("--no-resume: archived run %s to %s", state.run_id, archived.name)
+        state = None
+
+    if state is not None and not state.matches(
+        universe_spec=args.universe, options=options
+    ):
+        archived = state.archive()
+        logger.warning(
+            "previous run %s has a different universe/options — archived to "
+            "%s; starting fresh",
+            state.run_id,
+            archived.name,
+        )
+        state = None
+
+    if state is None:
+        state = RunState.create(
+            path,
+            universe_spec=args.universe,
+            options=options,
+            total_tickers=len(universe),
+        )
+        logger.info(
+            "new run %s (%d tickers, universe=%s)",
+            state.run_id,
+            len(universe),
+            args.universe,
+        )
+        return state
+
+    logger.info(
+        "resume: run %s stage=%s completed=%d/%d failed=%d — continuing",
+        state.run_id,
+        state.current_stage,
+        len(state.completed),
+        state.total_tickers,
+        len(state.failed),
+    )
+    return state
+
+
+def _resume_skip_set(run_state) -> set[str]:
+    """Tickers a resumed run must NOT refresh again.
+
+    ``completed`` (already analyzed end-to-end) plus refresh failures with a
+    permanent (data) reason. Transient refresh failures are deliberately not
+    included: a resume is exactly when they get retried.
+    """
+    if run_state is None:
+        return set()
+    permanent_refresh = {
+        ticker
+        for ticker, reason in run_state.failed.items()
+        if reason.startswith("refresh:") and not is_transient_failure(reason)
+    }
+    return run_state.completed_set | permanent_refresh
+
+
 def _run(args) -> None:
     from backend.app.cli import (
         build_analysis_service,
@@ -296,30 +430,55 @@ def _run(args) -> None:
         logger.info("constrained to first %d tickers of the universe", args.limit)
     logger.info("universe loaded: %d tickers", len(universe))
 
-    # --resume: skip tickers already analyzed in the last daily_state.json so
-    # an interrupted large run can continue without redoing finished work.
-    if getattr(args, "resume", False):
-        prior = {}
-        state_path = Path(args.out) / "daily_state.json"
-        if state_path.exists():
-            try:
-                prior = load_state(str(state_path)) or {}
-            except Exception:  # noqa: BLE001 — a corrupt state must not block
-                prior = {}
-        if prior:
-            universe = [t for t in universe if t not in prior]
-            resumed = len(universe)
-            done = len(prior)
-            logger.info(
-                "resume: %d/%d universe tickers already in state; continuing "
-                "with %d", done, done + resumed, resumed,
+    # Robust background running: the per-run checkpoint
+    # (data/reports/daily_run_state.json) is updated after every completed
+    # ticker so an interrupted run — SIGTERM, crash, power loss — resumes
+    # without redoing finished work. --resume is the default; --no-resume
+    # archives the previous state and starts fresh.
+    stop_event = threading.Event()
+    run_state = _open_run_state(args, universe)
+    resume_skip = _resume_skip_set(run_state)
+    if resume_skip:
+        logger.info(
+            "resume: %d tickers excluded from the refresh pool "
+            "(completed or permanent refresh failures)",
+            len(resume_skip),
+        )
+
+    def _shutdown_requested() -> bool:
+        return stop_event.is_set()
+
+    def _clean_shutdown() -> bool:
+        """Flush the checkpoint and stop cleanly when a signal asked for it."""
+        if not _shutdown_requested():
+            return False
+        if run_state is not None:
+            run_state.save()
+            logger.warning(
+                "shutdown requested — state saved (run %s, %d completed, "
+                "stage %s); resume with --resume",
+                run_state.run_id,
+                len(run_state.completed),
+                run_state.current_stage,
             )
-        if not universe:
             print(
-                "nothing to resume — all universe tickers are already in "
-                "daily_state.json"
+                f"Shutdown requested: state saved (run {run_state.run_id}); "
+                "resume with --resume"
             )
-            return
+        return True
+
+    if run_state is not None:
+
+        def _on_signal(signum, _frame):
+            if not stop_event.is_set():
+                logger.warning(
+                    "received %s — finishing the current ticker, then saving state",
+                    signal.Signals(signum).name,
+                )
+            stop_event.set()
+
+        signal.signal(signal.SIGTERM, _on_signal)
+        signal.signal(signal.SIGINT, _on_signal)
 
     # Phase timing — a lightweight wall-clock trace of the workflow so runs
     # can be benchmarked and regressions spotted (refresh / prices / analysis
@@ -363,6 +522,7 @@ def _run(args) -> None:
                 delay=args.batch_delay,
                 workers=snapshot_workers,
             )
+            prefetch_result["snapshots"] = snapshots
             unavailable = [t for t, s in snapshots.items() if s is None]
             prefetch_result["provider"] = SnapshotMarketProvider(snapshots)
             prefetch_result["failures"] = _classify_price_failures(
@@ -384,7 +544,22 @@ def _run(args) -> None:
     if args.no_update:
         sec_update_status = "SEC refresh: skipped (--no-update)"
     else:
-        sec_update_status = _run_targeted_refresh(universe, args)
+
+        def _refresh_progress(ticker: str, status) -> None:
+            """Checkpoint each attempted sync (transient failures retried
+            by the next resumed run)."""
+            if run_state is None:
+                return
+            run_state.note_progress("refresh", ticker)
+            if status is not True:
+                run_state.add_failed(ticker, f"refresh: {status}")
+
+        sec_update_status = _run_targeted_refresh(
+            universe,
+            args,
+            skip=resume_skip,
+            progress_cb=_refresh_progress if run_state is not None else None,
+        )
     timings["refresh"] = time.time() - tick
     tick = time.time()
 
@@ -406,6 +581,15 @@ def _run(args) -> None:
         timings["prices"] = 0.0
     tick = time.time()
 
+    if run_state is not None:
+        snapshots = prefetch_result.get("snapshots") or {}
+        run_state.set_stage("prices")
+        run_state.set_prices_fetched(sum(1 for value in snapshots.values() if value))
+    if _clean_shutdown():
+        return
+    if run_state is not None:
+        run_state.set_stage("analysis")
+
     analysis_service = build_analysis_service(market_provider=market_provider)
 
     # Thread-safe progress counter: logs every 100 analyzed tickers so large
@@ -414,12 +598,28 @@ def _run(args) -> None:
     _progress = {"done": 0}
 
     def analyzer(ticker: str):
+        if _shutdown_requested():
+            # Signal received: do not start new work. In-flight tickers
+            # finish normally and the checkpoint keeps everything already
+            # done, so the next run resumes here.
+            return cache.get(ticker)
         if ticker not in cache:
             try:
-                cache[ticker] = analysis_service.analyze(ticker)
+                result = analysis_service.analyze(ticker)
             except Exception as e:  # noqa: BLE001
                 logger.warning("analyze failed for %s: %s", ticker, e)
-                cache[ticker] = None
+                result = None
+                if run_state is not None:
+                    run_state.add_failed(ticker, f"analysis: {e}")
+            else:
+                if run_state is not None:
+                    if result is None:
+                        run_state.add_failed(ticker, "analysis: no data")
+                    else:
+                        run_state.add_completed(ticker)
+            cache[ticker] = result
+            if run_state is not None:
+                run_state.note_progress("analysis", ticker)
             with _progress_lock:
                 _progress["done"] += 1
                 done = _progress["done"]
@@ -443,12 +643,17 @@ def _run(args) -> None:
     timings["analysis"] = time.time() - tick
     tick = time.time()
 
+    if _clean_shutdown():
+        return
+
     previous = (
         {}
         if args.dry_run
         else load_state(str(Path(args.out) / "daily_state.json"))
     )
     alerts = run_alerts(cache, previous)
+    if run_state is not None:
+        run_state.set_alerts_generated(len(alerts))
     timings["alerts"] = time.time() - tick
     tick = time.time()
 
@@ -532,6 +737,9 @@ def _run(args) -> None:
         print(body)
         return
 
+    if run_state is not None:
+        run_state.set_stage("report")
+
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     report_path = out_dir / f"daily_{report_date.isoformat()}.md"
@@ -552,6 +760,10 @@ def _run(args) -> None:
             print(line)
     else:
         print("No alerts.")
+
+    if run_state is not None:
+        archived = run_state.complete()
+        print(f"Run state archived: {archived}")
 
 
 def run_alerts(analyses: dict, previous: dict) -> list:
@@ -742,11 +954,26 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Cap stale companies SEC-synced per run, most-recent-synced "
         f"first (default: {MAX_REFRESH_DEFAULT}; ignored with --refresh/force)",
     )
-    p.add_argument(
+    resume_group = p.add_mutually_exclusive_group()
+    resume_group.add_argument(
         "--resume",
+        dest="resume",
         action="store_true",
-        help="Skip tickers already present in the last daily_state.json "
-        "(continue an interrupted run)",
+        default=True,
+        help="Resume an interrupted run from data/reports/daily_run_state.json "
+        "(default): completed tickers are not refreshed again and transient "
+        "refresh failures are retried",
+    )
+    resume_group.add_argument(
+        "--no-resume",
+        dest="resume",
+        action="store_false",
+        help="Archive any previous run state and start a fresh run",
+    )
+    p.add_argument(
+        "--run-id",
+        default=None,
+        help="Resume the specific run id (live state or archived copy)",
     )
     p.add_argument(
         "--dry-run",

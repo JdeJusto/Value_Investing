@@ -473,7 +473,14 @@ class TestResolveUniverse:
         args = build_parser().parse_args([])
         assert args.universe == "sp500"
         assert args.max_refresh == 200
-        assert args.resume is False
+        # Robust background running: resuming is the default; a fresh start
+        # requires --no-resume, and --run-id targets a specific run.
+        assert args.resume is True
+        assert args.run_id is None
+        fresh = build_parser().parse_args(["--no-resume"])
+        assert fresh.resume is False
+        targeted = build_parser().parse_args(["--run-id", "2026-09-25T08:00:00Z-abc123"])
+        assert targeted.run_id == "2026-09-25T08:00:00Z-abc123"
 
 
 class TestStalenessRanked:
