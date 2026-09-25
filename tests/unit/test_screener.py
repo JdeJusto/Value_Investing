@@ -462,21 +462,21 @@ def test_health_cap_penalizes_negative_fcf():
 
 
 def test_health_cap_penalizes_high_debt():
-    from backend.screener.ranking_engine import health_cap, LEVERAGED_RANK_CAP
+    from backend.screener.ranking_engine import health_cap, LEVERAGED_DEBT_CAP, LEVERAGED_RANK_CAP
 
     low_debt = _rank_dict("LOW", debt_to_equity=0.4)
     high_debt = _rank_dict("HIGH", debt_to_equity=2.0)
     assert health_cap(low_debt) > LEVERAGED_RANK_CAP
-    assert health_cap(high_debt) == LEVERAGED_RANK_CAP
+    assert health_cap(high_debt) == LEVERAGED_DEBT_CAP
 
 
 def test_health_cap_penalizes_weak_coverage():
-    from backend.screener.ranking_engine import health_cap, LEVERAGED_RANK_CAP
+    from backend.screener.ranking_engine import health_cap, LEVERAGED_COVERAGE_CAP, LEVERAGED_RANK_CAP
 
     strong = _rank_dict("STRONG", interest_coverage=12.0)
     weak = _rank_dict("WEAK", interest_coverage=2.5)
     assert health_cap(strong) > LEVERAGED_RANK_CAP
-    assert health_cap(weak) == LEVERAGED_RANK_CAP
+    assert health_cap(weak) == LEVERAGED_COVERAGE_CAP
 
 
 def test_health_cap_allows_good_health():
@@ -484,6 +484,32 @@ def test_health_cap_allows_good_health():
 
     item = _rank_dict("GOOD", fcf=10e9, debt_to_equity=0.5, interest_coverage=15.0)
     assert health_cap(item) == CALIBRATION_MAX
+
+
+def test_health_cap_applies_most_restrictive_of_ALL_matching_caps():
+    """The bug: only the first matching condition was applied. A company
+    with several problems must be capped by the most restrictive of them."""
+    from backend.screener.ranking_engine import (
+        health_cap,
+        LEVERAGED_COVERAGE_CAP,
+        LEVERAGED_DEBT_CAP,
+        LEVERAGED_RANK_CAP,
+    )
+
+    # Negative FCF + high leverage + weak coverage all at once → coverage cap.
+    worst = _rank_dict(
+        "WORST", fcf=-2e9, debt_to_equity=2.0, interest_coverage=2.0
+    )
+    assert health_cap(worst) == LEVERAGED_COVERAGE_CAP
+    assert health_cap(worst) < LEVERAGED_DEBT_CAP < LEVERAGED_RANK_CAP
+
+    # Negative FCF + high leverage (no coverage data) → debt cap.
+    mixed = _rank_dict("MIXED", fcf=-2e9, debt_to_equity=2.0, interest_coverage=12.0)
+    assert health_cap(mixed) == LEVERAGED_DEBT_CAP
+
+    # Negative coverage (loss-making with interest expense) must also cap.
+    loss = _rank_dict("LOSS", fcf=5e9, debt_to_equity=0.4, interest_coverage=-1.5)
+    assert health_cap(loss) == LEVERAGED_COVERAGE_CAP
 
 
 # ----------------------------------------------------------------------

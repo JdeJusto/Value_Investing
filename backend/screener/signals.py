@@ -9,6 +9,10 @@ from typing import Optional
 
 BUY_MIN_RANK = 75.0
 BUY_MIN_TOTAL = 70.0
+# LOW-confidence data needs a materially stronger bar before it can justify
+# a BUY: a signal is never stronger than the data it rests on.
+BUY_MIN_RANK_LOW = 80.0
+BUY_MIN_TOTAL_LOW = 75.0
 WATCH_MIN_RANK = 60.0
 AVOID_MAX_BUFFETT = 40.0
 
@@ -225,6 +229,20 @@ def generate_signal(
     ):
         signal = "BUY"
         reasons.append(f"rank {rank:.1f} with composite above {BUY_MIN_TOTAL:.0f}")
+    elif (
+        # Confianza LOW: solo se compra con una barra mucho más exigente.
+        rank >= BUY_MIN_RANK_LOW
+        and (item.get("composite_score") or {}).get("total_score", 0)
+        >= BUY_MIN_TOTAL_LOW
+        and confidence == "LOW"
+        and buffett is not None
+        and buffett >= 50
+    ):
+        signal = "BUY"
+        reasons.append(
+            f"rank {rank:.1f} and composite above {BUY_MIN_TOTAL_LOW:.0f} "
+            "despite LOW-confidence data"
+        )
     elif rank >= WATCH_MIN_RANK:
         signal = "WATCHLIST"
         reasons.append(f"rank {rank:.1f} above watch threshold {WATCH_MIN_RANK:.0f}")
@@ -244,6 +262,9 @@ def can_buy(rank: float, buffett: Optional[float], confidence: str) -> bool:
     """Compatibility helper: does this company pass the BUY bar?"""
     if buffett is None or buffett < 50:
         return False
+    if confidence == "LOW":
+        # LOW-confidence data demands the stronger BUY bar.
+        return rank >= BUY_MIN_RANK_LOW
     if confidence not in ("HIGH", "MEDIUM"):
         return False
     return rank >= CONFIDENCE_RANK_THRESHOLD.get(confidence, 75.0)

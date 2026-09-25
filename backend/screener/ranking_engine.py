@@ -30,9 +30,15 @@ CALIBRATION_MIN = 10.0
 CALIBRATION_MAX = 90.0
 
 # Companies with poor financial health (negative FCF, debt-to-equity >= 1.5,
-# or interest coverage below 3x) are capped here so they can never reach the
-# BUY / top-quartile band even if momentum percentiles are favorable.
-LEVERAGED_RANK_CAP = 60.0
+# or interest coverage below 3x) are capped so they can never reach the
+# BUY / top-quartile band even if momentum percentiles are favorable. Each
+# condition carries its own cap and the MOST restrictive of all matching
+# conditions applies: a company with several problems is capped harder than
+# one with a single weakness, and a loss-making one cannot outrank a company
+# that merely burns cash.
+LEVERAGED_RANK_CAP = 60.0       # negative free cash flow (cash burn)
+LEVERAGED_DEBT_CAP = 52.0       # debt-to-equity >= 1.5
+LEVERAGED_COVERAGE_CAP = 48.0   # interest coverage < 3x (negative included)
 
 # Weighted components used by the calibrated rank (must sum to 1.0).
 _COMPONENT_WEIGHTS = (
@@ -209,21 +215,26 @@ def health_cap(item: dict) -> float:
     """Rank ceiling for companies with weak financial health.
 
     Penalizes negative free cash flow, elevated leverage (debt-to-equity
-    >= 1.5) and interest coverage below the 3x comfort zone. Such companies
-    cannot reach the top band even when their momentum percentiles are
-    favorable — cheapness alone does not make a quality investment.
+    >= 1.5) and interest coverage below the 3x comfort zone (negative
+    coverage — a loss-making company — included). Every matching condition
+    contributes a cap and the most restrictive wins, so cheapness alone does
+    not make a quality investment and a multi-problem balance sheet is
+    capped harder than a single weakness.
     """
+    caps: list[float] = []
     metrics = item.get("quality_metrics") or {}
     fcf = item.get("fcf")
+    if fcf is None:  # tolerate the spelled-out key when "fcf" is absent
+        fcf = item.get("free_cash_flow")
     if fcf is not None and fcf < 0:
-        return LEVERAGED_RANK_CAP
+        caps.append(LEVERAGED_RANK_CAP)
     debt_equity = metrics.get("debt_to_equity")
     if debt_equity is not None and debt_equity >= 1.5:
-        return LEVERAGED_RANK_CAP
+        caps.append(LEVERAGED_DEBT_CAP)
     coverage = metrics.get("interest_coverage")
-    if coverage is not None and 0 <= coverage < 3.0:
-        return LEVERAGED_RANK_CAP
-    return CALIBRATION_MAX
+    if coverage is not None and coverage < 3.0:
+        caps.append(LEVERAGED_COVERAGE_CAP)
+    return min(caps) if caps else CALIBRATION_MAX
 
 
 def calibrated_rank(item: dict, items: Iterable[dict]) -> float:

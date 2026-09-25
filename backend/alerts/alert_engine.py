@@ -51,8 +51,6 @@ def _buy_alert(
     if signal["signal"] != "BUY":
         return None
     confidence = signal["confidence"]
-    if confidence not in ("HIGH", "MEDIUM"):
-        return None
     reasons = [f"senal BUY: {signal['reason'][0]}"] if signal["reason"] else []
     trigger = trigger_label(signal["trigger"])
     if trigger:

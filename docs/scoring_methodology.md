@@ -26,7 +26,8 @@ ScreenedCompany
         ↓
    map onto [10, 90]  →  calibrated rank
         ↓
-   health-capped  →  max 60 for negative FCF / D/E>=1.5 / coverage<3
+   health-capped: negative FCF → max 60, D/E>=1.5 → max 52,
+                  coverage<3 → max 48 (most restrictive wins)
         ↓
    classify signal: BUY >= 75, WATCHLIST >= 60, AVOID < buffett 40
 ```
@@ -54,10 +55,14 @@ levered or cash-burning company can never reach the top band.
 2. Percentile-ranks each component within the pool (ties share ranks).
 3. Blends with the component weights, then maps the 0-1 blend linearly onto
    the `[CALIBRATION_MIN=10, CALIBRATION_MAX=90]` band.
-4. Caps the result with `health_cap` at `LEVERAGED_RANK_CAP=60` when:
-   - free cash flow is negative, or
-   - debt-to-equity is at least 1.5, or
-   - interest coverage is below 3x.
+4. Caps the result with `health_cap` — every matching health condition
+   contributes a cap and the most restrictive wins:
+   - `LEVERAGED_RANK_CAP=60` when free cash flow is negative (cash burn),
+   - `LEVERAGED_DEBT_CAP=52` when debt-to-equity is at least 1.5,
+   - `LEVERAGED_COVERAGE_CAP=48` when interest coverage is below 3x
+     (negative coverage from a loss-making year included), so a company
+     with several problems is capped harder than one with a single
+     weakness.
 
 `rank_score(item)` (0-100, non-normalized) is kept for backward
 compatibility and for ranking the opportunities engine.
@@ -89,10 +94,17 @@ Defined in `backend/screener/signals.py` (thresholds are on the calibrated
 
 | Signal     | Condition                          |
 |------------|------------------------------------|
-| BUY        | `rank_score >= 75`                 |
+| BUY        | `rank_score >= 75` (HIGH/MEDIUM confidence, composite `>= 70`) — see below |
+| BUY (LOW confidence) | `rank_score >= 80` and composite `>= 75` and buffett `>= 50` |
 | WATCHLIST  | `60 <= rank_score < 75`            |
 | HOLD       | `40 <= rank_score < 60`            |
 | AVOID      | `rank_score < 40` or buffett < 40  |
+
+A BUY with **LOW** data confidence requires a materially stronger bar
+(`rank_score >= 80`, composite `>= 75`, buffett `>= 50`): LOW-confidence
+data must never produce a signal stronger than the data it rests on, but a
+company whose fundamentals are excellent despite thin/low-quality history
+still deserves to surface as an alert.
 
 The AVOID lower bound is anchored to buffett_score < 40 (weak company),
 not just a low calibrated rank.
@@ -104,7 +116,7 @@ The daily workflow evaluates three alert types in `backend/alerts`
 
 | Alert          | Condition                                                        |
 |----------------|------------------------------------------------------------------|
-| `BUY_SIGNAL`   | signal is BUY (`rank >= 75`, composite `>= 70`, confidence HIGH/MEDIUM, buffett `>= 50`) |
+| `BUY_SIGNAL`   | signal is BUY (`rank >= 75`, composite `>= 70`, confidence HIGH/MEDIUM, buffett `>= 50`; with LOW confidence: `rank >= 80`, composite `>= 75`, buffett `>= 50`) |
 | `SELL_WARNING` | composite `total_score` drops `>= 10` (HIGH `>= 15`) vs the previous day's state |
 | `TRIGGER_EVENT`| dominant *positive* fundamental improvement clearing both floors below |
 

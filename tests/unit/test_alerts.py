@@ -67,6 +67,23 @@ class TestEvaluate:
         alerts = evaluate_company("AAPL", analysis)
         assert not any(a.alert_type == BUY_SIGNAL for a in alerts)
 
+    def test_buy_signal_fires_on_low_confidence_with_stronger_bar(self):
+        """LOW-confidence data can still BUY, but only above a higher bar
+        (rank >= 80, composite >= 75) so the alert is never stronger than
+        the data it rests on."""
+        analysis = make_analysis(99, confidence="LOW", buffett=60)
+        alerts = evaluate_company("AAPL", analysis)
+        buys = [a for a in alerts if a.alert_type == BUY_SIGNAL]
+        assert len(buys) == 1
+        assert buys[0].confidence == "LOW"
+
+    def test_buy_signal_not_emitted_below_low_confidence_bar(self):
+        """A good-but-not-outstanding company with LOW confidence is
+        WATCHLIST material, not a BUY."""
+        analysis = make_analysis(76, confidence="LOW", buffett=60)
+        alerts = evaluate_company("AAPL", analysis)
+        assert not any(a.alert_type == BUY_SIGNAL for a in alerts)
+
     def test_sell_warning_on_score_drop(self):
         current = make_analysis(73, buffett=60)
         previous = make_analysis(85, buffett=85)
