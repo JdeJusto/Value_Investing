@@ -53,6 +53,8 @@ class NetworkMetrics:
         # {service: {"requests": n, "retries": n, "http_403": n, "http_429": n,
         #            "latency_ms": total, "samples": n}}
         self._counters: dict[str, dict[str, float]] = {}
+        # Price-failure categories (yahoo_glitch/mapping/delisted/unknown/no_yahoo).
+        self._price_failures: dict[str, int] = {}
 
     # ------------------------------------------------------------------
     def _bucket(self, service: str) -> dict[str, float]:
@@ -109,6 +111,25 @@ class NetworkMetrics:
         """Count a bare HTTP status (used when a client exposes it)."""
         if status in (403, 429):
             self.record(service, http_status=int(status))
+
+    def note_price_failure(self, category: str, count: int = 1) -> None:
+        """Tally one price-failure category (glitch/mapping/delisted/...).
+
+        Kept apart from the HTTP counters on purpose: a failure category is a
+        conclusion about a company (or about the provider being down), not a
+        transport fact, and the run state reports them in their own section.
+        """
+        try:
+            with self._lock:
+                failures = self._price_failures.setdefault(str(category), 0)
+                self._price_failures[str(category)] = failures + int(count)
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
+            pass
+
+    def price_failures(self) -> dict[str, int]:
+        """Per-category price failure tally (empty when nothing failed)."""
+        with self._lock:
+            return dict(self._price_failures)
 
     # ------------------------------------------------------------------
     def _avg_latency_ms(self, service: str) -> float:

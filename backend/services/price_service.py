@@ -54,6 +54,10 @@ PRICE_FAILURE_DELISTED = "delisted"
 PRICE_FAILURE_GLITCH = "yahoo_glitch"
 PRICE_FAILURE_MAPPING = "mapping"
 PRICE_FAILURE_UNKNOWN = "unknown"
+# Not a classification: tickers never attempted because the Yahoo preflight
+# proved the provider unreachable. Counted separately so a rate limit is never
+# reported as thousands of individual data failures.
+PRICE_FAILURE_NO_YAHOO = "no_yahoo"
 
 
 def _snapshot_price(snap: dict) -> Optional[float]:
@@ -398,6 +402,25 @@ class PriceService:
                     pass
         return snapshots
 
+    def price_failure_counts(self) -> Dict[str, int]:
+        """Per-category tally of the price failures seen by this instance.
+
+        Categories are the ones :meth:`classify_price_failure` returns, plus
+        ``no_yahoo`` for the tickers that were never attempted because the
+        preflight proved the provider unreachable. The workflow copies this
+        into the run state and the report, so a run explains its N/A market
+        columns with numbers instead of only log lines.
+        """
+        if self._metrics is None:
+            return {}
+        getter = getattr(self._metrics, "price_failures", None)
+        if not callable(getter):
+            return {}
+        try:
+            return dict(getter())
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
+            return {}
+
     def _record_yahoo(
         self,
         *,
@@ -428,6 +451,18 @@ class PriceService:
         except Exception as exc:  # noqa: BLE001 — a broken probe never fails a run
             logger.warning("Yahoo preflight error: %s", exc)
             return None
+
+    def _note_price_failure(self, category: str, count: int = 1) -> None:
+        """Tally one price failure category in the run telemetry."""
+        if self._metrics is None:
+            return
+        note = getattr(self._metrics, "note_price_failure", None)
+        if not callable(note):
+            return
+        try:
+            note(category, count)
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
+            pass
 
     def _yahoo_is_known_down(self) -> Optional[str]:
         """Reason when a previous probe proved Yahoo unreachable, else None.
@@ -514,10 +549,14 @@ class PriceService:
 
         ``known_ticker`` is optional and must be side-effect free; when it is
         omitted the mapping/delisted split degrades to ``unknown``.
+
+        The verdict is tallied in the run telemetry (see
+        :meth:`price_failure_counts`) so a run can report its failure mix
+        without re-reading the logs.
         """
         ticker = ticker.upper()
         if self._probe_has_data(ticker):
-            return PRICE_FAILURE_GLITCH
+            return self._tally(PRICE_FAILURE_GLITCH)
         known: Optional[bool] = None
         if known_ticker is not None:
             try:
@@ -525,10 +564,24 @@ class PriceService:
             except Exception:  # noqa: BLE001 — listing lookup must not break
                 known = None
         if known is False:
-            return PRICE_FAILURE_MAPPING
+            return self._tally(PRICE_FAILURE_MAPPING)
         if known is True:
-            return PRICE_FAILURE_DELISTED
-        return PRICE_FAILURE_UNKNOWN
+            return self._tally(PRICE_FAILURE_DELISTED)
+        return self._tally(PRICE_FAILURE_UNKNOWN)
+
+    def _tally(self, category: str) -> str:
+        """Record one classified failure and return its category."""
+        self._note_price_failure(category)
+        return category
+
+    def note_no_yahoo(self, count: int) -> None:
+        """Record that ``count`` tickers were skipped because Yahoo was down.
+
+        Distinct from ``yahoo_glitch``: no attempt was made (the preflight
+        already proved the provider unreachable), so re-classifying them would
+        be a waste of probes and would report a throttle as a data problem.
+        """
+        self._note_price_failure(PRICE_FAILURE_NO_YAHOO, count)
 
     def _probe_has_data(self, ticker: str) -> bool:
         """True when Yahoo can currently quote ``ticker`` at all.

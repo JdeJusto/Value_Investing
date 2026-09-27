@@ -633,6 +633,16 @@ def _run(args) -> None:
         run_state.set_stage("prices")
         run_state.set_prices_fetched(sum(1 for value in snapshots.values() if value))
         run_state.note_network(network_metrics.snapshot())
+        # Per-category failure tally for this stage. When the preflight proved
+        # Yahoo unreachable, nothing was attempted: that is recorded as
+        # no_yahoo for the whole universe instead of re-probing 2 528 symbols.
+        failure_counts = dict(price_service.price_failure_counts())
+        if not snapshots and not args.no_prices:
+            note_no_yahoo = getattr(price_service, "note_no_yahoo", None)
+            if callable(note_no_yahoo):
+                note_no_yahoo(len(universe))
+            failure_counts = dict(price_service.price_failure_counts())
+        run_state.set_prices_stage(len(universe), failure_counts)
     if _clean_shutdown():
         return
     if run_state is not None:
@@ -806,6 +816,14 @@ def _run(args) -> None:
 
     network_snapshot = network_metrics.snapshot()
     logger.info("network: %s", network_metrics.summary())
+    prices_stage = (
+        {
+            "processed": len(universe),
+            "failures": dict(network_metrics.price_failures()),
+        }
+        if not args.no_prices
+        else {"processed": 0, "failures": {}}
+    )
 
     report = DailyReport(
         report_date=report_date,
@@ -818,6 +836,7 @@ def _run(args) -> None:
         missing=missing,
         price_notes=price_notes,
         network=network_snapshot,
+        prices_stage=prices_stage,
         runtime_seconds=time.time() - start_time,
     )
     body = build_markdown(report)

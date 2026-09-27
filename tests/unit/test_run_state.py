@@ -242,3 +242,55 @@ def test_old_state_without_network_defaults_to_empty(tmp_path):
     path.write_text(json.dumps(data))
 
     assert RunState.load(path).network == {}
+
+
+# ----------------------------------------------------------------------
+# price stage counters
+# ----------------------------------------------------------------------
+
+
+def test_prices_stage_is_persisted_with_per_category_failures(tmp_path):
+    state = _create(tmp_path)
+    assert state.to_dict()["prices_stage"] == {"processed": 0, "failures": {}}
+
+    state.set_prices_stage(
+        2528,
+        {"yahoo_glitch": 12, "mapping": 3, "delisted": 40, "no_yahoo": 0},
+    )
+
+    reloaded = RunState.load(tmp_path / RUN_STATE_FILENAME)
+    stage = reloaded.to_dict()["prices_stage"]
+    assert stage["processed"] == 2528
+    assert stage["failures"]["yahoo_glitch"] == 12
+    assert stage["failures"]["delisted"] == 40
+
+
+def test_note_price_failure_increments_one_category(tmp_path):
+    state = _create(tmp_path)
+    state.note_price_failure("no_yahoo", 25)
+    state.note_price_failure("no_yahoo")
+    state.note_price_failure("mapping")
+
+    stage = state.to_dict()["prices_stage"]
+    assert stage["failures"] == {"no_yahoo": 26, "mapping": 1}
+    assert stage["processed"] == 0
+
+
+def test_prices_stage_ignores_junk_keys(tmp_path):
+    state = _create(tmp_path)
+    state.set_prices_stage(10, {"mapping": "3", "weird": None, "glitch": 2})
+
+    assert state.to_dict()["prices_stage"]["failures"] == {"mapping": 3, "glitch": 2}
+
+
+def test_old_state_without_prices_stage_defaults(tmp_path):
+    path = tmp_path / RUN_STATE_FILENAME
+    _create(tmp_path)
+    data = json.loads(path.read_text())
+    del data["prices_stage"]
+    path.write_text(json.dumps(data))
+
+    assert RunState.load(path).to_dict()["prices_stage"] == {
+        "processed": 0,
+        "failures": {},
+    }

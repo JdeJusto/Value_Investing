@@ -259,3 +259,151 @@ def test_configure_attaches_metrics_and_preflight():
     assert calls == [{"force": True}]
     # a service without a preflight behaves exactly as before
     assert PriceService().yahoo_available() is None
+
+
+# ----------------------------------------------------------------------
+# per-category price failures
+# ----------------------------------------------------------------------
+
+
+def test_price_failure_categories_are_tallied():
+    from backend.services.network_metrics import NetworkMetrics
+
+    metrics = NetworkMetrics()
+    metrics.note_price_failure("yahoo_glitch")
+    metrics.note_price_failure("yahoo_glitch")
+    metrics.note_price_failure("mapping")
+    metrics.note_price_failure("no_yahoo", 2500)
+
+    assert metrics.price_failures() == {
+        "yahoo_glitch": 2,
+        "mapping": 1,
+        "no_yahoo": 2500,
+    }
+
+
+def test_price_failures_are_separate_from_http_counters():
+    from backend.services.network_metrics import NetworkMetrics
+
+    metrics = NetworkMetrics()
+    metrics.record("yahoo", latency_ms=5.0)
+    metrics.note_price_failure("delisted", 3)
+
+    assert metrics.snapshot()["yahoo_requests"] == 1
+    assert metrics.price_failures() == {"delisted": 3}
+
+
+def test_price_failure_tally_is_thread_safe():
+    from backend.services.network_metrics import NetworkMetrics
+
+    metrics = NetworkMetrics()
+
+    def worker(n: int) -> None:
+        for _ in range(200):
+            metrics.note_price_failure(f"cat{n}")
+
+    threads = [threading.Thread(target=worker, args=(n,)) for n in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert metrics.price_failures() == {f"cat{n}": 200 for n in range(6)}
+
+
+def test_classify_price_failure_tallies_every_category(monkeypatch):
+    from backend.services.network_metrics import NetworkMetrics
+    from backend.services.price_service import PriceService
+
+    metrics = NetworkMetrics()
+    service = PriceService(metrics=metrics)
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: True)
+    assert service.classify_price_failure("AAPL") == "yahoo_glitch"
+
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: False)
+    assert service.classify_price_failure("AAPL", known_ticker=lambda t: False) == "mapping"
+    assert service.classify_price_failure("AAPL", known_ticker=lambda t: True) == "delisted"
+    assert service.classify_price_failure("AAPL") == "unknown"
+
+    assert metrics.price_failures() == {
+        "yahoo_glitch": 1,
+        "mapping": 1,
+        "delisted": 1,
+        "unknown": 1,
+    }
+    assert service.price_failure_counts() == metrics.price_failures()
+
+
+def test_no_yahoo_is_counted_without_probing(monkeypatch):
+    from backend.services.network_metrics import NetworkMetrics
+    from backend.services.price_service import PriceService
+
+    metrics = NetworkMetrics()
+    service = PriceService(metrics=metrics)
+
+    def _boom(ticker):  # no probe must be attempted
+        raise AssertionError("no probe when Yahoo is known down")
+
+    monkeypatch.setattr(service, "_probe_has_data", _boom)
+    service.note_no_yahoo(2528)
+
+    assert metrics.price_failures() == {"no_yahoo": 2528}
+
+
+def test_price_failure_counts_without_telemetry_is_empty():
+    from backend.services.price_service import PriceService
+
+    assert PriceService().price_failure_counts() == {}
+
+
+def test_report_renders_the_price_stage_section():
+    from datetime import date as _date
+
+    from backend.services.daily_report_service import DailyReport, build_markdown
+
+    body = build_markdown(
+        DailyReport(
+            report_date=_date(2026, 9, 27),
+            universe_size=2528,
+            prices_stage={
+                "processed": 2528,
+                "failures": {"yahoo_glitch": 12, "mapping": 3, "no_yahoo": 2513},
+            },
+        )
+    )
+    assert "## Price stage" in body
+    assert "Tickers processed: **2528**" in body
+    assert "yahoo_glitch: 12" in body
+    assert "mapping: 3" in body
+    assert "no_yahoo: 2513" in body
+
+
+def test_report_explains_a_pure_no_yahoo_stage():
+    from datetime import date as _date
+
+    from backend.services.daily_report_service import DailyReport, build_markdown
+
+    body = build_markdown(
+        DailyReport(
+            report_date=_date(2026, 9, 27),
+            prices_stage={"processed": 25, "failures": {"no_yahoo": 25}},
+        )
+    )
+    assert "Failures by category — no_yahoo: 25" in body
+    assert "preflight found the provider unreachable" in body
+
+
+def test_report_omits_the_section_when_there_are_no_prices():
+    from datetime import date as _date
+
+    from backend.services.daily_report_service import DailyReport, build_markdown
+
+    assert "## Price stage" not in build_markdown(
+        DailyReport(report_date=_date(2026, 9, 27))
+    )
+    assert "Failures by category — none" in build_markdown(
+        DailyReport(
+            report_date=_date(2026, 9, 27),
+            prices_stage={"processed": 500, "failures": {}},
+        )
+    )

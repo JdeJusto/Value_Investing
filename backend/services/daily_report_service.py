@@ -34,6 +34,7 @@ class DailyReport:
     price_notes: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     network: dict = field(default_factory=dict)
+    prices_stage: dict = field(default_factory=dict)
     runtime_seconds: float = 0.0
 
     def to_dict(self) -> dict:
@@ -49,6 +50,7 @@ class DailyReport:
             "price_notes": self.price_notes,
             "notes": self.notes,
             "network": self.network,
+            "prices_stage": self.prices_stage,
             "runtime_seconds": self.runtime_seconds,
         }
 
@@ -155,6 +157,36 @@ def build_markdown(report: DailyReport) -> str:
                      "requests to the Financial-DataBase subprocess); Yahoo "
                      "counters are per HTTP attempt.")
         lines.append("")
+
+    stage = report.prices_stage or {}
+    failures = (stage.get("failures") or {}) if isinstance(stage, dict) else {}
+    if stage or failures:
+        processed = int(stage.get("processed", 0) or 0)
+        lines.append("## Price stage")
+        lines.append("")
+        lines.append(f"Tickers processed: **{processed}**")
+        lines.append("")
+        if failures:
+            # Stable order: the categories the engine can produce, then any
+            # extra one a future classifier might add.
+            known = ("yahoo_glitch", "mapping", "delisted", "unknown", "no_yahoo")
+            parts = [f"{name}: {int(failures.get(name, 0))}" for name in known if name in failures]
+            parts += [
+                f"{name}: {int(count)}"
+                for name, count in sorted(failures.items())
+                if name not in known
+            ]
+            lines.append("Failures by category — " + " · ".join(parts))
+        else:
+            lines.append("Failures by category — none")
+        lines.append("")
+        if int(failures.get("no_yahoo", 0) or 0) and not any(
+            failures.get(name, 0) for name in ("yahoo_glitch", "mapping", "delisted", "unknown")
+        ):
+            lines.append("> Every price-derived field is N/A because the Yahoo "
+                         "preflight found the provider unreachable "
+                         "(`no_yahoo`); no per-ticker probe was attempted.")
+            lines.append("")
 
     if report.rows:
         lines.append("## Screened")

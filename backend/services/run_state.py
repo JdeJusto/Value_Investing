@@ -136,6 +136,7 @@ class RunState:
             "prices_fetched": 0,
             "alerts_generated": 0,
             "network": {},
+            "prices_stage": {"processed": 0, "failures": {}},
             "options": dict(options),
         }
         state = cls(path, payload)
@@ -154,6 +155,7 @@ class RunState:
                 payload.setdefault(key, [] if key == "completed" else {})
             payload.setdefault("options", {})
             payload.setdefault("network", {})
+            payload.setdefault("prices_stage", {"processed": 0, "failures": {}})
             payload.setdefault("universe", "")
             payload.setdefault("total_tickers", 0)
             return cls(path, payload)
@@ -316,6 +318,45 @@ class RunState:
     def set_prices_fetched(self, count: int) -> None:
         with self._lock:
             self._payload["prices_fetched"] = int(count)
+            self._save_locked()
+
+    def set_prices_stage(self, processed: int, failures: dict[str, int]) -> None:
+        """Store the price-stage outcome: how many tickers were processed and
+        how the failures broke down by category.
+
+        Categories come from
+        :func:`backend.services.price_service.PriceService.classify_price_failure`
+        (``yahoo_glitch``/``mapping``/``delisted``/``unknown``) plus
+        ``no_yahoo``, which counts the tickers that were never attempted
+        because the Yahoo preflight said the provider was unreachable.
+        Unknown categories are kept as extra keys rather than dropped, so a
+        new category shows up instead of disappearing.
+        """
+        clean: dict[str, int] = {}
+        for key, value in (failures or {}).items():
+            try:
+                clean[str(key)] = int(value)
+            except (TypeError, ValueError):
+                continue
+        with self._lock:
+            self._payload["prices_stage"] = {
+                "processed": int(processed),
+                "failures": clean,
+            }
+            self._save_locked()
+
+    def note_price_failure(self, category: str, count: int = 1) -> None:
+        """Increment one price-failure category in the checkpoint."""
+        with self._lock:
+            stage = self._payload.get("prices_stage")
+            if not isinstance(stage, dict):
+                stage = {"processed": 0, "failures": {}}
+            failures = stage.get("failures")
+            if not isinstance(failures, dict):
+                failures = {}
+            failures[category] = int(failures.get(category, 0)) + int(count)
+            stage["failures"] = failures
+            self._payload["prices_stage"] = stage
             self._save_locked()
 
     def set_alerts_generated(self, count: int) -> None:
