@@ -1,0 +1,76 @@
+# Contributing to Value Investing
+
+Thanks for considering a contribution. This project is a terminal-first
+fundamental-analysis platform over SEC filings.
+
+## Getting set up
+
+Requires Python 3.13+ and (for the data path) PostgreSQL 14+ with the
+Financial-DataBase schema loaded.
+
+```bash
+git clone <your-fork-url>
+cd Value_Investing
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"          # or: pipenv install --dev
+cp .env.example .env              # then edit .env — see below
+```
+
+`.env` is git-ignored and must stay that way. The only values you need for a
+local run:
+
+| Variable | Purpose |
+| --- | --- |
+| `FINANCIAL_DATABASE_URL` | PostgreSQL connection to the Financial-DataBase instance |
+| `SEC_USER_AGENT` | Contact string the SEC requires, e.g. `YourTool/1.0 you@your-domain.com` |
+| `SEC_EMAIL` | Only needed for the live EDGAR provider; without it that fallback is disabled with a warning |
+
+Never commit `.env`, a database URL with a real password, or a personal
+e-mail. The SEC requires a declared contact, and the Yahoo preflight refuses
+browser-like User-Agents (see `docs/price_recovery_2026-09-28.md`).
+
+## Running the tests
+
+```bash
+python -m pytest tests/unit -q
+```
+
+The unit suite is hermetic and needs no database. A few tests exercise the
+Financial-DataBase repository and **skip** unless `FINANCIAL_DATABASE_URL`
+points at a reachable database, so the full suite is safe to run anywhere.
+
+## Using the CLI
+
+```bash
+python main.py analyze AAPL                 # single company
+python main.py screener --search "quality"  # cross-sectional screen
+python -m scripts.daily_workflow --universe sp500 --limit 50
+```
+
+Module invocation is required for the scripts (`python -m scripts.…`);
+running `scripts/daily_workflow.py` directly fails because `backend` is not
+on `sys.path`. `docs/runbook_daily.md` is the operational guide.
+
+## Code style
+
+- PEP 8, type hints on public signatures, docstrings on public APIs.
+- No randomness or network in the domain layer; providers and repositories
+  stay behind their interfaces.
+- One concern per commit; messages in the imperative mood
+  (`feat(analysis): …`, `fix(yahoo): …`).
+- Keep prices out of every persistent store. This is a hard project rule, not
+  a style preference: the Financial-DataBase `prices` table must stay
+  untouched by this project.
+
+## Pull requests
+
+1. Fork, branch from `main`.
+2. Make the change; add tests for new behaviour.
+3. `python -m pytest tests/unit -q` must be green.
+4. Open the PR describing what changed and why, and reference the issue.
+
+## Reporting bugs
+
+Open an issue with the `.github/ISSUE_TEMPLATE/bug_report.md` template:
+command, expected vs actual, and the relevant part of
+`data/logs/daily_workflow.log` (never attach a `.env`).
