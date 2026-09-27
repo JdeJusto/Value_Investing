@@ -789,6 +789,11 @@ def _run(args) -> None:
             as_dict=alert_to_dict,
         )
         logger.info("alerts: %s", alerts_cache.stats())
+    # The engine appends alerts in analysis-completion order, which follows the
+    # parallel workers and therefore differs between two runs of the same day.
+    # Sort once, here, so the report, the cached list and the persisted state
+    # are byte-comparable across runs. The parallel computation is untouched.
+    alerts = sort_alerts(alerts)
     if run_state is not None:
         run_state.set_alerts_generated(len(alerts))
     timings["alerts"] = time.time() - tick
@@ -867,7 +872,7 @@ def _run(args) -> None:
         universe_size=len(universe),
         screened_count=len(screened),
         sec_update=sec_update_status,
-        prices_mode="no-prices" if args.no_prices else "real-time",
+        prices_mode=_prices_mode(args, price_service, prefetch_result),
         rows=rows,
         alerts=[alert_to_dict(a) for a in alerts],
         missing=missing,
@@ -916,6 +921,23 @@ def _run(args) -> None:
         run_state.note_network(network_snapshot)
         archived = run_state.complete()
         print(f"Run state archived: {archived}")
+
+
+def sort_alerts(alerts: list):
+    """Deterministic order for a list of Alert objects.
+
+    Sorted by ticker, then alert type, then the first reason: a total order for
+    practical purposes, so two runs of the same day produce the same report
+    even though the alert engine walks the analyses in worker-completion order.
+    """
+    return sorted(
+        alerts,
+        key=lambda a: (
+            a.ticker or "",
+            a.alert_type or "",
+            (a.reason[0] if getattr(a, "reason", None) else ""),
+        ),
+    )
 
 
 def run_alerts(analyses: dict, previous: dict) -> list:
@@ -984,6 +1006,37 @@ def _classify_price_failures(
         else:  # delisted / unknown — silently skipped, INFO only
             logger.info("skipping %s: no market data (%s)", ticker, category)
     return failures
+
+
+def _prices_mode(args, price_service, prefetch_result: dict) -> str:
+    """How the report header should describe this run's prices.
+
+    The header used to say "real-time" whenever ``--no-prices`` was absent,
+    which contradicted the ``## Price stage`` section when the Yahoo preflight
+    had skipped the whole fetch. It now reports what actually happened:
+
+    - ``no-prices``    — prices were never requested (``--no-prices``);
+    - ``unavailable``  — the preflight found Yahoo unreachable, so every
+      price-derived column is N/A;
+    - ``real-time``    — quotes were fetched this run.
+
+    A ``cached`` mode is understood by the renderer for a future
+    intentionally-stale cache, but nothing produces it today: inventing a mode
+    that cannot be emitted would be dead code.
+    """
+    if getattr(args, "no_prices", False):
+        return "no-prices"
+    snapshots = prefetch_result.get("snapshots") or {}
+    if snapshots:
+        return "real-time"
+    getter = getattr(price_service, "last_health", None)
+    health = getter() if callable(getter) else None
+    if health is not None and not getattr(health, "available", True):
+        return "unavailable"
+    # No snapshots and no failed preflight: the fetch produced nothing for
+    # another reason (all tickers unquoted). Say so rather than claim
+    # real-time data.
+    return "unavailable"
 
 
 def _format_timings(timings: dict[str, float]) -> str:

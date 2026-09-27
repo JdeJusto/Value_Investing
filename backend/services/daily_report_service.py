@@ -133,11 +133,20 @@ def build_markdown(report: DailyReport) -> str:
         lines.append(f"Runtime: **{report.runtime_seconds:.0f}s**")
         lines.append("")
 
-    if report.prices_mode == "real-time":
+    # The "never persisted" guarantee holds for every mode that touched prices,
+    # so it is stated whenever the run asked for them at all.
+    if report.prices_mode != "no-prices":
         lines.append("> Real-time prices are fetched from Yahoo Finance into an "
                      "in-memory cache only at request time — **no price is ever "
                      "persisted** to any database (the Financial-DataBase `prices` "
                      "table is untouched by Value Investing).")
+        lines.append("")
+
+    if report.prices_mode == "unavailable":
+        lines.append("> Prices were **not** available for this run: the Yahoo "
+                     "preflight found the provider unreachable, so every "
+                     "price-derived column below is N/A. See `## Price stage` "
+                     "for the failure breakdown.")
         lines.append("")
 
     if report.network:
