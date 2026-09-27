@@ -231,6 +231,72 @@ class FdbGateway:
             return None
         return str(row["company_id"]), str(row["cik"])
 
+    def stale_companies(
+        self,
+        *,
+        max_age_hours: Optional[int] = None,
+        limit: int = 500,
+        priority: str = "recent_filings",
+    ) -> list[dict]:
+        """Companies with an active listing whose fundamentals are stale.
+
+        Unlike :meth:`staleness_bulk` this is *company* scoped and needs no
+        universe file: it is what a catch-up of out-of-universe names needs
+        (Russell 2000 companies that never reached ``config/universe.csv``,
+        OTC/foreign listings, delisted issuers). One read-only query, ordered
+        by ``priority``:
+
+        - ``recent_filings`` (default) — the companies whose newest filing is
+          most recent first, i.e. those with the most to gain;
+        - ``alphabetical`` — deterministic and easy to eyeball;
+        - ``random`` — spread the load without a systematic bias.
+
+        ``limit`` bounds the result so a catch-up can never turn into a
+        whole-database sync by accident. Companies that were never ingested
+        sort last for ``recent_filings`` (no filing date to compare).
+        """
+        if priority not in ("recent_filings", "alphabetical", "random"):
+            raise ValueError(
+                f"unknown priority {priority!r}: use recent_filings, "
+                "alphabetical or random"
+            )
+        hours = 168 if max_age_hours is None else int(max_age_hours)
+        order = {
+            "recent_filings": "last_filing DESC NULLS LAST, c.legal_name",
+            "alphabetical": "c.legal_name",
+            "random": "random()",
+        }[priority]
+        sql = f"""
+            SELECT c.id::text AS company_id,
+                   ci.identifier_value AS cik,
+                   c.legal_name,
+                   c.last_synced_at,
+                   (SELECT max(f.created_at) FROM filings f
+                     WHERE f.company_id = c.id) AS last_filing,
+                   (SELECT count(*) FROM filings f
+                     WHERE f.company_id = c.id) AS filing_count
+            FROM companies c
+            JOIN company_identifiers ci
+              ON ci.company_id = c.id
+             AND UPPER(ci.identifier_type) = 'CIK'
+            WHERE (c.last_synced_at IS NULL
+                   OR c.last_synced_at < NOW() - (%s || ' hours')::interval)
+              AND EXISTS (
+                  SELECT 1 FROM company_listings cl
+                  WHERE cl.company_id = c.id AND cl.is_active
+              )
+            ORDER BY {order}
+            LIMIT %s
+        """
+        try:
+            with self._connection().cursor() as cur:
+                cur.execute(sql, (str(hours), int(limit)))
+                rows = cur.fetchall() or []
+        except Exception as exc:  # noqa: BLE001 — a gateway query never crashes a run
+            logger.warning("stale_companies: query failed: %s", exc)
+            return []
+        return [dict(row) for row in rows]
+
     def last_synced_at(self, company_id: str) -> Optional[_dt.datetime]:
         """Last ingestion timestamp for a company, from data timestamps.
 
@@ -687,6 +753,15 @@ class RefreshService:
             progress_cb(ticker, status)
         except Exception as exc:  # noqa: BLE001 — checkpointing must not crash
             logger.warning("progress callback failed for %s: %s", ticker, exc)
+
+    def sync_one(self, cik: str) -> bool | str:
+        """Targeted ``sec sync`` for a single CIK (public entry point).
+
+        Exposed for tools that drive syncs outside a ticker universe (see
+        ``scripts/catch_up_stale.py``). Never syncs anything else: the SEC
+        ingestion is always per-CIK, never a database-wide sweep.
+        """
+        return self._sync_company(cik)
 
     def _sync_company(self, cik: str) -> bool | str:
         """Run a targeted sec sync for one CIK. True on success, reason on failure.
