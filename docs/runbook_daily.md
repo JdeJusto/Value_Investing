@@ -11,7 +11,12 @@ real-time prices. Prices are always fetched live from Yahoo Finance
   virtualenv (`.venv`) and a running PostgreSQL:
   `postgresql://financial:test@localhost:5432/financial_database`.
 - **SEC_USER_AGENT** set (required by the SEC EDGAR incremental update),
-  e.g. `export SEC_USER_AGENT='your-email@example.com'`.
+  e.g. `export SEC_USER_AGENT='your-email@example.com'`. Put it in the repo
+  `.env` (git-ignored) or let the systemd unit export it. **Never use a
+  github.com address in the User-Agent** — SEC answers HTTP 403 for the
+  github.com address family (see Financial-DataBase
+  `docs/sec_403_investigation.md`); a descriptive UA with a normal email
+  domain is required.
 - Universe file `config/universe.csv` (default) — the **master universe**
   produced by `scripts/build_universe.py` from per-index source files:
   - `config/universe_sp500_nasdaq.csv` — S&P 500 + Nasdaq-100
@@ -106,9 +111,13 @@ python -m scripts.daily_workflow --universe config/universe.txt \
 # per run, the rest are deferred to later runs (default --max-refresh 200)
 python -m scripts.daily_workflow --universe all --max-refresh 50
 
-# Resume a run interrupted mid-universe: finishes previously-unreported
-# tickers by reusing data/reports/daily_state.json instead of starting over
+# Resume a run interrupted mid-universe (--resume is the DEFAULT): the
+# checkpoint data/reports/daily_run_state.json is reused, so completed
+# tickers are not SEC-refreshed again and transient refresh failures are
+# retried. Use --no-resume to force a fresh run (the old state is archived)
+# or --run-id ID to target a specific run.
 python -m scripts.daily_workflow --resume
+python -m scripts.daily_workflow --no-resume
 ```
 
 What it does:
@@ -119,9 +128,9 @@ What it does:
    tickers about to be analyzed that are stale — capped at `--max-refresh`
    (default 200), prioritizing the most recently-synced companies, so a big
    universe never triggers an unbounded sync; the rest defer to later runs.
-   With `--resume`, tickers already reported in the previous
-   `data/reports/daily_state.json` are skipped, so an interrupted run picks up
-   where it stopped.
+   With `--resume` (default), the previous run's checkpoint
+   (`data/reports/daily_run_state.json`) is reused: tickers already completed
+   are excluded from the refresh pool and only transient failures are retried.
 2. **Screen the universe** with the quality (Buffett) engine, enriched with
    real-time prices fetched **only for the universe tickers** in paced
    batches (`PriceService.get_current_prices`, default batch size 25,
@@ -141,6 +150,65 @@ What it does:
 
 `--dry-run` skips both the SEC update and file writes and prints the report
 to stdout.
+
+## 2b. Background running and resume
+
+The workflow is designed to run for hours in the background (SEC refresh of up
+to `--max-refresh` companies) and to survive interruptions.
+
+### Checkpoint / resume
+
+- Every completed ticker is checkpointed in **`data/reports/daily_run_state.json`**
+  (atomic write: temp file + `fsync` + rename), so a `SIGKILL` or power loss
+  loses at most the ticker in flight.
+- `--resume` is the **default**: same universe + same options → the run
+  continues, skipping completed tickers in the SEC refresh and retrying only
+  transient failures. Different options → the old state is archived
+  (`daily_run_state_<run_id>.json`) and a fresh run starts.
+- `SIGTERM`/`SIGINT` finish the current ticker, flush the state and exit 0.
+- A successful run archives its state as `daily_run_state_<run_id>.json` (the
+  live file disappears), so a *new* run never resumes a finished run.
+- The report/analysis are recomputed for the whole universe on resume (the
+  report needs every ticker); the expensive stage — the SEC refresh — is what
+  is not redone.
+
+```bash
+# progress
+python -c "import json;s=json.load(open('data/reports/daily_run_state.json'));print(s['run_id'],s['current_stage'],s['stage_progress'],len(s['completed']))"
+tail -f data/logs/daily_workflow.log          # systemd run
+tail -f data/reports/daily_2026-09-25.md      # last report
+```
+
+### systemd (user units, provided in `~/.config/systemd/user/`)
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now value-investing-daily.timer   # 06:00 daily, Persistent=true
+systemctl --user start   value-investing-daily.service      # run once now
+systemctl --user status  value-investing-daily.service
+journalctl --user -u value-investing-daily.service -f
+systemctl --user stop    value-investing-daily.service      # clean checkpoint + exit 0
+```
+
+`Persistent=true` runs a missed execution after a reboot, and the run's own
+checkpoint continues it.
+
+### nohup / tmux alternative
+
+```bash
+./scripts/run_daily_background.sh              # nohup, PID + log under data/logs/
+tmux new -s daily 'python -m scripts.daily_workflow --universe all --max-refresh 200 --top 20 --resume'
+```
+
+### If a run seems stuck
+
+- `pgrep -af daily_workflow` to confirm it is alive; the state file's
+  `last_update_at` tells you whether it is still progressing.
+- Stop cleanly with `kill -TERM <pid>` (or `systemctl --user stop`); the state
+  is flushed and the next run resumes.
+- If the stored state is not what you want (wrong universe/options or a bad
+  `--limit`), start fresh with `--no-resume` (the old state is archived, not
+  lost) or target a specific one with `--run-id <id>`.
 
 ## 3. Screener with real-time prices
 

@@ -147,3 +147,9 @@ test_end_to_end.py
 
 # Obsidian vault metadata (local editor state, not project data)
 .obsidian/
+
+# Runtime artifacts: background workflow logs and per-run resume checkpoints
+# (machine-specific; the daily reports and daily_state.json stay tracked)
+data/logs/*
+!data/logs/.gitkeep
+data/reports/daily_run_state*.json
