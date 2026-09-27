@@ -12,6 +12,7 @@ prices live here, in real time.
 from __future__ import annotations
 
 import os
+import threading
 import time
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -59,6 +60,52 @@ PRICE_FAILURE_UNKNOWN = "unknown"
 # reported as thousands of individual data failures.
 PRICE_FAILURE_NO_YAHOO = "no_yahoo"
 
+# Failure classes that retries cannot fix. A 429 means "come back later" and a
+# 401 means the session/crumb is unusable; both are answered the same way
+# forever, and retrying them is how one refusal becomes a throttle. Measured
+# cost of getting this wrong: 2 528 tickers x 3 attempts x (1 s + 2 s) of
+# backoff ~= 30 minutes of sleeping for a failure that was never transient.
+NON_TRANSIENT_STATUSES = (401, 429)
+ABORT_REASON_429 = "yahoo_429"
+ABORT_REASON_401 = "yahoo_401"
+ABORT_REASON_OTHER = "yahoo_unavailable"
+
+
+def classify_fetch_exception(exc: BaseException) -> tuple[bool, Optional[int], str]:
+    """Classify one failed yfinance call: (non_transient, http_status, reason).
+
+    Non-transient means "stop asking": 429 (rate limit) and 401 (invalid
+    crumb / unauthorized session) are permanent for the current run. Everything
+    else — 5xx, timeouts, DNS, empty frames — is transient and keeps the normal
+    retry policy.
+    """
+    type_name = type(exc).__name__.lower()
+    text = str(exc)
+    lowered = text.lower()
+    if "ratelimit" in type_name or "too many requests" in lowered or "429" in text:
+        return True, 429, "rate limited (429)"
+    if "invalid crumb" in lowered or "401" in text or "unauthorized" in lowered:
+        return True, 401, "unauthorized session / invalid crumb (401)"
+    for status in NON_TRANSIENT_STATUSES:
+        if f"HTTP {status}" in text or f"http {status}" in lowered:
+            return True, status, f"HTTP {status}"
+    return False, None, f"{type(exc).__name__}: {text}"
+
+
+class PriceStageAbort(Exception):
+    """Raised to stop the whole price stage on a non-transient provider failure.
+
+    Carries the machine-readable reason so the run state and the report can say
+    what happened (``yahoo_429`` / ``yahoo_401``) instead of showing thousands
+    of identical per-ticker failures.
+    """
+
+    def __init__(self, reason: str, detail: str, after: int = 0):
+        super().__init__(f"{reason} after {after} tickers: {detail}")
+        self.reason = reason
+        self.detail = detail
+        self.after = after
+
 
 def _snapshot_price(snap: dict) -> Optional[float]:
     """Extract the live price from a Yahoo .info dict, or None.
@@ -88,6 +135,7 @@ class PriceService:
         cache_ttl: Optional[int] = None,
         metrics=None,
         health_fn=None,
+        abort_after: int = 0,
     ) -> None:
         self._cache: Dict[str, Tuple[float, object]] = {}
         if cache_ttl is None:
@@ -104,6 +152,17 @@ class PriceService:
         # Last preflight outcome, so a caller (the daily workflow) can act on
         # it without triggering another probe.
         self._last_health = None
+        # Consecutive non-transient failures (429/401) and the threshold that
+        # turns them into a stage abort. 0 disables the abort.
+        self.abort_after = max(0, int(abort_after or 0))
+        self._abort_lock = threading.Lock()
+        self._abort_reason: Optional[str] = None
+        self._abort_streak = 0
+        self._stage_status: Dict[str, object] = {
+            "status": "ok",
+            "aborted_reason": None,
+            "aborted_after": 0,
+        }
 
     def configure(
         self,
@@ -374,20 +433,44 @@ class PriceService:
                     "prefetch; price-derived metrics will be N/A",
                     getattr(health, "reason", "unknown"),
                 )
+                self._stage_status = {
+                    "status": "aborted",
+                    "aborted_reason": _abort_reason(health),
+                    "aborted_after": 0,
+                }
                 return {}
+        self._stage_status = {"status": "ok", "aborted_reason": None, "aborted_after": 0}
         snapshots: Dict[str, Optional[dict]] = {}
         remaining = [t.upper() for t in tickers if t]
+        fetched = 0
         while remaining:
             batch, remaining = remaining[:batch_size], remaining[batch_size:]
-            if workers > 1:
-                with ThreadPoolExecutor(max_workers=workers) as pool:
-                    for ticker, snap in zip(
-                        batch, pool.map(self._fetch_market_snapshot, batch)
-                    ):
-                        snapshots[ticker] = snap
-            else:
-                for ticker in batch:
-                    snapshots[ticker] = self._fetch_market_snapshot(ticker)
+            try:
+                if workers > 1:
+                    with ThreadPoolExecutor(max_workers=workers) as pool:
+                        for ticker, snap in zip(
+                            batch, pool.map(self._fetch_market_snapshot, batch)
+                        ):
+                            snapshots[ticker] = snap
+                else:
+                    for ticker in batch:
+                        snapshots[ticker] = self._fetch_market_snapshot(ticker)
+            except PriceStageAbort as abort:
+                # A provider-wide refusal: stop the stage instead of working
+                # through the remaining universe pointlessly.
+                self._stage_status = {
+                    "status": "aborted",
+                    "aborted_reason": abort.reason,
+                    "aborted_after": abort.after,
+                }
+                logger.error(
+                    "price stage aborted after %d tickers: %s (%s)",
+                    abort.after,
+                    abort.reason,
+                    abort.detail,
+                )
+                return snapshots
+            fetched += len(batch)
             if remaining and delay > 0:
                 time.sleep(delay)
 
@@ -500,12 +583,21 @@ class PriceService:
         used for history() — it keeps working for lightly-traded names and
         delisted-with-data issues — but transients are handled with retries
         and slightly longer delays to avoid triggering rate limits.
+
+        **Non-transient refusals are not retried.** A 429 (rate limit) or a 401
+        (invalid crumb) is answered identically forever, so retrying burns
+        three attempts and 3 s of backoff per ticker for nothing, and turns one
+        refusal into thousands. Those abort the ticker immediately and, once
+        ``abort_after`` consecutive tickers fail the same way, raise
+        :class:`PriceStageAbort` to stop the whole stage.
         """
         if self._yahoo_is_known_down():
+            self._note_non_transient(ABORT_REASON_OTHER, ticker)
             return None
         for attempt in range(3):
             started = time.time()
             reason = None
+            non_transient = False
             try:
                 info = yf.Ticker(ticker).info
                 if isinstance(info, dict) and info:
@@ -513,9 +605,20 @@ class PriceService:
                         latency_ms=(time.time() - started) * 1000.0,
                         retries=1 if attempt else 0,
                     )
+                    self._note_transient_success()
                     return info
                 reason = "empty quote summary"
             except Exception as exc:  # noqa: BLE001 — transient Yahoo errors
+                non_transient, status, reason = classify_fetch_exception(exc)
+                if non_transient:
+                    self._record_yahoo(
+                        latency_ms=(time.time() - started) * 1000.0,
+                        reason=reason,
+                    )
+                    self._note_non_transient(
+                        ABORT_REASON_401 if status == 401 else ABORT_REASON_429, ticker
+                    )
+                    return None
                 reason = str(exc)
             self._record_yahoo(
                 latency_ms=(time.time() - started) * 1000.0,
@@ -527,6 +630,58 @@ class PriceService:
             logger.debug("Yahoo .info attempt %d failed for %s, retrying in %.1fs", attempt + 1, ticker, wait_time)
             time.sleep(wait_time)
         return None
+
+    # ------------------------------------------------------------------
+    # non-transient failure tracking (stage abort)
+    # ------------------------------------------------------------------
+    def _note_non_transient(self, reason: str, ticker: str = "") -> None:
+        """Count one non-transient refusal and abort the stage at the threshold.
+
+        A handful of consecutive 401/429 is not a provider outage — it can be
+        one bad symbol — so a *run* of them is required before the stage gives
+        up. The streak resets on any successful fetch.
+        """
+        with self._abort_lock:
+            if self._abort_reason != reason:
+                self._abort_reason = reason
+                self._abort_streak = 0
+            self._abort_streak += 1
+            streak = self._abort_streak
+        self._note_price_failure(PRICE_FAILURE_NO_YAHOO if reason == ABORT_REASON_OTHER else reason)
+        if self.abort_after and streak >= self.abort_after:
+            raise PriceStageAbort(reason, f"consecutive failures on {ticker or 'yahoo'}",
+                                  after=streak)
+
+    def _note_transient_success(self) -> None:
+        with self._abort_lock:
+            self._abort_reason = None
+            self._abort_streak = 0
+
+    def price_stage_status(self) -> dict:
+        """Outcome of the last :meth:`get_market_snapshots` call."""
+        return dict(self._stage_status)
+
+    def configure(
+        self,
+        *,
+        metrics=None,
+        health_fn=None,
+        abort_after: Optional[int] = None,
+    ) -> "PriceService":
+        """Attach run telemetry, the Yahoo preflight and the abort threshold.
+
+        ``abort_after`` is the number of consecutive non-transient failures
+        (429/401) that stops the whole price stage. ``0`` or ``None`` disables
+        the abort and keeps the old retry-everything behaviour.
+        """
+        if metrics is not None or health_fn is not None:
+            if metrics is not None:
+                self._metrics = metrics
+            if health_fn is not None:
+                self._health_fn = health_fn
+        if abort_after is not None:
+            self.abort_after = max(0, int(abort_after))
+        return self
 
     # ------------------------------------------------------------------
     # failure categorization
@@ -790,3 +945,12 @@ if __name__ == "__main__":
         print(f"{ticker}: current price = {price}")
         fy_end = service.get_price_at_fiscal_year_end(ticker, 2023)
         print(f"{ticker}: FY2023 price ~ {fy_end}")
+
+def _abort_reason(health) -> str:
+    """Machine-readable abort reason for a failed preflight."""
+    status = getattr(health, "http_status", None)
+    if status == 429:
+        return ABORT_REASON_429
+    if status == 401:
+        return ABORT_REASON_401
+    return ABORT_REASON_OTHER

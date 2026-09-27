@@ -137,6 +137,7 @@ class RunState:
             "alerts_generated": 0,
             "network": {},
             "prices_stage": {"processed": 0, "failures": {}},
+            "price_stage": {"status": "ok", "aborted_reason": None, "aborted_after": 0},
             "options": dict(options),
         }
         state = cls(path, payload)
@@ -156,6 +157,10 @@ class RunState:
             payload.setdefault("options", {})
             payload.setdefault("network", {})
             payload.setdefault("prices_stage", {"processed": 0, "failures": {}})
+            payload.setdefault(
+                "price_stage",
+                {"status": "ok", "aborted_reason": None, "aborted_after": 0},
+            )
             payload.setdefault("universe", "")
             payload.setdefault("total_tickers", 0)
             return cls(path, payload)
@@ -345,6 +350,27 @@ class RunState:
             }
             self._save_locked()
 
+    def set_price_stage_status(
+        self,
+        status: str,
+        aborted_reason: Optional[str] = None,
+        aborted_after: int = 0,
+    ) -> None:
+        """Record the outcome of the price stage: ok, or aborted and why.
+
+        An abort means the provider refused non-transiently (HTTP 429 rate
+        limit, 401 invalid crumb) and the stage stopped early instead of
+        working through the universe. ``aborted_after`` is the size of the
+        failing streak that triggered it.
+        """
+        with self._lock:
+            self._payload["price_stage"] = {
+                "status": str(status or "ok"),
+                "aborted_reason": aborted_reason,
+                "aborted_after": int(aborted_after or 0),
+            }
+            self._save_locked()
+
     def note_price_failure(self, category: str, count: int = 1) -> None:
         """Increment one price-failure category in the checkpoint."""
         with self._lock:
@@ -358,6 +384,16 @@ class RunState:
             stage["failures"] = failures
             self._payload["prices_stage"] = stage
             self._save_locked()
+
+    def price_stage_status(self) -> dict[str, Any]:
+        """The price-stage outcome recorded in the checkpoint (never raises)."""
+        with self._lock:
+            stage = self._payload.get("price_stage")
+            if isinstance(stage, dict):
+                return dict(stage)
+            # A state written before this field existed reads as "ok": a
+            # missing key is not evidence of an abort.
+            return {"status": "ok", "aborted_reason": None, "aborted_after": 0}
 
     def set_alerts_generated(self, count: int) -> None:
         with self._lock:

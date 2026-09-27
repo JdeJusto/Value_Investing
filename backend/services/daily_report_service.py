@@ -35,6 +35,7 @@ class DailyReport:
     notes: list[str] = field(default_factory=list)
     network: dict = field(default_factory=dict)
     prices_stage: dict = field(default_factory=dict)
+    price_stage: dict = field(default_factory=dict)
     yahoo_streak: dict = field(default_factory=dict)
     runtime_seconds: float = 0.0
 
@@ -52,6 +53,7 @@ class DailyReport:
             "notes": self.notes,
             "network": self.network,
             "prices_stage": self.prices_stage,
+            "price_stage": self.price_stage,
             "yahoo_streak": self.yahoo_streak,
             "runtime_seconds": self.runtime_seconds,
         }
@@ -198,6 +200,21 @@ def build_markdown(report: DailyReport) -> str:
                          "preflight found the provider unreachable "
                          "(`no_yahoo`); no per-ticker probe was attempted.")
             lines.append("")
+
+    stage_state = report.price_stage or {}
+    if str(stage_state.get("status", "ok")) == "aborted":
+        reason = stage_state.get("aborted_reason") or "yahoo_unavailable"
+        after = int(stage_state.get("aborted_after", 0) or 0)
+        label = {
+            "yahoo_429": "Yahoo 429 (rate limit)",
+            "yahoo_401": "Yahoo 401 (invalid crumb)",
+        }.get(reason, "Yahoo unavailable")
+        lines.append(
+            f"> **Price stage aborted after {after} tickers due to {label}.** "
+            "Those failures are not transient, so the stage stopped instead of "
+            "retrying the rest of the universe; market fields are N/A for it."
+        )
+        lines.append("")
 
     streak = report.yahoo_streak or {}
     if streak.get("alerted"):

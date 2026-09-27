@@ -34,3 +34,11 @@ skip_refresh_flag: false
 # halves refresh wall time vs sequential while keeping the SEC request burst
 # small; raise to 3-4 on fast links only if SEC does not throttle.
 refresh_workers: 2
+
+# Consecutive tickers that fail with a NON-TRANSIENT Yahoo error (HTTP 429
+# rate limit, or 401 invalid crumb) before the whole price stage gives up.
+# Retrying those cannot help, and without this a universe run would burn
+# 3 attempts and 3 s of backoff per ticker: 2 528 tickers is ~30 minutes of
+# sleeping for a failure that was never transient. Set to 0 to disable the
+# abort and keep retrying every ticker.
+price_abort_after_consecutive_non_transient: 3

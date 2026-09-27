@@ -509,8 +509,14 @@ def _run(args) -> None:
     if price_service is not None:
         # Wire the Yahoo preflight + telemetry into the shared price service
         # (get_price_service() is a process-level singleton), so both the batch
-        # prefetch and the single-price calls of the analysis are covered.
-        price_service.configure(metrics=network_metrics, health_fn=check_yahoo_availability)
+        # prefetch and the single-price calls of the analysis are covered, and
+        # a 429/401 streak can abort the stage instead of retrying 2 528
+        # doomed tickers.
+        price_service.configure(
+            metrics=network_metrics,
+            health_fn=check_yahoo_availability,
+            abort_after=_price_abort_threshold(),
+        )
 
     # Fundamentals cache: skips the per-ticker database read (the ~96 % of the
     # analysis cost) when neither the company's facts nor the analysis version
@@ -643,6 +649,21 @@ def _run(args) -> None:
                 note_no_yahoo(len(universe))
             failure_counts = dict(price_service.price_failure_counts())
         run_state.set_prices_stage(len(universe), failure_counts)
+        stage_outcome = {}
+        status_fn = getattr(price_service, "price_stage_status", None)
+        if callable(status_fn):
+            stage_outcome = status_fn()
+            run_state.set_price_stage_status(
+                stage_outcome.get("status", "ok"),
+                stage_outcome.get("aborted_reason"),
+                stage_outcome.get("aborted_after", 0),
+            )
+        if stage_outcome.get("status") == "aborted":
+            logger.warning(
+                "price stage aborted after %s tickers: %s",
+                stage_outcome.get("aborted_after"),
+                stage_outcome.get("aborted_reason"),
+            )
 
     # Yahoo rate-limit streak: a 429 is a silent failure (the run completes
     # with every price column N/A), so consecutive days are counted and
@@ -866,6 +887,11 @@ def _run(args) -> None:
         if not args.no_prices
         else {"processed": 0, "failures": {}}
     )
+    price_stage_outcome = dict(stage_outcome) if stage_outcome else {
+        "status": "ok",
+        "aborted_reason": None,
+        "aborted_after": 0,
+    }
 
     report = DailyReport(
         report_date=report_date,
@@ -879,6 +905,7 @@ def _run(args) -> None:
         price_notes=price_notes,
         network=network_snapshot,
         prices_stage=prices_stage,
+        price_stage=price_stage_outcome,
         yahoo_streak=yahoo_streak_state,
         runtime_seconds=time.time() - start_time,
     )
@@ -921,6 +948,13 @@ def _run(args) -> None:
         run_state.note_network(network_snapshot)
         archived = run_state.complete()
         print(f"Run state archived: {archived}")
+
+
+def _price_abort_threshold() -> int:
+    """Consecutive non-transient Yahoo failures before the price stage stops."""
+    from backend.services.refresh_service import load_refresh_config
+
+    return load_refresh_config().price_abort_after_consecutive_non_transient
 
 
 def sort_alerts(alerts: list):

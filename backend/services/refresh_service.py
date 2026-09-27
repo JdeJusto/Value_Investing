@@ -49,6 +49,8 @@ DEFAULT_SKIP_REFRESH_FLAG = False
 # time vs sequential while keeping the SEC request burst small (each sync is
 # a handful of requests; the scheduler still applies its own pacing).
 DEFAULT_REFRESH_WORKERS = 2
+# Consecutive 429/401 price failures before the stage gives up (0 = never).
+DEFAULT_PRICE_ABORT_AFTER = 3
 
 # Well-known location of the Financial-DataBase checkout, overridable with
 # FINANCIAL_DATABASE_REPO_PATH. The FDB project lives as a sibling of this
@@ -67,6 +69,9 @@ class RefreshConfig:
     refresh_timeout_seconds: int = DEFAULT_REFRESH_TIMEOUT_SECONDS
     skip_refresh_flag: bool = DEFAULT_SKIP_REFRESH_FLAG
     refresh_workers: int = DEFAULT_REFRESH_WORKERS
+    # Consecutive non-transient Yahoo failures (429/401) that abort the price
+    # stage; 0 disables the abort. From config/refresh.yaml.
+    price_abort_after_consecutive_non_transient: int = DEFAULT_PRICE_ABORT_AFTER
 
 
 @dataclass
@@ -380,6 +385,13 @@ def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
                         config.refresh_workers = max(1, int(raw))
                     except ValueError:
                         pass
+                elif key == "price_abort_after_consecutive_non_transient":
+                    try:
+                        config.price_abort_after_consecutive_non_transient = max(
+                            0, int(raw)
+                        )
+                    except ValueError:
+                        pass
 
     # Environment overrides.
     env = os.environ
@@ -402,6 +414,13 @@ def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
     if env.get("REFRESH_WORKERS", "").strip():
         try:
             config.refresh_workers = max(1, int(env["REFRESH_WORKERS"]))
+        except ValueError:
+            pass
+    if env.get("PRICE_ABORT_AFTER", "").strip():
+        try:
+            config.price_abort_after_consecutive_non_transient = max(
+                0, int(env["PRICE_ABORT_AFTER"])
+            )
         except ValueError:
             pass
 
