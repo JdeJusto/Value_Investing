@@ -476,14 +476,13 @@ class RefreshService:
         # wall time while keeping the SEC burst modest.
         workers = max(1, int(self.config.refresh_workers or 1))
         if workers > 1 and len(work) > 1:
-            outcomes = self._sync_many(work, workers)
+            outcomes = self._sync_many(work, workers, progress_cb=progress_cb)
             for ticker, _cik in work:  # order-preserving result grouping
                 status = outcomes.get(ticker)
                 if status is True:
                     result.refreshed.append(ticker)
                 else:
                     result.failed.append((ticker, status))
-                self._notify_progress(progress_cb, ticker, status)
         else:
             for ticker, cik in work:
                 status = self._sync_company(cik)
@@ -499,15 +498,20 @@ class RefreshService:
         return result
 
     def _sync_many(
-        self, work: list[tuple[str, str]], workers: int
+        self,
+        work: list[tuple[str, str]],
+        workers: int,
+        progress_cb: Optional[Callable[[str, "bool | str"], None]] = None,
     ) -> dict[str, bool | str]:
         """Run several targeted CIK syncs concurrently.
 
         Each worker is a subprocess/runner call, so this is thread-safe: the
         only shared state is the ``outcomes`` dict built by the main thread
-        as futures complete.
+        as futures complete. ``progress_cb`` fires as each company finishes
+        (not when the whole batch ends), so a long refresh can be
+        checkpointed company by company.
         """
-        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         outcomes: dict[str, bool | str] = {}
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -515,12 +519,13 @@ class RefreshService:
                 pool.submit(self._sync_company, cik): ticker
                 for ticker, cik in work
             }
-            for future in futures:
+            for future in as_completed(futures):
                 ticker = futures[future]
                 try:
                     outcomes[ticker] = future.result()
                 except Exception as exc:  # noqa: BLE001 — never break the batch
                     outcomes[ticker] = f"SEC sync raised: {exc}"
+                self._notify_progress(progress_cb, ticker, outcomes[ticker])
         return outcomes
 
     def check_freshness(

@@ -641,3 +641,37 @@ def test_progress_callback_failure_does_not_break_refresh():
     result = service.ensure_fresh_and_prices(["AAPL"], progress_cb=boom)
 
     assert result.refreshed == ["AAPL"]
+
+def test_progress_callback_fires_per_company_during_parallel_batch():
+    """With >1 worker the hook must fire as each company finishes, not when
+    the whole batch ends — otherwise a long refresh cannot be checkpointed."""
+    import time
+
+    gateway = FakeGateway(
+        companies={"A": ("c1", "1"), "B": ("c2", "2"), "C": ("c3", "3")},
+        last_synced={"c1": STALE, "c2": STALE, "c3": STALE},
+    )
+    started: list[str] = []
+    completed: list[str] = []
+    events: list[tuple[str, int, bool]] = []
+
+    def runner(cik):
+        started.append(cik)
+        time.sleep(0.2)
+        completed.append(cik)
+        return True
+
+    def cb(ticker, status):
+        # len(completed) is how many syncs had finished when the hook fired;
+        # at the batch end it would already be 3.
+        events.append((ticker, len(completed), status is True))
+
+    service = make_service(
+        gateway=gateway, runner=runner, config=RefreshConfig(refresh_workers=2)
+    )
+
+    result = service.ensure_fresh_and_prices(["A", "B", "C"], progress_cb=cb)
+
+    assert result.refreshed == ["A", "B", "C"]  # grouping stays order-preserving
+    assert {t for t, _, _ in events} == {"A", "B", "C"}
+    assert events[0][1] < 3, f"callback only fired at batch end: {events}"
