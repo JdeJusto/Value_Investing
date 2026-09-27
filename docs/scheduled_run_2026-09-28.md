@@ -120,7 +120,41 @@ universe runs while a rate limit is active. The classification fix in
 | `prices` table | **152** (unchanged) |
 | Timer | enabled, next 06:00 |
 
-## 6. Verdict
+## 6. End-to-end run with the portable unit (`%h`)
+
+After the systemd units were made path-portable (`%h` instead of an absolute
+home), the same unit was started once more to prove the replacement actually
+resolves. It did, and the run completed clean:
+
+| Stage | Duration |
+| --- | ---: |
+| refresh | 76,9 s |
+| prices | 242,2 s (165,4 s blocking) |
+| analysis | 741,3 s |
+| alerts | 0,2 s |
+| **total** | **983,9 s** |
+
+What the report shows, and why it matters:
+
+```
+Universe screened: **2528** companies | prices: **real-time**
+SEC company syncs: **0** | Yahoo requests: **6158** (retries 2447, avg 253.7 ms)
+Failures by category — unknown: 1 · yahoo_429: 7
+```
+
+- **Prices really flowed**: 6 158 quote requests and a `real-time` header,
+  with 77 BUY_SIGNAL alerts (279 TRIGGER_EVENT, 356 total).
+- **The failure categories are honest**: 7 `yahoo_429` and 1 `unknown`, not the
+  "delisted: 2528" the classifier used to produce during a throttle. The
+  non-transient failures aborted their tickers immediately, which is why 2 447
+  *transient* retries were spent but only 7 requests were non-transient.
+- Analysis is heavier than the 78,8 s of the price-less run: with market data
+  every company's ratio set is computed, and the sync stage bumped some
+  fingerprints so their cached year set had to be rebuilt.
+
+This is the run the 06:00 timer will reproduce.
+
+## 7. Verdict
 
 **PASSED with two documented follow-ups.** The scheduled path runs clean and
 the report is now internally consistent. The outstanding work is not in the
