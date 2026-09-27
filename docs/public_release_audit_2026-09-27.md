@@ -11,8 +11,8 @@ nothing was modified while producing it. Tooling note: `gitleaks` and
 
 | Pattern | Hits | Verdict |
 | --- | ---: | --- |
-| `jaimedejusto@gmail` | 71 | **Personal e-mail, real exposure if published** |
-| `@gmail\.com` | 71 | same occurrences |
+| `<SEC_CONTACT_EMAIL>` (the personal address) | 71 | **Real exposure if published** |
+| `@gmail\.com` | 71 | same occurrences (the address is referenced here as `<SEC_CONTACT_EMAIL>`, never literally) |
 | `BEGIN RSA` / `BEGIN OPENSSH` | 0 | clean |
 | `api[_-]?key` | 0 | clean |
 | `password` | 47 | **all false positives**: `password_hash` column, `bcrypt.gensalt()`, `type="password"` inputs, `plain_password.encode()` — no credential |
@@ -52,7 +52,8 @@ Reveals the local username, the sibling checkout path and the home
 directory layout. Not a secret, but it is machine-specific noise for a public
 audience.
 
-**Personal e-mail addresses in HEAD: 0.** **No `/Users/`, no `C:\Users\`.**
+**Personal e-mail addresses in HEAD: 0** (this document refers to the address
+only as `<SEC_CONTACT_EMAIL>`). No macOS or Windows user paths either.
 **No internal hostnames or IPs.**
 
 **History:** the e-mail above (71 lines) plus `name="Jaime"` in the old
@@ -62,7 +63,7 @@ audience.
 
 ```
 jdejusto@users.noreply.github.com   <- preferred (recent commits)
-jaimedejusto@gmail.com              <- personal, public once the repo is public
+<SEC_CONTACT_EMAIL>                <- personal; public the moment the repo is
 jdejusto@example.com                <- placeholder, harmless
 jdejusto@localhost                  <- local placeholder, harmless
 ```
