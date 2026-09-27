@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit tests (no database)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Python dependencies
+        # This project has no pyproject.toml: the dependency set lives in
+        # Pipfile. pipenv install --dev needs libmagic1 on the runner.
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt-get update && sudo apt-get install -y libmagic1
+          pip install pipenv
+          pipenv install --system --skip-lock
+
+      - name: Run the unit suite
+        # FINANCIAL_DATABASE_URL is deliberately left UNSET: the tests that
+        # need a live database skip themselves when it is absent. Setting it to
+        # an empty string is NOT equivalent — it would be read as a URL.
+        run: python -m pytest tests/unit -q
+
+  lint:
+    name: Compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Byte-compile the sources
+        run: python -m compileall -q backend scripts cli main.py

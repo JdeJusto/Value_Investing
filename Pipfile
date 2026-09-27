@@ -11,6 +11,10 @@ edgartools = ">=5.0.0"
 python-dotenv = ">=1.0.0"
 sqlalchemy = ">=2.0"
 psycopg2-binary = ">=2.9"
+# Imported by backend/services/sql_analysis_service.py. It was installed in the
+# working venv but missing here, so a fresh `pipenv install` produced a
+# project whose SQL analysis service could not even be imported.
+sqlparse = ">=0.5"
 streamlit = "*"
 fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
