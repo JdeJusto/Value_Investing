@@ -176,7 +176,14 @@ class FdbGateway:
                           WHERE company_id = c.id),
                         (SELECT max(created_at) FROM filings
                           WHERE company_id = c.id),
-                        (SELECT updated_at FROM companies WHERE id = c.id)
+                        (SELECT updated_at FROM companies WHERE id = c.id),
+                        -- Newest successful per-company import run (SEC sync /
+                        -- submissions / companyfacts record company_id since
+                        -- migration 0021). GREATEST ignores NULLs, so for
+                        -- companies without a scoped run this term simply
+                        -- falls back to the timestamp expression above.
+                        (SELECT max(ir.finished_at) FROM import_runs ir
+                          WHERE ir.company_id = c.id AND ir.status = 'success')
                     ) AS last_ingested
                     FROM companies c
                     WHERE c.id = ANY(%s::uuid[])

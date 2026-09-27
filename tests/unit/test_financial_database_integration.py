@@ -233,6 +233,61 @@ class TestFinancialDatabaseIntegration:
         # Tickers are matched case-insensitively.
         assert financial_db_repo.has_active_listing("aapl") is True
 
+    @pytest.mark.skipif(
+        not os.getenv("FINANCIAL_DATABASE_URL"),
+        reason="Financial-DataBase URL not configured",
+    )
+    def test_staleness_is_consistent_with_and_without_company_scoped_runs(self):
+        """The bulk staleness scan may use import_runs.company_id (migration
+        0021) but must never report a company as staler than the
+        timestamp-only expression, and must fall back to it exactly when a
+        company has no scoped run."""
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        from backend.services.refresh_service import FdbGateway
+
+        gateway = FdbGateway()
+        if not gateway.available():
+            pytest.skip("Financial-DataBase unreachable")
+
+        tickers = ["AAPL", "ZZZZQQ", "MSFT"]
+        bulk = gateway.staleness_bulk(tickers)
+        assert set(bulk) == {t.upper() for t in tickers}
+
+        conn = psycopg2.connect(
+            os.environ["FINANCIAL_DATABASE_URL"], cursor_factory=RealDictCursor
+        )
+        try:
+            for ticker in ("AAPL", "MSFT"):
+                company_id, _cik, last = bulk[ticker]
+                if company_id is None:
+                    continue  # unmapped ticker: nothing to compare
+                assert last is not None, f"{ticker} has data but no timestamp"
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT GREATEST(
+                            (SELECT max(updated_at) FROM financial_facts WHERE company_id = %s),
+                            (SELECT max(created_at) FROM filings WHERE company_id = %s),
+                            (SELECT updated_at FROM companies WHERE id = %s)
+                        ) AS ts_only,
+                        (SELECT count(*) FROM import_runs
+                          WHERE company_id = %s AND status = 'success') AS scoped_runs
+                        """,
+                        (company_id, company_id, company_id, company_id),
+                    )
+                    row = cur.fetchone()
+                ts_only, scoped_runs = row["ts_only"], row["scoped_runs"]
+                if scoped_runs:
+                    # The scoped run can only make the company fresher.
+                    assert last >= ts_only
+                else:
+                    # No scoped run -> exact fallback to the timestamp scan.
+                    assert last == ts_only
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     # Allow running the test directly for manual verification
