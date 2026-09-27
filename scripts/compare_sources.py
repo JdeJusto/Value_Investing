@@ -12,7 +12,10 @@ from typing import Dict, List, Optional
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+import os
+
 from backend.app.cli import build_financial_repository, get_tickers
+from backend.config.settings import get_sec_email
 from backend.providers.edgar import EdgarProvider
 from backend.providers.yahoo import YahooFinanceProvider
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
@@ -79,7 +82,10 @@ def _extract_financials_from_yahoo(ticker: str) -> Optional[_ProviderFinancials]
 def _extract_financials_from_edgar(ticker: str) -> Optional[_ProviderFinancials]:
     """Extract financials from EDGAR provider."""
     try:
-        edgar = EdgarProvider(email="jaimedejusto@gmail.com", name="Jaime")
+        edgar = EdgarProvider(
+            email=get_sec_email(),
+            name=os.getenv("SEC_NAME", "").strip() or "Value Investing",
+        )
         income = edgar.get_income_statement(ticker)
         balance = edgar.get_balance_sheet(ticker)
         cash_flow = edgar.get_cash_flow(ticker)

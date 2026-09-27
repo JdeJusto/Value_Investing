@@ -6,7 +6,24 @@ load_dotenv()
 
 
 def get_sec_email() -> str:
-    return os.getenv("SEC_EMAIL", "jaimedejusto@gmail.com")
+    """SEC contact e-mail, read from the environment only.
+
+    The SEC requires a declared contact and the value is personal, so it
+    lives in the git-ignored ``.env`` (``SEC_EMAIL=...``) and is never
+    hardcoded. Failing fast with a clear message beats sending a request
+    that the SEC answers with 403, or worse, attributing it to someone
+    else.
+    """
+    email = os.getenv("SEC_EMAIL", "").strip()
+    if not email:
+        raise RuntimeError(
+            "SEC_EMAIL is not configured. Set it in .env to a real contact "
+            "address, e.g. SEC_EMAIL=you@your-domain.com (copy "
+            ".env.example). The SEC rejects requests without a declared "
+            "contact; never a github.com address (HTTP 403, see "
+            "Financial-DataBase docs/sec_403_investigation.md)."
+        )
+    return email
 
 
 def get_sec_name() -> str:

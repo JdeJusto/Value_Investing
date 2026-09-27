@@ -27,8 +27,11 @@ from cli.formatters import dim, green, red, yellow
 
 load_dotenv()
 
-sec_email = os.getenv("SEC_EMAIL", "jaimedejusto@gmail.com")
-sec_name = os.getenv("SEC_NAME", "Jaime")
+# The SEC contact is personal data: it is read from the environment (the
+# git-ignored .env) and never hardcoded. Empty means "not configured", which
+# build_data_pipeline turns into a clear error at the point of use.
+sec_email = os.getenv("SEC_EMAIL", "").strip()
+sec_name = os.getenv("SEC_NAME", "").strip() or "Value Investing"
 
 logger = logging.getLogger("backend.app")
 
@@ -68,6 +71,12 @@ def build_data_pipeline() -> DataPipelineService:
     from backend.providers.yahoo import YahooFinanceProvider
     from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 
+    if not sec_email:
+        raise RuntimeError(
+            "SEC_EMAIL is not configured. Set it in .env to a real contact "
+            "address (copy .env.example) before running a command that "
+            "fetches from EDGAR."
+        )
     yahoo = YahooFinanceProvider()
     edgar = EdgarProvider(email=sec_email, name=sec_name)
     repository = build_financial_repository()

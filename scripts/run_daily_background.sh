@@ -13,8 +13,15 @@ set -euo pipefail
 
 cd /home/caudillo/Value_Investing
 source .venv/bin/activate
-export SEC_USER_AGENT="FinancialDataBase/1.0 jaimedejusto@gmail.com"
-export FINANCIAL_DATABASE_URL="postgresql://financial@localhost:5432/financial_database"
+
+# SEC contact details are personal data: they come from the git-ignored .env
+# (SEC_USER_AGENT="<tool>/<version> <your-e-mail>"), never from this script.
+# Load it when present, then fail loudly rather than running a doomed refresh.
+if [ -f .env ]; then
+  set -a; source .env; set +a
+fi
+: "${SEC_USER_AGENT:?SEC_USER_AGENT is not set — add it to .env (copy .env.example) with a real contact e-mail; the SEC refuses generic agents and github.com domains (HTTP 403)}"
+export FINANCIAL_DATABASE_URL="${FINANCIAL_DATABASE_URL:-postgresql://financial@localhost:5432/financial_database}"
 mkdir -p data/logs
 
 SESSION="vi_daily_$(date +%Y%m%d_%H%M%S)"
