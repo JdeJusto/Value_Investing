@@ -25,7 +25,7 @@ without manual `git push` — none was run this session).
 | PostgreSQL reachable (`pg_isready`) | **PASSED** |
 | FDB unit suite | **PASSED** — 148 passed |
 | Value Investing unit suite | **PASSED** — 474 passed, 1 skipped (→ 476 after this session's fix) |
-| Disk free (`df -h /home/caudillo`) | **PASSED** — 357 GB free (≥ 20 GB) |
+| Disk free (`df -h ~`) | **PASSED** — 357 GB free (≥ 20 GB) |
 | Universe files | **PASSED** — `config/universe.csv` present, 2,528 tickers + header (2,529 lines) |
 | `SEC_USER_AGENT` export | **PASSED** — set for every run |
 | Pre-run DB snapshot | captured: companies 8,023 · facts 76,064,087 · filings 1,091,848 · prices 152 |

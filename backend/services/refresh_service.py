@@ -54,8 +54,7 @@ DEFAULT_PRICE_ABORT_AFTER = 3
 
 # Well-known location of the Financial-DataBase checkout, overridable with
 # FINANCIAL_DATABASE_REPO_PATH. The FDB project lives as a sibling of this
-# repository (e.g. /home/caudillo/Financial-DataBase next to
-# /home/caudillo/Value_Investing).
+# repository (e.g. ~/Financial-DataBase next to ~/Value_Investing).
 _VI_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_FDB_REPO = os.path.join(os.path.dirname(_VI_ROOT), "Financial-DataBase")
 

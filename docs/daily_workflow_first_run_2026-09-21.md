@@ -8,7 +8,7 @@ S&P 500 + Nasdaq-100 universe (**500 tickers**, `config/universe.csv`).
 | Check | Result |
 |---|---|
 | a) PostgreSQL running | **PASSED** — `pg_isready` accepts connections on 5432 (`/run/postgresql:5432`) |
-| b) Disk space ≥ 20 GB | **PASSED** — 357 GB free on `/home/caudillo` after the run (154→156 GB used) |
+| b) Disk space ≥ 20 GB | **PASSED** — 357 GB free on `~` after the run (154→156 GB used) |
 | c) Financial-DataBase suite | **PASSED** — `tests/unit` 148 passed; full `tests/` **184 passed, 0 failed** |
 | d) Value Investing suite | **PASSED** — `tests/unit` **387 passed, 1 skipped, 0 failed** (pre-run: 382 passed) |
 | e) Universe file | **PASSED** — 501 lines = header + 500 tickers, all CIK-mapped (0 unmapped) |
@@ -60,7 +60,7 @@ S&P 500 + Nasdaq-100 universe (**500 tickers**, `config/universe.csv`).
 
 ## 4. Report location and key content
 
-`/home/caudillo/Value_Investing/data/reports/daily_2026-09-21.md` (38.9 KB)
+`~/Value_Investing/data/reports/daily_2026-09-21.md` (38.9 KB)
 
 - Universe screened: **500** · passed: **499** (coverage 100%) · prices: real-time
 - Top-20 table (rank, rating, score, price, P/E, FCF yield, EV/EBIT, signal)
@@ -137,10 +137,10 @@ After=network-online.target postgresql.service
 [Service]
 Type=oneshot
 User=caudillo
-WorkingDirectory=/home/caudillo/Value_Investing
-EnvironmentFile=/home/caudillo/Value_Investing/.env
-EnvironmentFile=-/home/caudillo/Value_Investing/.env   # provides SEC_USER_AGENT
-ExecStart=/home/caudillo/Value_Investing/.venv/bin/python -m scripts.daily_workflow --top 20
+WorkingDirectory=~/Value_Investing
+EnvironmentFile=~/Value_Investing/.env
+EnvironmentFile=-~/Value_Investing/.env   # provides SEC_USER_AGENT
+ExecStart=~/Value_Investing/.venv/bin/python -m scripts.daily_workflow --top 20
 # Allow up to 4 h for the run (refresh is skipped by default once fresh)
 TimeoutStartSec=14400
 

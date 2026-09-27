@@ -45,7 +45,7 @@ The daily workflow runs this automatically unless you pass `--no-update` or
 `--dry-run`. You can also run it by hand:
 
 ```bash
-cd /home/caudillo/Financial-DataBase
+cd ~/Financial-DataBase
 SEC_USER_AGENT="you@example.com" DATA_RAW_DIR=./data/raw \
   .venv/bin/python -m financial_database.cli sec update-incremental
 ```
@@ -75,7 +75,7 @@ rate-limited; in a fresh environment run the full seed first:
 ## 2. Daily workflow
 
 ```bash
-cd /home/caudillo/Value_Investing
+cd ~/Value_Investing
 source .venv/bin/activate
 
 # Full run: SEC update + screen + alerts + report

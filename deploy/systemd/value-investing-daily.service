@@ -20,22 +20,22 @@
 
 [Unit]
 Description=Value Investing Daily Workflow
-Documentation=file:///home/caudillo/Value_Investing/docs/runbook_daily.md
+Documentation=file://%h/Value_Investing/docs/runbook_daily.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/caudillo/Value_Investing
-Environment="PATH=/home/caudillo/Value_Investing/.venv/bin:/usr/bin"
+WorkingDirectory=%h/Value_Investing
+Environment="PATH=%h/Value_Investing/.venv/bin:/usr/bin"
 Environment="FINANCIAL_DATABASE_URL=postgresql://financial@localhost:5432/financial_database"
 # Optional: repo .env (same keys) — the leading '-' tolerates a missing file
-EnvironmentFile=-/home/caudillo/Value_Investing/.env
+EnvironmentFile=-%h/Value_Investing/.env
 # --verbose so the scheduled log carries the stage progress, phase timings,
 # fundamentals-cache stats and network telemetry (WARNING-only otherwise).
-ExecStart=/home/caudillo/Value_Investing/.venv/bin/python -m scripts.daily_workflow --universe all --max-refresh 200 --top 20 --resume --verbose
-StandardOutput=append:/home/caudillo/Value_Investing/data/logs/daily_workflow.log
-StandardError=append:/home/caudillo/Value_Investing/data/logs/daily_workflow.log
+ExecStart=%h/Value_Investing/.venv/bin/python -m scripts.daily_workflow --universe all --max-refresh 200 --top 20 --resume --verbose
+StandardOutput=append:%h/Value_Investing/data/logs/daily_workflow.log
+StandardError=append:%h/Value_Investing/data/logs/daily_workflow.log
 # Hours-long runs must never time out; stopping sends SIGTERM so the
 # workflow can finish the current ticker, flush its state and exit 0.
 TimeoutStartSec=0

@@ -11,7 +11,9 @@
 # continues (--resume is the default).
 set -euo pipefail
 
-cd /home/caudillo/Value_Investing
+# Resolve the repository root from the script location, so the launcher
+# works from a clone in any directory.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source .venv/bin/activate
 
 # SEC contact details are personal data: they come from the git-ignored .env

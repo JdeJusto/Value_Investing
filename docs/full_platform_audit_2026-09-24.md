@@ -288,7 +288,7 @@ cProfile + wall-clock/RSS (wrapper `resource.RUSAGE_CHILDREN`, `/usr/bin/time` n
 
 - `/tmp/audit_session/notes_A.md` (crash run 1), `notes_B.md`, `notes_C.md` (26 KB + `results_C.json`), `notes_D.md`, `notes_F.md` (354 líneas + `f_results_run*.json`), `notes_E.md` (285 líneas + `prof_analyze.prof`, `prof_dw10.prof`, `top_*.txt`, `e_*.log`, `explain.sql`), `report_draft.md`
 - `/tmp/audit_session/sec_refresh2.log` (run 2, 97 KB)
-- Harness capture run 1: `/home/caudillo/.local/share/opencode/shell/4501534e21e7cd30974dd20809c3962c5f7f1c31/sh_0d26ba08e001a22KgcdPoP2QZb.out` (40,325 líneas)
+- Harness capture run 1: `~/.local/share/opencode/shell/4501534e21e7cd30974dd20809c3962c5f7f1c31/sh_0d26ba08e001a22KgcdPoP2QZb.out` (40,325 líneas)
 - Cache SEC (<acceso externo>): `/tmp/audit_session/sec_cache/`
 - Código de referencia: `backend/repositories/financial_database_repository.py`, `backend/services/refresh_service.py`, `scripts/daily_workflow.py`, FDB `src/financial_database/cli.py`, `providers/sec/importer.py`
 

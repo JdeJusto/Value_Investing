@@ -37,7 +37,7 @@ HEAD by `bbb2801` and `5137135`.
 
 ## 2. Personal information
 
-**HEAD — 12 files contain the absolute path `/home/caudillo`:**
+**HEAD — 12 files contain the absolute path `~`:**
 
 | File | Lines |
 | --- | --- |

@@ -78,7 +78,7 @@ Environment variables in `.env`:
 ## Integration with Financial-DataBase
 
 ### Overview
-The Financial-DataBase project (/home/caudillo/Financial-DataBase) contains a comprehensive SEC EDGAR database with:
+The Financial-DataBase project (~/Financial-DataBase) contains a comprehensive SEC EDGAR database with:
 - 8,023+ companies
 - 76M+ financial facts  
 - 1.09M+ filings
@@ -344,7 +344,7 @@ python -m pytest tests/unit -q
 ### Testing Financial-DataBase Integration
 1. Ensure Financial-DataBase is running and accessible:
    ```bash
-   cd /home/caudillo/Financial-DataBase
+   cd ~/Financial-DataBase
    # Verify database is accessible
    psql postgresql://financial:test@localhost:5432/financial_database -c "SELECT COUNT(*) FROM companies;"
    ```
@@ -401,9 +401,9 @@ python -m pytest tests/unit -q
 - `scripts/daily_workflow.py` - Daily run; `--universe` subsets, `--max-refresh`, `--resume`
 
 ### Reference Files (Financial-DataBase)
-- `/home/caudillo/Financial-DataBase/src/financial_database/db/migrations/` - Schema migrations
-- `/home/caudillo/Financial-DataBase/scripts/analysis/` - Reusable SQL analysis scripts
-- `/home/caudillo/Financial-DataBase/src/financial_database/providers/price/yfinance_importer.py` - Existing Yahoo price importer
+- `~/Financial-DataBase/src/financial_database/db/migrations/` - Schema migrations
+- `~/Financial-DataBase/scripts/analysis/` - Reusable SQL analysis scripts
+- `~/Financial-DataBase/src/financial_database/providers/price/yfinance_importer.py` - Existing Yahoo price importer
 
 ## Conventions and Rules
 

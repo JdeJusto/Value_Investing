@@ -30,7 +30,7 @@ ejecución, fuera del alcance de este test).
 | PostgreSQL (`pg_isready`) | **PASSED** |
 | Suite FDB (`tests/unit`) | **PASSED** — 149 passed |
 | Suite Value Investing (`tests/unit`) | **PASSED** — 501 passed, 1 skipped (→ 503 con los 2 tests nuevos de `a263ea8`) |
-| Disco (`df -h /home/caudillo`) | **PASSED** — 356 GB libres (31% usado) |
+| Disco (`df -h ~`) | **PASSED** — 356 GB libres (31% usado) |
 | Universo `config/universe.csv` | **PASSED** — 2,528 tickers + header (2,529 líneas) |
 | `SEC_USER_AGENT` | **PASSED** — exportado en cada run |
 | Snapshot DB pre-run | companies **8,023** · facts **76,067,275** · filings **1,092,021** · **prices 152** |

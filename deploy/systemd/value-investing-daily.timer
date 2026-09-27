@@ -14,7 +14,7 @@
 
 [Unit]
 Description=Run Value Investing Daily Workflow at 06:00
-Documentation=file:///home/caudillo/Value_Investing/docs/runbook_daily.md
+Documentation=file://%h/Value_Investing/docs/runbook_daily.md
 
 [Timer]
 OnCalendar=*-*-* 06:00:00

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-20 (original audit + same-day follow-up that resolves all blocking findings)
 - **Audit type:** Final pre-production verification, then the follow-up task that fixed every blocking issue; all fixes committed (hashes in §8.1), nothing pushed, no PR opened.
-- **Scope:** Financial-DataBase (`/home/caudillo/Financial-DataBase`) + Value Investing (`/home/caudillo/Value_Investing`) + PostgreSQL `financial_database`.
+- **Scope:** Financial-DataBase (`~/Financial-DataBase`) + Value Investing (`~/Value_Investing`) + PostgreSQL `financial_database`.
 - **Golden rules honored:** prices never stored in any database; prices fetched real-time only for analyzed companies; fundamentals sourced from Financial-DataBase; no production data modified.
 
 ---
@@ -197,7 +197,7 @@ price at FY2023 end: 190.21
 ### 3.7 Test suite — ✅ PASSED
 
 ```
-cd /home/caudillo/Value_Investing && python -m pytest tests/unit -q
+cd ~/Value_Investing && python -m pytest tests/unit -q
 382 passed, 1 skipped, 1 warning in ~6s
 ```
 361 pre-existing + **17 new** `test_refresh_service.py` cases (8b7d1b1).
@@ -294,7 +294,7 @@ No case produced a traceback that breaks the CLI — except the momentum table b
 
 ### 8.1 Commits
 
-**Value Investing** (`/home/caudillo/Value_Investing`):
+**Value Investing** (`~/Value_Investing`):
 
 | Commit | Scope |
 |---|---|
@@ -309,7 +309,7 @@ No case produced a traceback that breaks the CLI — except the momentum table b
 | `dd314da` | docs: document the on-demand SEC refresh (README/AGENTS/runbook) (FIX 4, step E) |
 | `8da1d5e` | fix: point refresh at the sibling Financial-DataBase and track sync freshness |
 
-**Financial-DataBase** (`/home/caudillo/Financial-DataBase`):
+**Financial-DataBase** (`~/Financial-DataBase`):
 
 | Commit | Scope |
 |---|---|

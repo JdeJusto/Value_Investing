@@ -65,6 +65,22 @@ DEFAULT_WORKERS = 2
 PRIORITIES = ("recent_filings", "alphabetical", "random")
 
 
+def default_fdb_dir() -> str:
+    """The sibling Financial-DataBase checkout, next to this repository.
+
+    Derived from this file's location rather than hardcoded, so a clone
+    anywhere works. Falls back to ~/Financial-DataBase.
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    for candidate in (
+        repo_root.parent / "Financial-DataBase",
+        Path.home() / "Financial-DataBase",
+    ):
+        if candidate.is_dir():
+            return str(candidate)
+    return str(repo_root.parent / "Financial-DataBase")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m scripts.catch_up_stale",
@@ -106,8 +122,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--fdb-dir",
-        default="/home/caudillo/Financial-DataBase",
-        help="Financial-DataBase checkout (used for its .venv python)",
+        default=default_fdb_dir(),
+        help=(
+            "Financial-DataBase checkout (used for its .venv python); "
+            "defaults to the sibling directory next to this repository"
+        ),
     )
     parser.add_argument(
         "--dry-run",
