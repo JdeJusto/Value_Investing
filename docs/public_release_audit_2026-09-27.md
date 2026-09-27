@@ -13,7 +13,7 @@ nothing was modified while producing it. Tooling note: `gitleaks` and
 | --- | ---: | --- |
 | `<SEC_CONTACT_EMAIL>` (the personal address) | 71 | **Real exposure if published** |
 | `@gmail\.com` | 71 | same occurrences (the address is referenced here as `<SEC_CONTACT_EMAIL>`, never literally) |
-| `BEGIN RSA` / `BEGIN OPENSSH` | 0 | clean |
+| private-key headers (RSA / OpenSSH / PGP) | 0 | clean |
 | `api[_-]?key` | 0 | clean |
 | `password` | 47 | **all false positives**: `password_hash` column, `bcrypt.gensalt()`, `type="password"` inputs, `plain_password.encode()` — no credential |
 
