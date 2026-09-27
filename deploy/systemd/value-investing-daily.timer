@@ -1,0 +1,25 @@
+# Value Investing — daily workflow timer (daily at 06:00).
+#
+# Install per-user together with the service unit and enable:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/systemd/value-investing-daily.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now value-investing-daily.timer
+#   systemctl --user list-timers value-investing-daily.timer
+#   systemctl --user disable --now value-investing-daily.timer   # stop scheduling
+#
+# Persistent=true: a run missed because the machine was off/suspended starts
+# on the next boot, and the run's own checkpoint (--resume) continues it.
+# Enabled on this machine on 2026-09-27 (see docs/runbook_daily.md §2b).
+
+[Unit]
+Description=Run Value Investing Daily Workflow at 06:00
+Documentation=file:///home/caudillo/Value_Investing/docs/runbook_daily.md
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+Unit=value-investing-daily.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,50 @@
+# Value Investing — daily workflow (systemd user unit).
+#
+# Install per-user and enable (the timer is what schedules the run):
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/systemd/value-investing-daily.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now value-investing-daily.timer
+#   systemctl --user list-timers value-investing-daily.timer
+#   systemctl --user start value-investing-daily.service     # run once now
+#
+# SEC_USER_AGENT is intentionally NOT set here: it must contain a real
+# e-mail address and belongs in the gitignored .env (loaded through
+# EnvironmentFile below). Without it the targeted SEC refresh is skipped,
+# not failed — see docs/runbook_daily.md.
+#
+# The run checkpoints every completed ticker in
+# data/reports/daily_run_state.json (atomic writes), so stop/restart/power
+# loss resume automatically: --resume is the default and completed tickers
+# are not SEC-refreshed again.
+
+[Unit]
+Description=Value Investing Daily Workflow
+Documentation=file:///home/caudillo/Value_Investing/docs/runbook_daily.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/caudillo/Value_Investing
+Environment="PATH=/home/caudillo/Value_Investing/.venv/bin:/usr/bin"
+Environment="FINANCIAL_DATABASE_URL=postgresql://financial@localhost:5432/financial_database"
+# Optional: repo .env (same keys) — the leading '-' tolerates a missing file
+EnvironmentFile=-/home/caudillo/Value_Investing/.env
+# --verbose so the scheduled log carries the stage progress, phase timings,
+# fundamentals-cache stats and network telemetry (WARNING-only otherwise).
+ExecStart=/home/caudillo/Value_Investing/.venv/bin/python -m scripts.daily_workflow --universe all --max-refresh 200 --top 20 --resume --verbose
+StandardOutput=append:/home/caudillo/Value_Investing/data/logs/daily_workflow.log
+StandardError=append:/home/caudillo/Value_Investing/data/logs/daily_workflow.log
+# Hours-long runs must never time out; stopping sends SIGTERM so the
+# workflow can finish the current ticker, flush its state and exit 0.
+TimeoutStartSec=0
+TimeoutStopSec=600
+KillSignal=SIGTERM
+Restart=no
+# Desktop-friendly scheduling
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

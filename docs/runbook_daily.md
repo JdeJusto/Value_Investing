@@ -203,7 +203,18 @@ tail -f data/reports/daily_2026-09-25.md      # last report
 
 Enabled on 2026-09-27: the timer fires **daily at 06:00** with
 `Persistent=true`, so a run missed while the machine was off/suspended starts
-after the next boot and resumes from its checkpoint.
+after the next boot and resumes from its checkpoint. The unit files are
+versioned in the repo (`deploy/systemd/`); reinstall them with
+`cp deploy/systemd/value-investing-daily.{service,timer} ~/.config/systemd/user/`.
+
+`SEC_USER_AGENT` is deliberately absent from the unit (it must carry a real
+e-mail and belongs in the gitignored `.env`, which the unit loads through
+`EnvironmentFile`); without it the targeted SEC refresh is skipped, not
+failed.
+
+The run is started with `--verbose` so the scheduled log carries stage
+progress, phase timings, fundamentals-cache stats and the network telemetry —
+without it only warnings reach `data/logs/daily_workflow.log`.
 
 ```bash
 systemctl --user daemon-reload
@@ -255,6 +266,12 @@ PY
 ```
 
 The same numbers are rendered as a `## Network` section in the report.
+
+Verified on 2026-09-27 with a manual `systemctl --user start`:
+`Result=success`, `ExecMainStatus=0`, `NRestarts=0`, 6 min 37 s wall for the
+2 528-ticker universe, `0 refreshed · 0 stale · 2 519 fresh · 9 unmapped`
+(confirming the same-day sweep), 2 450 tickers screened, 279 alerts and the
+report written to `data/reports/daily_2026-09-27.md`.
 
 ### nohup / tmux alternative
 
