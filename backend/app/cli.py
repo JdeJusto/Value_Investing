@@ -95,21 +95,37 @@ def build_data_pipeline() -> DataPipelineService:
 
 def build_analysis_service(
     market_provider: Optional[MarketDataProvider] = None,
+    analysis_cache=None,
 ) -> CompanyAnalysisService:
     """CompanyAnalysisService reading from Financial-DataBase.
 
     ``market_provider`` defaults to the live Yahoo provider. The daily
     workflow passes a SnapshotMarketProvider (prefetched quote snapshots) so
     batch analysis runs with zero per-ticker network calls.
+
+    ``analysis_cache`` may be an :class:`AnalysisCache` (used as-is), ``False``
+    to disable it, or ``None`` to build the default cache when the repository
+    supports fingerprints and ``ANALYSIS_CACHE`` is not disabled.
     """
     if market_provider is None:
         from backend.providers.yahoo import YahooFinanceProvider
 
         market_provider = YahooFinanceProvider()
+    repository = build_financial_repository()
+    cache = analysis_cache
+    if analysis_cache is None:
+        from backend.services.analysis_cache import AnalysisCache
+
+        cache = AnalysisCache(
+            repository=repository,
+            enabled=os.environ.get("ANALYSIS_CACHE", "1").lower()
+            not in ("0", "false", "no"),
+        )
     return CompanyAnalysisService(
-        repository=build_financial_repository(),
+        repository=repository,
         market_provider=market_provider,
         loader=build_data_pipeline(),
+        history_cache=cache,
     )
 
 

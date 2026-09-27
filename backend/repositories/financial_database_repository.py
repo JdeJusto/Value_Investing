@@ -7,6 +7,7 @@ financial facts and reconstructing NormalizedFinancials objects.
 
 from __future__ import annotations
 
+import hashlib
 import math
 import os
 import threading
@@ -414,6 +415,57 @@ class FinancialDatabaseRepository(FinancialRepository):
                 return True
         except Exception:
             return False
+
+    def fundamentals_fingerprint(self, ticker: str) -> Optional[str]:
+        """Cheap change-detector digest of a company's stored fundamentals.
+
+        One round trip on cheap, well-indexed rows: the company row itself
+        (``updated_at`` is touched by every ingestion, ``last_synced_at`` by
+        every targeted SEC sync) plus the company's filing count and newest
+        filing date. Any new filing or re-sync changes the digest, which is
+        what invalidates the analysis cache (backend/services/analysis_cache.py).
+
+        Deliberately NOT derived from ``financial_facts``: aggregating that
+        table per company costs as much as reading the history it is meant to
+        replace (~130 ms measured after the 2026-09-27 sweep bloated the
+        indexes), which would cancel the whole point of the cache. The
+        accepted trade-off: a restatement that adds facts without any new
+        filing and without touching the company row keeps the digest — the
+        next sync of that company bumps ``updated_at`` and invalidates it.
+
+        Returns None when the ticker is unknown, the repository is
+        unavailable or the company has no filings — i.e. "cannot cache",
+        never "cache is fresh".
+        """
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT c.updated_at AS company_updated,
+                           c.last_synced_at AS company_synced,
+                           (SELECT count(*) FROM filings f
+                             WHERE f.company_id = c.id) AS filing_count,
+                           (SELECT max(f.created_at) FROM filings f
+                             WHERE f.company_id = c.id) AS last_filing
+                    FROM companies c
+                    JOIN company_identifiers ci ON ci.company_id = c.id
+                    WHERE ci.identifier_type = 'TICKER'
+                      AND ci.identifier_value = %s
+                    LIMIT 1
+                    """,
+                    (str(ticker).upper(),),
+                )
+                row = cur.fetchone()
+        except Exception:  # noqa: BLE001 — a fingerprint failure is a cache miss
+            return None
+        if not row or int(row.get("filing_count") or 0) == 0:
+            return None
+        raw = "|".join(
+            str(row.get(key) or "")
+            for key in ("company_updated", "company_synced", "filing_count", "last_filing")
+        )
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
     def get_company_name(self, ticker: str) -> Optional[str]:
         """Company legal name by ticker, or None when unknown.

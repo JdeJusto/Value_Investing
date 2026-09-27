@@ -96,6 +96,7 @@ class CompanyAnalysisService:
         default_wacc: float = DEFAULT_WACC,
         market_return: float = DEFAULT_MARKET_RETURN,
         risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+        history_cache=None,
     ):
         self._repository = repository
         self._market = market_provider
@@ -104,6 +105,11 @@ class CompanyAnalysisService:
         self._default_wacc = default_wacc
         self._market_return = market_return
         self._risk_free_rate = risk_free_rate
+        # Optional cache of the normalized fundamentals rows (see
+        # backend/services/analysis_cache.py). It only skips the database
+        # read; the arithmetic and every price-derived metric are recomputed
+        # on every call, so a hit can never serve stale market data.
+        self._history_cache = history_cache
 
     # ------------------------------------------------------------------
     def analyze(self, ticker: str, no_prices: bool = False) -> Optional[dict]:
@@ -320,6 +326,20 @@ class CompanyAnalysisService:
         return any(getattr(row, field) is not None for field in cls._CORE_FIELDS)
 
     def _load_history(self, ticker: str) -> list[NormalizedFinancials]:
+        cache = self._history_cache
+        fingerprint = None
+        if cache is not None:
+            fingerprint = cache.fingerprint_for(ticker)
+            if fingerprint is not None:
+                cached = cache.get(ticker, fingerprint)
+                if cached is not None:
+                    return cached
+        rows = self._load_history_from_repository(ticker)
+        if cache is not None and fingerprint is not None and rows:
+            cache.put(ticker, fingerprint, rows)
+        return rows
+
+    def _load_history_from_repository(self, ticker: str) -> list[NormalizedFinancials]:
         rows = self._repository.get_best_available(ticker)
         if rows and needs_refresh(rows):
             rows = self._refresh_history(ticker)

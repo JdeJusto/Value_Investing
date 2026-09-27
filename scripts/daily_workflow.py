@@ -494,6 +494,20 @@ def _run(args) -> None:
     price_service = get_price_service()
     cache: dict[str, dict | None] = {}
 
+    # Fundamentals cache: skips the per-ticker database read (the ~96 % of the
+    # analysis cost) when neither the company's facts nor the analysis version
+    # changed. Price-derived metrics are always recomputed from the live
+    # snapshot below, so a cache hit can never serve stale market data.
+    from backend.services.analysis_cache import AnalysisCache
+
+    analysis_cache = AnalysisCache(repository=fdb_repo, enabled=not args.no_cache)
+    if not args.no_cache:
+        logger.info(
+            "fundamentals cache: %s (version %s)",
+            analysis_cache.directory,
+            analysis_cache.version,
+        )
+
     # One Yahoo quote-summary (.info) request per ticker carries price, market
     # cap, enterprise value, beta and shares — prefetched once here so the
     # parallel analysis below runs with *zero* further network calls. With
@@ -594,7 +608,9 @@ def _run(args) -> None:
     if run_state is not None:
         run_state.set_stage("analysis")
 
-    analysis_service = build_analysis_service(market_provider=market_provider)
+    analysis_service = build_analysis_service(
+        market_provider=market_provider, analysis_cache=analysis_cache
+    )
 
     # Thread-safe progress counter: logs every 100 analyzed tickers so large
     # universes stay visibly alive during the analysis phase.
@@ -644,6 +660,7 @@ def _run(args) -> None:
     )
     screened = screener.run()
     logger.info("screened %d of %d tickers", len(screened), len(universe))
+    logger.info("fundamentals cache: %s", analysis_cache.stats)
     timings["analysis"] = time.time() - tick
     tick = time.time()
 
@@ -988,6 +1005,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-prices",
         action="store_true",
         help="Do not fetch real-time prices (valuation may be N/A)",
+    )
+    p.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Ignore the fundamentals cache (data/cache/analysis) and re-read "
+        "every company's financials from Financial-DataBase",
     )
     p.add_argument("--top", type=int, default=20, help="Top rows in the table")
     p.add_argument(

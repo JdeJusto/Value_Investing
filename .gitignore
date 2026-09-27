@@ -157,3 +157,4 @@ data/reports/daily_run_state*.json
 # Daily run artifacts (regenerated every run; git history keeps the old ones)
 data/reports/daily_*.md
 data/reports/daily_state.json
+data/cache/analysis/
