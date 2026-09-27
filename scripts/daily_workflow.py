@@ -244,9 +244,11 @@ def _run_targeted_refresh(
     # cap never applies to an explicit --refresh (force).
     pool = list(eligible)
     deferred: list[str] = []
-    stale_count = fresh_count = unknown_count = 0
+    stale_count = 0
+    fresh_list: list[str] = []
+    unknown_list: list[str] = []
     if max_refresh is not None and not force:
-        stale_ranked, fresh_count, unknown_count = service.staleness_ranked(
+        stale_ranked, fresh_list, unknown_list = service.staleness_ranked(
             eligible, max_age_hours=freshness_hours
         )
         stale_count = len(stale_ranked)
@@ -275,9 +277,11 @@ def _run_targeted_refresh(
         if result.failed:
             parts.append(f"{len(result.failed)} failed")
         parts.append(f"{stale_count} stale")
-        parts.append(f"{fresh_count} fresh")
-        if unknown_count:
-            parts.append(f"{unknown_count} unmapped")
+        # staleness_ranked returns LISTS (fresh / unknown); the status line
+        # must report their counts, not the ticker lists.
+        parts.append(f"{len(fresh_list)} fresh")
+        if unknown_list:
+            parts.append(f"{len(unknown_list)} unmapped")
         if deferred:
             parts.append(f"{len(deferred)} deferred (--max-refresh)")
         parts.append(f"{elapsed:.0f}s")
