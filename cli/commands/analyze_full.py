@@ -91,12 +91,13 @@ def _section_overview(row_input, sector, industry):
         print(f"     {label:<14} {value}")
 
 
-def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, no_prices):
+def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, shares, no_prices):
     print(bold("2) Precio y valoracion en tiempo real"))
     if no_prices:
         print(f"     {yellow('(--no-prices) Precio no consultado en tiempo real.')}")
     vals = [
         ("Precio", _fmt(price, fmt_dollar)),
+        ("Shares outstanding", f"{shares:,}" if shares else dim("N/A")),
         ("Market Cap", _fmt(market_cap, fmt_dollar)),
         ("PER", _fmt(per, lambda v: fmt_ratio(v, 1))),
         ("P/B", _fmt(pb, lambda v: fmt_ratio(v, 2))),
@@ -104,7 +105,7 @@ def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, no_prices):
         ("EV/EBIT", _fmt(ev_ebit, lambda v: fmt_ratio(v, 1))),
     ]
     for label, value in vals:
-        print(f"     {label:<14} {value}")
+        print(f"     {label:<18} {value}")
 
 
 def _section_fundamentals(row_input):
@@ -239,6 +240,7 @@ def _run(args):
                 row.pb,
                 row.fcf_yield,
                 row.ev_ebit,
+                row.shares_outstanding,
                 args.no_prices,
             )
             _section_fundamentals(d)

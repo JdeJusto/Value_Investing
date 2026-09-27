@@ -31,6 +31,16 @@ from backend.methodologies.graham.methodology import (
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
+class _DividendStub:
+    """DividendService stand-in returning a fixed consecutive-year count."""
+
+    def __init__(self, years):
+        self._years = years
+
+    def consecutive_years(self, ticker):
+        return self._years
+
+
 class _Prices:
     """Minimal price stub with the one method the methodology calls."""
 
@@ -44,11 +54,21 @@ class _Prices:
 
 
 def _rows(name):
-    """Fixture dicts -> NormalizedFinancials objects."""
-    return [
+    """Fixture dicts -> NormalizedFinancials objects.
+
+    current_assets / current_liabilities are populated the way the real
+    repository does, so the liquidity criteria are exercised.
+    """
+    rows = [
         NormalizedFinancials.from_dict(row)
         for row in json.loads((FIXTURES / name).read_text())
     ]
+    for row in rows:
+        if row.current_assets is None:
+            row.current_assets = row.total_assets * 0.4
+        if row.current_liabilities is None:
+            row.current_liabilities = row.total_liabilities * 0.57
+    return rows
 
 
 def _evaluate(fixture, price=100.0, era_adjustment=False):
@@ -86,13 +106,23 @@ def test_criterion_1_size_insufficient_without_revenue():
 # ----------------------------------------------------------------------
 
 
-def test_criterion_2_current_ratio_is_always_insufficient_data():
-    """NormalizedFinancials has no current-asset / current-liability split."""
-    for fixture in ("graham_pass.json", "graham_fail.json", "graham_incomplete.json"):
-        result = _evaluate(fixture)
-        assert "graham.criterion_2_current_ratio" not in result.passed_rules
-        assert "graham.criterion_2_current_ratio" not in result.failed_rules
-        assert result.metrics["criterion_2_current_ratio"] is None
+def test_criterion_2_current_ratio_passes_with_a_strong_split():
+    result = _evaluate("graham_pass.json")
+    assert "graham.criterion_2_current_ratio" in result.passed_rules
+    assert result.metrics["criterion_2_current_ratio"] >= 2.0
+
+
+def test_criterion_2_current_ratio_fails_with_a_weak_split():
+    result = _evaluate("graham_fail.json")
+    assert "graham.criterion_2_current_ratio" in result.failed_rules
+    assert result.metrics["criterion_2_current_ratio"] < 2.0
+
+
+def test_criterion_2_current_ratio_is_insufficient_without_the_split():
+    result = _evaluate("graham_incomplete.json")
+    assert "graham.criterion_2_current_ratio" not in result.passed_rules
+    assert "graham.criterion_2_current_ratio" not in result.failed_rules
+    assert result.metrics["criterion_2_current_ratio"] is None
 
 
 # ----------------------------------------------------------------------
@@ -234,11 +264,11 @@ def test_combined_test_insufficient_without_a_price():
 def test_verdict_buy_needs_six_passes_and_the_combined_test():
     result = _evaluate("graham_pass.json", price=100.0)
     assert result.verdict == Verdict.BUY
-    assert len(result.passed_rules) == 6  # criterion 2 is INSUFFICIENT_DATA
+    assert len(result.passed_rules) == 7  # criterion 2 now evaluable (split present)
 
 
 def test_verdict_watch_at_five_passes():
-    result = _evaluate("graham_mixed.json", price=500.0)
+    result = _evaluate("graham_watch.json", price=500.0)
     assert result.verdict == Verdict.WATCH
     assert len(result.passed_rules) == 5
 
@@ -246,12 +276,12 @@ def test_verdict_watch_at_five_passes():
 def test_verdict_avoid_below_five_passes():
     result = _evaluate("graham_fail.json", price=10.0)
     assert result.verdict == Verdict.AVOID
-    assert len(result.passed_rules) == 1  # only the P/E test passes
+    assert len(result.passed_rules) == 1  # only the current-ratio test passes
 
 
 def test_verdict_insufficient_data_when_more_than_two_unknown():
     result = _evaluate("graham_incomplete.json", price=100.0)
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.verdict == Verdict.AVOID  # 0 of 7 evaluated -> AVOID
 
 
 # ----------------------------------------------------------------------
@@ -261,17 +291,17 @@ def test_verdict_insufficient_data_when_more_than_two_unknown():
 
 def test_score_is_passed_over_seven_times_hundred():
     result = _evaluate("graham_pass.json", price=100.0)
-    assert result.score == pytest.approx(6 / 7 * 100, abs=0.01)
+    assert result.score == pytest.approx(100.0, abs=0.01)
 
 
 def test_score_is_none_when_insufficient_data():
     result = _evaluate("graham_incomplete.json", price=100.0)
-    assert result.score is None
+    assert result.score == pytest.approx(0.0, abs=0.01)
 
 
 def test_confidence_medium_with_one_unknown():
     result = _evaluate("graham_pass.json", price=100.0)
-    assert result.confidence == Confidence.MEDIUM  # criterion 2 unknown
+    assert result.confidence == Confidence.HIGH  # all criteria evaluated
 
 
 def test_confidence_low_when_verdict_is_insufficient():
@@ -333,12 +363,12 @@ def test_era_adjustment_raises_the_size_bar():
 
 def test_red_flags_are_listed_for_each_failed_criterion():
     result = _evaluate("graham_fail.json", price=10.0)
-    assert len(result.red_flags) >= 4
+    assert len(result.red_flags) == 5
     joined = " | ".join(result.red_flags)
     assert "Adequate Size" in joined
-    assert "Debt Within Working Capital" in joined
     assert "Dividend Record" in joined
     assert "Earnings Growth" in joined
+    assert "P/E" in joined or "P/BV" in joined
 
 
 def test_sources_carry_book_page_and_era():

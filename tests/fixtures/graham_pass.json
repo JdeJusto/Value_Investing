@@ -39,7 +39,9 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "current_assets": 200000000.0,
+    "current_liabilities": 80000000.0
   },
   {
     "ticker": "TEST",

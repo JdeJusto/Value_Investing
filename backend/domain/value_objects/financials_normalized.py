@@ -69,6 +69,12 @@ class NormalizedFinancials:
     total_liabilities: float | None = None
     total_debt: float | None = None
     cash_and_equivalents: float | None = None
+    # current_assets / current_liabilities are the balance-sheet split the
+    # Graham criteria need; working_capital stays a stored field for
+    # backwards compatibility (criteria 2 and 3 derive it from the split
+    # when both sides are present).
+    current_assets: float | None = None
+    current_liabilities: float | None = None
     working_capital: float | None = None
     retained_earnings: float | None = None
     stockholders_equity: float | None = None

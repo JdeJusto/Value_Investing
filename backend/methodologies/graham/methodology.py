@@ -18,6 +18,8 @@ criterion returns INSUFFICIENT_DATA unless the caller supplies the split. See
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from backend.services.dividend_service import get_dividend_service
 from typing import Any, Optional
 
 from backend.methodologies.base import (
@@ -206,30 +208,39 @@ class GrahamMethodology(Methodology):
     def _criterion_2_current_ratio(self, rows) -> CriterionResult:
         """Current ratio >= 2:1.
 
-        Needs current assets and current liabilities separately. The VO only
-        stores their difference (working_capital), so this returns
-        INSUFFICIENT_DATA rather than guessing — see README.md.
+        Needs current assets and current liabilities separately. When either
+        side is missing the criterion is INSUFFICIENT_DATA rather than
+        guessing — see README.md.
         """
+        latest = self._latest(rows)
+        if latest is None or latest.current_assets is None or latest.current_liabilities is None:
+            return CriterionResult(
+                "graham.criterion_2_current_ratio",
+                None,
+                None,
+                _MIN_CURRENT_RATIO,
+                "NormalizedFinancials has no current-asset / current-liability split",
+            )
+        ratio = latest.current_assets / latest.current_liabilities
+        passed = ratio >= _MIN_CURRENT_RATIO
         return CriterionResult(
             "graham.criterion_2_current_ratio",
-            None,
-            None,
+            passed,
+            ratio,
             _MIN_CURRENT_RATIO,
-            "NormalizedFinancials has no current-asset / current-liability split",
+            f"current ratio {ratio:.2f} vs {_MIN_CURRENT_RATIO:.1f}",
         )
 
     def _criterion_3_debt_vs_working_capital(self, rows) -> CriterionResult:
         """Long-term debt <= net working capital.
 
-        Implemented with ``total_debt``, which is >= long-term debt, so the test
-        is stricter than the book's. Documented in README.md.
+        Working capital is derived from the balance-sheet split
+        (``current_assets - current_liabilities``) so a missing statement never
+        reads as zero. ``total_debt`` is used for the debt side, which is >=
+        long-term debt, so the test stays stricter than the book's.
         """
         latest = self._latest(rows)
-        if (
-            latest is None
-            or latest.total_debt is None
-            or latest.working_capital is None
-        ):
+        if latest is None or latest.total_debt is None:
             return CriterionResult(
                 "graham.criterion_3_debt_vs_working_capital",
                 None,
@@ -237,14 +248,28 @@ class GrahamMethodology(Methodology):
                 None,
                 "no debt or working-capital data",
             )
-        passed = latest.total_debt <= latest.working_capital
+        working_capital = (
+            latest.current_assets - latest.current_liabilities
+            if latest.current_assets is not None
+            and latest.current_liabilities is not None
+            else None
+        )
+        if working_capital is None:
+            return CriterionResult(
+                "graham.criterion_3_debt_vs_working_capital",
+                None,
+                None,
+                None,
+                "no working-capital data",
+            )
+        passed = latest.total_debt <= working_capital
         return CriterionResult(
             "graham.criterion_3_debt_vs_working_capital",
             passed,
             latest.total_debt,
-            latest.working_capital,
+            working_capital,
             f"total debt ${latest.total_debt:,.0f} vs working capital "
-            f"${latest.working_capital:,.0f}",
+            f"${working_capital:,.0f}",
         )
 
     def _criterion_4_dividend_history(self, rows) -> CriterionResult:

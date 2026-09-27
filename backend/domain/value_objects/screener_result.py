@@ -19,5 +19,6 @@ class ScreenerRow:
     debt_to_equity: Optional[float] = None
     revenue_growth: Optional[float] = None
     fcf: Optional[float] = None
+    shares_outstanding: Optional[int] = None
     score: Optional[float] = None
     extra: dict = field(default_factory=dict)
