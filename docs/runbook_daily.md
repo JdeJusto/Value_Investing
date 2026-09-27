@@ -405,8 +405,13 @@ files).
   market-snapshot prefetch is skipped, so the run screens the universe with
   market fields N/A and the report's `## Network` section shows 0 Yahoo
   requests. This is throttle protection, not a bug — the fundamentals refresh
-  still runs. Wait for the rate limit to expire and re-run; force a fresh
-  probe with `YAHOO_HEALTH_TTL_SECONDS=0` (or a restart of the process).
+  still runs. Two visible consequences while it lasts: price-derived columns
+  (P/E, P/B, FCF yield, EV/EBIT, price, margin of safety) are N/A, and
+  `rank_score` loses its margin-of-safety and momentum components, so
+  `BUY_SIGNAL` alerts can drop to 0 even though the fundamentals are intact
+  (the report's cross-sectional `Rank` column stays in a usable range). Wait
+  for the rate limit to expire and re-run; force a fresh probe with
+  `YAHOO_HEALTH_TTL_SECONDS=0` (or a restart of the process).
 - **Refresh slower than expected**: read the report's `## Network` section —
   `sec_requests` (company syncs attempted), `sec_retries`,
   `HTTP 403/429` and `avg_sec_latency_ms` separate "SEC is slow" from
