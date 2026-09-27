@@ -540,8 +540,6 @@ class PriceService:
 
         Yahoo's chart endpoint emits ``possibly delisted; no price data found``
         for transient rate-limit windows on very liquid names (CBOE, BBY,
-        BRK-B, NXPI…), so a bare failure tells us nothing. This probe-based
-        classifier distinguishes the real cases:
 
         - ``yahoo_glitch``  — a fresh probe *does* find data: the original
           failure was transient (rate limiting / empty window). Reported as a
@@ -559,6 +557,13 @@ class PriceService:
         ``known_ticker`` is optional and must be side-effect free; when it is
         omitted the mapping/delisted split degrades to ``unknown``.
 
+        ``delisted`` is only ever concluded when Yahoo is actually answering.
+        A provider-wide problem produces no data for *every* symbol, and
+        reporting a throttle as "15 of 15 companies are delisted" is worse
+        than useless: it hides a rate limit behind a data-quality claim. When
+        the preflight says Yahoo is unreachable (or has failed recently), the
+        verdict is ``unknown`` with the reason recorded.
+
         The verdict is tallied in the run telemetry (see
         :meth:`price_failure_counts`) so a run can report its failure mix
         without re-reading the logs.
@@ -572,11 +577,30 @@ class PriceService:
                 known = known_ticker(ticker)
             except Exception:  # noqa: BLE001 — listing lookup must not break
                 known = None
+        if not self._yahoo_is_answering():
+            # A provider-wide outage explains "no data" far better than a
+            # per-symbol verdict, and it must not be recorded as delisting.
+            return self._tally(PRICE_FAILURE_UNKNOWN)
         if known is False:
             return self._tally(PRICE_FAILURE_MAPPING)
         if known is True:
             return self._tally(PRICE_FAILURE_DELISTED)
         return self._tally(PRICE_FAILURE_UNKNOWN)
+
+    def _yahoo_is_answering(self) -> bool:
+        """Whether Yahoo can be assumed available for a per-symbol verdict.
+
+        Uses the preflight outcome when one exists (no extra request): if the
+        probe found the provider unreachable, or the chart probe itself just
+        failed for a transport reason, no per-symbol conclusion is safe.
+        """
+        health = self.last_health()
+        if health is not None and not getattr(health, "available", True):
+            return False
+        try:
+            return self._probe_has_data("AAPL")
+        except Exception:  # noqa: BLE001 — an unhealthy provider is not "delisted"
+            return False
 
     def _tally(self, category: str) -> str:
         """Record one classified failure and return its category."""

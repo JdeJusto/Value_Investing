@@ -228,3 +228,86 @@ def test_price_service_does_not_send_its_own_user_agent():
 
     source = inspect.getsource(price_service)
     assert "User-Agent" not in source
+
+
+# ----------------------------------------------------------------------
+# Fix: a provider-wide outage must not be reported as "delisted"
+# ----------------------------------------------------------------------
+
+
+def test_delisted_requires_yahoo_to_be_answering(monkeypatch):
+    """15 of 15 'delisted' was a throttle being reported as a data problem."""
+    from backend.services.price_service import (
+        PRICE_FAILURE_DELISTED,
+        PRICE_FAILURE_UNKNOWN,
+        PriceService,
+    )
+    from backend.services.yahoo_health import YahooHealth
+
+    service = PriceService()
+    # The preflight already proved the provider unreachable: no data for any
+    # symbol is expected, and no per-symbol verdict is safe.
+    service._last_health = YahooHealth(False, "Yahoo returned HTTP 429", 429, 0.0)
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: False)
+
+    verdict = service.classify_price_failure("AAPL", known_ticker=lambda t: True)
+
+    assert verdict == PRICE_FAILURE_UNKNOWN
+    assert verdict != PRICE_FAILURE_DELISTED
+
+
+def test_delisted_still_reported_when_yahoo_answers(monkeypatch):
+    from backend.services.price_service import PRICE_FAILURE_DELISTED, PriceService
+    from backend.services.yahoo_health import YahooHealth
+
+    service = PriceService()
+    service._last_health = YahooHealth(True, "ok", 200, 0.0)
+    # The per-symbol probe finds nothing, but a control symbol does have data,
+    # so the provider is fine and this symbol really is unquoted.
+    monkeypatch.setattr(
+        service, "_probe_has_data", lambda ticker: ticker == "AAPL"
+    )
+
+    assert service.classify_price_failure("ZZZZ", known_ticker=lambda t: True) == (
+        PRICE_FAILURE_DELISTED
+    )
+
+
+def test_mapping_still_reported_when_yahoo_answers(monkeypatch):
+    from backend.services.price_service import PRICE_FAILURE_MAPPING, PriceService
+    from backend.services.yahoo_health import YahooHealth
+
+    service = PriceService()
+    service._last_health = YahooHealth(True, "ok", 200, 0.0)
+    monkeypatch.setattr(
+        service, "_probe_has_data", lambda ticker: ticker == "AAPL"
+    )
+
+    assert service.classify_price_failure("ZZZZ", known_ticker=lambda t: False) == (
+        PRICE_FAILURE_MAPPING
+    )
+
+
+def test_yahoo_is_answering_falls_back_to_a_control_symbol(monkeypatch):
+    """With no preflight outcome, a control symbol decides."""
+    from backend.services.price_service import PriceService
+
+    service = PriceService()
+    assert service.last_health() is None
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: True)
+    assert service._yahoo_is_answering() is True
+
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: False)
+    assert service._yahoo_is_answering() is False
+
+
+def test_yahoo_is_answering_is_false_when_the_probe_raises(monkeypatch):
+    from backend.services.price_service import PriceService
+
+    service = PriceService()
+
+    def _boom(ticker):
+        raise RuntimeError("connection reset")
+
+    monkeypatch.setattr(service, "_probe_has_data", _boom)
+    assert service._yahoo_is_answering() is False

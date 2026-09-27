@@ -317,13 +317,22 @@ def test_classify_price_failure_tallies_every_category(monkeypatch):
 
     metrics = NetworkMetrics()
     service = PriceService(metrics=metrics)
-    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: True)
+    # The control symbol (AAPL) is what tells the classifier the provider is
+    # answering; a ticker-aware probe keeps the per-symbol verdicts honest.
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: ticker == "AAPL")
     assert service.classify_price_failure("AAPL") == "yahoo_glitch"
 
-    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: False)
-    assert service.classify_price_failure("AAPL", known_ticker=lambda t: False) == "mapping"
-    assert service.classify_price_failure("AAPL", known_ticker=lambda t: True) == "delisted"
-    assert service.classify_price_failure("AAPL") == "unknown"
+    # Only the symbol under test lacks data: the control symbol still answers,
+    # which is what makes a per-symbol verdict safe. A provider-wide outage is
+    # covered separately (it must never be tallied as delisted).
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: ticker == "AAPL")
+    assert service.classify_price_failure(
+        "MSFT", known_ticker=lambda t: False
+    ) == "mapping"
+    assert service.classify_price_failure(
+        "MSFT", known_ticker=lambda t: True
+    ) == "delisted"
+    assert service.classify_price_failure("MSFT") == "unknown"  # no listing opinion
 
     assert metrics.price_failures() == {
         "yahoo_glitch": 1,

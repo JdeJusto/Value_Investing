@@ -71,6 +71,23 @@ class TestPriceFailureClassification:
         t.info = info
         return t
 
+    @staticmethod
+    def _ticker_factory(control: str = "AAPL", empty_info=None):
+        """yf.Ticker stand-in: ``control`` has data, everything else has none."""
+        empty = empty_info if empty_info is not None else None
+        hist = Mock()
+        hist.empty = True
+
+        def _factory(ticker):
+            if ticker == control:
+                return TestPriceFailureClassification._quote({"quoteType": "EQUITY"})
+            blank = Mock()
+            blank.info = empty
+            blank.history.return_value = hist
+            return blank
+
+        return _factory
+
     def test_data_available_on_retry_is_a_glitch(self):
         service = PriceService()
         with patch(
@@ -84,16 +101,13 @@ class TestPriceFailureClassification:
 
     def test_no_data_and_unknown_listing_is_mapping(self):
         service = PriceService()
-        ticker = Mock()
-        ticker.info = None
-        hist = Mock()
-        hist.empty = True
-        side_effect = [ticker, ticker]
+        # The symbol under test has no data, but the control symbol does, which
+        # is how the classifier knows Yahoo is answering before concluding
+        # anything about this symbol.
         with patch(
             "backend.services.price_service.yf.Ticker",
-            side_effect=side_effect,
-        ) as t:
-            t.return_value.history.return_value = hist
+            side_effect=self._ticker_factory(),
+        ):
             category = service.classify_price_failure(
                 "ZZZZQQ", known_ticker=lambda _: False
             )
@@ -101,19 +115,28 @@ class TestPriceFailureClassification:
 
     def test_no_data_and_active_listing_is_delisted(self):
         service = PriceService()
-        ticker = Mock()
-        ticker.info = None
-        hist = Mock()
-        hist.empty = True
+        # Control symbol answers, so "delisted" is a safe conclusion.
         with patch(
             "backend.services.price_service.yf.Ticker",
-            side_effect=[ticker, ticker],
-        ) as t:
-            t.return_value.history.return_value = hist
+            side_effect=self._ticker_factory(),
+        ):
             category = service.classify_price_failure(
                 "DED", known_ticker=lambda _: True
             )
         assert category == "delisted"
+
+    def test_provider_wide_outage_is_not_reported_as_delisted(self):
+        """A throttle produces no data for every symbol; that is not delisting."""
+        service = PriceService()
+        # No symbol has data, the control one included: the provider is down.
+        with patch(
+            "backend.services.price_service.yf.Ticker",
+            side_effect=self._ticker_factory(control="__never__"),
+        ):
+            category = service.classify_price_failure(
+                "AAPL", known_ticker=lambda _: True
+            )
+        assert category == "unknown"
 
     def test_no_data_and_no_listing_opinion_is_unknown(self):
         service = PriceService()
@@ -150,15 +173,10 @@ class TestPriceFailureClassification:
     def test_empty_info_dict_is_not_data(self):
         """.info={} (no quoteType) is treated as no data, not a glitch."""
         service = PriceService()
-        ticker = Mock()
-        ticker.info = {}
-        hist = Mock()
-        hist.empty = True
         with patch(
             "backend.services.price_service.yf.Ticker",
-            side_effect=[ticker, ticker],
-        ) as t:
-            t.return_value.history.return_value = hist
+            side_effect=self._ticker_factory(empty_info={}),
+        ):
             category = service.classify_price_failure(
                 "JUNK", known_ticker=lambda _: False
             )
