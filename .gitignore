@@ -158,3 +158,4 @@ data/reports/daily_run_state*.json
 data/reports/daily_*.md
 data/reports/daily_state.json
 data/cache/analysis/
+data/cache/alerts/

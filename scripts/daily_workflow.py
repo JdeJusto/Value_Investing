@@ -702,7 +702,46 @@ def _run(args) -> None:
         if args.dry_run
         else load_state(str(Path(args.out) / "daily_state.json"))
     )
-    alerts = run_alerts(cache, previous)
+
+    # Alerts are evaluated over the whole universe because the TRIGGER_EVENT
+    # floors are calibrated cross-sectionally, so the cache replays the whole
+    # stored list (keyed by day + run id + a digest of the alert inputs) rather
+    # than evaluating company by company. A resumed run with unchanged inputs
+    # therefore produces exactly the same alerts, without re-emitting them.
+    from backend.services.alerts_cache import AlertsCache, input_digest
+
+    alerts_cache = AlertsCache(enabled=not args.no_cache)
+    alerts_digest = input_digest(cache, previous)
+    alerts_dicts = alerts_cache.get(
+        report_date, run_state.run_id if run_state is not None else "-", alerts_digest
+    )
+    if alerts_dicts is not None:
+        from backend.alerts.alert_engine import Alert
+
+        alerts = [
+            Alert(
+                ticker=item.get("ticker", ""),
+                alert_type=item.get("alert_type", ""),
+                reason=list(item.get("reason") or []),
+                confidence=item.get("confidence", ""),
+            )
+            for item in alerts_dicts
+        ]
+        logger.info(
+            "alerts: reusing %d cached alerts (run %s)",
+            len(alerts),
+            run_state.run_id if run_state is not None else "-",
+        )
+    else:
+        alerts = run_alerts(cache, previous)
+        alerts_cache.put(
+            report_date,
+            run_state.run_id if run_state is not None else "-",
+            alerts_digest,
+            alerts,
+            as_dict=alert_to_dict,
+        )
+        logger.info("alerts: %s", alerts_cache.stats())
     if run_state is not None:
         run_state.set_alerts_generated(len(alerts))
     timings["alerts"] = time.time() - tick
