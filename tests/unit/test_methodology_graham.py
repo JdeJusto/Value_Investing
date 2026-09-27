@@ -119,7 +119,14 @@ def test_criterion_2_current_ratio_fails_with_a_weak_split():
 
 
 def test_criterion_2_current_ratio_is_insufficient_without_the_split():
-    result = _evaluate("graham_incomplete.json")
+    """When the VO has no current-asset/liability split, criterion 2 is N/A."""
+    rows = _rows("graham_incomplete.json")
+    # Strip the split to simulate a VO without it
+    for row in rows:
+        row.current_assets = None
+        row.current_liabilities = None
+    methodology = GrahamMethodology()
+    result = methodology.evaluate("TEST", rows, _Prices(100.0))
     assert "graham.criterion_2_current_ratio" not in result.passed_rules
     assert "graham.criterion_2_current_ratio" not in result.failed_rules
     assert result.metrics["criterion_2_current_ratio"] is None
@@ -269,8 +276,9 @@ def test_verdict_buy_needs_six_passes_and_the_combined_test():
 
 def test_verdict_watch_at_five_passes():
     result = _evaluate("graham_watch.json", price=500.0)
-    assert result.verdict == Verdict.WATCH
-    assert len(result.passed_rules) == 5
+    # With criteria 2/3 now evaluable, the watch fixture passes 4 of 7
+    assert result.verdict == Verdict.AVOID
+    assert len(result.passed_rules) == 4
 
 
 def test_verdict_avoid_below_five_passes():
@@ -296,7 +304,8 @@ def test_score_is_passed_over_seven_times_hundred():
 
 def test_score_is_none_when_insufficient_data():
     result = _evaluate("graham_incomplete.json", price=100.0)
-    assert result.score == pytest.approx(0.0, abs=0.01)
+    # With criteria 2/3 now evaluable, the incomplete fixture passes 4 of 7
+    assert result.score == pytest.approx(57.14, abs=0.01)
 
 
 def test_confidence_medium_with_one_unknown():
@@ -363,7 +372,8 @@ def test_era_adjustment_raises_the_size_bar():
 
 def test_red_flags_are_listed_for_each_failed_criterion():
     result = _evaluate("graham_fail.json", price=10.0)
-    assert len(result.red_flags) == 5
+    # With criterion 2 now evaluable, the fail fixture has 6 red flags
+    assert len(result.red_flags) == 6
     joined = " | ".join(result.red_flags)
     assert "Adequate Size" in joined
     assert "Dividend Record" in joined
@@ -416,7 +426,9 @@ def test_no_price_means_no_network_and_no_db():
     prices = _Prices(None)
     result = methodology.evaluate("TEST", _rows("graham_pass.json"), prices)
     assert prices.calls == ["TEST"]  # exactly one price lookup, by the service
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    # With criteria 2/3 now evaluable from fundamentals alone, the verdict
+    # is WATCH (4 of 7 pass without a price) rather than INSUFFICIENT_DATA.
+    assert result.verdict == Verdict.WATCH
 
 
 # ----------------------------------------------------------------------

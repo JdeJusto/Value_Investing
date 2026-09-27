@@ -63,6 +63,13 @@ def _parse_dividends(raw) -> List[DividendRecord]:
     except AttributeError:
         items = list(raw)
     for key, amount in items:
+        # Skip NaT (Not a Time) keys — they can't be converted to dates
+        # and would crash the sort below (NaT != NaT is True).
+        try:
+            if key != key:  # NaT check
+                continue
+        except (TypeError, ValueError):
+            pass
         try:
             value = float(amount)
         except (TypeError, ValueError):

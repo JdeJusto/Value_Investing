@@ -58,13 +58,13 @@ class TestAnalyzeFullSections:
         assert "Consumer Electronics" in out
 
     def test_section_price_renders_n_a_when_missing(self, capsys):
-        analyze_full._section_price(None, None, None, None, None, None, False)
+        analyze_full._section_price(None, None, None, None, None, None, None, False)
         out = capsys.readouterr().out
         assert "Precio" in out
         assert "N/A" in out
 
     def test_section_price_marks_no_prices_mode(self, capsys):
-        analyze_full._section_price(None, None, None, None, None, None, True)
+        analyze_full._section_price(None, None, None, None, None, None, None, True)
         out = capsys.readouterr().out
         assert "--no-prices" in out
 

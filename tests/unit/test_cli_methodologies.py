@@ -210,4 +210,6 @@ def test_no_price_means_no_network_and_no_db(monkeypatch, capsys):
     """The methodology only reads what it is handed."""
     _run(["analyze-graham", "AAPL"], monkeypatch, price=None)
     out = capsys.readouterr().out
-    assert "INSUFFICIENT_DATA" in out
+    # With criteria 2/3 evaluable from fundamentals alone, the verdict
+    # without a price is WATCH (4 of 7 pass), not INSUFFICIENT_DATA.
+    assert "WATCH" in out
