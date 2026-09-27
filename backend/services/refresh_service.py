@@ -30,6 +30,7 @@ import datetime as _dt
 import logging
 import os
 import subprocess
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -353,6 +354,7 @@ class RefreshService:
         gateway: Optional[FdbGateway] = None,
         sync_runner: Optional[Callable[[list[str], dict, Optional[str]], int]] = None,
         sec_health_fn: Optional[Callable[[], SecHealth]] = None,
+        metrics=None,
     ):
         self.config = config or load_refresh_config()
         self._gateway = gateway or FdbGateway(database_url)
@@ -366,6 +368,9 @@ class RefreshService:
         # SEC availability preflight (backend/services/sec_health.py); the
         # probe itself is injectable so tests never touch the network.
         self._sec_health_fn = sec_health_fn or check_sec_availability
+        # Optional run telemetry (NetworkMetrics): per-company sync counts,
+        # retries and SEC 403/429 occurrences.
+        self._metrics = metrics
 
     # ------------------------------------------------------------------
     # public API
@@ -684,10 +689,31 @@ class RefreshService:
             logger.warning("progress callback failed for %s: %s", ticker, exc)
 
     def _sync_company(self, cik: str) -> bool | str:
-        """Run a targeted sec sync for one CIK. True on success, reason on failure."""
+        """Run a targeted sec sync for one CIK. True on success, reason on failure.
+
+        Each attempt is timed and reported to the run telemetry: a sync is the
+        unit of SEC work this service performs (the actual HTTP calls happen
+        in the Financial-DataBase subprocess), and the failure reason is
+        scanned for HTTP 403/429 so SEC throttling shows up in the report.
+        """
         if self._sync_runner is not None:
-            return self._sync_runner(cik)
-        return self._run_fdb_cli(cik)
+            started = time.time()
+            status = self._sync_runner(cik)
+        else:
+            started = time.time()
+            status = self._run_fdb_cli(cik)
+        latency_ms = (time.time() - started) * 1000.0
+        if self._metrics is not None:
+            try:
+                if status is True:
+                    self._metrics.record("sec", latency_ms=latency_ms)
+                else:
+                    self._metrics.record_failure(
+                        "sec", str(status), latency_ms=latency_ms
+                    )
+            except Exception:  # noqa: BLE001 — telemetry must not break a sync
+                pass
+        return status
 
     def _run_fdb_cli(self, cik: str) -> bool | str:
         """Invoke `financial-db sec sync <CIK>` in the Financial-DataBase venv."""

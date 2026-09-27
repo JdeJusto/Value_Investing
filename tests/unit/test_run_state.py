@@ -184,3 +184,61 @@ def test_concurrent_completions_are_all_recorded(tmp_path):
     loaded = RunState.load(tmp_path / RUN_STATE_FILENAME)
     assert len(loaded.completed) == 75
     assert len(set(loaded.completed)) == 75
+
+
+# ----------------------------------------------------------------------
+# network telemetry
+# ----------------------------------------------------------------------
+
+
+def test_network_section_is_persisted_and_survives_reload(tmp_path):
+    state = _create(tmp_path)
+    assert state.network == {}
+
+    state.note_network(
+        {
+            "sec_requests": 200,
+            "sec_retries": 3,
+            "sec_403_count": 0,
+            "sec_429_count": 1,
+            "yahoo_requests": 512,
+            "yahoo_retries": 7,
+            "avg_sec_latency_ms": 7240.3,
+            "avg_yahoo_latency_ms": 312.8,
+        }
+    )
+
+    reloaded = RunState.load(tmp_path / RUN_STATE_FILENAME)
+    assert reloaded.network["sec_requests"] == 200
+    assert reloaded.network["sec_429_count"] == 1
+    assert reloaded.network["avg_yahoo_latency_ms"] == 312.8
+
+
+def test_network_updates_are_last_value_wins_and_partials_merge(tmp_path):
+    state = _create(tmp_path)
+    state.note_network({"sec_requests": 10, "yahoo_requests": 20})
+    state.note_network({"sec_requests": 25})
+
+    net = state.network
+    assert net["sec_requests"] == 25  # cumulative counters: newest wins
+    assert net["yahoo_requests"] == 20  # untouched fields survive
+
+
+def test_network_section_ignores_junk(tmp_path):
+    state = _create(tmp_path)
+    state.note_network(None)
+    state.note_network({"sec_requests": "many", "avg_yahoo_latency_ms": 1.5})
+
+    net = state.network
+    assert "sec_requests" not in net
+    assert net["avg_yahoo_latency_ms"] == 1.5
+
+
+def test_old_state_without_network_defaults_to_empty(tmp_path):
+    path = tmp_path / RUN_STATE_FILENAME
+    _create(tmp_path)
+    data = json.loads(path.read_text())
+    del data["network"]
+    path.write_text(json.dumps(data))
+
+    assert RunState.load(path).network == {}

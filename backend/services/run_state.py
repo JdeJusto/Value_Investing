@@ -135,6 +135,7 @@ class RunState:
             "stage_progress": {"refresh": 0, "prices": 0, "analysis": 0},
             "prices_fetched": 0,
             "alerts_generated": 0,
+            "network": {},
             "options": dict(options),
         }
         state = cls(path, payload)
@@ -152,6 +153,7 @@ class RunState:
             for key in ("completed", "failed", "skipped", "stage_progress"):
                 payload.setdefault(key, [] if key == "completed" else {})
             payload.setdefault("options", {})
+            payload.setdefault("network", {})
             payload.setdefault("universe", "")
             payload.setdefault("total_tickers", 0)
             return cls(path, payload)
@@ -226,6 +228,27 @@ class RunState:
     @property
     def alerts_generated(self) -> int:
         return int(self._payload.get("alerts_generated", 0))
+
+    @property
+    def network(self) -> dict[str, Any]:
+        with self._lock:
+            return dict(self._payload.get("network") or {})
+
+    def note_network(self, network: Optional[dict[str, Any]]) -> None:
+        """Merge network telemetry counters into the checkpoint.
+
+        The counters are cumulative within a run, so the newest snapshot wins
+        per field (a resumed run keeps accumulating into the same payload).
+        """
+        if not network:
+            return
+        with self._lock:
+            current = dict(self._payload.get("network") or {})
+            for key, value in network.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    current[key] = value
+            self._payload["network"] = current
+        self.save()
 
     @property
     def last_update_at(self) -> str:

@@ -33,6 +33,7 @@ class DailyReport:
     missing: list[str] = field(default_factory=list)
     price_notes: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    network: dict = field(default_factory=dict)
     runtime_seconds: float = 0.0
 
     def to_dict(self) -> dict:
@@ -47,6 +48,7 @@ class DailyReport:
             "missing": self.missing,
             "price_notes": self.price_notes,
             "notes": self.notes,
+            "network": self.network,
             "runtime_seconds": self.runtime_seconds,
         }
 
@@ -132,6 +134,26 @@ def build_markdown(report: DailyReport) -> str:
                      "in-memory cache only at request time — **no price is ever "
                      "persisted** to any database (the Financial-DataBase `prices` "
                      "table is untouched by Value Investing).")
+        lines.append("")
+
+    if report.network:
+        lines.append("## Network")
+        lines.append("")
+        net = report.network
+        sec_throttled = int(net.get("sec_403_count", 0)) + int(net.get("sec_429_count", 0))
+        lines.append(
+            f"SEC company syncs: **{net.get('sec_requests', 0)}** "
+            f"(retries {net.get('sec_retries', 0)}, "
+            f"HTTP 403/429 {sec_throttled}, "
+            f"avg {_fmt(net.get('avg_sec_latency_ms', 0), 'number')} ms) | "
+            f"Yahoo requests: **{net.get('yahoo_requests', 0)}** "
+            f"(retries {net.get('yahoo_retries', 0)}, "
+            f"avg {_fmt(net.get('avg_yahoo_latency_ms', 0), 'number')} ms)"
+        )
+        lines.append("")
+        lines.append("> SEC counters are per company sync (VI delegates the HTTP "
+                     "requests to the Financial-DataBase subprocess); Yahoo "
+                     "counters are per HTTP attempt.")
         lines.append("")
 
     if report.rows:
