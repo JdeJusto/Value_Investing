@@ -12,7 +12,7 @@ S&P 500 + Nasdaq-100 universe (**500 tickers**, `config/universe.csv`).
 | c) Financial-DataBase suite | **PASSED** — `tests/unit` 148 passed; full `tests/` **184 passed, 0 failed** |
 | d) Value Investing suite | **PASSED** — `tests/unit` **387 passed, 1 skipped, 0 failed** (pre-run: 382 passed) |
 | e) Universe file | **PASSED** — 501 lines = header + 500 tickers, all CIK-mapped (0 unmapped) |
-| f) `SEC_USER_AGENT` | Set explicitly for the run: `ValueInvesting/1.0 jaimedejusto@gmail.com` (real contact; same UA already validated against SEC live) |
+| f) `SEC_USER_AGENT` | Set explicitly for the run: `ValueInvesting/1.0 <your-e-mail>` (real contact, read from the git-ignored `.env`; same UA shape already validated against SEC live) |
 | g) DB snapshot (pre-run) | companies **8,023** · facts **76,035,751** · filings **1,091,495** · prices **152** |
 | h) `import_runs` (pre-run) | 29 success · 2 failed · 13 stuck in "running" since 2026-09-08 (stale marker only — not used by freshness logic; non-blocking) |
 
@@ -139,7 +139,7 @@ Type=oneshot
 User=caudillo
 WorkingDirectory=/home/caudillo/Value_Investing
 EnvironmentFile=/home/caudillo/Value_Investing/.env
-Environment=SEC_USER_AGENT=ValueInvesting/1.0 jaimedejusto@gmail.com
+EnvironmentFile=-/home/caudillo/Value_Investing/.env   # provides SEC_USER_AGENT
 ExecStart=/home/caudillo/Value_Investing/.venv/bin/python -m scripts.daily_workflow --top 20
 # Allow up to 4 h for the run (refresh is skipped by default once fresh)
 TimeoutStartSec=14400
