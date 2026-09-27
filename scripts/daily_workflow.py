@@ -599,6 +599,10 @@ def _run(args) -> None:
         )
     timings["refresh"] = time.time() - tick
     tick = time.time()
+    if run_state is not None:
+        # Telemetry as soon as the refresh stage is over, so a long run shows
+        # the SEC numbers in the checkpoint without waiting for the report.
+        run_state.note_network(network_metrics.snapshot())
 
     if prefetch_thread is not None:
         prefetch_thread.join()
@@ -622,6 +626,7 @@ def _run(args) -> None:
         snapshots = prefetch_result.get("snapshots") or {}
         run_state.set_stage("prices")
         run_state.set_prices_fetched(sum(1 for value in snapshots.values() if value))
+        run_state.note_network(network_metrics.snapshot())
     if _clean_shutdown():
         return
     if run_state is not None:
