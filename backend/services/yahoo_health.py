@@ -39,16 +39,23 @@ YAHOO_HEALTH_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=1d&interval=1d"
 )
 
-# Probe User-Agent. Measured on 2026-09-27: Yahoo answers HTTP 429 to a
-# browser-like UA from this host while a plain "Mozilla/5.0" gets HTTP 200
-# from the same IP with the same request, so the UA — not the request rate —
-# decided the outcome. The default is kept as-is (changing it is an operator
-# decision, see docs/price_recovery_2026-09-28.md); override it with
-# YAHOO_HEALTH_USER_AGENT.
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
-)
+# Probe User-Agent: minimal on purpose.
+#
+# Why so plain? Measured on 2026-09-27 from this host, same URL, same IP, same
+# instant, only the header differing: a full Chrome UA
+# ("Mozilla/5.0 (X11; Linux x86_64) … Chrome/120.0 Safari/537.36") got HTTP 429
+# while "Mozilla/5.0" got HTTP 200. A browser-like UA without cookies or a
+# crumb is what bot detection fingerprints as an unsatisfied browser client,
+# so the preflight was being refused on its own header and taking the whole
+# price stage down with it. Do not "improve" this string: a minimal agent is
+# the one that is served. See docs/price_recovery_2026-09-28.md.
+#
+# PriceService itself sets no User-Agent: its data path is yfinance, which
+# manages its own (and demonstrably works: 506 requests, 2 transient
+# failures). This constant therefore covers the only agent we control.
+#
+# Override with YAHOO_HEALTH_USER_AGENT if a deployment needs another.
+DEFAULT_USER_AGENT = "Mozilla/5.0"
 
 DEFAULT_TIMEOUT_SECONDS = 5.0
 DEFAULT_ATTEMPTS = 2  # one retry absorbs transient failures

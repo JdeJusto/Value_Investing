@@ -219,8 +219,18 @@ def test_probe_user_agent_is_configurable(monkeypatch):
     monkeypatch.setattr("backend.services.yahoo_health.urllib.request.urlopen", fake_urlopen)
 
     _probe(YAHOO_HEALTH_URL, 5.0)
-    assert seen["ua"] == DEFAULT_USER_AGENT
+    assert seen["ua"] == DEFAULT_USER_AGENT == "Mozilla/5.0"
 
     monkeypatch.setenv("YAHOO_HEALTH_USER_AGENT", "Mozilla/5.0")
     _probe(YAHOO_HEALTH_URL, 5.0)
     assert seen["ua"] == "Mozilla/5.0"
+
+
+def test_default_user_agent_is_the_minimal_one():
+    """Regression guard: the full-Chrome UA is what Yahoo answered 429 to."""
+    from backend.services.yahoo_health import DEFAULT_USER_AGENT
+
+    assert DEFAULT_USER_AGENT == "Mozilla/5.0"
+    # A browser-like agent with no cookie/crumb is what got blocked.
+    assert "Chrome" not in DEFAULT_USER_AGENT
+    assert "AppleWebKit" not in DEFAULT_USER_AGENT
