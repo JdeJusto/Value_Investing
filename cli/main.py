@@ -60,6 +60,7 @@ def main():
         sql_analysis,
         watchlist,
     )
+    from cli.commands.methodologies import register as register_methodologies
 
     screener.register(sub)
     company.register(sub)
@@ -78,6 +79,7 @@ def main():
     watchlist.register(sub)
     debug.register(sub)
     sql_analysis.register(sub)
+    register_methodologies(sub)
 
     if len(sys.argv) == 1:
         parser.print_help()
