@@ -70,6 +70,28 @@ def _scalar(value: Any) -> Any:
     return str(value)
 
 
+def alert_sort_key(alert: Any):
+    """Total order for an alert: ticker, type, then first reason.
+
+    The engine emits alerts in analysis-completion order (the analyses dict is
+    built by a parallel pool), so without this the stored list, the report and
+    the JSON state would differ between two runs of the same day.
+    """
+    def _get(name, default=""):
+        if isinstance(alert, dict):
+            return alert.get(name, default) or default
+        return getattr(alert, name, default) or default
+
+    reason = _get("reason", [])
+    first = reason[0] if isinstance(reason, (list, tuple)) and reason else ""
+    return (str(_get("ticker")), str(_get("alert_type")), str(first))
+
+
+def sorted_alerts(alerts: Iterable[Any]) -> list:
+    """Input order made deterministic (works on Alert objects and dicts)."""
+    return sorted(alerts, key=alert_sort_key)
+
+
 def input_digest(
     analyses: dict[str, Optional[dict]],
     previous: Optional[dict[str, dict]] = None,
@@ -171,7 +193,9 @@ class AlertsCache:
         """Store the alert list for (day, run, inputs), atomically."""
         if not self.enabled:
             return
-        items = list(alerts)
+        # Store in the canonical order so the cached JSON is comparable
+        # between runs (see alert_sort_key).
+        items = list(sorted_alerts(alerts))
         if as_dict is not None:
             items = [as_dict(alert) for alert in items]
         path = self.path_for(day)
