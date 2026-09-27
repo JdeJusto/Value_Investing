@@ -239,3 +239,23 @@ def test_report_renders_the_network_section():
     assert "## Network" not in build_markdown(
         DailyReport(report_date=__import__("datetime").date(2026, 9, 27))
     )
+
+
+def test_configure_attaches_metrics_and_preflight():
+    from backend.services.price_service import PriceService
+    from backend.services.yahoo_health import YahooHealth
+
+    metrics = NetworkMetrics()
+    calls = []
+
+    def fake_health(**kwargs):
+        calls.append(kwargs)
+        return YahooHealth(True, "ok", 200, 0.0)
+
+    service = PriceService().configure(metrics=metrics, health_fn=fake_health)
+
+    assert service._metrics is metrics
+    assert service.yahoo_available(force=True).available is True
+    assert calls == [{"force": True}]
+    # a service without a preflight behaves exactly as before
+    assert PriceService().yahoo_available() is None

@@ -98,6 +98,26 @@ class PriceService:
         self._metrics = metrics
         self._health_fn = health_fn
 
+    def configure(
+        self,
+        *,
+        metrics=None,
+        health_fn=None,
+    ) -> "PriceService":
+        """Attach run telemetry and/or the Yahoo preflight to this service.
+
+        Used by the daily workflow on the process-level singleton, so the
+        preflight guards every fetch of the run (not only the batch prefetch)
+        and the telemetry sees the single-price calls the analysis makes.
+        Returns self so it can be chained.
+        """
+        if metrics is not None or health_fn is not None:
+            if metrics is not None:
+                self._metrics = metrics
+            if health_fn is not None:
+                self._health_fn = health_fn
+        return self
+
     # ------------------------------------------------------------------
     # cache helpers
     # ------------------------------------------------------------------

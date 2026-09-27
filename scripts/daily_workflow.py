@@ -506,11 +506,11 @@ def _run(args) -> None:
     from backend.services.yahoo_health import check_yahoo_availability
 
     network_metrics = NetworkMetrics()
-    if price_service is not None and hasattr(price_service, "_health_fn"):
+    if price_service is not None:
         # Wire the Yahoo preflight + telemetry into the shared price service
-        # (get_price_service() is a process-level singleton).
-        price_service._metrics = network_metrics
-        price_service._health_fn = check_yahoo_availability
+        # (get_price_service() is a process-level singleton), so both the batch
+        # prefetch and the single-price calls of the analysis are covered.
+        price_service.configure(metrics=network_metrics, health_fn=check_yahoo_availability)
 
     # Fundamentals cache: skips the per-ticker database read (the ~96 % of the
     # analysis cost) when neither the company's facts nor the analysis version
