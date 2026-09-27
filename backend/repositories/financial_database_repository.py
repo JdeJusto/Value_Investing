@@ -218,7 +218,7 @@ BALANCE_SHEET_CONCEPTS = {
     'AssetsTotal': 'total_assets',
 
     # Current Assets
-    'CurrentAssets': 'current_assets',
+    'AssetsCurrent': 'current_assets',
     'CashAndCashEquivalentsAtCarryingValue': 'cash_and_equivalents',
     'CashAndCashEquivalents': 'cash_and_equivalents',
     'AccountsReceivableNetCurrent': 'accounts_receivable',
@@ -229,7 +229,7 @@ BALANCE_SHEET_CONCEPTS = {
     'LiabilitiesTotal': 'total_liabilities',
 
     # Current Liabilities
-    'CurrentLiabilities': 'current_liabilities',
+    'LiabilitiesCurrent': 'current_liabilities',
     'AccountsPayableCurrent': 'accounts_payable',
 
     # Long Term Liabilities
@@ -957,7 +957,6 @@ class FinancialDatabaseRepository(FinancialRepository):
                 total_liabilities=balance.get('total_liabilities'),
                 total_debt=balance.get('total_debt'),
                 cash_and_equivalents=balance.get('cash_and_equivalents'),
-                working_capital=balance.get('working_capital'),
                 retained_earnings=balance.get('retained_earnings'),
                 stockholders_equity=balance.get('stockholders_equity')
             )
@@ -994,9 +993,19 @@ class FinancialDatabaseRepository(FinancialRepository):
             total_liabilities=balance.get('total_liabilities'),
             total_debt=balance.get('total_debt'),
             cash_and_equivalents=balance.get('cash_and_equivalents'),
-            working_capital=balance.get('working_capital'),
             retained_earnings=balance.get('retained_earnings'),
             stockholders_equity=balance.get('stockholders_equity'),
+            current_assets=balance.get('current_assets'),
+            current_liabilities=balance.get('current_liabilities'),
+            # working_capital is not a stored XBRL concept; derive it from the
+            # balance-sheet split so liquidity ratios (and the Graham current
+            # ratio) work without a separate lookup.
+            working_capital=(
+                balance.get('current_assets') - balance.get('current_liabilities')
+                if balance.get('current_assets') is not None
+                and balance.get('current_liabilities') is not None
+                else balance.get('working_capital')
+            ),
             # Cash flow
             operating_cash_flow=cash_flow.get('operating_cash_flow'),
             capital_expenditure=cash_flow.get('capital_expenditure'),
