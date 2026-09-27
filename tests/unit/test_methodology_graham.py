@@ -387,3 +387,49 @@ def test_no_price_means_no_network_and_no_db():
     result = methodology.evaluate("TEST", _rows("graham_pass.json"), prices)
     assert prices.calls == ["TEST"]  # exactly one price lookup, by the service
     assert result.verdict == Verdict.INSUFFICIENT_DATA
+
+
+# ----------------------------------------------------------------------
+# shares outstanding (the P/E and P/BV fix)
+# ----------------------------------------------------------------------
+
+
+def test_shares_outstanding_comes_from_the_balance_sheet_concepts():
+    """The P/E and P/BV criteria need a share count; the VO gets it from the
+    repository's concept mapping, not from a separate lookup."""
+    from backend.repositories.financial_database_repository import (
+        FinancialDatabaseRepository,
+    )
+
+    repo = FinancialDatabaseRepository()
+    rows = repo.get_best_available("AAPL")
+
+    assert rows, "AAPL should have fundamentals in Financial-DataBase"
+    assert rows[0].shares_outstanding
+    assert rows[0].shares_outstanding > 1_000_000_000  # AAPL has ~15B shares
+
+
+def test_pe_and_pbv_are_evaluated_when_shares_exist():
+    methodology = GrahamMethodology()
+    rows = _rows("graham_pass.json")
+    result = methodology.evaluate("TEST", rows, _Prices(100.0))
+
+    assert result.metrics["criterion_6_pe"] is not None
+    assert result.metrics["criterion_7_pbv"] is not None
+    assert result.metrics["pe_pbv_product"] is not None
+    assert "graham.criterion_6_pe" in result.passed_rules
+    assert "graham.criterion_7_pbv" in result.passed_rules
+
+
+def test_pe_and_pbv_are_insufficient_without_a_share_count():
+    rows = _rows("graham_pass.json")
+    for row in rows:
+        row.shares_outstanding = None
+
+    methodology = GrahamMethodology()
+    result = methodology.evaluate("TEST", rows, _Prices(100.0))
+
+    assert result.metrics["criterion_6_pe"] is None
+    assert result.metrics["criterion_7_pbv"] is None
+    assert "graham.criterion_6_pe" not in result.passed_rules
+    assert "graham.criterion_6_pe" not in result.failed_rules

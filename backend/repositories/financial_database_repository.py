@@ -264,6 +264,12 @@ BALANCE_SHEET_CONCEPTS = {
     'WeightedAverageNumberOfSharesOutstandingBasic': 'shares_outstanding',
     'WeightedAverageNumberOfSharesOutstanding': 'shares_outstanding',
     'WeightedAverageNumberOfSharesOutstandingDiluted': 'shares_outstanding',
+    # Point-in-time share counts (cover page / balance sheet). Financial-DataBase
+    # stores these for most filers, and they are the only per-year share count
+    # that survives when the weighted-average concepts are absent — without
+    # them the P/E and P/BV criteria could never be evaluated.
+    'CommonStockSharesOutstanding': 'shares_outstanding',
+    'EntityCommonStockSharesOutstanding': 'shares_outstanding',
 }
 
 CASH_FLOW_CONCEPTS = {
@@ -1000,7 +1006,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             repurchase_of_stock=cash_flow.get('repurchase_of_stock'),
             working_capital_change=cash_flow.get('working_capital_change'),
             # Context
-            shares_outstanding=None,  # TODO: Get from company_listings or other source
+            shares_outstanding=balance.get('shares_outstanding'),
             period=ANNUAL_PERIOD,
             currency='USD',  # TODO: Get from actual unit/currency data
             source=ProviderName.EDGAR,  # Financial-DataBase primarily has SEC data

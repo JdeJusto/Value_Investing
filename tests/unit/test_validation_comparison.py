@@ -256,7 +256,7 @@ class TestNormalizeFiscalYearDedup:
         # balance snapshot to an empty bucket, or total debt would be dropped.
         facts = [
             _fact("LongTermDebt", 8.5e9, date(2025, 9, 30)),
-            _fact("EntityCommonStockSharesOutstanding", 400e6, date(2025, 11, 15)),
+            _fact("EntityPublicFloat", 400e6, date(2025, 11, 15)),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["balance"]["total_debt"] == 8.5e9

@@ -86,10 +86,18 @@ is on, so "Graham 1949" and "Graham modernized" can be compared side by side.
 3. **Criterion 4 counts years with `dividends_paid > 0`.** A missing cash-flow
    statement reads as "no dividend", so a company with an incomplete history
    may fail on data availability rather than on policy.
-4. **Uses fiscal-year data** and the latest available price; intraday moves are
+4. **Criterion 4 is currently blocked by an empty table.** Financial-DataBase's
+   `dividends` table has **0 rows**, so no company can pass this criterion
+   until dividend data is ingested. This is a data gap, not a methodology gap.
+5. **Uses fiscal-year data** and the latest available price; intraday moves are
    not considered.
-5. **Banks and financials do not fit** — the balance-sheet criteria were written
+6. **Banks and financials do not fit** — the balance-sheet criteria were written
    for industrials and utilities, and the book itself excludes financial
    companies from the defensive screen.
-6. **No sell rule.** The criteria are entry screens; Graham gives no mechanical
+7. **No sell rule.** The criteria are entry screens; Graham gives no mechanical
    exit, and this implementation does not invent one.
+8. **Shares outstanding** are read from the balance-sheet concepts
+   (`CommonStockSharesOutstanding` / `EntityCommonStockSharesOutstanding`) via
+   the repository's concept mapping. Most filers provide them, but companies
+   without those concepts return `None`, which makes criteria 6 and 7
+   INSUFFICIENT_DATA rather than failing.

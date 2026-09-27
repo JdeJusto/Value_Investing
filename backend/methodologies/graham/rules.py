@@ -74,9 +74,7 @@ CRITERION_3_DEBT_VS_WORKING_CAPITAL = Rule(
 CRITERION_4_DIVIDEND_HISTORY = Rule(
     id="graham.criterion_4_dividend_history",
     name="Dividend Record",
-    description=(
-        "Uninterrupted dividend payments for at least the last 20 years."
-    ),
+    description=("Uninterrupted dividend payments for at least the last 20 years."),
     kind="EXPLICIT",
     source=_source("Ch. 14, criterion 4"),
 )

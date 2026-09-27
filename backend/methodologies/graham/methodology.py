@@ -28,7 +28,6 @@ from backend.methodologies.base import (
 )
 from backend.methodologies.graham.rules import (
     ALL_RULES,
-    CRITERION_8_PE_PBV_PRODUCT,
     VERDICT_CRITERIA,
 )
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
@@ -188,12 +187,21 @@ class GrahamMethodology(Methodology):
     def _criterion_1_size(self, rows) -> CriterionResult:
         latest = self._latest(rows)
         if latest is None or latest.revenue is None:
-            return CriterionResult("graham.criterion_1_size", None, None, self._min_sales,
-                                   "no revenue data")
+            return CriterionResult(
+                "graham.criterion_1_size",
+                None,
+                None,
+                self._min_sales,
+                "no revenue data",
+            )
         passed = latest.revenue >= self._min_sales
-        return CriterionResult("graham.criterion_1_size", passed, latest.revenue,
-                               self._min_sales,
-                               f"revenue ${latest.revenue:,.0f} vs ${self._min_sales:,.0f}")
+        return CriterionResult(
+            "graham.criterion_1_size",
+            passed,
+            latest.revenue,
+            self._min_sales,
+            f"revenue ${latest.revenue:,.0f} vs ${self._min_sales:,.0f}",
+        )
 
     def _criterion_2_current_ratio(self, rows) -> CriterionResult:
         """Current ratio >= 2:1.
@@ -203,7 +211,10 @@ class GrahamMethodology(Methodology):
         INSUFFICIENT_DATA rather than guessing — see README.md.
         """
         return CriterionResult(
-            "graham.criterion_2_current_ratio", None, None, _MIN_CURRENT_RATIO,
+            "graham.criterion_2_current_ratio",
+            None,
+            None,
+            _MIN_CURRENT_RATIO,
             "NormalizedFinancials has no current-asset / current-liability split",
         )
 
@@ -214,81 +225,150 @@ class GrahamMethodology(Methodology):
         is stricter than the book's. Documented in README.md.
         """
         latest = self._latest(rows)
-        if latest is None or latest.total_debt is None or latest.working_capital is None:
-            return CriterionResult("graham.criterion_3_debt_vs_working_capital", None,
-                                   None, None, "no debt or working-capital data")
+        if (
+            latest is None
+            or latest.total_debt is None
+            or latest.working_capital is None
+        ):
+            return CriterionResult(
+                "graham.criterion_3_debt_vs_working_capital",
+                None,
+                None,
+                None,
+                "no debt or working-capital data",
+            )
         passed = latest.total_debt <= latest.working_capital
-        return CriterionResult("graham.criterion_3_debt_vs_working_capital", passed,
-                               latest.total_debt, latest.working_capital,
-                               f"total debt ${latest.total_debt:,.0f} vs working capital "
-                               f"${latest.working_capital:,.0f}")
+        return CriterionResult(
+            "graham.criterion_3_debt_vs_working_capital",
+            passed,
+            latest.total_debt,
+            latest.working_capital,
+            f"total debt ${latest.total_debt:,.0f} vs working capital "
+            f"${latest.working_capital:,.0f}",
+        )
 
     def _criterion_4_dividend_history(self, rows) -> CriterionResult:
         paying = [r for r in rows if (r.dividends_paid or 0) > 0]
         # Only fiscal years with a cash-flow statement can prove a dividend;
         # the count is capped by the history available.
         passed = len(paying) >= _MIN_DIVIDEND_YEARS
-        return CriterionResult("graham.criterion_4_dividend_history", passed,
-                               float(len(paying)), float(_MIN_DIVIDEND_YEARS),
-                               f"{len(paying)} years with dividends paid")
+        return CriterionResult(
+            "graham.criterion_4_dividend_history",
+            passed,
+            float(len(paying)),
+            float(_MIN_DIVIDEND_YEARS),
+            f"{len(paying)} years with dividends paid",
+        )
 
     def _criterion_5_earnings_growth(self, rows) -> CriterionResult:
         """EPS growth of at least one third over ten years, 3-year averages."""
         if len(rows) < 10:
-            return CriterionResult("graham.criterion_5_earnings_growth", None, None,
-                                   _MIN_EARNINGS_GROWTH, "needs 10 fiscal years")
+            return CriterionResult(
+                "graham.criterion_5_earnings_growth",
+                None,
+                None,
+                _MIN_EARNINGS_GROWTH,
+                "needs 10 fiscal years",
+            )
         recent = [r for r in rows[:3] if r.net_income is not None]
         base = [r for r in rows[-3:] if r.net_income is not None]
         if len(recent) < 3 or len(base) < 3:
-            return CriterionResult("graham.criterion_5_earnings_growth", None, None,
-                                   _MIN_EARNINGS_GROWTH, "not enough earnings data")
+            return CriterionResult(
+                "graham.criterion_5_earnings_growth",
+                None,
+                None,
+                _MIN_EARNINGS_GROWTH,
+                "not enough earnings data",
+            )
         recent_avg = sum(r.net_income for r in recent) / 3.0
         base_avg = sum(r.net_income for r in base) / 3.0
         if base_avg <= 0:
-            return CriterionResult("graham.criterion_5_earnings_growth", None, None,
-                                   _MIN_EARNINGS_GROWTH, "base period not profitable")
+            return CriterionResult(
+                "graham.criterion_5_earnings_growth",
+                None,
+                None,
+                _MIN_EARNINGS_GROWTH,
+                "base period not profitable",
+            )
         growth = recent_avg / base_avg - 1.0
         passed = growth >= _MIN_EARNINGS_GROWTH
-        return CriterionResult("graham.criterion_5_earnings_growth", passed, growth,
-                               _MIN_EARNINGS_GROWTH,
-                               f"{growth:+.0%} over the decade (3-year averages)")
+        return CriterionResult(
+            "graham.criterion_5_earnings_growth",
+            passed,
+            growth,
+            _MIN_EARNINGS_GROWTH,
+            f"{growth:+.0%} over the decade (3-year averages)",
+        )
 
     def _criterion_6_pe(self, rows, price: Optional[float]) -> CriterionResult:
         if price is None:
-            return CriterionResult("graham.criterion_6_pe", None, None, _MAX_PE,
-                                   "no live price available")
+            return CriterionResult(
+                "graham.criterion_6_pe", None, None, _MAX_PE, "no live price available"
+            )
         recent = [r for r in rows[:3] if r.net_income is not None]
         if len(recent) < 3:
-            return CriterionResult("graham.criterion_6_pe", None, None, _MAX_PE,
-                                   "needs 3 years of earnings")
+            return CriterionResult(
+                "graham.criterion_6_pe",
+                None,
+                None,
+                _MAX_PE,
+                "needs 3 years of earnings",
+            )
         avg_earnings = sum(r.net_income for r in recent) / 3.0
         if avg_earnings <= 0:
-            return CriterionResult("graham.criterion_6_pe", False, None, _MAX_PE,
-                                   "average earnings are not positive")
+            return CriterionResult(
+                "graham.criterion_6_pe",
+                False,
+                None,
+                _MAX_PE,
+                "average earnings are not positive",
+            )
         shares = rows[0].shares_outstanding or 0
         if shares <= 0:
-            return CriterionResult("graham.criterion_6_pe", None, None, _MAX_PE,
-                                   "no share count")
+            return CriterionResult(
+                "graham.criterion_6_pe", None, None, _MAX_PE, "no share count"
+            )
         eps = avg_earnings / shares
         pe = price / eps
-        return CriterionResult("graham.criterion_6_pe", pe <= _MAX_PE, pe, _MAX_PE,
-                               f"P/E {pe:.1f} on 3-year average EPS")
+        return CriterionResult(
+            "graham.criterion_6_pe",
+            pe <= _MAX_PE,
+            pe,
+            _MAX_PE,
+            f"P/E {pe:.1f} on 3-year average EPS",
+        )
 
     def _criterion_7_pbv(self, rows, price: Optional[float]) -> CriterionResult:
         if price is None:
-            return CriterionResult("graham.criterion_7_pbv", None, None, _MAX_PBV,
-                                   "no live price available")
+            return CriterionResult(
+                "graham.criterion_7_pbv",
+                None,
+                None,
+                _MAX_PBV,
+                "no live price available",
+            )
         latest = self._latest(rows)
-        if latest is None or latest.stockholders_equity is None or latest.stockholders_equity <= 0:
-            return CriterionResult("graham.criterion_7_pbv", None, None, _MAX_PBV,
-                                   "no equity data")
+        if (
+            latest is None
+            or latest.stockholders_equity is None
+            or latest.stockholders_equity <= 0
+        ):
+            return CriterionResult(
+                "graham.criterion_7_pbv", None, None, _MAX_PBV, "no equity data"
+            )
         shares = latest.shares_outstanding or 0
         if shares <= 0:
-            return CriterionResult("graham.criterion_7_pbv", None, None, _MAX_PBV,
-                                   "no share count")
+            return CriterionResult(
+                "graham.criterion_7_pbv", None, None, _MAX_PBV, "no share count"
+            )
         pbv = price / (latest.stockholders_equity / shares)
-        return CriterionResult("graham.criterion_7_pbv", pbv <= _MAX_PBV, pbv, _MAX_PBV,
-                               f"P/BV {pbv:.2f} on latest book value")
+        return CriterionResult(
+            "graham.criterion_7_pbv",
+            pbv <= _MAX_PBV,
+            pbv,
+            _MAX_PBV,
+            f"P/BV {pbv:.2f} on latest book value",
+        )
 
     @staticmethod
     def _combined_test(results: list[CriterionResult]) -> CriterionResult:
@@ -296,28 +376,43 @@ class GrahamMethodology(Methodology):
         pe = next((r for r in results if r.rule_id == "graham.criterion_6_pe"), None)
         pbv = next((r for r in results if r.rule_id == "graham.criterion_7_pbv"), None)
         if pe is None or pe.value is None or pbv is None or pbv.value is None:
-            return CriterionResult("graham.criterion_8_pe_pbv_product", None, None,
-                                   _MAX_PE_PBV_PRODUCT, "needs a live price")
+            return CriterionResult(
+                "graham.criterion_8_pe_pbv_product",
+                None,
+                None,
+                _MAX_PE_PBV_PRODUCT,
+                "needs a live price",
+            )
         product = pe.value * pbv.value
-        return CriterionResult("graham.criterion_8_pe_pbv_product",
-                               product <= _MAX_PE_PBV_PRODUCT, product,
-                               _MAX_PE_PBV_PRODUCT, f"P/E {pe.value:.1f} x P/BV {pbv.value:.2f}")
+        return CriterionResult(
+            "graham.criterion_8_pe_pbv_product",
+            product <= _MAX_PE_PBV_PRODUCT,
+            product,
+            _MAX_PE_PBV_PRODUCT,
+            f"P/E {pe.value:.1f} x P/BV {pbv.value:.2f}",
+        )
 
     # ------------------------------------------------------------------
     # verdict, score, confidence, flags
     # ------------------------------------------------------------------
     @staticmethod
-    def _verdict(passed, failed, unknown, combined) -> tuple[Verdict, Optional[float], Confidence]:
+    def _verdict(
+        passed, failed, unknown, combined
+    ) -> tuple[Verdict, Optional[float], Confidence]:
         if len(unknown) > 2:
             return Verdict.INSUFFICIENT_DATA, None, Confidence.LOW
         score = round(len(passed) / len(VERDICT_CRITERIA) * 100, 2)
         if len(passed) >= 6 and combined.passed is True:
-            return Verdict.BUY, score, (
-                Confidence.HIGH if not unknown else Confidence.MEDIUM
+            return (
+                Verdict.BUY,
+                score,
+                (Confidence.HIGH if not unknown else Confidence.MEDIUM),
             )
         if len(passed) >= 5:
-            return Verdict.WATCH, score, (
-                Confidence.HIGH if not unknown else Confidence.MEDIUM
+            return (
+                Verdict.WATCH,
+                score,
+                (Confidence.HIGH if not unknown else Confidence.MEDIUM),
             )
         return Verdict.AVOID, score, Confidence.LOW
 
@@ -336,9 +431,17 @@ class GrahamMethodology(Methodology):
     def _reasons(results, combined, verdict) -> list[str]:
         parts = []
         for r in results:
-            mark = "PASS" if r.passed is True else "FAIL" if r.passed is False else "N/A"
+            mark = (
+                "PASS" if r.passed is True else "FAIL" if r.passed is False else "N/A"
+            )
             parts.append(f"[{mark}] {r.detail}")
-        mark = "PASS" if combined.passed is True else "FAIL" if combined.passed is False else "N/A"
+        mark = (
+            "PASS"
+            if combined.passed is True
+            else "FAIL"
+            if combined.passed is False
+            else "N/A"
+        )
         parts.append(f"[{mark}] {combined.detail}")
         parts.append(f"verdict: {verdict.value}")
         return parts
