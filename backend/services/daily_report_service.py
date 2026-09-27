@@ -196,7 +196,12 @@ def build_markdown(report: DailyReport) -> str:
 
         lines_of_alert = StreakUpdate(state=streak).report_lines()
         if lines_of_alert:
-            lines.append("## ⚠️ Yahoo Rate Limit Alert")
+            title = (
+                "## ⚠️ Yahoo Rate Limit Alert"
+                if streak.get("rate_limited", True)
+                else "## ⚠️ Yahoo Unavailable Alert"
+            )
+            lines.append(title)
             lines.append("")
             for line in lines_of_alert:
                 lines.append(line)

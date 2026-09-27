@@ -651,6 +651,7 @@ def _run(args) -> None:
     yahoo_streak_state: dict = {}
     from backend.services.yahoo_streak import (
         YahooStreakTracker,
+        is_rate_limit,
         load_alerts_config,
     )
 
@@ -661,7 +662,10 @@ def _run(args) -> None:
         getter = getattr(price_service, "last_health", None)
         health = getter() if callable(getter) else None
         if health is not None and not getattr(health, "available", True):
-            update = streak_tracker.record_failure(getattr(health, "reason", ""))
+            update = streak_tracker.record_failure(
+                getattr(health, "reason", ""),
+                rate_limited=is_rate_limit(health),
+            )
         elif health is not None:
             update = streak_tracker.record_success()
         else:

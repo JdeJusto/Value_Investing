@@ -39,6 +39,17 @@ YAHOO_HEALTH_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=1d&interval=1d"
 )
 
+# Probe User-Agent. Measured on 2026-09-27: Yahoo answers HTTP 429 to a
+# browser-like UA from this host while a plain "Mozilla/5.0" gets HTTP 200
+# from the same IP with the same request, so the UA — not the request rate —
+# decided the outcome. The default is kept as-is (changing it is an operator
+# decision, see docs/price_recovery_2026-09-28.md); override it with
+# YAHOO_HEALTH_USER_AGENT.
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)
+
 DEFAULT_TIMEOUT_SECONDS = 5.0
 DEFAULT_ATTEMPTS = 2  # one retry absorbs transient failures
 DEFAULT_RETRY_DELAY_SECONDS = 0.5
@@ -82,11 +93,11 @@ def _probe(url: str, timeout: float) -> YahooHealth:
         url,
         method="GET",
         headers={
-            # Yahoo answers 429 to requests without a browser-like agent.
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
-            ),
+            # Yahoo answers 429 to requests without a plausible agent.
+            "User-Agent": os.environ.get(
+                "YAHOO_HEALTH_USER_AGENT", DEFAULT_USER_AGENT
+            ).strip()
+            or DEFAULT_USER_AGENT,
             "Accept": "application/json",
         },
     )

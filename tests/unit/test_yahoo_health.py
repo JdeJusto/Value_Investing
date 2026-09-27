@@ -192,3 +192,35 @@ def test_last_health_exposes_the_probe_result():
     assert service.last_health() is down
     assert service.last_health().available is False
     assert service.last_health().http_status == 429
+
+
+def test_probe_user_agent_is_configurable(monkeypatch):
+    """The UA decided the 429 outcome, so it must not be hardcoded-only."""
+    from backend.services.yahoo_health import DEFAULT_USER_AGENT, _probe
+
+    seen: dict = {}
+
+    class _Response:
+        status = 200
+
+        def read(self, _n):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_urlopen(request, timeout=None):
+        seen["ua"] = request.get_header("User-agent")
+        return _Response()
+
+    monkeypatch.setattr("backend.services.yahoo_health.urllib.request.urlopen", fake_urlopen)
+
+    _probe(YAHOO_HEALTH_URL, 5.0)
+    assert seen["ua"] == DEFAULT_USER_AGENT
+
+    monkeypatch.setenv("YAHOO_HEALTH_USER_AGENT", "Mozilla/5.0")
+    _probe(YAHOO_HEALTH_URL, 5.0)
+    assert seen["ua"] == "Mozilla/5.0"

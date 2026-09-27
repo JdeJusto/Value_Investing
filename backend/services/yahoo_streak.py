@@ -54,6 +54,22 @@ DEFAULT_FLAG_PATH = "data/alerts/yahoo_429_active.flag"
 STATE_VERSION = "1"
 
 
+def is_rate_limit(health) -> bool:
+    """True when a failed preflight was actually a rate limit.
+
+    A preflight can fail for very different reasons and they must not be
+    conflated: a DNS or TLS failure is a local network problem, and calling it
+    a "429" would raise a rate-limit alarm for the wrong cause (observed live:
+    a temporary name-resolution failure reported as HTTP 429). Only an explicit
+    429 (or a reason that says so) counts as a rate limit.
+    """
+    status = getattr(health, "http_status", None)
+    if status == 429:
+        return True
+    reason = str(getattr(health, "reason", "") or "").lower()
+    return "429" in reason or "rate limit" in reason or "too many requests" in reason
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -117,21 +133,36 @@ class StreakUpdate:
         if not self.alerted:
             return []
         state = self.state
-        return [
-            f"Yahoo has returned HTTP 429 for the last "
+        rate_limited = bool(state.get("rate_limited", True))
+        kind = "HTTP 429 (rate limit)" if rate_limited else "an unrelated failure"
+        lines = [
+            f"Yahoo has been unavailable for the last "
             f"**{self.consecutive_failures} consecutive runs** "
-            f"(threshold {self.threshold}).",
+            f"(threshold {self.threshold}) — {kind}.",
             f"First failure: {state.get('first_failure_at') or 'unknown'} · "
-            f"Last failure: {state.get('last_failure_at') or 'unknown'}",
+            f"Last failure: {state.get('last_failure_at') or 'unknown'}"
+            + (
+                f" · Reason: {state.get('last_failure_reason')}"
+                if state.get("last_failure_reason")
+                else ""
+            ),
             "Impact: P/E, P/B, FCF yield, EV/EBIT and margin of safety are N/A, "
             "and `rank_score` loses its margin-of-safety and momentum "
             "components, so `BUY_SIGNAL` alerts can be suppressed.",
             "Action: verify manually with "
-            "`curl -I -H 'User-Agent: Mozilla/5.0' "
+            "`curl -s -o /dev/null -w '%{http_code}\\n' -H 'User-Agent: Mozilla/5.0' "
             "'https://query1.finance.yahoo.com/v8/finance/chart/AAPL"
             "?range=1d&interval=1d'`, then re-run "
             "`python -m scripts.daily_workflow --universe sp500 --limit 20`.",
         ]
+        if not rate_limited:
+            lines.insert(
+                2,
+                "> Not a rate limit: the preflight failed for another reason "
+                "(DNS, TLS, timeout). Do not wait for a rate-limit window; "
+                "check the local network first.",
+            )
+        return lines
 
 
 class YahooStreakTracker:
@@ -212,8 +243,12 @@ class YahooStreakTracker:
         return False
 
     # ------------------------------------------------------------------
-    def record_failure(self, reason: str = "") -> StreakUpdate:
-        """Register a failed preflight; fires the alert at the threshold."""
+    def record_failure(self, reason: str = "", rate_limited: bool = True) -> StreakUpdate:
+        """Register a failed preflight; fires the alert at the threshold.
+
+        ``rate_limited`` records *why* it failed, so a DNS or TLS error never
+        raises a rate-limit alarm (see :func:`is_rate_limit`).
+        """
         if not self.enabled:
             return StreakUpdate(
                 state=self.load(), threshold=self.threshold
@@ -223,6 +258,7 @@ class YahooStreakTracker:
         state["consecutive_failures"] = streak
         state["last_failure_at"] = _now_iso()
         state["last_failure_reason"] = reason or state.get("last_failure_reason")
+        state["rate_limited"] = bool(rate_limited)
         if not state.get("first_failure_at"):
             state["first_failure_at"] = state["last_failure_at"]
         state["alerted"] = bool(state.get("alerted", False))
@@ -231,15 +267,18 @@ class YahooStreakTracker:
         if streak >= self.threshold and not state["alerted"]:
             state["alerted"] = True
             triggered = True
+            kind = "rate limit (HTTP 429)" if rate_limited else "unavailable"
             self._write_flag(
-                f"Yahoo rate limit (HTTP 429) active for {streak} consecutive runs.\n"
+                f"Yahoo {kind} for {streak} consecutive runs.\n"
+                f"rate_limited: {str(bool(rate_limited)).lower()}\n"
                 f"first_failure_at: {state.get('first_failure_at')}\n"
                 f"last_failure_at: {state.get('last_failure_at')}\n"
                 f"threshold: {self.threshold}\n"
                 f"reason: {state.get('last_failure_reason') or 'unknown'}\n"
             )
             logger.warning(
-                "Yahoo 429 alert: %d consecutive failures (threshold %d)",
+                "Yahoo %s alert: %d consecutive failures (threshold %d)",
+                kind,
                 streak,
                 self.threshold,
             )
