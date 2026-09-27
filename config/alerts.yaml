@@ -1,0 +1,15 @@
+# Alert thresholds for the daily workflow (yahoo_streak.py).
+#
+# The Yahoo rate limit (HTTP 429) is a silent failure: the run completes and
+# every price-derived column comes out N/A. With the systemd timer running
+# daily, consecutive 429 runs would go unnoticed unless someone read the
+# report, so the streak is tracked in
+# data/state/yahoo_health_streak.json and alerted once per streak.
+#
+# Environment override:
+#   YAHOO_429_STREAK_THRESHOLD
+
+# Consecutive daily runs with a failed Yahoo preflight before the alert
+# fires. 3 keeps a single unlucky day from raising an alarm and still
+# catches an outage within three days.
+yahoo_429_streak_threshold: 3

@@ -101,6 +101,9 @@ class PriceService:
         # the service behaves exactly as before.
         self._metrics = metrics
         self._health_fn = health_fn
+        # Last preflight outcome, so a caller (the daily workflow) can act on
+        # it without triggering another probe.
+        self._last_health = None
 
     def configure(
         self,
@@ -447,10 +450,16 @@ class PriceService:
         if self._health_fn is None:
             return None
         try:
-            return self._health_fn(force=force)
+            health = self._health_fn(force=force)
         except Exception as exc:  # noqa: BLE001 — a broken probe never fails a run
             logger.warning("Yahoo preflight error: %s", exc)
             return None
+        self._last_health = health
+        return health
+
+    def last_health(self):
+        """The most recent preflight outcome, or None if never probed."""
+        return self._last_health
 
     def _note_price_failure(self, category: str, count: int = 1) -> None:
         """Tally one price failure category in the run telemetry."""

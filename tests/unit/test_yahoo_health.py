@@ -166,3 +166,29 @@ def test_fetches_short_circuit_once_yahoo_is_known_down(monkeypatch):
     assert service._fetch_market_snapshot("AAPL") is None
     assert service._fetch_current_price("AAPL") is None
     assert service.get_market_snapshots(["AAPL", "KO"]) == {}
+
+
+# ----------------------------------------------------------------------
+# the outcome must be readable by the caller (429 watcher contract)
+# ----------------------------------------------------------------------
+
+
+def test_last_health_is_none_before_any_probe():
+    from backend.services.price_service import PriceService
+    from backend.services.yahoo_health import YahooHealth
+
+    service = PriceService(health_fn=lambda **kwargs: YahooHealth(True, "ok", 200, 0.0))
+    assert service.last_health() is None  # a method, called — never the bound method
+
+
+def test_last_health_exposes_the_probe_result():
+    from backend.services.price_service import PriceService
+    from backend.services.yahoo_health import YahooHealth
+
+    down = YahooHealth(False, "Yahoo returned HTTP 429 (rate limited)", 429, 0.0)
+    service = PriceService(health_fn=lambda **kwargs: down)
+
+    assert service.yahoo_available().available is False
+    assert service.last_health() is down
+    assert service.last_health().available is False
+    assert service.last_health().http_status == 429

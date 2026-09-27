@@ -35,6 +35,7 @@ class DailyReport:
     notes: list[str] = field(default_factory=list)
     network: dict = field(default_factory=dict)
     prices_stage: dict = field(default_factory=dict)
+    yahoo_streak: dict = field(default_factory=dict)
     runtime_seconds: float = 0.0
 
     def to_dict(self) -> dict:
@@ -51,6 +52,7 @@ class DailyReport:
             "notes": self.notes,
             "network": self.network,
             "prices_stage": self.prices_stage,
+            "yahoo_streak": self.yahoo_streak,
             "runtime_seconds": self.runtime_seconds,
         }
 
@@ -186,6 +188,18 @@ def build_markdown(report: DailyReport) -> str:
             lines.append("> Every price-derived field is N/A because the Yahoo "
                          "preflight found the provider unreachable "
                          "(`no_yahoo`); no per-ticker probe was attempted.")
+            lines.append("")
+
+    streak = report.yahoo_streak or {}
+    if streak.get("alerted"):
+        from backend.services.yahoo_streak import StreakUpdate
+
+        lines_of_alert = StreakUpdate(state=streak).report_lines()
+        if lines_of_alert:
+            lines.append("## ⚠️ Yahoo Rate Limit Alert")
+            lines.append("")
+            for line in lines_of_alert:
+                lines.append(line)
             lines.append("")
 
     if report.rows:

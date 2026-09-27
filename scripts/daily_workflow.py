@@ -643,6 +643,39 @@ def _run(args) -> None:
                 note_no_yahoo(len(universe))
             failure_counts = dict(price_service.price_failure_counts())
         run_state.set_prices_stage(len(universe), failure_counts)
+
+    # Yahoo rate-limit streak: a 429 is a silent failure (the run completes
+    # with every price column N/A), so consecutive days are counted and
+    # alerted once the threshold is reached. --no-prices skips the streak
+    # entirely: it never tried, so it cannot report success.
+    yahoo_streak_state: dict = {}
+    from backend.services.yahoo_streak import (
+        YahooStreakTracker,
+        load_alerts_config,
+    )
+
+    # Always enabled: this is provider health, not an analysis cache, so it is
+    # deliberately NOT tied to --no-cache.
+    streak_tracker = YahooStreakTracker(threshold=load_alerts_config())
+    if not args.no_prices:
+        getter = getattr(price_service, "last_health", None)
+        health = getter() if callable(getter) else None
+        if health is not None and not getattr(health, "available", True):
+            update = streak_tracker.record_failure(getattr(health, "reason", ""))
+        elif health is not None:
+            update = streak_tracker.record_success()
+        else:
+            # No preflight was wired: nothing observed, nothing counted.
+            update = None
+        if update is not None:
+            yahoo_streak_state = update.state
+            if update.alert_triggered:
+                logger.warning(
+                    "Yahoo rate limit alert raised after %d consecutive runs",
+                    update.consecutive_failures,
+                )
+            elif update.recovered:
+                logger.info("Yahoo preflight recovered; rate-limit alert cleared")
     if _clean_shutdown():
         return
     if run_state is not None:
@@ -837,6 +870,7 @@ def _run(args) -> None:
         price_notes=price_notes,
         network=network_snapshot,
         prices_stage=prices_stage,
+        yahoo_streak=yahoo_streak_state,
         runtime_seconds=time.time() - start_time,
     )
     body = build_markdown(report)

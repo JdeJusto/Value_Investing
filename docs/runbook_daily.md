@@ -447,6 +447,26 @@ files).
   (the report's cross-sectional `Rank` column stays in a usable range). Wait
   for the rate limit to expire and re-run; force a fresh probe with
   `YAHOO_HEALTH_TTL_SECONDS=0` (or a restart of the process).
+
+  A rate limit is silent, so it is also **tracked**: each run that fails the
+  preflight increments a streak in
+  `data/state/yahoo_health_streak.json`, and after
+  `yahoo_429_streak_threshold` consecutive failures (default 3, see
+  `config/alerts.yaml`) the report gains a **`## ⚠️ Yahoo Rate Limit Alert`**
+  section and `data/alerts/yahoo_429_active.flag` is created for cron or a
+  dashboard to poll. Any successful preflight resets the streak and removes
+  the flag.
+
+  ```bash
+  # is the rate limit still on?
+  cat data/state/yahoo_health_streak.json
+  test -f data/alerts/yahoo_429_active.flag && echo "Yahoo limited"
+
+  # manual check + a small batch once it looks clear
+  curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0" \
+    "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=1d&interval=1d"
+  python -m scripts.daily_workflow --universe sp500 --limit 20 --top 5
+  ```
 - **Refresh slower than expected**: read the report's `## Network` section —
   `sec_requests` (company syncs attempted), `sec_retries`,
   `HTTP 403/429` and `avg_sec_latency_ms` separate "SEC is slow" from

@@ -159,3 +159,5 @@ data/reports/daily_*.md
 data/reports/daily_state.json
 data/cache/analysis/
 data/cache/alerts/
+data/state/
+data/alerts/
