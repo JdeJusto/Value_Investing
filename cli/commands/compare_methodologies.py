@@ -67,7 +67,7 @@ def _run(args):
 
     print_header(f"Methodology comparison — {ticker}")
     print(f"  {'methodology':<18} {'verdict':<18} {'score':<8} {'confidence':<10}")
-    print(f"  {'-'*18} {'-'*18} {'-'*8} {'-'*10}")
+    print(f"  {'-' * 18} {'-' * 18} {'-' * 8} {'-' * 10}")
     for result in results:
         score = "—" if result.score is None else f"{result.score:.1f}"
         print(
@@ -80,8 +80,12 @@ def _run(args):
 
     print_section("Disagreement summary")
     if len(results) < 2:
-        print(dim("  Only one methodology is registered; add more with "
-                  "'analyze-multi <ticker> --methodologies a,b,c'."))
+        print(
+            dim(
+                "  Only one methodology is registered; add more with "
+                "'analyze-multi <ticker> --methodologies a,b,c'."
+            )
+        )
     else:
         disagreements = []
         for i, left in enumerate(results):

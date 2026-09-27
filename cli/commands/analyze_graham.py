@@ -65,7 +65,9 @@ def _run(args):
         print(red("ERROR: the 'graham' methodology is not registered."))
         return
     # A configured instance, so --era-adjustment reaches the methodology.
-    methodology = GrahamMethodology(era_adjustment=getattr(args, "era_adjustment", False))
+    methodology = GrahamMethodology(
+        era_adjustment=getattr(args, "era_adjustment", False)
+    )
 
     ticker = args.ticker.upper().strip()
     rows = [

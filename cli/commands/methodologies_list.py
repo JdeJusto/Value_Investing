@@ -26,13 +26,10 @@ def _run(args):
         return
 
     print(f"  {'name':<16} {'version':<10} {'family':<22} source")
-    print(f"  {'-'*16} {'-'*10} {'-'*22} {'-'*30}")
+    print(f"  {'-' * 16} {'-' * 10} {'-' * 22} {'-' * 30}")
     for name in names:
         m = registry.get(name)
         meta = m.metadata()
-        print(
-            f"  {name:<16} {m.version:<10} {m.family:<22} "
-            f"{meta.get('source', '—')}"
-        )
+        print(f"  {name:<16} {m.version:<10} {m.family:<22} {meta.get('source', '—')}")
     print()
     print(dim("  Use 'methodologies show <name>' for rules and limitations."))
