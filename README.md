@@ -540,10 +540,14 @@ european|all` o una ruta a un archivo, y limita el sync SEC acotado por CIK con
 ## Testing y calidad
 
 ```bash
-pipenv run pytest tests/unit -q     # suite unitaria (479 tests, sin red)
+pipenv run pytest tests/unit -q     # suite unitaria (sin red ni base de datos)
 pipenv run black .
 pipenv run flake8
 ```
+
+La suite unitaria es hermética: los pocos tests que tocan Financial-DataBase
+se saltan solos si `FINANCIAL_DATABASE_URL` no está definida. Ese mismo
+comando es el que ejecuta CI en cada push y en cada pull request.
 
 ## Estructura del proyecto
 
@@ -574,5 +578,44 @@ red (consumen los outputs del pipeline); todo es determinista; el dominio no
 depende de pandas.
 
 ## Licencia
+
+[MIT](LICENSE) © 2026 Jaime de Justo. Si necesitas otra licencia (por ejemplo
+Apache-2.0, más Suitable para proyectos corporativos), cambia el fichero
+`LICENSE`: es un único commit.
+
+## Documentación
+
+Todo el detalle vive en [`docs/`](docs/), starting with:
+
+| Documento | Para qué |
+| --- | --- |
+| [`docs/runbook_daily.md`](docs/runbook_daily.md) | la corrida diaria: refresh SEC, cache, alertas, timer, recuperación |
+| [`docs/scoring_methodology.md`](docs/scoring_methodology.md) | cómo se calculan scores, señales y alertas |
+| [`docs/architecture.md`](docs/architecture.md) | capas y flujo de datos |
+| [`docs/price_recovery_2026-09-28.md`](docs/price_recovery_2026-09-28.md) | el incidente del User-Agent que parecía un rate limit |
+| [`docs/public_release_audit_2026-09-27.md`](docs/public_release_audit_2026-09-27.md) | auditoría previa a hacer el repositorio público |
+
+## Cómo contribute
+
+Lee [`CONTRIBUTING.md`](CONTRIBUTING.md). Dos invariantes del proyecto, en
+una línea cada una: **los precios nunca se persisten** y **toda petición a la
+SEC lleva un `User-Agent` con contacto real**.
+
+## Arquitectura
+
+```mermaid
+flowchart TD
+    CLI[CLI / daily_workflow] --> SVC[Servicios de aplicación]
+    SVC --> REPO[Repositorio<br/>Financial-DataBase]
+    REPO --> FDB[(PostgreSQL<br/>fundamental + filings)]
+    SVC --> PRE[Yahoo Finance<br/>preflight + quotes]
+    SVC --> SEC[SEC EDGAR<br/>sec sync por CIK]
+    SEC --> FDB
+    SVC --> ANA[Analytics + scoring<br/>determinista]
+    ANA --> REP[Informe diario + alertas]
+    CACHE[(data/cache/analysis<br/>fingerprint)] -.-> ANA
+```
+
+
 
 Uso interno / educativo.
