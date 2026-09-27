@@ -195,6 +195,7 @@ def _run_targeted_refresh(
     *,
     skip: set[str] | None = None,
     progress_cb=None,
+    metrics=None,
 ) -> str:
     """Targeted per-CIK SEC refresh of ONLY the analyzed tickers.
 
@@ -223,7 +224,11 @@ def _run_targeted_refresh(
     config = load_refresh_config()
     if refresh_workers:
         config.refresh_workers = max(1, int(refresh_workers))
-    service = RefreshService(config=config, fdb_repo_path=str(Path(args.fdb_dir).resolve()))
+    service = RefreshService(
+        config=config,
+        fdb_repo_path=str(Path(args.fdb_dir).resolve()),
+        metrics=metrics,
+    )
 
     skip = skip or set()
     eligible = [t for t in universe if t not in skip]
@@ -494,6 +499,19 @@ def _run(args) -> None:
     price_service = get_price_service()
     cache: dict[str, dict | None] = {}
 
+    # Run telemetry: per-company SEC sync counts/retries/throttling and
+    # per-attempt Yahoo counters (backend/services/network_metrics.py). They
+    # end up in the run state and the report; nothing else reads them.
+    from backend.services.network_metrics import NetworkMetrics
+    from backend.services.yahoo_health import check_yahoo_availability
+
+    network_metrics = NetworkMetrics()
+    if price_service is not None and hasattr(price_service, "_health_fn"):
+        # Wire the Yahoo preflight + telemetry into the shared price service
+        # (get_price_service() is a process-level singleton).
+        price_service._metrics = network_metrics
+        price_service._health_fn = check_yahoo_availability
+
     # Fundamentals cache: skips the per-ticker database read (the ~96 % of the
     # analysis cost) when neither the company's facts nor the analysis version
     # changed. Price-derived metrics are always recomputed from the live
@@ -577,6 +595,7 @@ def _run(args) -> None:
             args,
             skip=resume_skip,
             progress_cb=_refresh_progress if run_state is not None else None,
+            metrics=network_metrics,
         )
     timings["refresh"] = time.time() - tick
     tick = time.time()
@@ -735,6 +754,9 @@ def _run(args) -> None:
                 + ", ".join(undetermined)
             )
 
+    network_snapshot = network_metrics.snapshot()
+    logger.info("network: %s", network_metrics.summary())
+
     report = DailyReport(
         report_date=report_date,
         universe_size=len(universe),
@@ -745,6 +767,7 @@ def _run(args) -> None:
         alerts=[alert_to_dict(a) for a in alerts],
         missing=missing,
         price_notes=price_notes,
+        network=network_snapshot,
         runtime_seconds=time.time() - start_time,
     )
     body = build_markdown(report)
@@ -783,6 +806,7 @@ def _run(args) -> None:
         print("No alerts.")
 
     if run_state is not None:
+        run_state.note_network(network_snapshot)
         archived = run_state.complete()
         print(f"Run state archived: {archived}")
 

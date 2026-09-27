@@ -79,7 +79,12 @@ class PriceService:
     or any database.
     """
 
-    def __init__(self, cache_ttl: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        cache_ttl: Optional[int] = None,
+        metrics=None,
+        health_fn=None,
+    ) -> None:
         self._cache: Dict[str, Tuple[float, object]] = {}
         if cache_ttl is None:
             try:
@@ -87,6 +92,11 @@ class PriceService:
             except (TypeError, ValueError):
                 cache_ttl = DEFAULT_CACHE_TTL_SECONDS
         self._cache_ttl = cache_ttl
+        # Optional run telemetry (NetworkMetrics) and availability preflight
+        # (backend/services/yahoo_health.py). Both are optional: without them
+        # the service behaves exactly as before.
+        self._metrics = metrics
+        self._health_fn = health_fn
 
     # ------------------------------------------------------------------
     # cache helpers
@@ -309,6 +319,7 @@ class PriceService:
         batch_size: int = 25,
         delay: float = 0.2,
         workers: int = 1,
+        preflight: bool = True,
     ) -> Dict[str, Optional[dict]]:
         """Batch current market-quote snapshot fetch (Yahoo .info, one call).
 
@@ -321,7 +332,22 @@ class PriceService:
         warmed into the memory cache so downstream reads reuse identical
         values. Batching/pacing mirrors ``get_current_prices``. Nothing is
         persisted. Returns ``{TICKER: snapshot-dict-or-None}``.
+
+        When ``preflight`` is true and a health function is configured, Yahoo
+        is probed first: if it is unreachable the pipeline is skipped
+        gracefully with a warning and an **empty** mapping is returned, so
+        callers render market fields as N/A instead of classifying thousands
+        of tickers as individually failed.
         """
+        if preflight and self._health_fn is not None:
+            health = self.yahoo_available()
+            if health is not None and not getattr(health, "available", True):
+                logger.warning(
+                    "Yahoo preflight unavailable (%s): skipping the market-snapshot "
+                    "prefetch; price-derived metrics will be N/A",
+                    getattr(health, "reason", "unknown"),
+                )
+                return {}
         snapshots: Dict[str, Optional[dict]] = {}
         remaining = [t.upper() for t in tickers if t]
         while remaining:
@@ -352,6 +378,57 @@ class PriceService:
                     pass
         return snapshots
 
+    def _record_yahoo(
+        self,
+        *,
+        latency_ms: Optional[float] = None,
+        retries: int = 0,
+        reason: Optional[str] = None,
+    ) -> None:
+        """Record one Yahoo HTTP attempt in the run telemetry (never fatal)."""
+        if self._metrics is None:
+            return
+        try:
+            self._metrics.record(
+                "yahoo", latency_ms=latency_ms, retries=retries, reason=reason
+            )
+        except Exception:  # noqa: BLE001 — telemetry must never break a fetch
+            pass
+
+    def yahoo_available(self, *, force: bool = False):
+        """Preflight Yahoo (see backend/services/yahoo_health.py).
+
+        Returns a :class:`YahooHealth` when a health function is configured,
+        ``None`` when the preflight is not wired (treated as "proceed").
+        """
+        if self._health_fn is None:
+            return None
+        try:
+            return self._health_fn(force=force)
+        except Exception as exc:  # noqa: BLE001 — a broken probe never fails a run
+            logger.warning("Yahoo preflight error: %s", exc)
+            return None
+
+    def _yahoo_is_known_down(self) -> Optional[str]:
+        """Reason when a previous probe proved Yahoo unreachable, else None.
+
+        No HTTP call: this only reads the preflight cache, so once a run knows
+        Yahoo is down the per-ticker fetches degrade to N/A immediately instead
+        of burning three attempts plus backoff per ticker (throttling is not
+        per-symbol, so retrying thousands of times cannot help).
+        """
+        if self._health_fn is None:
+            return None
+        try:
+            from backend.services.yahoo_health import cached_yahoo_health
+
+            cached = cached_yahoo_health()
+        except Exception:  # noqa: BLE001 — never let telemetry break a fetch
+            return None
+        if cached is not None and not cached.available:
+            return cached.reason
+        return None
+
     def _fetch_market_snapshot(self, ticker: str) -> Optional[dict]:
         """One Yahoo .info parse for ``ticker``, or None on failure.
 
@@ -360,13 +437,27 @@ class PriceService:
         delisted-with-data issues — but transients are handled with retries
         and slightly longer delays to avoid triggering rate limits.
         """
+        if self._yahoo_is_known_down():
+            return None
         for attempt in range(3):
+            started = time.time()
+            reason = None
             try:
                 info = yf.Ticker(ticker).info
                 if isinstance(info, dict) and info:
+                    self._record_yahoo(
+                        latency_ms=(time.time() - started) * 1000.0,
+                        retries=1 if attempt else 0,
+                    )
                     return info
-            except Exception:  # noqa: BLE001 — transient Yahoo errors
-                pass
+                reason = "empty quote summary"
+            except Exception as exc:  # noqa: BLE001 — transient Yahoo errors
+                reason = str(exc)
+            self._record_yahoo(
+                latency_ms=(time.time() - started) * 1000.0,
+                retries=1 if attempt else 0,
+                reason=reason,
+            )
             # Exponential backoff: 1s, 2s between retries
             wait_time = 1.0 * (2 ** attempt)
             logger.debug("Yahoo .info attempt %d failed for %s, retrying in %.1fs", attempt + 1, ticker, wait_time)
@@ -516,13 +607,27 @@ class PriceService:
         transient window (rate limiting); one short retry usually recovers
         it. Nothing is ever persisted.
         """
+        if self._yahoo_is_known_down():
+            return None
         for attempt in (1, 2):
+            started = time.time()
+            reason = None
             try:
                 hist = yf.Ticker(ticker).history(period="1d")
                 if hist is not None and not hist.empty:
+                    self._record_yahoo(
+                        latency_ms=(time.time() - started) * 1000.0,
+                        retries=attempt - 1,
+                    )
                     return float(hist["Close"].iloc[-1])
-            except Exception:  # noqa: BLE001 — transient Yahoo errors
-                pass
+                reason = "empty history frame"
+            except Exception as exc:  # noqa: BLE001 — transient Yahoo errors
+                reason = str(exc)
+            self._record_yahoo(
+                latency_ms=(time.time() - started) * 1000.0,
+                retries=attempt - 1,
+                reason=reason,
+            )
             if attempt == 1:
                 time.sleep(0.75)
         return None
