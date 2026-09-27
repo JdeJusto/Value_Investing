@@ -516,9 +516,15 @@ def _run(args) -> None:
     # analysis cost) when neither the company's facts nor the analysis version
     # changed. Price-derived metrics are always recomputed from the live
     # snapshot below, so a cache hit can never serve stale market data.
+    # The same entry also caches the per-year DB lookups (shares outstanding,
+    # fiscal-year-end) under the same fingerprint, which is what the valuation
+    # and validation commands read.
     from backend.services.analysis_cache import AnalysisCache
 
     analysis_cache = AnalysisCache(repository=fdb_repo, enabled=not args.no_cache)
+    attach = getattr(fdb_repo, "attach_analysis_cache", None)
+    if callable(attach):
+        attach(analysis_cache)
     if not args.no_cache:
         logger.info(
             "fundamentals cache: %s (version %s)",

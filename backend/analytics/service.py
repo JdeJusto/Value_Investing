@@ -385,6 +385,35 @@ class CompanyAnalysisService:
             invalidate(ticker.upper())
         return self._repository.get_best_available(ticker)
 
+    def _available_years(self, ticker: str) -> set:
+        """Fiscal years present in the FULL history (all sources and periods).
+
+        ``list_all`` is a complete read of every stored record, and the
+        reliability metric only needs the *set of years* out of it. Reading it
+        on every ``analyze()`` call was the single largest remaining per-ticker
+        cost once the fundamentals rows themselves were cached, so the year
+        set is cached next to them under the same fingerprint (it changes
+        exactly when they do).
+        """
+        cache = self._history_cache
+        fingerprint = cache.fingerprint_for(ticker) if cache is not None else None
+        if cache is not None and fingerprint is not None:
+            from backend.services.analysis_cache import SECTION_ALL_YEARS
+
+            if cache._entry_present(ticker, fingerprint, SECTION_ALL_YEARS, "years"):
+                years = cache.get_lookup(
+                    ticker, fingerprint, SECTION_ALL_YEARS, "years"
+                )
+                return set(years or ())
+        years = sorted({r.fiscal_year for r in self._repository.list_all(ticker)})
+        if cache is not None and fingerprint is not None:
+            from backend.services.analysis_cache import SECTION_ALL_YEARS
+
+            cache.put_lookup(
+                ticker, fingerprint, SECTION_ALL_YEARS, "years", years
+            )
+        return set(years)
+
     def _data_reliability(self, ticker: str, rows: list[NormalizedFinancials]) -> dict:
         """Source consistency, confidence and quality metadata for the result.
 
@@ -394,8 +423,7 @@ class CompanyAnalysisService:
         depth of available history and the coverage ratio so the composite
         score and confidence carry real signal.
         """
-        all_rows = self._repository.list_all(ticker)
-        available_years = {r.fiscal_year for r in all_rows}
+        available_years = self._available_years(ticker)
         used_years = {r.fiscal_year for r in rows}
         coverage = len(used_years) / len(available_years) if available_years else 0.0
         # Depth: fraction of REQUIRED_HISTORY_YEARS we have; capped at 1.0.

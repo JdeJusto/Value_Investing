@@ -36,15 +36,36 @@ from backend.domain.value_objects.financials_normalized import NormalizedFinanci
 
 logger = logging.getLogger("backend.analysis_cache")
 
-# Bump when the normalization or the analysis logic changes: every entry
-# becomes stale and is recomputed on the next run.
-ANALYSIS_VERSION = "1"
+# Bump when the normalization, the analysis logic or the ENTRY FORMAT changes:
+# every entry becomes stale and is recomputed on the next run.
+#   v1 -> fundamentals rows only
+#   v2 -> fundamentals rows + the per-year DB lookups (shares outstanding,
+#        fiscal-year-end). v1 files are ignored, not migrated: the history is
+#        cheap to rebuild and a half-migrated entry would be a silent risk.
+ANALYSIS_VERSION = "2"
 
 DEFAULT_DIRECTORY = "data/cache/analysis"
 
+# Per-year DB lookups cached next to the fundamentals. They are keyed by
+# fiscal year (and by the diluted flag for shares) instead of a single
+# scalar: get_shares_outstanding / get_fiscal_year_end_date take a fiscal
+# year, and callers such as validate_sp500 compare several years side by
+# side, so one value per company would answer the wrong question.
+SECTION_SHARES = "shares_outstanding"
+SECTION_FISCAL_YEAR_END = "fiscal_year_end_date"
+# Fiscal years present in the FULL history (every source and period), the
+# projection _data_reliability needs for its coverage ratio. Kept here because
+# list_all() is a full read that used to run on every analyze() call.
+SECTION_ALL_YEARS = "all_years"
+
+# Marker for a lookup that was performed and found nothing, so the negative
+# answer is cached too (stored as a string because JSON has no null sentinel
+# distinct from "not looked up yet").
+_ABSENT = "__absent__"
+
 
 class AnalysisCache:
-    """Per-ticker cache of normalized fundamentals rows."""
+    """Per-ticker cache of normalized fundamentals and per-year DB lookups."""
 
     def __init__(
         self,
@@ -58,7 +79,14 @@ class AnalysisCache:
         self.version = str(version)
         self.enabled = bool(enabled) and repository is not None
         self._lock = threading.Lock()
-        self._stats = {"hits": 0, "misses": 0, "writes": 0, "errors": 0}
+        self._stats = {
+            "hits": 0,
+            "misses": 0,
+            "writes": 0,
+            "errors": 0,
+            "lookup_hits": 0,
+            "lookup_misses": 0,
+        }
 
     # ------------------------------------------------------------------
     @property
@@ -97,6 +125,16 @@ class AnalysisCache:
     # ------------------------------------------------------------------
     def get(self, ticker: str, fingerprint: str) -> Optional[list[NormalizedFinancials]]:
         """Cached rows for this exact (ticker, fingerprint, version), or None."""
+        rows = self._read_rows(ticker, fingerprint)
+        if rows is None:
+            return None
+        self._count("hits")
+        return rows
+
+    def _read_rows(
+        self, ticker: str, fingerprint: str
+    ) -> Optional[list[NormalizedFinancials]]:
+        """Load and validate the entry; ``None`` for any kind of miss."""
         if not self.enabled or not fingerprint:
             self._count("misses")
             return None
@@ -114,19 +152,17 @@ class AnalysisCache:
         if (
             payload.get("version") != self.version
             or payload.get("fingerprint") != fingerprint
-            or not isinstance(payload.get("rows"), list)
+            or not isinstance(payload.get("fundamentals"), list)
         ):
             self._count("misses")
             return None
         try:
-            rows = [NormalizedFinancials.from_dict(row) for row in payload["rows"]]
+            return [NormalizedFinancials.from_dict(row) for row in payload["fundamentals"]]
         except Exception as exc:  # noqa: BLE001 — never let the cache break a run
             self._count("errors")
             logger.warning("analysis cache: bad payload for %s: %s", ticker, exc)
             self._count("misses")
             return None
-        self._count("hits")
-        return rows
 
     def put(
         self,
@@ -134,22 +170,143 @@ class AnalysisCache:
         fingerprint: str,
         rows: list[NormalizedFinancials],
     ) -> None:
-        """Store rows for (ticker, fingerprint) atomically."""
+        """Store rows for (ticker, fingerprint) atomically.
+
+        Any per-year lookups already stored for the same (ticker, fingerprint)
+        are preserved: a run that only analyses fundamentals must not drop the
+        shares / fiscal-year-end values a valuation run collected.
+        """
         if not self.enabled or not fingerprint or not rows:
             return
-        path = self.path_for(ticker)
-        payload = {
+        self._write(
+            ticker,
+            fingerprint,
+            fundamentals=[row.to_dict() for row in rows],
+        )
+
+    # ------------------------------------------------------------------
+    # per-year DB lookups (shares outstanding, fiscal-year-end)
+    # ------------------------------------------------------------------
+    def _entry_present(
+        self, ticker: str, fingerprint: str, section: str, key: str
+    ) -> bool:
+        """True when this exact (ticker, fingerprint, section, key) is stored.
+
+        Distinguishes "already looked up, and there is no value" (cacheable
+        negative) from "never looked up" (must query). Without it a stored
+        ``None`` would be indistinguishable from a miss and the negative
+        answer would never be cached.
+        """
+        payload = self._load(ticker, fingerprint)
+        if payload is None:
+            return False
+        section_data = payload.get(section)
+        return isinstance(section_data, dict) and str(key) in section_data
+
+    def get_lookup(
+        self,
+        ticker: str,
+        fingerprint: str,
+        section: str,
+        key: str,
+    ):
+        """A cached per-year lookup, or ``None`` for a miss/unknown value.
+
+        ``None`` is also returned for a value that was looked up before and
+        found to be absent, because the stored marker keeps the negative
+        answer: without it, a missing concept would be re-queried on every
+        run (the common case for small filers).
+        """
+        if not self.enabled or not fingerprint:
+            return None
+        payload = self._load(ticker, fingerprint)
+        if payload is None:
+            return None
+        section_data = payload.get(section)
+        if not isinstance(section_data, dict) or key not in section_data:
+            return None
+        self._count("lookup_hits")
+        value = section_data[key]
+        # Compared by value: the marker travels through JSON, so the loaded
+        # string is a different object than the module-level constant.
+        if value == _ABSENT:
+            return None
+        return value
+
+    def put_lookup(
+        self,
+        ticker: str,
+        fingerprint: str,
+        section: str,
+        key: str,
+        value,
+    ) -> None:
+        """Store a per-year lookup (or the "known absent" marker)."""
+        if not self.enabled or not fingerprint:
+            return
+        payload = self._load(ticker, fingerprint) or {
             "ticker": ticker.upper(),
             "fingerprint": fingerprint,
             "version": self.version,
-            "saved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "rows": [row.to_dict() for row in rows],
         }
+        section_data = payload.get(section)
+        if not isinstance(section_data, dict):
+            section_data = {}
+        section_data[str(key)] = _ABSENT if value is None else value
+        payload[section] = section_data
+        self._write(ticker, fingerprint, fundamentals=None, extra=payload)
+
+    # ------------------------------------------------------------------
+    def _load(self, ticker: str, fingerprint: str) -> Optional[dict]:
+        """Raw entry for (ticker, fingerprint) or None — no stats side effects."""
+        if not self.enabled or not fingerprint:
+            return None
+        try:
+            with open(self.path_for(ticker), encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except Exception:  # noqa: BLE001 — unreadable entry: treat as absent
+            return None
+        if (
+            not isinstance(payload, dict)
+            or payload.get("version") != self.version
+            or payload.get("fingerprint") != fingerprint
+        ):
+            return None
+        return payload
+
+    def _write(
+        self,
+        ticker: str,
+        fingerprint: str,
+        fundamentals: Optional[list] = None,
+        extra: Optional[dict] = None,
+    ) -> None:
+        """Atomic write of one entry (fundamentals and/or lookups)."""
+        if not self.enabled or not fingerprint:
+            return
+        path = self.path_for(ticker)
+        base = self._load(ticker, fingerprint) or {}
+        base.update(
+            {
+                "ticker": ticker.upper(),
+                "fingerprint": fingerprint,
+                "version": self.version,
+                "computed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        )
+        if fundamentals is not None:
+            base["fundamentals"] = fundamentals
+        elif "fundamentals" not in base and extra is None:
+            return  # nothing to store yet
+        if extra:
+            for key, value in extra.items():
+                if key not in ("ticker", "fingerprint", "version", "computed_at"):
+                    base[key] = value
         try:
             self.directory.mkdir(parents=True, exist_ok=True)
             tmp = path.with_name(path.name + ".tmp")
             with open(tmp, "w", encoding="utf-8") as handle:
-                json.dump(payload, handle, separators=(",", ":"))
+                json.dump(base, handle, separators=(",", ":"))
             os.replace(tmp, path)
         except Exception as exc:  # noqa: BLE001 — caching must never break a run
             self._count("errors")

@@ -71,14 +71,20 @@ def build_data_pipeline() -> DataPipelineService:
     from backend.providers.yahoo import YahooFinanceProvider
     from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 
-    if not sec_email:
-        raise RuntimeError(
-            "SEC_EMAIL is not configured. Set it in .env to a real contact "
-            "address (copy .env.example) before running a command that "
-            "fetches from EDGAR."
-        )
     yahoo = YahooFinanceProvider()
-    edgar = EdgarProvider(email=sec_email, name=sec_name)
+    if sec_email:
+        edgar = EdgarProvider(email=sec_email, name=sec_name)
+    else:
+        # No contact configured: the live EDGAR fallback is disabled rather
+        # than sending unattributed requests (the SEC answers 403), and the
+        # command keeps working on the Financial-DataBase data, which is where
+        # the fundamentals come from anyway. Live EDGAR fetching needs
+        # SEC_EMAIL in .env.
+        logger.warning(
+            "SEC_EMAIL is not configured: the live EDGAR fallback is disabled "
+            "(set SEC_EMAIL in .env, copy .env.example, to enable it)"
+        )
+        edgar = None
     repository = build_financial_repository()
 
     def _save_company(ticker: str) -> None:
@@ -130,6 +136,13 @@ def build_analysis_service(
             enabled=os.environ.get("ANALYSIS_CACHE", "1").lower()
             not in ("0", "false", "no"),
         )
+    # The per-year DB lookups (shares outstanding, fiscal-year-end) live in the
+    # same entry, so the repository must know about the cache too — otherwise
+    # only the fundamentals read would be cached and every valuation/validation
+    # command would keep re-querying facts that have not changed.
+    attach = getattr(repository, "attach_analysis_cache", None)
+    if callable(attach):
+        attach(cache)
     return CompanyAnalysisService(
         repository=repository,
         market_provider=market_provider,

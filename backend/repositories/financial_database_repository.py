@@ -352,6 +352,19 @@ class FinancialDatabaseRepository(FinancialRepository):
         self._list_cache: dict[str, list[NormalizedFinancials]] = {}
         self._list_cache_lock = threading.Lock()
 
+        # Optional shared AnalysisCache. When present, the per-year DB
+        # lookups (shares outstanding, fiscal-year-end) are served from it
+        # under the same content-addressed fingerprint as the fundamentals,
+        # so a valuation or validation run stops re-querying facts that have
+        # not changed. Injected by attach_analysis_cache() to avoid an
+        # import cycle (the cache needs this repository for fingerprints).
+        self._analysis_cache = None
+
+    def attach_analysis_cache(self, cache) -> "FinancialDatabaseRepository":
+        """Wire the shared analysis cache (per-year lookups) and return self."""
+        self._analysis_cache = cache
+        return self
+
     # ------------------------------------------------------------------
     # per-run list_years cache helpers
     # ------------------------------------------------------------------
@@ -1240,7 +1253,57 @@ class FinancialDatabaseRepository(FinancialRepository):
         """
         return self.get_by_year(ticker, fiscal_year)
 
+    # ------------------------------------------------------------------
+    # per-year lookup cache (shares outstanding, fiscal-year-end)
+    # ------------------------------------------------------------------
+    def _lookup_cache(self):
+        """The shared AnalysisCache, or None when no cache is wired in."""
+        cache = getattr(self, "_analysis_cache", None)
+        return cache if getattr(cache, "enabled", False) else None
+
+    @staticmethod
+    def _shares_cache_key(fiscal_year: int, prefer_diluted: bool) -> str:
+        """Shares are cached per year AND per share basis: the diluted and
+        as-reported answers differ, and callers ask for both."""
+        return f"{int(fiscal_year)}:{'diluted' if prefer_diluted else 'basic'}"
+
     def get_shares_outstanding(
+        self,
+        ticker: str,
+        fiscal_year: int,
+        prefer_diluted: bool = False,
+    ) -> Optional[float]:
+        """Cached shares outstanding: per-year DB lookup, content-addressed.
+
+        The answer only changes when the company's facts change, which is what
+        the cache fingerprint tracks, so a valuation or validation run over
+        several years reuses one query per (ticker, year, basis) instead of
+        repeating it. ``None`` is a real answer (concept absent) and is cached
+        too, so a small filer is not re-queried on every run.
+        """
+        cache = self._lookup_cache()
+        if cache is None:
+            return self._get_shares_outstanding_uncached(
+                ticker, fiscal_year, prefer_diluted
+            )
+        fingerprint = cache.fingerprint_for(ticker)
+        if fingerprint is None:
+            return self._get_shares_outstanding_uncached(
+                ticker, fiscal_year, prefer_diluted
+            )
+        from backend.services.analysis_cache import SECTION_SHARES
+
+        key = self._shares_cache_key(fiscal_year, prefer_diluted)
+        if cache._entry_present(ticker, fingerprint, SECTION_SHARES, key):
+            value = cache.get_lookup(ticker, fingerprint, SECTION_SHARES, key)
+            return float(value) if value is not None else None
+        value = self._get_shares_outstanding_uncached(
+            ticker, fiscal_year, prefer_diluted
+        )
+        cache.put_lookup(ticker, fingerprint, SECTION_SHARES, key, value)
+        return value
+
+    def _get_shares_outstanding_uncached(
         self,
         ticker: str,
         fiscal_year: int,
@@ -1466,6 +1529,42 @@ class FinancialDatabaseRepository(FinancialRepository):
             return None
 
     def get_fiscal_year_end_date(self, ticker: str, fiscal_year: int) -> Optional[date]:
+        """Cached fiscal year end: per-year DB lookup, content-addressed.
+
+        The date is derived from the company's facts and only moves when they
+        change, so it is cached next to the shares outstanding under the same
+        fingerprint. Stored as an ISO string and rebuilt into a ``date`` here.
+        """
+        cache = self._lookup_cache()
+        if cache is None:
+            return self._get_fiscal_year_end_date_uncached(ticker, fiscal_year)
+        fingerprint = cache.fingerprint_for(ticker)
+        if fingerprint is None:
+            return self._get_fiscal_year_end_date_uncached(ticker, fiscal_year)
+        from backend.services.analysis_cache import SECTION_FISCAL_YEAR_END
+
+        key = str(int(fiscal_year))
+        if cache._entry_present(ticker, fingerprint, SECTION_FISCAL_YEAR_END, key):
+            value = cache.get_lookup(ticker, fingerprint, SECTION_FISCAL_YEAR_END, key)
+            if value is None:
+                return None
+            try:
+                return date.fromisoformat(str(value))
+            except ValueError:
+                return None
+        value = self._get_fiscal_year_end_date_uncached(ticker, fiscal_year)
+        cache.put_lookup(
+            ticker,
+            fingerprint,
+            SECTION_FISCAL_YEAR_END,
+            key,
+            value.isoformat() if value is not None else None,
+        )
+        return value
+
+    def _get_fiscal_year_end_date_uncached(
+        self, ticker: str, fiscal_year: int
+    ) -> Optional[date]:
         """Return the best-known fiscal year end date for a ticker/year.
 
         The value is the ``period_end`` of the core 'FY' statement fact that
