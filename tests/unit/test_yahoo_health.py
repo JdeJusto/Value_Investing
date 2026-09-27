@@ -195,42 +195,181 @@ def test_last_health_exposes_the_probe_result():
 
 
 def test_probe_user_agent_is_configurable(monkeypatch):
-    """The UA decided the 429 outcome, so it must not be hardcoded-only."""
-    from backend.services.yahoo_health import DEFAULT_USER_AGENT, _probe
+    """The agent is configurable and defaults to the minimal one."""
+    from backend.services.yahoo_health import DEFAULT_USER_AGENT, _user_agent
 
-    seen: dict = {}
+    monkeypatch.delenv("YAHOO_HEALTH_USER_AGENT", raising=False)
+    assert _user_agent() == DEFAULT_USER_AGENT == "Mozilla/5.0"
 
-    class _Response:
-        status = 200
+    monkeypatch.setenv("YAHOO_HEALTH_USER_AGENT", "CustomTool/1.0")
+    assert _user_agent() == "CustomTool/1.0"
 
-        def read(self, _n):
-            return b"{}"
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-    def fake_urlopen(request, timeout=None):
-        seen["ua"] = request.get_header("User-agent")
-        return _Response()
-
-    monkeypatch.setattr("backend.services.yahoo_health.urllib.request.urlopen", fake_urlopen)
-
-    _probe(YAHOO_HEALTH_URL, 5.0)
-    assert seen["ua"] == DEFAULT_USER_AGENT == "Mozilla/5.0"
-
-    monkeypatch.setenv("YAHOO_HEALTH_USER_AGENT", "Mozilla/5.0")
-    _probe(YAHOO_HEALTH_URL, 5.0)
-    assert seen["ua"] == "Mozilla/5.0"
+    # An empty override must not produce an empty header.
+    monkeypatch.setenv("YAHOO_HEALTH_USER_AGENT", "   ")
+    assert _user_agent() == DEFAULT_USER_AGENT
 
 
-def test_default_user_agent_is_the_minimal_one():
-    """Regression guard: the full-Chrome UA is what Yahoo answered 429 to."""
-    from backend.services.yahoo_health import DEFAULT_USER_AGENT
+# ----------------------------------------------------------------------
+# the probe walks the real path (yfinance)
+# ----------------------------------------------------------------------
 
-    assert DEFAULT_USER_AGENT == "Mozilla/5.0"
-    # A browser-like agent with no cookie/crumb is what got blocked.
-    assert "Chrome" not in DEFAULT_USER_AGENT
-    assert "AppleWebKit" not in DEFAULT_USER_AGENT
+
+class _FakeTicker:
+    def __init__(self, symbol, info=None, error=None):
+        self._symbol = symbol
+        self._info = info
+        self._error = error
+
+    @property
+    def fast_info(self):
+        if self._error is not None:
+            raise self._error
+        return self._info
+
+
+def _patch_yfinance(monkeypatch, **kwargs):
+    created = []
+
+    def _ticker(symbol):
+        created.append(symbol)
+        return _FakeTicker(symbol, **kwargs)
+
+    import sys
+    import types
+
+    module = types.ModuleType("yfinance")
+    module.Ticker = _ticker
+    monkeypatch.setitem(sys.modules, "yfinance", module)
+    return created
+
+
+def test_probe_succeeds_when_the_full_path_works(monkeypatch):
+    _patch_yfinance(monkeypatch, info={"lastPrice": 341.07})
+    reset_yahoo_health_cache()
+
+    health = check_yahoo_availability(force=True)
+
+    assert health.available is True
+    assert health.stage == "yfinance"
+    assert health.crumb is True
+    assert health.non_transient is False
+
+
+def test_probe_fails_when_the_crumb_is_rate_limited(monkeypatch):
+    """yfinance raises YFRateLimitError on a 429 crumb fetch."""
+    from yfinance.exceptions import YFRateLimitError
+
+    _patch_yfinance(monkeypatch, error=YFRateLimitError())
+    reset_yahoo_health_cache()
+
+    health = check_yahoo_availability(force=True)
+
+    assert health.available is False
+    assert health.http_status == 429
+    assert health.stage == "yfinance"
+    assert health.rate_limited is True
+    assert health.non_transient is True
+
+
+def test_probe_fails_when_the_session_is_rejected(monkeypatch):
+    """An unusable crumb shows up as 401 Invalid Crumb."""
+    _patch_yfinance(monkeypatch, error=RuntimeError("Invalid Crumb"))
+    reset_yahoo_health_cache()
+
+    health = check_yahoo_availability(force=True)
+
+    assert health.available is False
+    assert health.http_status == 401
+    assert health.non_transient is True
+    assert "crumb" in health.reason.lower()
+
+
+def test_probe_reports_an_empty_quote_as_unavailable(monkeypatch):
+    _patch_yfinance(monkeypatch, info={})
+    reset_yahoo_health_cache()
+
+    health = check_yahoo_availability(force=True)
+
+    assert health.available is False
+    assert health.stage == "yfinance"
+
+
+def test_probe_stages_are_distinct(monkeypatch):
+    """A failure names the step, so 'unavailable' is never anonymous."""
+    from backend.services.yahoo_health import (
+        STAGE_COOKIE,
+        STAGE_CRUMB,
+        STAGE_QUOTE,
+        STAGE_YFINANCE,
+    )
+
+    assert len({STAGE_COOKIE, STAGE_CRUMB, STAGE_QUOTE, STAGE_YFINANCE}) == 4
+
+    # An injected probe keeps whatever stage it reports.
+    def _probe_with_stage(timeout):
+        return YahooHealth(False, "boom", 503, 0.0, stage=STAGE_QUOTE)
+
+    reset_yahoo_health_cache()
+    health = check_yahoo_availability(probe=_probe_with_stage, force=True)
+    assert health.stage == STAGE_QUOTE
+
+
+def test_non_transient_failures_are_not_retried(monkeypatch):
+    """Retrying a 429 is what turns one refusal into a throttle."""
+    calls = []
+
+    def _rate_limited(timeout):
+        calls.append(timeout)
+        return YahooHealth(False, "rate limited", 429, 0.0, stage="yfinance")
+
+    reset_yahoo_health_cache()
+    health = check_yahoo_availability(
+        probe=_rate_limited, attempts=3, retry_delay=0.0, force=True
+    )
+
+    assert len(calls) == 1  # not three
+    assert health.available is False
+
+
+def test_transient_failures_still_retry(monkeypatch):
+    calls = []
+
+    def _flaky(timeout):
+        calls.append(timeout)
+        return YahooHealth(True, "ok", 200, 0.0, stage="yfinance")
+
+    reset_yahoo_health_cache()
+    health = check_yahoo_availability(
+        probe=_flaky, attempts=3, retry_delay=0.0, force=True
+    )
+    assert health.available is True
+    assert len(calls) == 1  # first attempt succeeded
+
+    reset_yahoo_health_cache()
+    calls.clear()
+    health = check_yahoo_availability(
+        probe=_flaky, attempts=2, retry_delay=0.0, force=True
+    )
+    assert health.available is True
+
+
+def test_preflight_failure_skips_every_per_ticker_request(monkeypatch):
+    """A failed preflight must not authorise thousands of doomed fetches."""
+    import backend.services.price_service as price_service_module
+    from backend.services.price_service import PriceService
+    from backend.services.yahoo_health import YahooHealth
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("no per-ticker request may happen when preflight failed")
+
+    monkeypatch.setattr(price_service_module.yf, "Ticker", _boom)
+    monkeypatch.setattr(price_service_module.time, "sleep", lambda *_: None)
+
+    service = PriceService(
+        health_fn=lambda **kwargs: YahooHealth(
+            False, "rate limited", 429, 0.0, stage="yfinance"
+        )
+    )
+
+    assert service.get_market_snapshots(["AAPL", "KO", "MSFT"]) == {}
+    assert service.last_health().http_status == 429
