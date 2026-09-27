@@ -32,9 +32,10 @@ Sync the 20 companies whose newest filing is most recent::
 
     python -m scripts.catch_up_stale --limit 20 --priority recent_filings
 
-Anchored to the 7-day staleness the daily workflow uses::
+Anchored to the 7-day staleness the daily workflow uses (the default
+``--limit`` is 100, about 10 minutes at the measured 6 s per company)::
 
-    python -m scripts.catch_up_stale --limit 500 --freshness-hours 168
+    python -m scripts.catch_up_stale --freshness-hours 168
 """
 
 from __future__ import annotations
@@ -59,7 +60,7 @@ from backend.services.sec_health import check_sec_availability  # noqa: E402
 
 logger = logging.getLogger("catch_up_stale")
 
-DEFAULT_LIMIT = 500
+DEFAULT_LIMIT = 100
 DEFAULT_WORKERS = 2
 PRIORITIES = ("recent_filings", "alphabetical", "random")
 
@@ -76,7 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit",
         type=int,
         default=DEFAULT_LIMIT,
-        help=f"maximum companies to sync in this run (default {DEFAULT_LIMIT})",
+        help=(
+            f"maximum companies to sync in this run (default {DEFAULT_LIMIT}, "
+            f"≈{DEFAULT_LIMIT * 6 // 60} min at the measured 6 s per company; "
+            "raise it deliberately for a long catch-up campaign)"
+        ),
     )
     parser.add_argument(
         "--priority",

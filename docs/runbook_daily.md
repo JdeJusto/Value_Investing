@@ -365,14 +365,19 @@ python -m scripts.catch_up_stale --limit 20 --dry-run
 # Sync the 20 companies whose newest filing is most recent
 python -m scripts.catch_up_stale --limit 20 --priority recent_filings
 
-# 7-day staleness (the daily workflow's threshold), bounded batch
-python -m scripts.catch_up_stale --limit 500 --freshness-hours 168
+# 7-day staleness (the daily workflow's threshold), bounded batch.
+# --limit defaults to 100 (~10 min at 6 s per company); raise it
+# deliberately for a long catch-up campaign.
+python -m scripts.catch_up_stale --freshness-hours 168
+python -m scripts.catch_up_stale --limit 500   # ~50 min, explicit
 ```
 
 - `--priority recent_filings|alphabetical|random` — selection order.
 - `--limit` is **mandatory in spirit**: it bounds the batch and a
   non-positive value is rejected, so a catch-up can never turn into a
-  whole-database sync by accident.
+  whole-database sync by accident. The default is **100** (~10 min at the
+  measured 6 s per company) — aggressive enough to be useful, small enough
+  that a mistake costs ten minutes, not an hour.
 - `--refresh-workers` (default 2) and the SEC availability preflight apply, so
   a 403/429 stops the run before any doomed sync is launched.
 - It is a **manual** tool: the daily workflow and the systemd timer never call

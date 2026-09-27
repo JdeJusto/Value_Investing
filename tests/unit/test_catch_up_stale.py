@@ -170,10 +170,11 @@ def test_syncs_every_selected_company_individually(_patched, capsys):
     exit_code = catch_up_stale.main(["--limit", "4", "--show", "0"])
 
     assert exit_code == 0
-    # one targeted sync per company, in CIK order of the selection
-    assert recorded["service"].synced == [
+    # One targeted sync per company. The worker pool makes the completion
+    # order non-deterministic, so this asserts the set of CIKs, not a sequence.
+    assert sorted(recorded["service"].synced) == sorted(
         f"{i:010d}" for i in range(4)
-    ]
+    )
     assert "4 synced, 0 failed" in capsys.readouterr().out
 
 
@@ -214,3 +215,23 @@ def test_selection_query_is_read_only_and_company_scoped():
     source = inspect.getsource(FdbGateway.stale_companies).lower()
     for forbidden in ("insert", "update ", "delete", "prices", "import_runs"):
         assert forbidden not in source
+
+
+# ----------------------------------------------------------------------
+# default batch size
+# ----------------------------------------------------------------------
+
+
+def test_default_limit_is_100():
+    """~10 min at the measured 6 s per company: useful but a mistake is cheap."""
+    from scripts.catch_up_stale import DEFAULT_LIMIT
+
+    assert DEFAULT_LIMIT == 100
+    assert catch_up_stale.build_parser().parse_args([]).limit == 100
+
+
+def test_default_limit_is_used_when_not_given(_patched):
+    recorded = _patched()
+    catch_up_stale.main(["--dry-run", "--show", "0"])
+
+    assert recorded["gateway"].calls[0]["limit"] == 100
