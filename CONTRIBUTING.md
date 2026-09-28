@@ -57,6 +57,24 @@ Module invocation is required for the scripts (`python -m scripts.…`);
 running `scripts/daily_workflow.py` directly fails because `backend` is not
 on `sys.path`. `docs/runbook_daily.md` is the operational guide.
 
+## Updating dependencies
+
+This project uses Pipenv, so `Pipfile` is the source of truth and
+`Pipfile.lock` must stay in sync with it. Dependabot covers `npm`
+(`frontend/`) and `github-actions` only: its Pipenv resolver rejects the
+`python_version` range in `[requires]` and then fails every package, so a `pip`
+ecosystem entry would only produce red weekly runs. Update Python packages
+explicitly instead:
+
+```bash
+pipenv update <package> --lock-only   # rewrites only that entry in Pipfile.lock
+pipenv verify                         # confirms the lock matches the Pipfile
+```
+
+`--lock-only` matters: a bare `pipenv lock` re-resolves everything and buries
+your change in an unrelated diff. Adding a brand-new dependency does need
+`pipenv lock`, so review the resulting diff carefully.
+
 ## Code style
 
 - PEP 8, type hints on public signatures, docstrings on public APIs.
