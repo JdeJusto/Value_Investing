@@ -265,9 +265,14 @@ def test_score_is_zero_when_no_rules_pass():
             NormalizedFinancials,
             ProviderName,
         )
-        rows.append(NormalizedFinancials(
-            ticker="EMPTY", fiscal_year=year, source=ProviderName.EDGAR,
-        ))
+
+        rows.append(
+            NormalizedFinancials(
+                ticker="EMPTY",
+                fiscal_year=year,
+                source=ProviderName.EDGAR,
+            )
+        )
     methodology = BuffettClarkMethodology()
     result = methodology.evaluate("TEST", rows, _Prices(100.0))
     assert result.score == 0.0
@@ -322,7 +327,9 @@ def test_sources_cite_book_and_pages():
     result = _evaluate("buffett_clark_ko.json")
     assert result.sources, "every result must cite its sources"
     for ref in result.sources:
-        assert ref.book == "Warren Buffett and the Interpretation of Financial Statements"
+        assert (
+            ref.book == "Warren Buffett and the Interpretation of Financial Statements"
+        )
         assert ref.page, "every source must cite a page"
 
 

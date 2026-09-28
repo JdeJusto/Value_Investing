@@ -7,7 +7,7 @@ signatures per Mary Buffett & David Clark (2001).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from backend.methodologies.base import (
     Confidence,
@@ -15,15 +15,16 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
+
 from .rules import ALL_RULES
 
 
 @dataclass
 class _RuleResult:
     rule_id: str
-    passed: Optional[bool]
-    value: Optional[float]
-    threshold: Optional[float]
+    passed: bool | None
+    value: float | None
+    threshold: float | None
     detail: str
 
 
@@ -98,24 +99,33 @@ class BuffettClarkMethodology(Methodology):
         latest = self._latest(rows)
         if latest is None or latest.gross_profit is None or latest.revenue is None:
             return _RuleResult(
-                "buffett_clark.rule_1_gross_margin", None, None, None,
+                "buffett_clark.rule_1_gross_margin",
+                None,
+                None,
+                None,
                 "no gross margin data",
             )
         margin = latest.gross_profit / latest.revenue
         if margin >= self._GROSS_MARGIN_PASS:
             return _RuleResult(
-                "buffett_clark.rule_1_gross_margin", True, margin,
+                "buffett_clark.rule_1_gross_margin",
+                True,
+                margin,
                 self._GROSS_MARGIN_PASS,
                 f"gross margin {margin:.1%} ≥ {self._GROSS_MARGIN_PASS:.0%}",
             )
         if margin < self._GROSS_MARGIN_FAIL:
             return _RuleResult(
-                "buffett_clark.rule_1_gross_margin", False, margin,
+                "buffett_clark.rule_1_gross_margin",
+                False,
+                margin,
                 self._GROSS_MARGIN_FAIL,
                 f"gross margin {margin:.1%} < {self._GROSS_MARGIN_FAIL:.0%}",
             )
         return _RuleResult(
-            "buffett_clark.rule_1_gross_margin", None, margin,
+            "buffett_clark.rule_1_gross_margin",
+            None,
+            margin,
             self._GROSS_MARGIN_PASS,
             f"gross margin {margin:.1%} between thresholds",
         )
@@ -123,31 +133,47 @@ class BuffettClarkMethodology(Methodology):
     def _rule_2_interest_burden(self, rows) -> _RuleResult:
         """Interest expense ≤ 10% of operating income = DCA."""
         latest = self._latest(rows)
-        if latest is None or latest.interest_expense is None or latest.operating_income is None:
+        if (
+            latest is None
+            or latest.interest_expense is None
+            or latest.operating_income is None
+        ):
             return _RuleResult(
-                "buffett_clark.rule_2_interest_burden", None, None, None,
+                "buffett_clark.rule_2_interest_burden",
+                None,
+                None,
+                None,
                 "no interest burden data",
             )
         if latest.operating_income <= 0:
             return _RuleResult(
-                "buffett_clark.rule_2_interest_burden", None, None, None,
+                "buffett_clark.rule_2_interest_burden",
+                None,
+                None,
+                None,
                 "non-positive operating income",
             )
         burden = latest.interest_expense / latest.operating_income
         if burden <= self._INTEREST_BURDEN_PASS:
             return _RuleResult(
-                "buffett_clark.rule_2_interest_burden", True, burden,
+                "buffett_clark.rule_2_interest_burden",
+                True,
+                burden,
                 self._INTEREST_BURDEN_PASS,
                 f"interest burden {burden:.1%} ≤ {self._INTEREST_BURDEN_PASS:.0%}",
             )
         if burden >= self._INTEREST_BURDEN_FAIL:
             return _RuleResult(
-                "buffett_clark.rule_2_interest_burden", False, burden,
+                "buffett_clark.rule_2_interest_burden",
+                False,
+                burden,
                 self._INTEREST_BURDEN_FAIL,
                 f"interest burden {burden:.1%} ≥ {self._INTEREST_BURDEN_FAIL:.0%}",
             )
         return _RuleResult(
-            "buffett_clark.rule_2_interest_burden", None, burden,
+            "buffett_clark.rule_2_interest_burden",
+            None,
+            burden,
             self._INTEREST_BURDEN_PASS,
             f"interest burden {burden:.1%} between thresholds",
         )
@@ -156,27 +182,37 @@ class BuffettClarkMethodology(Methodology):
         """Gross margin stable or rising over many years."""
         if len(rows) < self._MARGIN_DURABILITY_YEARS:
             return _RuleResult(
-                "buffett_clark.rule_3_margin_durability", None, None, None,
+                "buffett_clark.rule_3_margin_durability",
+                None,
+                None,
+                None,
                 f"needs {self._MARGIN_DURABILITY_YEARS} years of data",
             )
         margins = []
-        for r in rows[:self._MARGIN_DURABILITY_YEARS]:
+        for r in rows[: self._MARGIN_DURABILITY_YEARS]:
             if r.gross_profit is not None and r.revenue is not None and r.revenue > 0:
                 margins.append(r.gross_profit / r.revenue)
         if len(margins) < self._MARGIN_DURABILITY_YEARS:
             return _RuleResult(
-                "buffett_clark.rule_3_margin_durability", None, None, None,
+                "buffett_clark.rule_3_margin_durability",
+                None,
+                None,
+                None,
                 "insufficient margin data",
             )
         # Check if margins are stable or rising (last >= first)
         if margins[0] >= margins[-1] * 0.95:  # 5% tolerance
             return _RuleResult(
-                "buffett_clark.rule_3_margin_durability", True, margins[0],
+                "buffett_clark.rule_3_margin_durability",
+                True,
+                margins[0],
                 margins[-1],
                 f"margin stable: {margins[0]:.1%} → {margins[-1]:.1%}",
             )
         return _RuleResult(
-            "buffett_clark.rule_3_margin_durability", False, margins[0],
+            "buffett_clark.rule_3_margin_durability",
+            False,
+            margins[0],
             margins[-1],
             f"margin eroding: {margins[0]:.1%} → {margins[-1]:.1%}",
         )
@@ -184,25 +220,39 @@ class BuffettClarkMethodology(Methodology):
     def _rule_4_debt(self, rows) -> _RuleResult:
         """Low long-term debt = DCA indicator."""
         latest = self._latest(rows)
-        if latest is None or latest.total_debt is None or latest.stockholders_equity is None:
+        if (
+            latest is None
+            or latest.total_debt is None
+            or latest.stockholders_equity is None
+        ):
             return _RuleResult(
-                "buffett_clark.rule_4_debt", None, None, None,
+                "buffett_clark.rule_4_debt",
+                None,
+                None,
+                None,
                 "no debt data",
             )
         if latest.stockholders_equity <= 0:
             return _RuleResult(
-                "buffett_clark.rule_4_debt", None, None, None,
+                "buffett_clark.rule_4_debt",
+                None,
+                None,
+                None,
                 "non-positive equity",
             )
         ratio = latest.total_debt / latest.stockholders_equity
         if ratio <= self._DEBT_TO_EQUITY_PASS:
             return _RuleResult(
-                "buffett_clark.rule_4_debt", True, ratio,
+                "buffett_clark.rule_4_debt",
+                True,
+                ratio,
                 self._DEBT_TO_EQUITY_PASS,
                 f"debt/equity {ratio:.2f} ≤ {self._DEBT_TO_EQUITY_PASS}",
             )
         return _RuleResult(
-            "buffett_clark.rule_4_debt", False, ratio,
+            "buffett_clark.rule_4_debt",
+            False,
+            ratio,
             self._DEBT_TO_EQUITY_PASS,
             f"debt/equity {ratio:.2f} > {self._DEBT_TO_EQUITY_PASS}",
         )
@@ -210,50 +260,80 @@ class BuffettClarkMethodology(Methodology):
     def _rule_5_cash(self, rows) -> _RuleResult:
         """High cash = DCA indicator."""
         latest = self._latest(rows)
-        if latest is None or latest.cash_and_equivalents is None or latest.total_assets is None:
+        if (
+            latest is None
+            or latest.cash_and_equivalents is None
+            or latest.total_assets is None
+        ):
             return _RuleResult(
-                "buffett_clark.rule_5_cash", None, None, None,
+                "buffett_clark.rule_5_cash",
+                None,
+                None,
+                None,
                 "no cash data",
             )
         if latest.total_assets <= 0:
             return _RuleResult(
-                "buffett_clark.rule_5_cash", None, None, None,
+                "buffett_clark.rule_5_cash",
+                None,
+                None,
+                None,
                 "non-positive assets",
             )
         ratio = latest.cash_and_equivalents / latest.total_assets
         # Cash ≥ 10% of assets is a positive signal
         if ratio >= 0.10:
             return _RuleResult(
-                "buffett_clark.rule_5_cash", True, ratio, 0.10,
+                "buffett_clark.rule_5_cash",
+                True,
+                ratio,
+                0.10,
                 f"cash/assets {ratio:.1%} ≥ 10%",
             )
         return _RuleResult(
-            "buffett_clark.rule_5_cash", False, ratio, 0.10,
+            "buffett_clark.rule_5_cash",
+            False,
+            ratio,
+            0.10,
             f"cash/assets {ratio:.1%} < 10%",
         )
 
     def _rule_6_capex(self, rows) -> _RuleResult:
         """Low capex relative to FCF = DCA indicator."""
         latest = self._latest(rows)
-        if latest is None or latest.capital_expenditure is None or latest.free_cash_flow is None:
+        if (
+            latest is None
+            or latest.capital_expenditure is None
+            or latest.free_cash_flow is None
+        ):
             return _RuleResult(
-                "buffett_clark.rule_6_capex", None, None, None,
+                "buffett_clark.rule_6_capex",
+                None,
+                None,
+                None,
                 "no capex/FCF data",
             )
         if latest.free_cash_flow <= 0:
             return _RuleResult(
-                "buffett_clark.rule_6_capex", None, None, None,
+                "buffett_clark.rule_6_capex",
+                None,
+                None,
+                None,
                 "non-positive FCF",
             )
         ratio = latest.capital_expenditure / latest.free_cash_flow
         if ratio <= self._CAPEX_TO_FCF_PASS:
             return _RuleResult(
-                "buffett_clark.rule_6_capex", True, ratio,
+                "buffett_clark.rule_6_capex",
+                True,
+                ratio,
                 self._CAPEX_TO_FCF_PASS,
                 f"capex/FCF {ratio:.1%} ≤ {self._CAPEX_TO_FCF_PASS:.0%}",
             )
         return _RuleResult(
-            "buffett_clark.rule_6_capex", False, ratio,
+            "buffett_clark.rule_6_capex",
+            False,
+            ratio,
             self._CAPEX_TO_FCF_PASS,
             f"capex/FCF {ratio:.1%} > {self._CAPEX_TO_FCF_PASS:.0%}",
         )
@@ -262,25 +342,35 @@ class BuffettClarkMethodology(Methodology):
         """Rising retained earnings = compounding value."""
         if len(rows) < 2:
             return _RuleResult(
-                "buffett_clark.rule_7_retained_earnings", None, None, None,
+                "buffett_clark.rule_7_retained_earnings",
+                None,
+                None,
+                None,
                 "needs 2+ years of data",
             )
         latest = rows[0]
         prior = rows[1]
-        if (latest.retained_earnings is None or prior.retained_earnings is None):
+        if latest.retained_earnings is None or prior.retained_earnings is None:
             return _RuleResult(
-                "buffett_clark.rule_7_retained_earnings", None, None, None,
+                "buffett_clark.rule_7_retained_earnings",
+                None,
+                None,
+                None,
                 "no retained earnings data",
             )
         if latest.retained_earnings > prior.retained_earnings:
             return _RuleResult(
-                "buffett_clark.rule_7_retained_earnings", True,
-                latest.retained_earnings, prior.retained_earnings,
+                "buffett_clark.rule_7_retained_earnings",
+                True,
+                latest.retained_earnings,
+                prior.retained_earnings,
                 f"retained earnings rising: {prior.retained_earnings:,.0f} → {latest.retained_earnings:,.0f}",
             )
         return _RuleResult(
-            "buffett_clark.rule_7_retained_earnings", False,
-            latest.retained_earnings, prior.retained_earnings,
+            "buffett_clark.rule_7_retained_earnings",
+            False,
+            latest.retained_earnings,
+            prior.retained_earnings,
             f"retained earnings declining: {prior.retained_earnings:,.0f} → {latest.retained_earnings:,.0f}",
         )
 
@@ -298,7 +388,7 @@ class BuffettClarkMethodology(Methodology):
             return Verdict.HOLD
         return Verdict.AVOID
 
-    def _score(self, passed, failed, unknown) -> Optional[float]:
+    def _score(self, passed, failed, unknown) -> float | None:
         """Score = passed / 7 × 100."""
         return round(len(passed) / 7 * 100, 2)
 
@@ -348,7 +438,7 @@ class BuffettClarkMethodology(Methodology):
         return sorted(rows, key=lambda r: r.fiscal_year, reverse=True)
 
     @staticmethod
-    def _latest(rows) -> Optional[Any]:
+    def _latest(rows) -> Any | None:
         """Return the most recent row."""
         return rows[0] if rows else None
 

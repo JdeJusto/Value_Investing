@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from cli.formatters import (
-    bold,
     dim,
     green,
     print_header,
@@ -51,7 +50,6 @@ def _confidence_color(confidence: str):
 
 def _run(args):
     from backend.app.cli import build_financial_repository
-    from backend.methodologies.buffett_clark import BuffettClarkMethodology
     from backend.methodologies.registry import discover, registry
     from backend.services.price_service import get_price_service
 
@@ -82,7 +80,11 @@ def _run(args):
     print_section("Metrics")
     for key, value in result.metrics.items():
         if value is not None:
-            print(f"  {key}: {value:.4f}" if isinstance(value, float) else f"  {key}: {value}")
+            print(
+                f"  {key}: {value:.4f}"
+                if isinstance(value, float)
+                else f"  {key}: {value}"
+            )
 
     if result.reasons:
         print_section("Reasons")

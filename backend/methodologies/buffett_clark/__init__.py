@@ -13,4 +13,4 @@ from .methodology import BuffettClarkMethodology
 
 METHODOLOGY = BuffettClarkMethodology()
 
-__all__ = ["BuffettClarkMethodology", "METHODOLOGY"]
+__all__ = ["METHODOLOGY", "BuffettClarkMethodology"]

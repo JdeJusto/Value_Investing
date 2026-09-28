@@ -15,8 +15,7 @@ _YEAR = "2001"
 _ERA = "2001"
 
 _MARGIN_CAUTION = (
-    "gross margin thresholds calibrated to US industrials; "
-    "SaaS may structurally differ"
+    "gross margin thresholds calibrated to US industrials; SaaS may structurally differ"
 )
 _INTEREST_CAUTION = (
     "interest burden examples are US airlines/tires from 2001; "
@@ -85,8 +84,7 @@ RULE_4_DEBT = Rule(
     id="buffett_clark.rule_4_debt",
     name="Low Long-Term Debt",
     description=(
-        "Low long-term debt is a DCA indicator; high debt signals financial "
-        "fragility."
+        "Low long-term debt is a DCA indicator; high debt signals financial fragility."
     ),
     kind="EXPLICIT",
     source=_source("p. 38, 41"),
@@ -99,8 +97,7 @@ RULE_5_CASH = Rule(
     id="buffett_clark.rule_5_cash",
     name="High Cash",
     description=(
-        "High cash is a DCA indicator — the company does not need to borrow "
-        "to operate."
+        "High cash is a DCA indicator — the company does not need to borrow to operate."
     ),
     kind="EXPLICIT",
     source=_source("p. 41"),
