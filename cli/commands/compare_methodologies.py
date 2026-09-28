@@ -100,8 +100,7 @@ def _run(args):
             print(
                 f"  {bold(family)} → "
                 + ", ".join(
-                    f"{member.methodology}={member.verdict.value}"
-                    for member in members
+                    f"{member.methodology}={member.verdict.value}" for member in members
                 )
             )
         print()
@@ -109,8 +108,7 @@ def _run(args):
         value_members = [
             result
             for result in results
-            if "VALUE" in result.family.upper()
-            or "DEEP" in result.family.upper()
+            if "VALUE" in result.family.upper() or "DEEP" in result.family.upper()
         ]
         quality_members = [
             result
@@ -135,17 +133,12 @@ def _run(args):
                 )
             )
         else:
-            print(
-                dim("  The methodologies use different lenses; see reasons below.")
-            )
+            print(dim("  The methodologies use different lenses; see reasons below."))
         print()
 
         for result in results:
             reasons = "; ".join(result.reasons[:2])
-            print(
-                f"  {bold(result.methodology)} ({result.verdict.value}): "
-                f"{reasons}"
-            )
+            print(f"  {bold(result.methodology)} ({result.verdict.value}): {reasons}")
 
 
 class _Prices:

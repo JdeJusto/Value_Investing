@@ -60,9 +60,7 @@ def _run(args):
 
     print_header(f"Buffett classic analysis — {args.ticker}")
     print_key_value("Verdict", _verdict_color(result.verdict.value))
-    print_key_value(
-        "Score", f"{result.score:.2f}" if result.score is not None else "—"
-    )
+    print_key_value("Score", f"{result.score:.2f}" if result.score is not None else "—")
     print_key_value("Confidence", result.confidence.value)
 
     print_section("Pillars")

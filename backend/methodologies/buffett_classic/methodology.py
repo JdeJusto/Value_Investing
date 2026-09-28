@@ -85,16 +85,16 @@ class BuffettClassicMethodology(Methodology):
         pillars = filter_result.get("breakdown") or {}
         try:
             moat = analyze_moat(metrics)
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             moat = None
 
         result_metrics: dict[str, Any] = dict(pillars)
         result_metrics["moat"] = moat
 
         reasons = [
-            "composite Buffett score {0:.1f} from 4 pillars "
-            "(profitability {1:.1f}, financial_strength {2:.1f}, "
-            "cash_generation {3:.1f}, stability {4:.1f})".format(
+            "composite Buffett score {:.1f} from 4 pillars "
+            "(profitability {:.1f}, financial_strength {:.1f}, "
+            "cash_generation {:.1f}, stability {:.1f})".format(
                 score,
                 pillars.get("profitability", 0.0),
                 pillars.get("financial_strength", 0.0),
@@ -103,15 +103,11 @@ class BuffettClassicMethodology(Methodology):
             )
         ]
         reasons += [
-            "{0} pillar: {1:.1f}/100".format(
-                key.replace("_", " "), value
-            )
+            "{} pillar: {:.1f}/100".format(key.replace("_", " "), value)
             for key, value in sorted(pillars.items())
         ]
         red_flags = [
-            "{0} pillar weak ({1:.1f}/100)".format(
-                key.replace("_", " "), value
-            )
+            "{} pillar weak ({:.1f}/100)".format(key.replace("_", " "), value)
             for key, value in pillars.items()
             if value < _WEAK_PILLAR
         ]
@@ -178,13 +174,19 @@ class BuffettClassicMethodology(Methodology):
                 "page": _SOURCE.page,
             },
             "known_limitations": [
-                "The wrapped engine is a quality screen, not a valuation: it "
-                "barely looks at the price paid, so a high score here can "
-                "coexist with a 'too expensive' verdict from the value "
-                "methodologies. That is intended.",
-                "Verdict thresholds (75/60/40) are framework conventions "
-                "because buffett_engine.py defines no verdict mapping.",
-                "Metrics are computed from as-reported SEC fundamentals; "
-                "stock-split adjustments only affect per-share metrics.",
+                (
+                    "The wrapped engine is a quality screen, not a valuation: "
+                    "it barely looks at the price paid, so a high score here "
+                    "can coexist with a 'too expensive' verdict from the "
+                    "value methodologies. That is intended."
+                ),
+                (
+                    "Verdict thresholds (75/60/40) are framework conventions "
+                    "because buffett_engine.py defines no verdict mapping."
+                ),
+                (
+                    "Metrics are computed from as-reported SEC fundamentals; "
+                    "stock-split adjustments only affect per-share metrics."
+                ),
             ],
         }
