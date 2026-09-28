@@ -84,8 +84,8 @@ class BuffettClassicMethodology(Methodology):
         score = float(filter_result["score"])
         pillars = filter_result.get("breakdown") or {}
         try:
-            moat = analyze_moat(metrics)
-        except (KeyError, TypeError, ValueError):
+            moat = analyze_moat(rows, metrics=metrics)
+        except (AttributeError, KeyError, TypeError, ValueError):
             moat = None
 
         result_metrics: dict[str, Any] = dict(pillars)
