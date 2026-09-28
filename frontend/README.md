@@ -1,32 +1,31 @@
-# React + TypeScript + Vite
+# Web frontend / Interfaz web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## English
 
-Currently, two official plugins are available:
+This React + TypeScript application is the web client for the Value Investing FastAPI service. It is separate from the Streamlit analysis UI in `../ui/`. API requests use `/api/v1`; the Vite development server proxies them to `http://localhost:8000`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Requirements: Node.js 22+.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm ci
+npm run dev       # http://localhost:5173
+npm run lint
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Run the FastAPI service separately for authenticated and data-backed pages. The root `docker-compose.yml` also defines the API and Nginx-served frontend for local development.
+
+## Español
+
+Esta aplicación React + TypeScript es el cliente web del servicio FastAPI de Value Investing. Es independiente de la interfaz de análisis Streamlit ubicada en `../ui/`. Las peticiones usan `/api/v1`; el servidor de desarrollo Vite las redirige a `http://localhost:8000`.
+
+Requisitos: Node.js 22+.
+
+```bash
+npm ci
+npm run dev       # http://localhost:5173
+npm run lint
+npm run build
+```
+
+Ejecuta el servicio FastAPI por separado para las páginas autenticadas y conectadas a datos. El `docker-compose.yml` raíz también define la API y el frontend servido por Nginx para desarrollo local.

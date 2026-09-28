@@ -14,9 +14,9 @@ real-time prices. Prices are always fetched live from Yahoo Finance
   e.g. `export SEC_USER_AGENT='your-email@example.com'`. Put it in the repo
   `.env` (git-ignored) or let the systemd unit export it. **Never use a
   github.com address in the User-Agent** — SEC answers HTTP 403 for the
-  github.com address family (see Financial-DataBase
-  `docs/sec_403_investigation.md`); a descriptive UA with a normal email
-  domain is required.
+  github.com address family (see the companion
+  [Financial-DataBase SEC investigation](https://github.com/JdeJusto/Financial-DataBase/blob/main/docs/sec_403_investigation.md));
+  a descriptive UA with a normal email domain is required.
 - Universe file `config/universe.csv` (default) — the **master universe**
   produced by `scripts/build_universe.py` from per-index source files:
   - `config/universe_sp500_nasdaq.csv` — S&P 500 + Nasdaq-100
@@ -471,13 +471,13 @@ files).
   `sec_requests` (company syncs attempted), `sec_retries`,
   `HTTP 403/429` and `avg_sec_latency_ms` separate "SEC is slow" from
   "SEC is refusing us". A non-zero 403 count points at
-  `SEC_USER_AGENT` (must contain a real e-mail, never a github.com domain:
-  see Financial-DataBase `docs/sec_403_investigation.md`).
+   `SEC_USER_AGENT` (must contain a real e-mail, never a github.com domain;
+   see the companion [SEC investigation](https://github.com/JdeJusto/Financial-DataBase/blob/main/docs/sec_403_investigation.md)).
 - **Which query is slow?** `pg_stat_statements` is not enabled on this server
   and enabling it needs a PostgreSQL restart; the measured diagnosis, the
   exact commands and the alternatives that work without a restart (role-level
   `log_min_duration_statement`, `EXPLAIN (ANALYZE, BUFFERS)`, `cProfile`) are
-  in Financial-DataBase `docs/pg_stat_statements_blocker.md`.
+   in [Financial-DataBase's PostgreSQL diagnosis](https://github.com/JdeJusto/Financial-DataBase/blob/main/docs/pg_stat_statements_blocker.md).
 - **No basics for a ticker**: run the Financial-DataBase sync for it
   (`sec sync <CIK>`) or `load-data <TICKER>` on the Value Investing side.
 - **`financial_database` module not found**: make sure `--fdb-dir` points to

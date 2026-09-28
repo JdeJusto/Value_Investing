@@ -132,6 +132,10 @@ cython_debug/
 # Raw data downloads
 data/raw/*
 data/processed/*
+# Local JSON repository data and personal portfolio state are runtime data.
+data/normalized/*
+!data/normalized/.gitkeep
+data/portfolio.json
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/cache/.gitkeep
@@ -157,6 +161,7 @@ data/reports/daily_run_state*.json
 # Daily run artifacts (regenerated every run; git history keeps the old ones)
 data/reports/daily_*.md
 data/reports/daily_state.json
+data/reports/report_*.md
 data/cache/analysis/
 data/cache/alerts/
 data/state/

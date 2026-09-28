@@ -11,8 +11,8 @@ Financial-DataBase schema loaded.
 ```bash
 git clone <your-fork-url>
 cd Value_Investing
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"          # or: pipenv install --dev
+python -m pip install pipenv
+pipenv install --dev
 cp .env.example .env              # then edit .env — see below
 ```
 
@@ -25,8 +25,9 @@ local run:
 | `SEC_USER_AGENT` | Contact string the SEC requires, e.g. `YourTool/1.0 you@your-domain.com` |
 | `SEC_EMAIL` | Only needed for the live EDGAR provider; without it that fallback is disabled with a warning |
 
-Never commit `.env`, a database URL with a real password, or a personal
-e-mail. The SEC requires a declared contact, and the Yahoo preflight refuses
+Never commit `.env`, database credentials, or private/third-party contact data.
+The maintainer contact in `SECURITY.md` is intentionally public. The SEC
+requires a contact in `SEC_USER_AGENT`; the Yahoo preflight refuses
 browser-like User-Agents (see `docs/price_recovery_2026-09-28.md`).
 
 ## Running the tests

@@ -59,10 +59,10 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement by opening a
-confidential report through the repository's **Report a vulnerability** /
-private security advisory channel (see `SECURITY.md`). All complaints will be
-reviewed and investigated promptly and fairly.
+reported privately to the maintainer at
+<mailto:jaimedejusto@gmail.com?subject=Code%20of%20Conduct%20report>. Do not
+post reports or another person's private information in a public issue. All
+complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.

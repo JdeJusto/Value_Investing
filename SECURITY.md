@@ -5,18 +5,10 @@
 **Do not open a public issue for a security problem.**
 
 Report it privately through GitHub's private reporting for this repository
-(**Security → Report a vulnerability**). If that is unavailable, open an issue
-that contains no technical detail and ask for a private channel.
-
-Replace the placeholder below with a monitored address before publishing:
-
-```
-<your-e-mail>
-```
-
-Please do not commit a real address to this file: it would land in the
-history, which is exactly the problem this repository already had to deal with
-(see `docs/public_release_audit_2026-09-27.md`).
+(**Security → Report a vulnerability**). If private reporting is unavailable,
+email the maintainer at <mailto:jaimedejusto@gmail.com> and ask for a secure
+channel before sending sensitive details. Do not open a public issue with
+reproduction steps or vulnerability details.
 
 Include: affected version or commit, reproduction steps, impact, and any
 suggested mitigation. Expect an acknowledgement within a week.
@@ -35,7 +27,8 @@ suggested mitigation. Expect an acknowledgement within a week.
 ## Non-vulnerabilities
 
 - The SEC answering HTTP 403/429. That is upstream rate limiting or a
-  non-compliant contact, documented in `docs/sec_403_investigation.md`.
+  non-compliant contact, documented in the companion
+  [Financial-DataBase SEC investigation](https://github.com/JdeJusto/Financial-DataBase/blob/main/docs/sec_403_investigation.md).
 - Yahoo Finance rate limiting. Handled by the preflight
   (`backend/services/yahoo_health.py`).
 - A report that only needs a configuration change you have not made yet (for

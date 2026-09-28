@@ -10,7 +10,6 @@
 #
 # Persistent=true: a run missed because the machine was off/suspended starts
 # on the next boot, and the run's own checkpoint (--resume) continues it.
-# Enabled on this machine on 2026-09-27 (see docs/runbook_daily.md §2b).
 
 [Unit]
 Description=Run Value Investing Daily Workflow at 06:00

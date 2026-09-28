@@ -1,5 +1,17 @@
 # Public release readiness audit — 2026-09-27
 
+## Maintainer update — 2026-09-28
+
+This is a dated snapshot, not the current release checklist. Since it was
+written, the maintainer confirmed that the account-associated author email in
+existing Git history is acceptable; **the history will not be rewritten**.
+The repository now has an MIT license, contribution/security/community
+policies, CI, issue and pull-request templates, and a Python 3.13 CI target.
+Generated normalized data, the empty local portfolio, and the one-off European
+report are excluded from the pending repository snapshot; their earlier copies
+remain in Git history. Review the current README and GitHub settings before
+publishing.
+
 Audit of **Value_Investing** before making the repository public. Read-only:
 nothing was modified while producing it. Tooling note: `gitleaks` and
 `trufflehog` are not installed on this machine, so the scan is pattern-based
