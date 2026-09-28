@@ -49,6 +49,7 @@ def _row(
     operating_income=None,
     research_development=None,
     shares_outstanding=None,
+    split_adjustment_factor=None,
 ):
     data = {
         "ticker": "TEST",
@@ -68,6 +69,8 @@ def _row(
         data["research_development"] = research_development
     if shares_outstanding is not None:
         data["shares_outstanding"] = shares_outstanding
+    if split_adjustment_factor is not None:
+        data["split_adjustment_factor"] = split_adjustment_factor
     return NormalizedFinancials.from_dict(data)
 
 
@@ -79,7 +82,14 @@ def _gross_margin_rows(margins, revenue=100_000_000_000):
     return rows
 
 
-def _healthy_rows(past_shares, current_shares, net_ratio=0.20, op_ratio=0.25, rnd_ratio=0.06):
+def _healthy_rows(
+    past_shares,
+    current_shares,
+    net_ratio=0.20,
+    op_ratio=0.25,
+    rnd_ratio=0.06,
+    past_split_factor=None,
+):
     """Eleven years of otherwise-healthy rows; shares fixed at 10y-ago/now."""
     rows = []
     revenue = 100_000_000_000
@@ -94,6 +104,7 @@ def _healthy_rows(past_shares, current_shares, net_ratio=0.20, op_ratio=0.25, rn
                 operating_income=op_ratio * revenue,
                 research_development=rnd_ratio * revenue,
                 shares_outstanding=shares,
+                split_adjustment_factor=(past_split_factor if year == 2014 else None),
             )
         )
     return rows
@@ -167,35 +178,70 @@ def test_rule_1_rnd_insufficient():
 # ---------------------------------------------------------------------------
 def test_rule_2_margins_pass():
     res = _evaluate(
-        [_row(2024, 100_000_000_000, net_income=25_000_000_000, operating_income=30_000_000_000)]
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                net_income=25_000_000_000,
+                operating_income=30_000_000_000,
+            )
+        ]
     )
     assert _status(res, R2) == "PASS"
 
 
 def test_rule_2_watch_net_above_op_below():
     res = _evaluate(
-        [_row(2024, 100_000_000_000, net_income=12_000_000_000, operating_income=8_000_000_000)]
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                net_income=12_000_000_000,
+                operating_income=8_000_000_000,
+            )
+        ]
     )
     assert _status(res, R2) == "WATCH"
 
 
 def test_rule_2_watch_op_above_net_below():
     res = _evaluate(
-        [_row(2024, 100_000_000_000, net_income=8_000_000_000, operating_income=20_000_000_000)]
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                net_income=8_000_000_000,
+                operating_income=20_000_000_000,
+            )
+        ]
     )
     assert _status(res, R2) == "WATCH"
 
 
 def test_rule_2_fail_net_below_5pct():
     res = _evaluate(
-        [_row(2024, 100_000_000_000, net_income=4_000_000_000, operating_income=20_000_000_000)]
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                net_income=4_000_000_000,
+                operating_income=20_000_000_000,
+            )
+        ]
     )
     assert _status(res, R2) == "FAIL"
 
 
 def test_rule_2_fail_both_below():
     res = _evaluate(
-        [_row(2024, 100_000_000_000, net_income=8_000_000_000, operating_income=10_000_000_000)]
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                net_income=8_000_000_000,
+                operating_income=10_000_000_000,
+            )
+        ]
     )
     assert _status(res, R2) == "FAIL"
 
@@ -249,6 +295,63 @@ def test_rule_4_large_increase_fail():
 def test_rule_4_insufficient_no_10y():
     rows = _full_margin_rows([0.42, 0.42, 0.42, 0.42, 0.42])
     assert _status(_evaluate(rows), R4) == "INSUFFICIENT_DATA"
+
+
+# ---------------------------------------------------------------------------
+# Rule 4 — split adjustment (point 13, hermetic via row-carried factors)
+# ---------------------------------------------------------------------------
+def test_rule_4_split_adjustment_turns_apparent_dilution_into_pass():
+    """AAPL 2015-2025 profile: as-reported shares +159% (4:1 split of 2020),
+    but on split-adjusted basis (factor 4.0 on the 10y-ago row) they fell —
+    massive buybacks. Must read PASS, not FAIL."""
+    rows = _healthy_rows(5_750_000_000, 14_900_000_000, past_split_factor=4.0)
+    res = _evaluate(rows)
+    assert _status(res, R4) == "PASS"
+    assert "split-adjusted" in next(
+        r for r in res.reasons if r.partition(" ")[2].startswith(R4 + ":")
+    )
+
+
+def test_rule_4_split_adjustment_watch_from_fail():
+    """A mild split (1.25x) turns an apparent +30% 'dilution' into +4% WATCH."""
+    rows = _healthy_rows(10_000_000_000, 13_000_000_000, past_split_factor=1.25)
+    assert _status(_evaluate(rows), R4) == "WATCH"
+
+
+def test_rule_4_split_factor_default_keeps_past_behavior():
+    """Rows without a factor (1.0) behave exactly as before the fix."""
+    res = _evaluate(_healthy_rows(10_000_000_000, 11_500_000_000))
+    assert _status(res, R4) == "FAIL"
+    res = _evaluate(_healthy_rows(18_000_000_000, 15_000_000_000))
+    assert _status(res, R4) == "PASS"
+
+
+def test_rule_4_split_factor_zero_or_negative_treated_as_one():
+    """Garbage factor data must never corrupt the comparison."""
+    rows = _healthy_rows(10_000_000_000, 11_500_000_000, past_split_factor=0.0)
+    assert _status(_evaluate(rows), R4) == "FAIL"
+    rows = _healthy_rows(10_000_000_000, 11_500_000_000, past_split_factor=-2.0)
+    assert _status(_evaluate(rows), R4) == "FAIL"
+
+
+def test_rule_4_split_adjustment_no_red_flag():
+    rows = _healthy_rows(5_750_000_000, 14_900_000_000, past_split_factor=4.0)
+    res = _evaluate(rows)
+    assert not any("Share count increased" in flag for flag in res.red_flags)
+
+
+def test_rule_4_split_adjustment_updates_metric():
+    rows = _healthy_rows(5_750_000_000, 14_900_000_000, past_split_factor=4.0)
+    res = _evaluate(rows)
+    # adjusted past = 5.75B * 4 = 23B -> change = 14.9/23 - 1 ≈ -0.352
+    assert res.metrics["share_change_10y"] == pytest.approx(14.9 / 23.0 - 1.0)
+
+
+def test_rule_4_split_adjustment_changes_verdict():
+    """The AAPL shape flips from AVOID (dilution FAIL) to BUY once the 4:1
+    split is restated and R&D/margins/cost-control all pass."""
+    rows = _healthy_rows(5_750_000_000, 14_900_000_000, past_split_factor=4.0)
+    assert _evaluate(rows).verdict == Verdict.BUY
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +417,11 @@ def test_verdict_avoid_dilution_fail():
 def test_verdict_avoid_zero_passes():
     res = _evaluate(
         _healthy_rows(
-            10_000_000_000, 11_000_000_000, net_ratio=0.04, op_ratio=0.07, rnd_ratio=0.01
+            10_000_000_000,
+            11_000_000_000,
+            net_ratio=0.04,
+            op_ratio=0.07,
+            rnd_ratio=0.01,
         )
     )
     assert _status(res, R1) == "FAIL"
@@ -385,7 +492,14 @@ def test_red_flag_rnd_below_2pct():
 
 def test_red_flag_net_margin_below_5pct():
     res = _evaluate(
-        [_row(2024, 100_000_000_000, net_income=4_000_000_000, operating_income=20_000_000_000)]
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                net_income=4_000_000_000,
+                operating_income=20_000_000_000,
+            )
+        ]
     )
     assert "Net margin below 5%" in res.red_flags
 

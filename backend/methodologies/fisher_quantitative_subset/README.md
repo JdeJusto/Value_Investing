@@ -13,7 +13,7 @@ docs/methodology_decisions.md decision 1.**
 | 3 | R&D intensity relative to size | 54–55 | `research_development` / revenue | PASS ≥ 5%, WATCH 2–5%, FAIL < 2% |
 | 5 | Worthwhile profit margin | 63–64 | net + operating margin | PASS net ≥ 10% AND op ≥ 15%; FAIL net < 5% |
 | 10 | Cost analysis & accounting controls | 69 | gross-margin stdev (5y) | PASS < 0.03, WATCH < 0.05, FAIL ≥ 0.05 |
-| 13 | Growth without equity financing | 75 | shares now vs 10y ago | PASS no increase; WATCH ≤ 10%; FAIL > 10% |
+| 13 | Growth without equity financing | 75 | shares now vs 10y ago (split-adjusted) | PASS no increase; WATCH ≤ 10%; FAIL > 10% |
 
 These 4 are the only points that can be computed from the financial
 statements the system already has (revenue, margins, R&D spend, share
@@ -73,8 +73,12 @@ HIGH when all 4 rules evaluated, MEDIUM with 1 INSUFFICIENT_DATA, LOW otherwise.
   INSUFFICIENT_DATA when R&D is not reported at all.
 - Cost control is proxied by gross-margin stability; a real audit of
   accounting controls is impossible from filings alone.
-- Dilution uses reported share counts; buybacks and splits are only as
-  good as the as-reported data.
+- The 10-year share comparison restates the old share count for stock
+  splits using the XBRL `StockholdersEquityNoteStockSplitConversionRatio*`
+  facts (a 4:1 split multiplies pre-split counts by 4 before comparing).
+  Filers that do not report a ratio keep the as-reported count (factor
+  1.0), so a missed split can still read as dilution; buybacks and option
+  grants show up only as the net share change, not separately.
 
 ## Usage
 

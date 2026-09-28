@@ -163,7 +163,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 "Subset only: the 11 scuttlebutt points are not implemented.",
                 "Single 5% R&D threshold applied to every sector (no industry data).",
                 "Cost control is proxied by gross-margin stability, not an audit.",
-                "Dilution uses reported share counts; buybacks and splits unmodelled.",
+                "Dilution measured on split-restated share counts (XBRL ratio facts).",
                 "Price is never consulted — a quality screen, not a valuation.",
             ],
         }
@@ -270,11 +270,19 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 "INSUFFICIENT_DATA",
                 f"no shares outstanding {_DILUTION_YEARS} years ago (fiscal {target})",
             )
-        past = float(past_row.shares_outstanding)
+        # Restate the 10y-ago count on today's post-split basis: a 4:1 split
+        # after that year means each as-reported share is 4 shares now. The
+        # factor comes from the XBRL split-ratio facts on the row (data, not
+        # prices), so the methodology stays hermetic. 1.0 when unknown.
+        past_raw = float(past_row.shares_outstanding)
+        factor = past_row.split_adjustment_factor
+        factor = 1.0 if not factor or factor <= 0 else float(factor)
+        past = past_raw * factor
         if current <= past:
+            note = ", split-adjusted" if factor != 1.0 else ""
             return (
                 "PASS",
-                f"shares {int(past)} -> {current} (no dilution)",
+                f"shares {int(past)} -> {current} (no dilution{note})",
             )
         change = (float(current) - past) / past
         if change <= _DILUTION_WATCH:
@@ -360,9 +368,10 @@ class FisherQuantitativeSubsetMethodology(Methodology):
         )
         share_change = None
         if current is not None and past_row is not None and past_row.shares_outstanding:
-            share_change = (
-                float(current) - float(past_row.shares_outstanding)
-            ) / float(past_row.shares_outstanding)
+            factor = past_row.split_adjustment_factor
+            factor = 1.0 if not factor or factor <= 0 else float(factor)
+            past_adjusted = float(past_row.shares_outstanding) * factor
+            share_change = (float(current) - past_adjusted) / past_adjusted
         return {
             "rnd_ratio": rnd_ratio,
             "net_margin": net_margin,

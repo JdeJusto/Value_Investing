@@ -61,7 +61,8 @@ RULES: list[Rule] = [
         name="Growth without equity financing (point 13)",
         description=(
             "Growth financed from operations so the existing shareholder is "
-            "not diluted."
+            "not diluted; the 10-year share comparison is restated for stock "
+            "splits from XBRL ratio facts."
         ),
         kind="EXPLICIT",
         source=_source("75"),

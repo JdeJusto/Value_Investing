@@ -46,6 +46,66 @@ def _period_end_year(value) -> Optional[int]:
         return None
 
 
+def _as_date(value) -> date | None:
+    """Normalize a ``date`` or ISO string to a :class:`date`, or None."""
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def _cumulative_split_multiplier(
+    fy_end, split_rows: list
+) -> float:
+    """Product of DISTINCT split ratios effective strictly after ``fy_end``.
+
+    ``fy_end`` is a row's fiscal year end (date or ISO string). Each entry in
+    ``split_rows`` is an ``(period_end, ratio)`` pair from the XBRL
+    ``StockholdersEquityNoteStockSplitConversionRatio*`` facts (period_end =
+    effective split date, ratio = shares-after / shares-before). A 4:1 split
+    effective after the row's year means each as-reported share has since
+    become 4 shares, so the past count multiplies by 4 to sit on today's
+    basis. Duplicates of the same split event (the note is re-filed across
+    10-Ks) are counted once. Returns 1.0 when nothing applies.
+
+    Pure function — no database, no network — so the split adjustment can be
+    unit-tested and reasoned about without infrastructure.
+    """
+    end = _as_date(fy_end)
+    if end is None:
+        return 1.0
+    multiplier = 1.0
+    seen: set = set()
+    for period_end, ratio in (split_rows or []):
+        effective = _as_date(period_end)
+        if effective is None or ratio is None:
+            continue
+        try:
+            ratio_f = float(ratio)
+        except (TypeError, ValueError):
+            continue
+        if effective <= end or ratio_f <= 0:
+            continue
+        key = (effective, ratio_f)
+        if key in seen:
+            continue
+        seen.add(key)
+        multiplier *= ratio_f
+    return multiplier
+
+
+# XBRL concepts carrying a stock-split conversion ratio (shares-after /
+# shares-before per split, unit 'pure', period_end = effective split date).
+# Used to reconstruct ``split_adjustment_factor`` on NormalizedFinancials so
+# the methodologies stay hermetic (the factor is data, not a price lookup).
+_SPLIT_RATIO_CONCEPTS = (
+    "StockholdersEquityNoteStockSplitConversionRatio",
+    "StockholdersEquityNoteStockSplitConversionRatio1",
+)
+
+
 # Concept mapping from Financial-DataBase XBRL concepts to Value Investing fields
 # This maps common XBRL concepts to the financial statement fields we use
 INCOME_STATEMENT_CONCEPTS = {
@@ -909,7 +969,8 @@ class FinancialDatabaseRepository(FinancialRepository):
         ticker: str,
         fiscal_year: int,
         statements: dict,
-        loaded_at: Optional[datetime] = None
+        loaded_at: Optional[datetime] = None,
+        split_adjustment_factor: float = 1.0
     ) -> NormalizedFinancials:
         """Build a NormalizedFinancials object from statement data.
 
@@ -918,6 +979,9 @@ class FinancialDatabaseRepository(FinancialRepository):
             fiscal_year: Fiscal year
             statements: Dictionary with income, balance, cash_flow data
             loaded_at: When this data was loaded (defaults to now)
+            split_adjustment_factor: Multiplier restating this year's
+                as-reported shares on today's post-split basis (see
+                ``_cumulative_split_multiplier``); 1.0 when unknown.
 
         Returns:
             NormalizedFinancials object
@@ -1014,8 +1078,17 @@ class FinancialDatabaseRepository(FinancialRepository):
             dividends_paid=cash_flow.get('dividends_paid'),
             repurchase_of_stock=cash_flow.get('repurchase_of_stock'),
             working_capital_change=cash_flow.get('working_capital_change'),
+            # Additional income statement fields (previously dropped from the
+            # snapshot: they were only set on the local IncomeStatement below,
+            # never carried into the NormalizedFinancials, so e.g. R&D spent
+            # was invisible to analytics and methodologies).
+            operating_expense=income.get('operating_expense'),
+            research_development=income.get('research_development'),
+            sga=income.get('sga'),
+            non_operating_income_expense=income.get('non_operating_income_expense'),
             # Context
             shares_outstanding=balance.get('shares_outstanding'),
+            split_adjustment_factor=split_adjustment_factor,
             period=ANNUAL_PERIOD,
             currency='USD',  # TODO: Get from actual unit/currency data
             source=ProviderName.EDGAR,  # Financial-DataBase primarily has SEC data
@@ -1085,6 +1158,17 @@ class FinancialDatabaseRepository(FinancialRepository):
                 if not facts:
                     return None
 
+                # Split adjustment: restate this year's as-reported shares on
+                # today's basis (product of split ratios effective after the
+                # fiscal year end). 1.0 when the filer reports no ratio.
+                fy_end = max(
+                    (pe for pe in (_as_date(f.get('period_end')) for f in facts) if pe),
+                    default=None,
+                )
+                split_factor = _cumulative_split_multiplier(
+                    fy_end, self._fetch_split_ratio_facts(company_id)
+                )
+
                 # Normalize the facts
                 statements = self._normalize_financial_facts(
                     facts, bucket_year=fiscal_year
@@ -1095,12 +1179,43 @@ class FinancialDatabaseRepository(FinancialRepository):
                 return self._build_normalized_financials(
                     ticker=ticker.upper(),
                     fiscal_year=fiscal_year,
-                    statements=statements
+                    statements=statements,
+                    split_adjustment_factor=split_factor,
                 )
 
         except Exception:
             # In case of any error, return None to let fallback handle it
             return None
+
+    def _fetch_split_ratio_facts(self, company_id) -> list:
+        """All ``StockSplitConversionRatio`` facts for a company.
+
+        Returns ``[(period_end, ratio), ...]`` pairs from the XBRL facts (one
+        per split; period_end = effective date, ratio = shares-after /
+        shares-before). Empty list when the company reports no ratio facts —
+        callers then keep the splits-unadjusted 1.0 factor.
+        """
+        if not company_id:
+            return []
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT f.period_end, f.value
+                    FROM financial_facts f
+                    WHERE f.company_id = %s
+                      AND f.concept = ANY(%s::text[])
+                """, (company_id, list(_SPLIT_RATIO_CONCEPTS)))
+                # RealDict rows iterate by KEY, so unpack them into plain
+                # (period_end, ratio) tuples before returning.
+                return [
+                    (row.get('period_end'), row.get('value'))
+                    for row in cur.fetchall()
+                    if row is not None
+                ]
+        except Exception:  # noqa: BLE001 — degrade to 1.0 (as-reported shares)
+            # instead of failing the ticker.
+            return []
 
     def list_years(self, ticker: str) -> List[NormalizedFinancials]:
         """Return the best record per year for a ticker, most recent first.
@@ -1172,9 +1287,25 @@ class FinancialDatabaseRepository(FinancialRepository):
             for row in facts:
                 by_year.setdefault(row["fiscal_year"], []).append(row)
 
+            # One query for every split ratio the company ever reported; each
+            # year's factor is computed from it (pure function), keeping the
+            # methodology payload hermetic — the factor is data, not a price.
+            split_rows = self._fetch_split_ratio_facts(company_id)
+
             results: List[NormalizedFinancials] = []
             for year in sorted(by_year, reverse=True):
                 try:
+                    fy_end = max(
+                        (
+                            pe
+                            for pe in (_as_date(r.get('period_end')) for r in by_year[year])
+                            if pe
+                        ),
+                        default=None,
+                    )
+                    split_factor = _cumulative_split_multiplier(
+                        fy_end, split_rows
+                    )
                     statements = self._normalize_financial_facts(
                         by_year[year], bucket_year=year
                     )
@@ -1183,6 +1314,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                         ticker=ticker.upper(),
                         fiscal_year=year,
                         statements=statements,
+                        split_adjustment_factor=split_factor,
                     )
                     if financials is not None:
                         results.append(financials)

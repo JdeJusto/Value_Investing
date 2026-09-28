@@ -90,6 +90,13 @@ class NormalizedFinancials:
 
     # --- Context ---------------------------------------------------------
     shares_outstanding: int | None = None
+    # Multiplier that restates this row's as-reported ``shares_outstanding``
+    # on today's post-split basis: the product of every stock-split ratio
+    # that took effect AFTER this row's fiscal year end. A 4:1 split means a
+    # pre-split share is worth 4 current shares, so past as-reported counts
+    # multiply by the factor. 1.0 when the filer reports no split ratio (or
+    # no split occurred after the row's year) — the count stays as-reported.
+    split_adjustment_factor: float = 1.0
     period: str = ANNUAL_PERIOD
     currency: str = "USD"
     source: ProviderName = ProviderName.YAHOO
