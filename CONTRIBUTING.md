@@ -36,9 +36,14 @@ browser-like User-Agents (see `docs/price_recovery_2026-09-28.md`).
 python -m pytest tests/unit -q
 ```
 
-The unit suite is hermetic and needs no database. A few tests exercise the
-Financial-DataBase repository and **skip** unless `FINANCIAL_DATABASE_URL`
-points at a reachable database, so the full suite is safe to run anywhere.
+The unit suite is hermetic and needs no database. Tests that require a live
+Financial-DataBase instance are isolated under `tests/integration/`; run them
+only when `FINANCIAL_DATABASE_URL` points at a test database containing the
+required company data.
+
+```bash
+python -m pytest tests/integration -q
+```
 
 ## Using the CLI
 
