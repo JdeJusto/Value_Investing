@@ -53,7 +53,7 @@ def _patch(monkeypatch, score, breakdown=None):
     )
     monkeypatch.setattr(wrapper_module, "buffett_filter", _filter)
     monkeypatch.setattr(
-        wrapper_module, "analyze_moat", lambda metrics: {"moat": "narrow"}
+        wrapper_module, "analyze_moat", lambda rows, metrics=None: {"moat": "narrow"}
     )
 
 
