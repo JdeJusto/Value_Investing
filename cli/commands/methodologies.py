@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from cli.commands import (
     analyze_buffett_clark,
+    analyze_buffett_classic,
     analyze_graham,
     analyze_graham_dodd,
     compare_methodologies,
@@ -37,5 +38,6 @@ def register(subparsers) -> None:
 
     analyze_graham.register(subparsers)
     analyze_buffett_clark.register(subparsers)
+    analyze_buffett_classic.register(subparsers)
     analyze_graham_dodd.register(subparsers)
     compare_methodologies.register(subparsers)
