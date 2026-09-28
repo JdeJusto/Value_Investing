@@ -34,6 +34,18 @@ suggested mitigation. Expect an acknowledgement within a week.
 - A report that only needs a configuration change you have not made yet (for
   example no `SEC_USER_AGENT` in your `.env`).
 
+## Known dependency advisories
+
+- **`ecdsa` 0.19.2 — CVE-2024-23342 / GHSA-wj6h-64fc-37mp (high, no fixed
+  version).** `python-jose` depends on `ecdsa` unconditionally, and we declare
+  it in the `Pipfile` to sign and validate JWTs. The vulnerable code is ECDSA
+  signature *verification*, while this project only uses `HS256`
+  (`ALGORITHM` in `backend/core/config.py`, used by `backend/core/security.py`),
+  so the path is unreachable today. We keep the alert open rather than
+  dismissing it, so a future switch to an ECDSA algorithm resurfaces it. If we
+  ever need asymmetric JWT signing, replace `python-jose` with a maintained
+  JOSE implementation first.
+
 ## Supported versions
 
 | Version | Supported |
