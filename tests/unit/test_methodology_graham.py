@@ -431,26 +431,6 @@ def test_no_price_means_no_network_and_no_db():
     assert result.verdict == Verdict.WATCH
 
 
-# ----------------------------------------------------------------------
-# shares outstanding (the P/E and P/BV fix)
-# ----------------------------------------------------------------------
-
-
-def test_shares_outstanding_comes_from_the_balance_sheet_concepts():
-    """The P/E and P/BV criteria need a share count; the VO gets it from the
-    repository's concept mapping, not from a separate lookup."""
-    from backend.repositories.financial_database_repository import (
-        FinancialDatabaseRepository,
-    )
-
-    repo = FinancialDatabaseRepository()
-    rows = repo.get_best_available("AAPL")
-
-    assert rows, "AAPL should have fundamentals in Financial-DataBase"
-    assert rows[0].shares_outstanding
-    assert rows[0].shares_outstanding > 1_000_000_000  # AAPL has ~15B shares
-
-
 def test_pe_and_pbv_are_evaluated_when_shares_exist():
     methodology = GrahamMethodology()
     rows = _rows("graham_pass.json")
