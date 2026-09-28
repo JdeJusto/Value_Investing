@@ -2228,6 +2228,15 @@
             "markers": "python_version >= '3.7'",
             "version": "==2.0.51"
         },
+        "sqlparse": {
+            "hashes": [
+                "sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9",
+                "sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.10'",
+            "version": "==0.6.0"
+        },
         "stamina": {
             "hashes": [
                 "sha256:0214d05fdf5102c518194a4aac7520ce53cf660550ae3b940701aad88cf50c17",
