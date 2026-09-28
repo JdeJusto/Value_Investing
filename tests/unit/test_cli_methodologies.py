@@ -145,13 +145,13 @@ def test_analyze_graham_without_era_adjustment_uses_book_threshold(monkeypatch, 
 # ----------------------------------------------------------------------
 
 
-def test_compare_with_one_methodology_renders_cleanly(monkeypatch, capsys):
+def test_compare_with_two_methodologies_renders_cleanly(monkeypatch, capsys):
     _run(["compare-methodologies", "AAPL"], monkeypatch)
     out = capsys.readouterr().out
     assert "Methodology comparison" in out
     assert "graham" in out
+    assert "buffett_clark" in out
     assert "Disagreement summary" in out
-    assert "Only one methodology" in out
 
 
 def test_compare_unknown_methodology_warns_and_skips(monkeypatch, capsys):
