@@ -114,3 +114,29 @@ returns `None`, reports must render **"—"** (em-dash) or **"N/A"** — **never
 **Rationale:** A qualitative methodology (or one that only produces PASS/FAIL
 gates) must not be reduced to a numeric score. `0.0` is a score; `None` is the
 absence of one.
+
+## Calibration log
+
+Quantitative screen settings (thresholds / verdict gates / score formulas)
+are **not** re-litigations of Decision 1–10: the book sources are untouched,
+but a settings change must be logged here so a future change is caught and
+the reason stays on record.
+
+### fisher_quantitative_subset — 2026-09-28
+
+- Rule 1 R&D: PASS 5% → **8%** (WATCH now 2–8%, FAIL stays < 2%).
+- BUY gate: ≥ 3 PASS with no FAIL → **4/4 rules PASS**.
+- Score: `passed / evaluable × 100` → **`passed / 4 × 100`** (INSUFFICIENT_DATA
+  counts as 0; `None` only on an INSUFFICIENT_DATA verdict).
+- Reason: the previous gates gave BUY 100/100 to every healthy company
+  (AAPL, MSFT, KO …), useless as a filter. A 4-point subset with no
+  scuttlebutt compensates with stricter quantitative gates: only top-of-range
+  R&D (≥ 8%) names with full data coverage reach BUY.
+- R&D concept fallback: when a filer files both `ResearchAndDevelopmentExpense`
+  and `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` (JNJ), the
+  reconstruction keeps the more complete figure so a residual plain tag cannot
+  read as "no/low R&D".
+- Re-verification (10 companies): AAPL/MSFT BUY 100; KO WATCH 75 (R&D not
+  reported); PG HOLD 50 (R&D 2.4%); F AVOID (negative margins); JNJ HOLD 50
+  after the concept fallback; XOM/GM/INTC/T remain INSUFFICIENT_DATA (partial
+  FDB coverage). No verdict of the other methodologies was touched.
