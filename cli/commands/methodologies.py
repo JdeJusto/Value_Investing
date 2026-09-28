@@ -15,6 +15,7 @@ themselves. Adding a command never touches ``cli/main.py``.
 from __future__ import annotations
 
 from cli.commands import (
+    analyze_buffett_clark,
     analyze_graham,
     compare_methodologies,
     methodologies_list,
@@ -34,4 +35,5 @@ def register(subparsers) -> None:
     methodologies_show.register(group_sub)
 
     analyze_graham.register(subparsers)
+    analyze_buffett_clark.register(subparsers)
     compare_methodologies.register(subparsers)
