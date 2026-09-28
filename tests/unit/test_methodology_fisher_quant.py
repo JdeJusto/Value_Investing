@@ -87,7 +87,7 @@ def _healthy_rows(
     current_shares,
     net_ratio=0.20,
     op_ratio=0.25,
-    rnd_ratio=0.06,
+    rnd_ratio=0.09,
     past_split_factor=None,
 ):
     """Eleven years of otherwise-healthy rows; shares fixed at 10y-ago/now."""
@@ -129,6 +129,24 @@ def _full_margin_rows(margins, rnd_ratio=0.06, net_ratio=0.20, op_ratio=0.25):
     return rows
 
 
+def _ko_shape_rows():
+    """KO-like profile: R&D is not reported, everything else passes."""
+    rows = []
+    revenue = 100_000_000_000
+    for year in range(2014, 2025):
+        rows.append(
+            _row(
+                year,
+                revenue,
+                gross_profit=42_000_000_000,
+                net_income=0.27 * revenue,
+                operating_income=0.29 * revenue,
+                shares_outstanding=4_300_000_000,
+            )
+        )
+    return rows
+
+
 def _fixture_rows(name):
     raw = json.loads((FIXTURES / name).read_text())
     return [NormalizedFinancials.from_dict(r) for r in raw]
@@ -154,12 +172,19 @@ def _status(result, rule_id):
 # Rule 1 — R&D intensity (point 3)
 # ---------------------------------------------------------------------------
 def test_rule_1_rnd_pass():
-    res = _evaluate([_row(2024, 100_000_000_000, research_development=6_500_000_000)])
+    res = _evaluate([_row(2024, 100_000_000_000, research_development=8_500_000_000)])
+    assert _status(res, R1) == "PASS"
+
+
+def test_rule_1_rnd_pass_boundary_8pct():
+    res = _evaluate([_row(2024, 100_000_000_000, research_development=8_000_000_000)])
     assert _status(res, R1) == "PASS"
 
 
 def test_rule_1_rnd_watch():
-    res = _evaluate([_row(2024, 100_000_000_000, research_development=3_000_000_000)])
+    # 6% was a PASS at the old 5% bar; the 2026-09 calibration moved the PASS
+    # line to 8%, so a mid-range compounder now reads WATCH.
+    res = _evaluate([_row(2024, 100_000_000_000, research_development=6_000_000_000)])
     assert _status(res, R1) == "WATCH"
 
 
@@ -381,6 +406,28 @@ def test_incomplete_fixture_shape():
     assert _status(res, R4) == "INSUFFICIENT_DATA"
 
 
+def test_3of4_fixture_watch_75():
+    res = _evaluate(_fixture_rows("fisher_quant_3of4.json"))
+    assert _status(res, R1) == "INSUFFICIENT_DATA"
+    assert _status(res, R2) == "PASS"
+    assert _status(res, R3) == "PASS"
+    assert _status(res, R4) == "PASS"
+    assert res.verdict == Verdict.WATCH
+    assert res.score == pytest.approx(75.0)
+    assert res.confidence == Confidence.MEDIUM
+
+
+def test_perfect_fixture_buy_100():
+    res = _evaluate(_fixture_rows("fisher_quant_perfect.json"))
+    assert _status(res, R1) == "PASS"
+    assert _status(res, R2) == "PASS"
+    assert _status(res, R3) == "PASS"
+    assert _status(res, R4) == "PASS"
+    assert res.verdict == Verdict.BUY
+    assert res.score == pytest.approx(100.0)
+    assert res.confidence == Confidence.HIGH
+
+
 # ---------------------------------------------------------------------------
 # Verdict logic
 # ---------------------------------------------------------------------------
@@ -389,16 +436,32 @@ def test_verdict_buy_quality_fixture():
     assert res.verdict == Verdict.BUY
 
 
-def test_verdict_watch_two_passes():
-    res = _evaluate(_full_margin_rows([0.55, 0.48, 0.57, 0.45, 0.50]))
-    assert _status(res, R3) == "WATCH"
+def test_verdict_watch_three_pass_one_insufficient():
+    """KO shape: R&D not reported, the other three rules pass -> WATCH (75)."""
+    res = _evaluate(_ko_shape_rows())
+    assert _status(res, R1) == "INSUFFICIENT_DATA"
+    assert _status(res, R2) == "PASS"
+    assert _status(res, R3) == "PASS"
+    assert _status(res, R4) == "PASS"
+    assert res.verdict == Verdict.WATCH
+    assert res.score == pytest.approx(75.0)
+
+
+def test_verdict_three_pass_one_watch_is_not_buy():
+    """BUY requires 4/4: three PASS plus one WATCH stays WATCH, not BUY."""
+    res = _evaluate(_healthy_rows(10_000_000_000, 10_500_000_000))
+    assert _status(res, R1) == "PASS"
+    assert _status(res, R4) == "WATCH"
     assert res.verdict == Verdict.WATCH
 
 
-def test_verdict_hold_one_pass():
-    res = _evaluate(_full_margin_rows([0.70, 0.45, 0.60, 0.35, 0.55], rnd_ratio=0.03))
+def test_verdict_hold_two_pass_no_fail():
+    """P&G shape: modest R&D, strong margins, missing 10y shares -> HOLD (50)."""
+    res = _evaluate(_full_margin_rows([0.42, 0.42, 0.425, 0.42, 0.42]))
     assert _status(res, R1) == "WATCH"
-    assert _status(res, R3) == "FAIL"
+    assert _status(res, R2) == "PASS"
+    assert _status(res, R3) == "PASS"
+    assert _status(res, R4) == "INSUFFICIENT_DATA"
     assert res.verdict == Verdict.HOLD
 
 
@@ -414,18 +477,19 @@ def test_verdict_avoid_dilution_fail():
     assert res.verdict == Verdict.AVOID
 
 
-def test_verdict_avoid_zero_passes():
-    res = _evaluate(
-        _healthy_rows(
-            10_000_000_000,
-            11_000_000_000,
-            net_ratio=0.04,
-            op_ratio=0.07,
-            rnd_ratio=0.01,
-        )
-    )
-    assert _status(res, R1) == "FAIL"
+def test_verdict_avoid_any_fail_even_with_three_passes():
+    """One FAIL vetoes the verdict even when the other three rules pass."""
+    res = _evaluate(_healthy_rows(10_000_000_000, 10_500_000_000, net_ratio=0.04))
     assert _status(res, R2) == "FAIL"
+    assert res.verdict == Verdict.AVOID
+
+
+def test_verdict_avoids_fewer_than_two_passes():
+    """Fewer than 2 PASS (no FAIL, not enough INSUFFICIENT) -> AVOID."""
+    res = _evaluate(_full_margin_rows([0.55, 0.48, 0.57, 0.45, 0.50]))
+    assert _status(res, R1) == "WATCH"
+    assert _status(res, R3) == "WATCH"
+    assert _status(res, R4) == "INSUFFICIENT_DATA"
     assert res.verdict == Verdict.AVOID
 
 
@@ -449,9 +513,22 @@ def test_score_quality_is_100():
     assert res.score == pytest.approx(100.0)
 
 
-def test_score_counts_evaluable_only():
-    res = _evaluate(_full_margin_rows([0.55, 0.48, 0.57, 0.45, 0.50]))
-    assert res.score == pytest.approx(200.0 / 3.0, abs=0.01)
+def test_score_three_pass_one_insufficient_is_75():
+    res = _evaluate(_ko_shape_rows())
+    assert res.score == pytest.approx(75.0)
+
+
+def test_score_hold_two_pass_is_50():
+    res = _evaluate(_full_margin_rows([0.42, 0.42, 0.425, 0.42, 0.42]))
+    assert res.verdict == Verdict.HOLD
+    assert res.score == pytest.approx(50.0)
+
+
+def test_score_none_when_insufficient_data_even_with_passes():
+    res = _evaluate(_gross_margin_rows([0.42, 0.42, 0.42, 0.42, 0.42]))
+    assert _status(res, R3) == "PASS"
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
 
 
 def test_score_none_weak_fixture_zero_pass():

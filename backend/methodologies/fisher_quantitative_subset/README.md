@@ -10,7 +10,7 @@ docs/methodology_decisions.md decision 1.**
 
 | # | Rule | Book page | Data used | Threshold |
 |---|------|-----------|-----------|-----------|
-| 3 | R&D intensity relative to size | 54–55 | `research_development` / revenue | PASS ≥ 5%, WATCH 2–5%, FAIL < 2% |
+| 3 | R&D intensity relative to size | 54–55 | `research_development` / revenue | PASS ≥ 8%, WATCH 2–8%, FAIL < 2% |
 | 5 | Worthwhile profit margin | 63–64 | net + operating margin | PASS net ≥ 10% AND op ≥ 15%; FAIL net < 5% |
 | 10 | Cost analysis & accounting controls | 69 | gross-margin stdev (5y) | PASS < 0.03, WATCH < 0.05, FAIL ≥ 0.05 |
 | 13 | Growth without equity financing | 75 | shares now vs 10y ago (split-adjusted) | PASS no increase; WATCH ≤ 10%; FAIL > 10% |
@@ -18,8 +18,10 @@ docs/methodology_decisions.md decision 1.**
 These 4 are the only points that can be computed from the financial
 statements the system already has (revenue, margins, R&D spend, share
 counts). Fisher himself calls the R&D ratio a "crude yardstick" (p. 55)
-and insists margins be read over a series of years, so the thresholds
-are deliberately conservative.
+and insists margins be read over a series of years. Because the 11
+scuttlebutt points are missing, the quantitative gates are deliberately
+stricter than the book: the R&D PASS bar sits at the top of the large-cap
+range (8%) and BUY requires full data coverage (see Calibration history).
 
 ## The 11 points NOT implemented (and why)
 
@@ -40,17 +42,17 @@ guesses — a *fake Fisher*. Hence decision 1 in
 
 ## Verdict logic
 
-- **BUY**: ≥ 3 rules PASS and no rule FAIL
-- **WATCH**: ≥ 2 rules PASS
-- **HOLD**: 1 rule PASS
-- **AVOID**: any FAIL on rules 2 or 4, OR fewer than 1 rule PASS
+- **BUY**: all 4 rules PASS (no INSUFFICIENT_DATA, WATCH or FAIL)
+- **WATCH**: ≥ 3 rules PASS with at most 1 INSUFFICIENT_DATA/WATCH
+- **HOLD**: ≥ 2 rules PASS
+- **AVOID**: any rule FAIL, OR fewer than 2 rules PASS
 - **INSUFFICIENT_DATA**: ≥ 3 rules INSUFFICIENT_DATA
 
 ## Score
 
-`score = (rules_passed / evaluable_rules) × 100`, where *evaluable*
-excludes INSUFFICIENT_DATA rules. `None` when fewer than 2 rules are
-evaluable.
+`score = (rules_passed / 4) × 100` — always divided by all 4 rules.
+INSUFFICIENT_DATA counts as 0 in the numerator. `None` only when the
+verdict is INSUFFICIENT_DATA (no information ≠ a failing grade).
 
 ## Confidence
 
@@ -67,10 +69,13 @@ HIGH when all 4 rules evaluated, MEDIUM with 1 INSUFFICIENT_DATA, LOW otherwise.
 
 - This is a **quality screen, not a valuation** — price is never consulted,
   so a BUY here can coexist with a Graham AVOID. That is intentional.
-- The R&D bar (5%) applies to every company because the system has no
-  sector information: consumer staples will usually read WATCH/FAIL even
-  when their "R&D" happens in-process, and the rule degrades to
-  INSUFFICIENT_DATA when R&D is not reported at all.
+- The R&D PASS bar (8%) applies to every company because the system has
+  no sector information: consumer staples will usually read WATCH (their
+  spend sits in the 2–8% band) or FAIL when "R&D" happens in-process, and
+  the rule degrades to INSUFFICIENT_DATA when R&D is not reported at all
+  (KO). When a filer keeps its substantive R&D under
+  `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` (JNJ), the
+  reconstruction prefers that tag over a residual plain tag.
 - Cost control is proxied by gross-margin stability; a real audit of
   accounting controls is impossible from filings alone.
 - The 10-year share comparison restates the old share count for stock
@@ -79,6 +84,24 @@ HIGH when all 4 rules evaluated, MEDIUM with 1 INSUFFICIENT_DATA, LOW otherwise.
   Filers that do not report a ratio keep the as-reported count (factor
   1.0), so a missed split can still read as dilution; buybacks and option
   grants show up only as the net share change, not separately.
+
+## Calibration history
+
+### 2026-09-28 — gates tightened for real discrimination
+
+The previous gates gave BUY 100/100 to every healthy company (AAPL, MSFT
+and KO all read 100) — mathematically correct but useless as a filter. A
+4-point subset with no scuttlebutt compensates with stricter quantitative
+gates:
+
+- Rule 1 R&D: PASS 5% → **8%**, WATCH 2–5% → **2–8%**, FAIL stays < 2%.
+- BUY now requires **4/4 rules PASS** (no INSUFFICIENT_DATA, WATCH or
+  FAIL); previously ≥ 3 PASS with no FAIL.
+- Score now divides by all 4 rules: `passed / 4 × 100`; INSUFFICIENT_DATA
+  counts as 0. `None` only for an INSUFFICIENT_DATA verdict.
+
+Re-verified on 10 companies (AAPL, MSFT, KO, JNJ, PG, XOM, F, GM, INTC,
+T): only top-of-range R&D names with full data reach BUY.
 
 ## Usage
 

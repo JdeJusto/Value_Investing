@@ -25,9 +25,14 @@ from backend.methodologies.fisher_quantitative_subset.rules import (
 )
 
 # Point 3 — R&D intensity relative to size (single threshold; no sector info
-# is available, so the tech/pharma-specific 5% bar is used for everyone).
-_RND_PASS = 0.05
+# is available, so the tech/pharma-specific bar is used for everyone).
+# Calibrated 2026-09: PASS raised to 8%. The subset has no scuttlebutt to
+# soften a quantitative near-miss, so the BUY gate must sit at the top of the
+# large-cap range. FAIL stays at 2% ("no meaningful R&D") so consumer staples
+# with a modest spend read WATCH, not AVOID.
+_RND_PASS = 0.08
 _RND_WATCH = 0.02
+_RND_FAIL = 0.02
 
 # Point 5 — worthwhile profit margin.
 _MARGIN_NET_PASS = 0.10
@@ -117,15 +122,20 @@ class FisherQuantitativeSubsetMethodology(Methodology):
         ]
         reasons.append(
             f"{passed} of 4 rules passed ({evaluable} evaluable, "
-            f"{insufficient} without data)"
+            f"{insufficient} without data; score based on all 4)"
+        )
+
+        verdict = self._verdict(status, passed, failed, insufficient)
+        score = (
+            (passed / 4 * 100.0) if verdict is not Verdict.INSUFFICIENT_DATA else None
         )
 
         return MethodologyResult(
             methodology=self.name,
             version=self.version,
             family=self.family,
-            verdict=self._verdict(status, passed, failed, insufficient),
-            score=(passed / evaluable * 100.0) if evaluable >= 2 else None,
+            verdict=verdict,
+            score=score,
             metrics=self._metrics(status, rows),
             reasons=reasons,
             red_flags=self._red_flags(status),
@@ -161,7 +171,15 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             },
             "known_limitations": [
                 "Subset only: the 11 scuttlebutt points are not implemented.",
-                "Single 5% R&D threshold applied to every sector (no industry data).",
+                (
+                    "Single 8% R&D PASS threshold applied to every sector (no "
+                    "industry data); FAIL stays at 2%."
+                ),
+                (
+                    "R&D falls back to the ExcludingAcquiredInProcessCost tag "
+                    "when a filer's plain tag only carries a residual (JNJ); "
+                    "filers reporting neither read INSUFFICIENT_DATA."
+                ),
                 "Cost control is proxied by gross-margin stability, not an audit.",
                 "Dilution measured on split-restated share counts (XBRL ratio facts).",
                 "Price is never consulted — a quality screen, not a valuation.",
@@ -191,7 +209,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 "WATCH",
                 f"R&D {ratio:.1%} of revenue (>= {_RND_WATCH:.0%})",
             )
-        return ("FAIL", f"R&D {ratio:.1%} of revenue (< {_RND_WATCH:.0%})")
+        return ("FAIL", f"R&D {ratio:.1%} of revenue (< {_RND_FAIL:.0%})")
 
     def _rule_2(self, rows) -> tuple:
         latest = rows[0]
@@ -301,17 +319,15 @@ class FisherQuantitativeSubsetMethodology(Methodology):
     def _verdict(self, status, passed, failed, insufficient) -> Verdict:
         if insufficient >= 3:
             return Verdict.INSUFFICIENT_DATA
-        if status["rule_2_profit_margin_quality"][0] == "FAIL":
+        if failed > 0:
             return Verdict.AVOID
-        if status["rule_4_share_dilution"][0] == "FAIL":
-            return Verdict.AVOID
-        if passed < 1:
-            return Verdict.AVOID
-        if passed >= 3 and failed == 0:
+        if passed == 4:
             return Verdict.BUY
-        if passed >= 2:
+        if passed >= 3:
             return Verdict.WATCH
-        return Verdict.HOLD
+        if passed >= 2:
+            return Verdict.HOLD
+        return Verdict.AVOID
 
     def _confidence(self, insufficient) -> Confidence:
         if insufficient == 0:
@@ -323,7 +339,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
     def _red_flags(self, status) -> list:
         flags = []
         if status["rule_1_rnd_intensity"][0] == "FAIL":
-            flags.append("R&D below 2% of revenue without explanation")
+            flags.append(f"R&D below {_RND_FAIL:.0%} of revenue without explanation")
         if status["rule_2_profit_margin_quality"][0] == "FAIL":
             flags.append("Net margin below 5%")
         if status["rule_3_cost_control_stability"][0] == "FAIL":
