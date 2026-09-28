@@ -115,6 +115,48 @@ def test_normalize_maps_research_and_development_concept():
     assert income["research_development"] == 6_500_000_000
 
 
+def test_normalize_prefers_larger_rnd_tag_when_both_exist():
+    # JNJ: the plain tag carries only a residual (0.11B) while the
+    # ExcludingAcquiredInProcessCost tag holds the real line (14.67B).
+    income = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("ResearchAndDevelopmentExpense", 110_000_000),
+            _fact(
+                "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+                14_670_000_000,
+            ),
+        ]
+    )["income"]
+    assert income["research_development"] == 14_670_000_000
+
+
+def test_normalize_keeps_plain_rnd_tag_when_it_dominates():
+    # Both tags complete (AIP small): the plain value is the more inclusive
+    # line and must not be clobbered by the Excluding tag.
+    income = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("ResearchAndDevelopmentExpense", 18_000_000_000),
+            _fact(
+                "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+                17_500_000_000,
+            ),
+        ]
+    )["income"]
+    assert income["research_development"] == 18_000_000_000
+
+
+def test_normalize_maps_excluding_tag_on_its_own():
+    income = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact(
+                "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+                9_000_000_000,
+            )
+        ]
+    )["income"]
+    assert income["research_development"] == 9_000_000_000
+
+
 def test_normalize_maps_sga_and_operating_expense():
     income = FinancialDatabaseRepository()._normalize_financial_facts(
         [

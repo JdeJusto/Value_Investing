@@ -132,6 +132,10 @@ INCOME_STATEMENT_CONCEPTS = {
     # Operating Expenses
     'OperatingExpenses': 'operating_expense',
     'ResearchAndDevelopmentExpense': 'research_development',
+    # JNJ files essentially all R&D under the ExcludingAcquiredInProcessCost
+    # tag; its plain tag only carries a residual. The dominance override in
+    # _normalize_financial_facts keeps the more complete figure.
+    'ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost': 'research_development',
     'SellingGeneralAndAdministrativeExpense': 'sga',
 
     # Operating Income
@@ -815,6 +819,9 @@ class FinancialDatabaseRepository(FinancialRepository):
         bank_noninterest = None
         # REIT rental income (see the value-based override below).
         rental_income = None
+        # R&D filed under the ExcludingAcquiredInProcessCost tag (JNJ keeps
+        # its substantive line here; see the dominance override at the end).
+        rnd_excluding = None
         # Best current / non-current debt figure within the newest comparative
         # (concept-priority single pick per portion, see DEBT_*_PRIORITY).
         debt_current = None
@@ -837,6 +844,12 @@ class FinancialDatabaseRepository(FinancialRepository):
                 field_name = INCOME_STATEMENT_CONCEPTS[concept]
                 if concept == 'OperatingLeaseLeaseIncome' and rental_income is None:
                     rental_income = value
+                if (
+                    field_name == 'research_development'
+                    and concept == 'ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost'
+                    and rnd_excluding is None
+                ):
+                    rnd_excluding = value
                 # Handle duplicates by taking the first fact ordered above
                 if field_name not in income_data or income_data[field_name] is None:
                     income_data[field_name] = value
@@ -931,6 +944,18 @@ class FinancialDatabaseRepository(FinancialRepository):
                 current_rev is None or bank_total > current_rev
             ):
                 income_data['revenue'] = bank_total
+
+        # JNJ's substantive R&D line lives under the ExcludingAcquiredInProcessCost
+        # tag while its plain ResearchAndDevelopmentExpense tag only holds a
+        # residual; other filers (AAPL, MSFT) report the plain tag only. When
+        # both tags are present in the bucket keep the more complete (larger)
+        # figure so a residual tag cannot read as 'no/low R&D'. Mirrors the
+        # REIT/bank dominance overrides above.
+        if rnd_excluding is not None and (
+            income_data.get('research_development') is None
+            or rnd_excluding > income_data['research_development']
+        ):
+            income_data['research_development'] = rnd_excluding
 
         return {
             'income': income_data,
