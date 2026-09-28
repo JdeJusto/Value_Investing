@@ -1,0 +1,25 @@
+[
+  {
+    "ticker": "INCOMPLETE",
+    "fiscal_year": 2024,
+    "revenue": 500000000.0,
+    "net_income": 20000000.0,
+    "operating_income": null,
+    "interest_expense": null,
+    "total_assets": 800000000.0,
+    "total_liabilities": 400000000.0,
+    "current_assets": null,
+    "current_liabilities": null,
+    "shares_outstanding": 50000000,
+    "stockholders_equity": 400000000.0,
+    "period": "FY",
+    "currency": "USD",
+    "source": "sec_edgar",
+    "loaded_at": null,
+    "data_completeness": 0.5,
+    "data_quality_score": 0.4,
+    "is_complete": false,
+    "data_source_priority": 1,
+    "derived_metrics": []
+  }
+]
