@@ -16,6 +16,7 @@ psycopg2-binary = ">=2.9"
 # project whose SQL analysis service could not even be imported.
 sqlparse = ">=0.5"
 streamlit = "*"
+gitpython = ">=3.1.59"
 fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 celery = {extras = ["redis"], version = "*"}
