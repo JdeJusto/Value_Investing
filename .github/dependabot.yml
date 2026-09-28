@@ -1,11 +1,12 @@
 version: 2
 updates:
-  - package-ecosystem: pip
-    directory: "/"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-
+  # No `pip` ecosystem: Dependabot resolves Pipfile with pipenv, which rejects
+  # the `python_version = ">=3.11"` range in [requires]
+  # (pypa/pipenv#1050) and then fails every package with
+  # "dependency_file_not_resolvable". Python dependencies are updated by hand
+  # with `pipenv update <package> --lock-only`, which rewrites only the
+  # requested entry in Pipfile.lock. Security alerts keep working: GitHub
+  # parses Pipfile.lock natively for the dependency graph.
   - package-ecosystem: npm
     directory: "/frontend"
     schedule:
