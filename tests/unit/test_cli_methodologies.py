@@ -161,6 +161,20 @@ def test_compare_unknown_methodology_warns_and_skips(monkeypatch, capsys):
     assert "graham" in captured.out
 
 
+def test_compare_renders_all_five_methodologies(monkeypatch, capsys):
+    _run(["compare-methodologies", "AAPL"], monkeypatch)
+    out = capsys.readouterr().out
+    for name in (
+        "buffett_clark",
+        "buffett_classic",
+        "fisher_quantitative_subset",
+        "graham",
+        "graham_dodd",
+    ):
+        assert name in out
+    assert "Disagreement summary" in out
+
+
 # ----------------------------------------------------------------------
 # framework behaviour through the CLI
 # ----------------------------------------------------------------------
