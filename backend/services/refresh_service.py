@@ -127,7 +127,7 @@ class FdbGateway:
             with self._connection().cursor() as cur:
                 cur.execute("SELECT 1")
                 return True
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return False
 
     def staleness_bulk(
@@ -229,7 +229,7 @@ class FdbGateway:
                     (ticker,),
                 )
                 row = cur.fetchone()
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None
         if not row:
             return None
@@ -323,7 +323,7 @@ class FdbGateway:
                     (company_id, company_id, company_id),
                 )
                 row = cur.fetchone()
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None
         if not row or row["last_ingested"] is None:
             return None

@@ -261,7 +261,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             treasury = yf.Ticker("^TNX")
             rate = treasury.info.get("regularMarketPrice", 4.0)
             return rate / 100.0
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return 0.04
 
     def get_effective_tax_rate(self, ticker: str, year_index: int = 0) -> float:
@@ -366,8 +366,8 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 entries = self.get_fiscal_year_end_dates(ticker)
                 if entries and year_index < len(entries):
                     fin.fiscal_year = int(entries[year_index]["year"])
-            except Exception:
+            except Exception:  # noqa: S110 — intentional try/except/pass (best-effort cleanup)
                 pass
             return fin
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None

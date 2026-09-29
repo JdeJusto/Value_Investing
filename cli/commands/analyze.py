@@ -37,7 +37,7 @@ def _run(args):
 
         try:
             result = service.analyze(t)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"  {red('ERROR:')} {e}")
             continue
 

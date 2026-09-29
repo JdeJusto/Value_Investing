@@ -41,7 +41,7 @@ class EdgarProvider(FinancialDataProvider):
 
                 self._set_identity()
                 self._companies[ticker] = Company(ticker)
-            except Exception:
+            except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
                 return None
         return self._companies[ticker]
 
@@ -51,7 +51,7 @@ class EdgarProvider(FinancialDataProvider):
             if company:
                 try:
                     self._financials[ticker] = company.get_financials()
-                except Exception:
+                except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
                     self._financials[ticker] = None
         return self._financials.get(ticker)
 
@@ -69,7 +69,7 @@ class EdgarProvider(FinancialDataProvider):
                 operating_income=ebit,
                 net_income=fins.get_net_income(year_index),
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None
 
     def get_balance_sheet(
@@ -85,7 +85,7 @@ class EdgarProvider(FinancialDataProvider):
                 total_debt=None,
                 stockholders_equity=fins.get_stockholders_equity(year_index),
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None
 
     def get_cash_flow(
@@ -101,7 +101,7 @@ class EdgarProvider(FinancialDataProvider):
                 capital_expenditure=abs(capex) if capex is not None else None,
                 free_cash_flow=fins.get_free_cash_flow(year_index),
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None
 
     def get_total_assets(self, ticker: str) -> float | None:
@@ -152,5 +152,5 @@ class EdgarProvider(FinancialDataProvider):
             # We'll leave it as None for now.
             # Attempt to get fiscal year (not directly available; we could try to infer from filings? skip)
             return fin
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None

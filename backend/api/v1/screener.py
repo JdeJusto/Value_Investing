@@ -120,7 +120,7 @@ async def run_screener(
         job.progress = 1.0
         await db.flush()
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         job.status = "failed"
         job.error_message = str(e)
         await db.flush()

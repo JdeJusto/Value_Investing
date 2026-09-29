@@ -124,5 +124,5 @@ class PiotroskiFScoreCalculator(MetricCalculator):
                 score += 1
 
             return score
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return None

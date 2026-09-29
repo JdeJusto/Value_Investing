@@ -69,10 +69,10 @@ def _extract_financials_from_yahoo(ticker: str) -> _ProviderFinancials | None:
             years = yahoo.get_fiscal_years(ticker)
             if years:
                 fin.fiscal_year = int(years[0])
-        except Exception:
+        except Exception:  # noqa: S110 — intentional try/except/pass (best-effort cleanup)
             pass
         return fin
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"WARNING: Could not process data from Yahoo Finance for {ticker}: {e}")
         return None
 
@@ -109,7 +109,7 @@ def _extract_financials_from_edgar(ticker: str) -> _ProviderFinancials | None:
         # We could try to get it from the balance sheet? Not available. Leave as None.
         # Attempt to get fiscal year (not directly available; we could try to infer from filings? skip)
         return fin
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"WARNING: Could not process data from EDGAR for {ticker}: {e}")
         return None
 
@@ -131,7 +131,7 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
         if not fd_repo.available():
             print(f"ERROR: Financial-DataBase repository not available for {ticker}")
             return
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"ERROR: Could not initialize Financial-DataBase repository: {e}")
         return
 
@@ -152,7 +152,7 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
                 )
             else:
                 fd_financials = years[0]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"ERROR: Could not get financial data from Financial-DataBase for {ticker}: {e}")
         fd_financials = None
 
@@ -292,7 +292,7 @@ def main():
         ticker = raw_ticker.upper().strip()
         try:
             compare_financials(ticker, args.provider)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"ERROR processing {ticker}: {e}", file=sys.stderr)
             continue
 

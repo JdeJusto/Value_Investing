@@ -78,7 +78,7 @@ def render_analysis():
             name = market.get_company_name(ticker)
             price = market.get_current_price(ticker)
             market_cap = market.get_market_cap(ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             name = price = market_cap = None
             st.warning("No se pudo obtener la cotización actual de mercado.")
 

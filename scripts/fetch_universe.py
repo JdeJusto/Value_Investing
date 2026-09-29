@@ -210,7 +210,7 @@ def _resolve_cik(repo, ticker: str) -> str | None:
     """CIK string or None (skip foreign filers / missing tickers)."""
     try:
         cik = repo.get_cik(ticker)
-    except Exception:
+    except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         return None
     return cik if cik else None
 
@@ -218,7 +218,7 @@ def _resolve_cik(repo, ticker: str) -> str | None:
 def _resolve_name(repo, ticker: str) -> str:
     try:
         name = repo.get_company_name(ticker)
-    except Exception:
+    except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         return ""
     return name or ""
 

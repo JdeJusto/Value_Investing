@@ -47,7 +47,7 @@ def _run(args):
         except PipelineError as e:
             print(f"  {red('ERROR:')} {e}")
             continue
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"  {red('ERROR:')} Fallo inesperado cargando {ticker}: {e}")
             continue
 

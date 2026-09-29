@@ -75,7 +75,7 @@ class StockScreenerService:
                     continue
                 if self._passes_filters(row, filters):
                     results.append(row)
-            except Exception:
+            except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
                 continue
 
             # With snapshots prefetched the loop is CPU/DB-bound; the pacing

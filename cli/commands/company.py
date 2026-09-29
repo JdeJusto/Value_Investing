@@ -33,15 +33,15 @@ def _run(args):
 
     try:
         name = service._market.get_company_name(ticker)
-    except Exception:
+    except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         name = None
     try:
         price = service._market.get_current_price(ticker)
-    except Exception:
+    except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         price = None
     try:
         mc = service._market.get_market_cap(ticker)
-    except Exception:
+    except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         mc = None
 
     print_key_value("Nombre", name or dim("No disponible"))
@@ -50,7 +50,7 @@ def _run(args):
 
     try:
         result = service.analyze(ticker)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"\n  {red('ERROR:')} No se pudo analizar {ticker}: {e}")
         return
 

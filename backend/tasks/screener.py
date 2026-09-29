@@ -69,7 +69,7 @@ def run_screener_task(
                     row = analysis
                 else:
                     row = None
-            except Exception:
+            except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
                 row = None
 
         if row is None:

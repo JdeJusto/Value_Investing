@@ -145,7 +145,7 @@ def _run(args):
                     print(f"{red('ERROR:')} No CIK found for ticker '{args.ticker}'")
                     return
                 parameters["cik"] = row['identifier_value']
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"{red('ERROR:')} Failed to get CIK for ticker '{args.ticker}': {e}")
             return
     elif args.cik:
@@ -316,7 +316,7 @@ def cmd_sql_analysis(args):
                     print(f"Error: No CIK found for ticker '{args.ticker}'")
                     return
                 parameters["cik"] = row[0]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"Error: Failed to get CIK for ticker '{args.ticker}': {e}")
             return
     elif args.cik:

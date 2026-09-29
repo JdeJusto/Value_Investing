@@ -125,7 +125,7 @@ def _show_search_results(service, query: str):
     sys.stdout.flush()
     try:
         matches = service.search(query)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"\n  {red('ERROR:')} {e}")
         return
 
@@ -140,7 +140,7 @@ def _show_search_results(service, query: str):
     for t in matches:
         try:
             name = service._market.get_company_name(t)
-        except Exception:
+        except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             name = None
         rows.append([t, name or dim("N/A")])
 
@@ -169,7 +169,7 @@ def _run_screener(args):
         sys.stdout.flush()
         try:
             matches = service.search(args.search)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"\n  {red('ERROR:')} {e}")
             return
         print(f"{len(matches)} resultados")

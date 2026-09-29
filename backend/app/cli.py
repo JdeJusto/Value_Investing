@@ -44,7 +44,7 @@ def build_financial_repository() -> FinancialRepository:
         if financial_db_repo.available():
             logger.info("Using Financial-DataBase financial repository")
             return financial_db_repo
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         logger.warning(f"Financial-DataBase repository unavailable: {e}")
 
     # Fall back to existing PostgreSQL repository
@@ -349,7 +349,7 @@ def build_financial_repository() -> FinancialRepository:
         if financial_db_repo.available():
             logger.info("Using Financial-DataBase financial repository")
             return financial_db_repo
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         logger.warning(f"Financial-DataBase repository unavailable: {e}")
 
     # Fall back to existing PostgreSQL repository
@@ -421,7 +421,7 @@ def cmd_analyze(args):
                 print_analysis(result)
             else:
                 print(f"  Sin datos suficientes para {t}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"  Error analizando {t}: {e}")
             continue
 

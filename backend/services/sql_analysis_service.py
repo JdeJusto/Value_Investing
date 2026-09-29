@@ -78,7 +78,7 @@ class SqlAnalysisService:
                         "path": script_path,
                         "description": description or "No description available"
                     })
-                except Exception:
+                except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
                     # Skip files that can't be read
                     continue
 
@@ -199,7 +199,7 @@ class SqlAnalysisService:
         try:
             with open(script_path, 'r', encoding='utf-8') as f:
                 sql_content = f.read()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return SqlScriptResult(
                 script_name=script_name,
                 description="Failed to read script",
@@ -330,7 +330,7 @@ class SqlAnalysisService:
                 success=False,
                 error_message=str(e)
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             execution_time_ms = (time.time() - start_time) * 1000
             return SqlScriptResult(
                 script_name=script_name,
@@ -395,7 +395,7 @@ class SqlAnalysisService:
                 # Execute the company_overview script
                 return self.execute_script("company_overview", {"cik": cik})
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             return SqlScriptResult(
                 script_name="company_overview",
                 description="Failed to get company overview",
@@ -438,5 +438,5 @@ if __name__ == "__main__":
                 print(f"Error: {result.error_message}")
         else:
             print("\nFinancial-DataBase repository not available")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         print(f"\nError initializing repository: {e}")
