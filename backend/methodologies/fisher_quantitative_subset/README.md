@@ -82,6 +82,13 @@ HIGH when all 4 rules evaluated, MEDIUM with 1 INSUFFICIENT_DATA, LOW otherwise.
   its substantive R&D under
   `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` (JNJ), the
   reconstruction prefers that tag over a residual plain tag.
+- **Companies that structurally do not report R&D** (consumer staples are the
+  common case) read INSUFFICIENT_DATA on rule 1 and are judged on the
+  remaining three rules. KO is the canonical example: its full XBRL history
+  carries 724 us-gaap concepts and **zero** R&D tags (verified against SEC
+  `companyfacts`, 2026-09-29) — R&D is embedded in SG&A and immaterial to the
+  total, so there is no tag to map and nothing to reconstruct. This is a
+  structural limit of a filing-based screen, not a data gap.
 - Cost control is proxied by gross-margin stability; a real audit of
   accounting controls is impossible from filings alone.
 - The 10-year share comparison restates the old share count for stock
