@@ -5,7 +5,7 @@ from typing import Optional
 @dataclass
 class Company:
     ticker: str
-    name: Optional[str] = None
-    sector: Optional[str] = None
-    industry: Optional[str] = None
-    exchange: Optional[str] = None
+    name: str | None = None
+    sector: str | None = None
+    industry: str | None = None
+    exchange: str | None = None

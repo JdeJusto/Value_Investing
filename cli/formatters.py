@@ -36,13 +36,13 @@ def dim(text: str) -> str:
     return f"{Colors.DIM}{text}{Colors.RESET}"
 
 
-def fmt_pct(value: Optional[float], decimals: int = 1) -> str:
+def fmt_pct(value: float | None, decimals: int = 1) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return dim("N/A")
     return f"{value * 100:.{decimals}f}%"
 
 
-def fmt_dollar(value: Optional[float]) -> str:
+def fmt_dollar(value: float | None) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return dim("N/A")
     if abs(value) >= 1_000_000_000:
@@ -54,7 +54,7 @@ def fmt_dollar(value: Optional[float]) -> str:
     return f"${value:.2f}"
 
 
-def fmt_ratio(value: Optional[float], decimals: int = 2) -> str:
+def fmt_ratio(value: float | None, decimals: int = 2) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return dim("N/A")
     return f"{value:.{decimals}f}"
@@ -84,7 +84,7 @@ def print_key_value(key: str, value: str, width: int = 28):
 def print_table(
     headers: list[tuple[str, int]],
     rows: list[list[str]],
-    title: Optional[str] = None,
+    title: str | None = None,
     padding: int = 2,
 ):
     if title:

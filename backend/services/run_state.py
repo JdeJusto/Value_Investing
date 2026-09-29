@@ -73,7 +73,7 @@ def is_transient_failure(reason: str) -> bool:
     return any(marker in text for marker in _TRANSIENT_MARKERS)
 
 
-def new_run_id(now: Optional[datetime] = None) -> str:
+def new_run_id(now: datetime | None = None) -> str:
     """A sortable run id: ``2026-09-25T08:00:00Z-abc123``."""
     moment = now or datetime.now(timezone.utc)
     return f"{moment:%Y-%m-%dT%H:%M:%SZ}-{secrets.token_hex(3)}"
@@ -119,7 +119,7 @@ class RunState:
         universe_spec: str,
         options: dict[str, Any],
         total_tickers: int,
-    ) -> "RunState":
+    ) -> RunState:
         now = _now_iso()
         payload = {
             "version": STATE_VERSION,
@@ -145,7 +145,7 @@ class RunState:
         return state
 
     @classmethod
-    def load(cls, path: Path) -> Optional["RunState"]:
+    def load(cls, path: Path) -> RunState | None:
         """Load a state file; a corrupt file is logged and ignored."""
         try:
             with open(path, encoding="utf-8") as handle:
@@ -171,7 +171,7 @@ class RunState:
             return None
 
     @classmethod
-    def find(cls, out_dir: Path, run_id: str) -> Optional["RunState"]:
+    def find(cls, out_dir: Path, run_id: str) -> RunState | None:
         """Find a run by id: the live file first, then the archive."""
         out_dir = Path(out_dir)
         live = out_dir / RUN_STATE_FILENAME
@@ -241,7 +241,7 @@ class RunState:
         with self._lock:
             return dict(self._payload.get("network") or {})
 
-    def note_network(self, network: Optional[dict[str, Any]]) -> None:
+    def note_network(self, network: dict[str, Any] | None) -> None:
         """Merge network telemetry counters into the checkpoint.
 
         The counters are cumulative within a run, so the newest snapshot wins
@@ -293,7 +293,7 @@ class RunState:
             self._payload["current_stage"] = stage
             self._save_locked()
 
-    def note_progress(self, stage: str, ticker: Optional[str] = None) -> None:
+    def note_progress(self, stage: str, ticker: str | None = None) -> None:
         """Bump a stage counter (and remember the ticker for debugging)."""
         with self._lock:
             progress = self._payload.setdefault("stage_progress", {})
@@ -353,7 +353,7 @@ class RunState:
     def set_price_stage_status(
         self,
         status: str,
-        aborted_reason: Optional[str] = None,
+        aborted_reason: str | None = None,
         aborted_after: int = 0,
     ) -> None:
         """Record the outcome of the price stage: ok, or aborted and why.

@@ -17,7 +17,7 @@ class TokenRefreshRequest(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    display_name: Optional[str] = None
+    display_name: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -28,7 +28,7 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: str
-    display_name: Optional[str] = None
+    display_name: str | None = None
     is_active: bool
     is_superuser: bool
     created_at: datetime
@@ -38,54 +38,54 @@ class UserResponse(BaseModel):
 
 class CompanyResponse(BaseModel):
     ticker: str
-    name: Optional[str] = None
-    sector: Optional[str] = None
-    industry: Optional[str] = None
-    exchange: Optional[str] = None
-    country: Optional[str] = None
-    market_cap: Optional[float] = None
-    enterprise_value: Optional[float] = None
-    beta: Optional[float] = None
-    price: Optional[float] = None
-    currency: Optional[str] = None
+    name: str | None = None
+    sector: str | None = None
+    industry: str | None = None
+    exchange: str | None = None
+    country: str | None = None
+    market_cap: float | None = None
+    enterprise_value: float | None = None
+    beta: float | None = None
+    price: float | None = None
+    currency: str | None = None
 
     model_config = {"from_attributes": True}
 
 
 class CompanySearchResult(BaseModel):
     ticker: str
-    name: Optional[str] = None
-    sector: Optional[str] = None
-    exchange: Optional[str] = None
+    name: str | None = None
+    sector: str | None = None
+    exchange: str | None = None
 
 
 class MetricInterpretation(BaseModel):
-    value: Optional[float] = None
+    value: float | None = None
     formatted: str
     interpretation: str
 
 
 class AnalysisResponse(BaseModel):
     ticker: str
-    name: Optional[str] = None
-    price: Optional[float] = None
-    market_cap: Optional[float] = None
-    enterprise_value: Optional[float] = None
+    name: str | None = None
+    price: float | None = None
+    market_cap: float | None = None
+    enterprise_value: float | None = None
     score: float
-    revenue: Optional[float] = None
-    net_income: Optional[float] = None
-    fcf: Optional[float] = None
+    revenue: float | None = None
+    net_income: float | None = None
+    fcf: float | None = None
     metrics: dict[str, MetricInterpretation]
 
 
 class FilterSchema(BaseModel):
     field: str
     operator: str
-    value: Optional[Any] = None
+    value: Any | None = None
 
 
 class ScreenerRequest(BaseModel):
-    tickers: Optional[list[str]] = None
+    tickers: list[str] | None = None
     filters: list[FilterSchema] = []
     top_n: int = Field(default=25, ge=1, le=100)
 
@@ -99,39 +99,39 @@ class ScreenerJobStatus(BaseModel):
     job_id: str
     status: str
     progress: float
-    results: Optional[list[dict[str, Any]]] = None
-    error_message: Optional[str] = None
+    results: list[dict[str, Any]] | None = None
+    error_message: str | None = None
 
 
 class PortfolioCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class PortfolioUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    is_public: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    is_public: bool | None = None
 
 
 class PortfolioItemCreate(BaseModel):
     ticker: str
     shares: float = Field(ge=0)
-    avg_cost: Optional[float] = None
-    added_date: Optional[str] = None
-    notes: Optional[str] = None
+    avg_cost: float | None = None
+    added_date: str | None = None
+    notes: str | None = None
 
 
 class PortfolioItemUpdate(BaseModel):
-    shares: Optional[float] = Field(ge=0, default=None)
-    avg_cost: Optional[float] = None
-    notes: Optional[str] = None
+    shares: float | None = Field(ge=0, default=None)
+    avg_cost: float | None = None
+    notes: str | None = None
 
 
 class PortfolioResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_public: bool
     created_at: datetime
     updated_at: datetime
@@ -159,7 +159,7 @@ class AlertResponse(BaseModel):
     is_active: bool
     notify_email: bool
     notify_push: bool
-    last_triggered: Optional[datetime] = None
+    last_triggered: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

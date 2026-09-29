@@ -19,7 +19,7 @@ class FilterOperator(Enum):
 class FilterCriteria:
     field: str
     operator: FilterOperator
-    value: Optional[Any] = None
+    value: Any | None = None
 
     def matches(self, metric_value: Any) -> bool:
         if metric_value is None:

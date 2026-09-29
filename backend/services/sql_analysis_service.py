@@ -22,12 +22,12 @@ class SqlScriptResult:
     """Result of executing a SQL script."""
     script_name: str
     description: str
-    parameters: Dict[str, Any]
-    rows: List[Dict[str, Any]]
+    parameters: dict[str, Any]
+    rows: list[dict[str, Any]]
     row_count: int
     execution_time_ms: float
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 SCRIPT_ALIASES = {
@@ -38,7 +38,7 @@ SCRIPT_ALIASES = {
 class SqlAnalysisService:
     """Service for executing reusable SQL scripts from Financial-DataBase."""
 
-    def __init__(self, repository: Optional[FinancialDatabaseRepository] = None):
+    def __init__(self, repository: FinancialDatabaseRepository | None = None):
         """Initialize the SQL analysis service.
 
         Args:
@@ -50,7 +50,7 @@ class SqlAnalysisService:
             "../../../Financial-DataBase/scripts"
         )
 
-    def get_available_scripts(self) -> List[Dict[str, str]]:
+    def get_available_scripts(self) -> list[dict[str, str]]:
         """Get list of available reusable SQL scripts.
 
         Returns:
@@ -84,7 +84,7 @@ class SqlAnalysisService:
 
         return sorted(scripts, key=lambda x: x["name"])
 
-    def _extract_description(self, content: str) -> Optional[str]:
+    def _extract_description(self, content: str) -> str | None:
         """Extract description from SQL script comments.
 
         Args:
@@ -106,7 +106,7 @@ class SqlAnalysisService:
                 break
         return None
 
-    def _add_limit_clause(self, sql: str, limit: Optional[int]) -> str:
+    def _add_limit_clause(self, sql: str, limit: int | None) -> str:
         """Add a LIMIT clause to a SELECT query if limit is provided.
 
         Args:
@@ -162,7 +162,7 @@ class SqlAnalysisService:
     def execute_script(
         self,
         script_name: str,
-        parameters: Optional[Dict[str, Any]] = None
+        parameters: dict[str, Any] | None = None
     ) -> SqlScriptResult:
         """Execute a reusable SQL script.
 

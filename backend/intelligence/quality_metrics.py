@@ -24,14 +24,14 @@ def ordered_asc(rows: list[NormalizedFinancials]) -> list[NormalizedFinancials]:
     return sorted(rows, key=lambda r: r.fiscal_year)
 
 
-def effective_tax_rate(row: NormalizedFinancials) -> Optional[float]:
+def effective_tax_rate(row: NormalizedFinancials) -> float | None:
     """Effective tax rate from the statements, with a sane default."""
     if row.tax_provision is not None and row.pretax_income and row.pretax_income != 0:
         return row.tax_provision / row.pretax_income
     return DEFAULT_TAX_RATE
 
 
-def equity_of(row: NormalizedFinancials) -> Optional[float]:
+def equity_of(row: NormalizedFinancials) -> float | None:
     """Book value of equity, derived from assets minus liabilities when needed."""
     if row.stockholders_equity is not None:
         return row.stockholders_equity
@@ -40,12 +40,12 @@ def equity_of(row: NormalizedFinancials) -> Optional[float]:
     return None
 
 
-def _mean_present(values: list[Optional[float]]) -> Optional[float]:
+def _mean_present(values: list[float | None]) -> float | None:
     present = [v for v in values if v is not None]
     return sum(present) / len(present) if present else None
 
 
-def _stddev(values: list[float]) -> Optional[float]:
+def _stddev(values: list[float]) -> float | None:
     mean = _mean_present(values)
     if mean is None or len(values) < 2:
         return None
@@ -56,7 +56,7 @@ def _stddev(values: list[float]) -> Optional[float]:
 # ----------------------------------------------------------------------
 # Capital efficiency
 # ----------------------------------------------------------------------
-def roic(row: NormalizedFinancials) -> Optional[float]:
+def roic(row: NormalizedFinancials) -> float | None:
     """Proper return on invested capital: NOPAT / (debt + equity - cash)."""
     tax_rate = effective_tax_rate(row)
     return _roic.calculate(
@@ -68,12 +68,12 @@ def roic(row: NormalizedFinancials) -> Optional[float]:
     )
 
 
-def multi_year_roic(rows: list[NormalizedFinancials]) -> list[Optional[float]]:
+def multi_year_roic(rows: list[NormalizedFinancials]) -> list[float | None]:
     """ROIC for every available year, aligned with :func:`ordered_asc`."""
     return [roic(r) for r in ordered_asc(rows)]
 
 
-def roe(row: NormalizedFinancials) -> Optional[float]:
+def roe(row: NormalizedFinancials) -> float | None:
     """Return on equity: net income / book equity."""
     eq = equity_of(row)
     if row.net_income is None or not eq:
@@ -81,14 +81,14 @@ def roe(row: NormalizedFinancials) -> Optional[float]:
     return row.net_income / eq
 
 
-def multi_year_roe(rows: list[NormalizedFinancials]) -> list[Optional[float]]:
+def multi_year_roe(rows: list[NormalizedFinancials]) -> list[float | None]:
     return [roe(r) for r in ordered_asc(rows)]
 
 
 # ----------------------------------------------------------------------
 # Earnings quality
 # ----------------------------------------------------------------------
-def owner_earnings(row: NormalizedFinancials) -> Optional[float]:
+def owner_earnings(row: NormalizedFinancials) -> float | None:
     """Owner earnings: net income + depreciation - capex (Buffett)."""
     if row.net_income is None:
         return None
@@ -97,7 +97,7 @@ def owner_earnings(row: NormalizedFinancials) -> Optional[float]:
     return row.net_income + depreciation - capex
 
 
-def earnings_cv(rows: list[NormalizedFinancials]) -> Optional[float]:
+def earnings_cv(rows: list[NormalizedFinancials]) -> float | None:
     """Coefficient of variation of net income (lower = more consistent)."""
     income = [r.net_income for r in ordered_asc(rows) if r.net_income is not None]
     if len(income) < 2:
@@ -109,7 +109,7 @@ def earnings_cv(rows: list[NormalizedFinancials]) -> Optional[float]:
     return sd / abs(mean) if sd is not None else None
 
 
-def max_yoy_decline(rows: list[NormalizedFinancials]) -> Optional[float]:
+def max_yoy_decline(rows: list[NormalizedFinancials]) -> float | None:
     """Largest year-over-year drop in net income, as a negative fraction."""
     ordered = ordered_asc(rows)
     declines: list[float] = []
@@ -123,7 +123,7 @@ def max_yoy_decline(rows: list[NormalizedFinancials]) -> Optional[float]:
 # ----------------------------------------------------------------------
 # Growth
 # ----------------------------------------------------------------------
-def revenue_cagr(rows: list[NormalizedFinancials]) -> Optional[float]:
+def revenue_cagr(rows: list[NormalizedFinancials]) -> float | None:
     """Compound annual growth rate of revenue over the available period."""
     ordered = [r.revenue for r in ordered_asc(rows) if r.revenue is not None]
     if len(ordered) < 2 or ordered[0] <= 0 or ordered[-1] <= 0:
@@ -132,7 +132,7 @@ def revenue_cagr(rows: list[NormalizedFinancials]) -> Optional[float]:
     return (ordered[-1] / ordered[0]) ** (1.0 / years) - 1.0
 
 
-def fcf_growth(rows: list[NormalizedFinancials]) -> Optional[float]:
+def fcf_growth(rows: list[NormalizedFinancials]) -> float | None:
     """FCF trend: change between the first 3-year and last 3-year averages.
 
     Requires at least three FCF years: with exactly two the first and last
@@ -150,7 +150,7 @@ def fcf_growth(rows: list[NormalizedFinancials]) -> Optional[float]:
     return (last - first) / abs(first)
 
 
-def positive_fcf_ratio(rows: list[NormalizedFinancials]) -> Optional[float]:
+def positive_fcf_ratio(rows: list[NormalizedFinancials]) -> float | None:
     """Share of years with positive free cash flow."""
     ordered = ordered_asc(rows)
     fcfs = [r.free_cash_flow for r in ordered if r.free_cash_flow is not None]
@@ -162,7 +162,7 @@ def positive_fcf_ratio(rows: list[NormalizedFinancials]) -> Optional[float]:
 # ----------------------------------------------------------------------
 # Margins and capital intensity
 # ----------------------------------------------------------------------
-def gross_margin(row: NormalizedFinancials) -> Optional[float]:
+def gross_margin(row: NormalizedFinancials) -> float | None:
     if row.revenue and row.cogs is not None and row.revenue != 0:
         return (row.revenue - row.cogs) / row.revenue
     return None
@@ -170,7 +170,7 @@ def gross_margin(row: NormalizedFinancials) -> Optional[float]:
 
 def margin_statistics(
     rows: list[NormalizedFinancials],
-) -> dict[str, Optional[float]]:
+) -> dict[str, float | None]:
     """Mean and variability of the gross margin plus its linear trend.
 
     ``trend`` is the least-squares slope of the margin over time, in
@@ -206,7 +206,7 @@ def margin_statistics(
     return {"mean": mean, "cv": cv, "trend": trend}
 
 
-def capital_intensity(rows: list[NormalizedFinancials]) -> Optional[float]:
+def capital_intensity(rows: list[NormalizedFinancials]) -> float | None:
     """Average capex / revenue (higher = more asset-heavy)."""
     ordered = ordered_asc(rows)
     ratios: list[float] = []
@@ -216,7 +216,7 @@ def capital_intensity(rows: list[NormalizedFinancials]) -> Optional[float]:
     return _mean_present(ratios)
 
 
-def revenue_cv(rows: list[NormalizedFinancials]) -> Optional[float]:
+def revenue_cv(rows: list[NormalizedFinancials]) -> float | None:
     """Coefficient of variation of revenue (lower = more predictable)."""
     revenues = [r.revenue for r in ordered_asc(rows) if r.revenue is not None]
     if len(revenues) < 2:
@@ -231,10 +231,10 @@ def revenue_cv(rows: list[NormalizedFinancials]) -> Optional[float]:
 # ----------------------------------------------------------------------
 # Aggregated quality metrics
 # ----------------------------------------------------------------------
-def debt_trend(rows: list[NormalizedFinancials]) -> Optional[float]:
+def debt_trend(rows: list[NormalizedFinancials]) -> float | None:
     """Change in debt-to-equity between early and recent years (fraction)."""
     ordered = ordered_asc(rows)
-    ratios: list[Optional[float]] = []
+    ratios: list[float | None] = []
     for r in ordered:
         eq = equity_of(r)
         if r.total_debt is not None and eq:
@@ -249,7 +249,7 @@ def debt_trend(rows: list[NormalizedFinancials]) -> Optional[float]:
     return (recent - early) / abs(early)
 
 
-def net_income_change(rows: list[NormalizedFinancials]) -> Optional[float]:
+def net_income_change(rows: list[NormalizedFinancials]) -> float | None:
     """Year-over-year net income change for the latest year (fraction)."""
     ordered = ordered_asc(rows)
     if len(ordered) < 2:
@@ -264,7 +264,7 @@ def net_income_change(rows: list[NormalizedFinancials]) -> Optional[float]:
 
 def compute_quality_metrics(
     rows: list[NormalizedFinancials],
-) -> dict[str, Optional[float]]:
+) -> dict[str, float | None]:
     """Compute the full metric set once, for reuse across scoring modules."""
     roes = [v for v in multi_year_roe(rows) if v is not None]
     roics = [v for v in multi_year_roic(rows) if v is not None]

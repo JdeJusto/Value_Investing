@@ -6,14 +6,15 @@ The same service can back the CLI, an API or a UI later.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Iterable, Optional
+from typing import Optional
+from collections.abc import Callable, Iterable
 
 from backend.screener.filters import ScreenCriteria, from_kwargs, matches
 from backend.screener.opportunity_engine import best_opportunity, detect_opportunities
 from backend.screener.ranking_engine import calibrated_rank, rank_score, ranking_reasons
 from backend.screener.signals import generate_signal
 
-Analyzer = Callable[[str], Optional[dict]]
+Analyzer = Callable[[str], dict | None]
 
 
 @dataclass
@@ -28,9 +29,9 @@ class ScreenedCompany:
     rating: str
     confidence: str
     signal: str
-    opportunity_type: Optional[str]
+    opportunity_type: str | None
     reasons: list[str]
-    metrics: Optional[dict] = None
+    metrics: dict | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -54,8 +55,8 @@ class ScreenerService:
     def __init__(
         self,
         analyzer: Analyzer,
-        universe: Optional[Iterable[str]] = None,
-        enrich: Optional[Callable[[str, dict], dict]] = None,
+        universe: Iterable[str] | None = None,
+        enrich: Callable[[str, dict], dict] | None = None,
         price_service=None,
         no_prices: bool = False,
         workers: int = 1,
@@ -109,7 +110,7 @@ class ScreenerService:
         return sorted(results, key=lambda o: o["rank_score"], reverse=True)
 
     # ------------------------------------------------------------------
-    def _process(self, ticker: str, criteria: ScreenCriteria) -> Optional[dict]:
+    def _process(self, ticker: str, criteria: ScreenCriteria) -> dict | None:
         """Analyze, enrich, and filter one ticker; None when it fails or
         does not match the criteria."""
         result = self._analyzer(ticker)

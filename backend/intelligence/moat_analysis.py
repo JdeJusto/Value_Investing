@@ -34,7 +34,7 @@ CAPEX_WEIGHT = 0.20
 REVENUE_WEIGHT = 0.15
 
 
-def _scale(value: Optional[float], good: float, bad: float) -> float:
+def _scale(value: float | None, good: float, bad: float) -> float:
     """Linear score in [0, 1]: 1.0 at ``good``, 0.0 at ``bad``."""
     if value is None:
         return 0.0
@@ -83,7 +83,7 @@ def classify_moat(moat_score: float) -> str:
 
 def analyze_moat(
     rows: list[NormalizedFinancials],
-    metrics: Optional[dict] = None,
+    metrics: dict | None = None,
 ) -> dict:
     """Evaluate the moat for a company history.
 

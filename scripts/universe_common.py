@@ -152,9 +152,9 @@ def _token_jaccard(a: str, b: str) -> float:
 
 
 def sec_company_tickers(
-    raw_json: Optional[str] = None,
+    raw_json: str | None = None,
     url: str = SEC_COMPANY_TICKERS_URL,
-    fetch: Optional[callable] = None,
+    fetch: callable | None = None,
 ) -> dict[str, Any]:
     """Load the SEC EDGAR ticker→CIK map.
 
@@ -209,7 +209,7 @@ def sec_company_tickers(
 
 def ticker_to_sec(
     ticker: str, sec: dict[str, Any]
-) -> Optional[dict[str, str]]:
+) -> dict[str, str] | None:
     """Resolve a US ticker to ``{cik, title, ticker}`` via the SEC map."""
     t = normalize_ticker(ticker)
     entry = sec["ticker"].get(t)
@@ -223,12 +223,12 @@ def ticker_to_sec(
     return {"cik": entry["cik"], "title": entry["title"], "ticker": t}
 
 
-_LAST_MATCHES: dict[str, Optional[dict[str, str]]] = {}
+_LAST_MATCHES: dict[str, dict[str, str] | None] = {}
 
 
 def match_sec_company(
     name: str, sec: dict[str, Any], threshold: float = 0.8
-) -> Optional[dict[str, str]]:
+) -> dict[str, str] | None:
     """Match a company name against SEC filers by normalized name key.
 
     Returns ``{cik, title, ticker, score}`` for the best match above
@@ -246,7 +246,7 @@ def match_sec_company(
     if cached is not None:
         return cached or None
 
-    best: Optional[tuple[float, str, str, str]] = None
+    best: tuple[float, str, str, str] | None = None
     for cand_key, title, ticker, cik in sec["titles"]:
         if not cand_key:
             continue

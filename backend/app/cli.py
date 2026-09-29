@@ -111,7 +111,7 @@ def build_data_pipeline() -> DataPipelineService:
 
 
 def build_analysis_service(
-    market_provider: Optional[MarketDataProvider] = None,
+    market_provider: MarketDataProvider | None = None,
     analysis_cache=None,
 ) -> CompanyAnalysisService:
     """CompanyAnalysisService reading from Financial-DataBase.
@@ -166,7 +166,7 @@ def build_screener_service() -> StockScreenerService:
 
 
 def build_investment_screener(
-    universe: Optional[list[str]] = None, no_prices: bool = False
+    universe: list[str] | None = None, no_prices: bool = False
 ) -> ScreenerService:
     """Screener over intelligence outputs, enriched with real-time prices."""
     enrich = _company_enrichment()
@@ -289,7 +289,7 @@ def _print_refresh_summary(result, *, universe_wide: bool = False) -> None:
     print("  " + " · ".join(pieces))
 
 
-def load_universe(path: Optional[str] = None) -> Optional[list[str]]:
+def load_universe(path: str | None = None) -> list[str] | None:
     """Read a optional universe file (one ticker per line, '#' comments).
 
     Returns None when the file does not exist so callers can fall back to
@@ -308,7 +308,7 @@ def load_universe(path: Optional[str] = None) -> Optional[list[str]]:
     return tickers or None
 
 
-def build_universe(tickers: Optional[list[str]] = None) -> list[str]:
+def build_universe(tickers: list[str] | None = None) -> list[str]:
     """Tick universe: explicit tickers, or every tracked company in storage."""
     if tickers:
         return [t.strip().upper() for t in tickers]

@@ -8,7 +8,7 @@ class MemoryCache(CacheProvider):
     def __init__(self):
         self._store: dict[str, tuple[Any, float]] = {}
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         if key in self._store:
             value, expiry = self._store[key]
             if time.time() < expiry:

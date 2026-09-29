@@ -5,7 +5,8 @@ touches providers directly. Exports are plain CSV-ready dicts.
 """
 
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.screener.opportunity_engine import best_opportunity
 from backend.screener.ranking_engine import rank_score
@@ -18,14 +19,14 @@ from backend.watchlist.models import (
 )
 from backend.watchlist.watchlist_repository import WatchlistRepository
 
-Analyzer = Callable[[str], Optional[dict]]
+Analyzer = Callable[[str], dict | None]
 
 
 class WatchlistService:
     def __init__(
         self,
         repository: WatchlistRepository,
-        analyzer: Optional[Analyzer] = None,
+        analyzer: Analyzer | None = None,
     ):
         self._repository = repository
         self._analyzer = analyzer
@@ -39,14 +40,14 @@ class WatchlistService:
         self._save(watchlist)
         return item
 
-    def remove(self, ticker: str) -> Optional[WatchlistItem]:
+    def remove(self, ticker: str) -> WatchlistItem | None:
         watchlist = self._load()
         removed = watchlist.remove(ticker)
         if removed is not None:
             self._save(watchlist)
         return removed
 
-    def set_status(self, ticker: str, status: str) -> Optional[WatchlistItem]:
+    def set_status(self, ticker: str, status: str) -> WatchlistItem | None:
         if status not in STATUSES:
             raise ValueError(f"unknown watchlist status '{status}'")
         watchlist = self._load()

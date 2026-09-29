@@ -10,7 +10,8 @@ Every component is z-normalized against the snapshot universe (when
 at least two companies are available) so scores are comparable.
 """
 
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.screener.ranking_engine import rank_score
 
@@ -23,12 +24,12 @@ FCF_GROWTH_DELTA_WEIGHT = 0.1
 Strategy = Callable[[dict, int], list[str]]
 
 
-def _z_scores(values: dict[str, Optional[float]]) -> dict[str, Optional[float]]:
+def _z_scores(values: dict[str, float | None]) -> dict[str, float | None]:
     """Cross-sectional z-score: (value - mean) / std over present values."""
     present = {k: v for k, v in values.items() if v is not None}
     if not present:
         return {k: None for k in values}
-    z: dict[str, Optional[float]] = {}
+    z: dict[str, float | None] = {}
     if len(present) >= 2:
         mean = sum(present.values()) / len(present)
         variance = sum((v - mean) ** 2 for v in present.values()) / len(present)
@@ -40,7 +41,7 @@ def _z_scores(values: dict[str, Optional[float]]) -> dict[str, Optional[float]]:
     return dict(values)
 
 
-def fundamental_momentum_scores(analyses: dict) -> dict[str, Optional[float]]:
+def fundamental_momentum_scores(analyses: dict) -> dict[str, float | None]:
     """Momentum per ticker, z-normalized across the snapshot universe."""
     deltas = {
         ticker: (analysis.get("delta_metrics") or {})
@@ -56,11 +57,11 @@ def fundamental_momentum_scores(analyses: dict) -> dict[str, Optional[float]]:
         "roic_delta": {t: d.get("roic_delta") for t, d in deltas.items()},
         "fcf_growth_delta": {t: d.get("fcf_growth_delta") for t, d in deltas.items()},
     }
-    z: dict[str, dict[str, Optional[float]]] = {
+    z: dict[str, dict[str, float | None]] = {
         name: _z_scores(values) for name, values in components.items()
     }
 
-    scores: dict[str, Optional[float]] = {}
+    scores: dict[str, float | None] = {}
     for ticker in analyses:
         raw = []
         for weight, spec in (

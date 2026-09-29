@@ -36,14 +36,14 @@ class SnapshotMarketProvider(MarketDataProvider):
 
     def __init__(
         self,
-        snapshots: Optional[Dict[str, Optional[dict]]] = None,
-        fallback: Optional[MarketDataProvider] = None,
+        snapshots: dict[str, dict | None] | None = None,
+        fallback: MarketDataProvider | None = None,
     ) -> None:
         """``snapshots`` maps upper-case TICKER -> raw Yahoo .info dict (or
         None when that ticker could not be quoted). ``fallback`` is consulted
         only for tickers absent from the snapshot.
         """
-        self._snapshots: Dict[str, Optional[dict]] = snapshots or {}
+        self._snapshots: dict[str, dict | None] = snapshots or {}
         self._fallback = fallback
 
     # ------------------------------------------------------------------
@@ -74,28 +74,28 @@ class SnapshotMarketProvider(MarketDataProvider):
     # ------------------------------------------------------------------
     # MarketDataProvider
     # ------------------------------------------------------------------
-    def get_company_name(self, ticker: str) -> Optional[str]:
+    def get_company_name(self, ticker: str) -> str | None:
         return self._or_fallback(ticker, "company_name", "get_company_name")
 
-    def get_market_cap(self, ticker: str) -> Optional[float]:
+    def get_market_cap(self, ticker: str) -> float | None:
         value = self._or_fallback(ticker, "market_cap", "get_market_cap")
         return float(value) if value is not None else None
 
-    def get_enterprise_value(self, ticker: str) -> Optional[float]:
+    def get_enterprise_value(self, ticker: str) -> float | None:
         value = self._or_fallback(
             ticker, "enterprise_value", "get_enterprise_value"
         )
         return float(value) if value is not None else None
 
-    def get_current_price(self, ticker: str) -> Optional[float]:
+    def get_current_price(self, ticker: str) -> float | None:
         value = self._or_fallback(ticker, "price", "get_current_price")
         return float(value) if value is not None else None
 
-    def get_beta(self, ticker: str) -> Optional[float]:
+    def get_beta(self, ticker: str) -> float | None:
         value = self._or_fallback(ticker, "beta", "get_beta")
         return float(value) if value is not None else None
 
-    def get_shares_outstanding(self, ticker: str) -> Optional[int]:
+    def get_shares_outstanding(self, ticker: str) -> int | None:
         value = self._or_fallback(
             ticker, "shares_outstanding", "get_shares_outstanding"
         )

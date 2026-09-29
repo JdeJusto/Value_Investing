@@ -128,7 +128,7 @@ def build_constituents(out: Path, verbose: bool = False) -> None:
 # ---------------------------------------------------------------------------
 # Step 2: random sample
 # ---------------------------------------------------------------------------
-def build_sample(out: Path, seed: int, limit: Optional[int]) -> None:
+def build_sample(out: Path, seed: int, limit: int | None) -> None:
     """Select a seeded random sample of 200 unique S&P 500 companies (by CIK)."""
     const = _read_csv(DATA_DIR / "sp500_constituents.csv")
     by_cik: dict[str, dict] = {}
@@ -163,7 +163,7 @@ def build_sample(out: Path, seed: int, limit: Optional[int]) -> None:
 # ---------------------------------------------------------------------------
 # Step 3: Value Investing metrics
 # ---------------------------------------------------------------------------
-def _safe_div(num: Optional[float], den: Optional[float]) -> Optional[float]:
+def _safe_div(num: float | None, den: float | None) -> float | None:
     if num is None or den is None:
         return None
     try:
@@ -175,7 +175,7 @@ def _safe_div(num: Optional[float], den: Optional[float]) -> Optional[float]:
     return num / den
 
 
-def vi_metrics_for(repo, price_service, ticker: str, target_fy: Optional[int] = None) -> dict[str, Any]:
+def vi_metrics_for(repo, price_service, ticker: str, target_fy: int | None = None) -> dict[str, Any]:
     """Compute the validation metrics the way Value Investing does:
     fundamentals from Financial-DataBase (latest completed fiscal year, or the
     explicitly requested year) and real-time price/shares from PriceService
@@ -247,7 +247,7 @@ def vi_metrics_for(repo, price_service, ticker: str, target_fy: Optional[int] = 
     return row
 
 
-def build_vi_metrics(out: Path, limit: Optional[int]) -> None:
+def build_vi_metrics(out: Path, limit: int | None) -> None:
     from backend.repositories.financial_database_repository import (
         FinancialDatabaseRepository,
     )
@@ -277,7 +277,7 @@ def build_vi_metrics(out: Path, limit: Optional[int]) -> None:
 # Step 4: external metrics (Yahoo Finance)
 # ---------------------------------------------------------------------------
 def ext_metrics_for(
-    provider, ticker: str, target_fye: Optional[str] = None
+    provider, ticker: str, target_fye: str | None = None
 ) -> dict[str, Any]:
     """Compute the same metrics from Yahoo Finance (independent source).
 
@@ -352,7 +352,7 @@ def ext_metrics_for(
     return row
 
 
-def build_external_metrics(out: Path, limit: Optional[int]) -> None:
+def build_external_metrics(out: Path, limit: int | None) -> None:
     from backend.providers.yahoo.provider import YahooFinanceProvider
 
     sample = _read_csv(DATA_DIR / "validation_sample_200.csv")
@@ -594,7 +594,7 @@ def _load_exclusions(path: Path) -> list[dict[str, str]]:
 
 def _match_exclusion(
     row: dict[str, Any], rules: list[dict[str, str]]
-) -> Optional[dict[str, str]]:
+) -> dict[str, str] | None:
     """Return the first matching rule for (ticker, metric), or None.
 
     A rule matches when its ``ticker`` and ``metric`` fields equal the row's
@@ -612,7 +612,7 @@ def _match_exclusion(
     return None
 
 
-def _db_year_for_fye(repo, ticker: str, fye: str) -> Optional[int]:
+def _db_year_for_fye(repo, ticker: str, fye: str) -> int | None:
     """Return the DB fiscal_year whose fiscal period-end matches ``fye``."""
     try:
         target = date.fromisoformat(fye[:10])
@@ -630,7 +630,7 @@ def _db_year_for_fye(repo, ticker: str, fye: str) -> Optional[int]:
 def _summarize(
     flagged: list[dict],
     compared: int,
-    excluded_by_severity: Optional[dict[str, int]] = None,
+    excluded_by_severity: dict[str, int] | None = None,
 ) -> None:
     from collections import Counter
 

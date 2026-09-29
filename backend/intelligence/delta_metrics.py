@@ -18,13 +18,13 @@ from backend.intelligence.quality_metrics import (
 )
 
 
-def _growth(prev: Optional[float], last: Optional[float]) -> Optional[float]:
+def _growth(prev: float | None, last: float | None) -> float | None:
     if prev is None or last is None or prev == 0:
         return None
     return (last - prev) / abs(prev)
 
 
-def _margin_delta(rows: list[NormalizedFinancials], margin_fn) -> Optional[float]:
+def _margin_delta(rows: list[NormalizedFinancials], margin_fn) -> float | None:
     if len(rows) < 2:
         return None
     ordered = ordered_asc(rows)
@@ -35,7 +35,7 @@ def _margin_delta(rows: list[NormalizedFinancials], margin_fn) -> Optional[float
     )
 
 
-def _prev_margin_delta(rows: list[NormalizedFinancials], margin_fn) -> Optional[float]:
+def _prev_margin_delta(rows: list[NormalizedFinancials], margin_fn) -> float | None:
     """Year-over-year margin change of the *previous* period pair.
 
     ``delta`` is the change between the two most recent years; the *prev*
@@ -53,13 +53,13 @@ def _prev_margin_delta(rows: list[NormalizedFinancials], margin_fn) -> Optional[
     return cur - prev
 
 
-def _net_margin(row: NormalizedFinancials) -> Optional[float]:
+def _net_margin(row: NormalizedFinancials) -> float | None:
     if row.revenue is not None and row.net_income is not None and row.revenue != 0:
         return row.net_income / row.revenue
     return None
 
 
-def _operating_margin(row: NormalizedFinancials) -> Optional[float]:
+def _operating_margin(row: NormalizedFinancials) -> float | None:
     if (
         row.revenue is not None
         and row.operating_income is not None
@@ -69,7 +69,7 @@ def _operating_margin(row: NormalizedFinancials) -> Optional[float]:
     return None
 
 
-def _debt_equity(row: NormalizedFinancials) -> Optional[float]:
+def _debt_equity(row: NormalizedFinancials) -> float | None:
     eq = equity_of(row)
     if row.total_debt is None or not eq:
         return None
@@ -107,7 +107,7 @@ def compute_delta_metrics(rows: list[NormalizedFinancials]) -> dict:
 
     last_two = ordered[-2:]
 
-    def revenue_growth(pair: list[NormalizedFinancials]) -> Optional[float]:
+    def revenue_growth(pair: list[NormalizedFinancials]) -> float | None:
         if len(pair) < 2:
             return None
         return _growth(pair[0].revenue, pair[1].revenue)

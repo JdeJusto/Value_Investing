@@ -56,7 +56,7 @@ class SourceRef:
     year: int
     page: str
     era: str
-    us_caution: Optional[str] = None
+    us_caution: str | None = None
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,7 @@ class MethodologyResult:
     version: str
     family: str
     verdict: Verdict
-    score: Optional[float]
+    score: float | None
     metrics: dict[str, Any]
     reasons: list[str]
     red_flags: list[str]

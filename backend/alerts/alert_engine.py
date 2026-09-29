@@ -44,8 +44,8 @@ class Alert:
 
 
 def _buy_alert(
-    ticker: str, analysis: dict, thresholds: Optional[dict] = None
-) -> Optional[Alert]:
+    ticker: str, analysis: dict, thresholds: dict | None = None
+) -> Alert | None:
     rank = rank_score(analysis)
     signal = generate_signal(analysis, rank, thresholds=thresholds)
     if signal["signal"] != "BUY":
@@ -64,8 +64,8 @@ def _sell_alert(
     ticker: str,
     current: dict,
     previous: dict,
-    thresholds: Optional[dict] = None,
-) -> Optional[Alert]:
+    thresholds: dict | None = None,
+) -> Alert | None:
     prev_score = composite_score(previous)
     current_score = composite_score(current)
     if prev_score is None or current_score is None:
@@ -88,8 +88,8 @@ def _sell_alert(
 
 
 def _trigger_alert(
-    ticker: str, analysis: dict, thresholds: Optional[dict] = None
-) -> Optional[Alert]:
+    ticker: str, analysis: dict, thresholds: dict | None = None
+) -> Alert | None:
     trigger = trigger_label(
         detect_trigger(analysis, thresholds=thresholds)
     )
@@ -108,8 +108,8 @@ def _trigger_alert(
 def evaluate_company(
     ticker: str,
     current: dict,
-    previous: Optional[dict] = None,
-    thresholds: Optional[dict] = None,
+    previous: dict | None = None,
+    thresholds: dict | None = None,
 ) -> list[Alert]:
     """All alerts for one company given its current (and past) state.
 
@@ -138,7 +138,7 @@ def evaluate_company(
 
 def run(
     analyses: dict[str, dict],
-    previous: Optional[dict[str, dict]] = None,
+    previous: dict[str, dict] | None = None,
 ) -> list[Alert]:
     """Evaluate every company and return the deduplicated alert list.
 

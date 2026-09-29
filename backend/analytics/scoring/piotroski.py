@@ -6,22 +6,22 @@ from backend.analytics.calculator import MetricCalculator
 class PiotroskiFScoreCalculator(MetricCalculator):
     def calculate(
         self,
-        roa_current: Optional[float] = None,
-        roa_prior: Optional[float] = None,
-        cfo_current: Optional[float] = None,
-        net_income_current: Optional[float] = None,
-        total_assets_current: Optional[float] = None,
-        total_assets_prior: Optional[float] = None,
-        total_debt_current: Optional[float] = None,
-        total_debt_prior: Optional[float] = None,
-        working_capital_current: Optional[float] = None,
-        working_capital_prior: Optional[float] = None,
-        revenue_current: Optional[float] = None,
-        revenue_prior: Optional[float] = None,
-        cogs_current: Optional[float] = None,
-        cogs_prior: Optional[float] = None,
+        roa_current: float | None = None,
+        roa_prior: float | None = None,
+        cfo_current: float | None = None,
+        net_income_current: float | None = None,
+        total_assets_current: float | None = None,
+        total_assets_prior: float | None = None,
+        total_debt_current: float | None = None,
+        total_debt_prior: float | None = None,
+        working_capital_current: float | None = None,
+        working_capital_prior: float | None = None,
+        revenue_current: float | None = None,
+        revenue_prior: float | None = None,
+        cogs_current: float | None = None,
+        cogs_prior: float | None = None,
         **kwargs
-    ) -> Optional[int]:
+    ) -> int | None:
         try:
             score = 0
 

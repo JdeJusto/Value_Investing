@@ -12,7 +12,7 @@ analyzed universe* so a 20-name screen spreads the final ranks across
 the full 10-90 band instead of piling everything near 50-65.
 """
 
-from typing import Iterable
+from collections.abc import Iterable
 
 COMPOSITE_WEIGHT = 0.55
 MARGIN_WEIGHT = 0.20

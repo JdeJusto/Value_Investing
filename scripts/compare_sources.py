@@ -23,19 +23,19 @@ from backend.providers.yahoo import YahooFinanceProvider
 class _ProviderFinancials:
     """Simple wrapper to hold financial data for comparison."""
     def __init__(self):
-        self.revenue: Optional[float] = None
-        self.net_income: Optional[float] = None
-        self.total_assets: Optional[float] = None
-        self.total_liabilities: Optional[float] = None
-        self.operating_cash_flow: Optional[float] = None
-        self.capital_expenditure: Optional[float] = None  # positive value
-        self.shareholders_equity: Optional[float] = None
-        self.diluted_eps: Optional[float] = None
-        self.free_cash_flow: Optional[float] = None
-        self.fiscal_year: Optional[int] = None
+        self.revenue: float | None = None
+        self.net_income: float | None = None
+        self.total_assets: float | None = None
+        self.total_liabilities: float | None = None
+        self.operating_cash_flow: float | None = None
+        self.capital_expenditure: float | None = None  # positive value
+        self.shareholders_equity: float | None = None
+        self.diluted_eps: float | None = None
+        self.free_cash_flow: float | None = None
+        self.fiscal_year: int | None = None
 
 
-def _extract_financials_from_yahoo(ticker: str) -> Optional[_ProviderFinancials]:
+def _extract_financials_from_yahoo(ticker: str) -> _ProviderFinancials | None:
     """Extract financials from Yahoo Finance provider."""
     try:
         yahoo = YahooFinanceProvider()
@@ -78,7 +78,7 @@ def _extract_financials_from_yahoo(ticker: str) -> Optional[_ProviderFinancials]
         return None
 
 
-def _extract_financials_from_edgar(ticker: str) -> Optional[_ProviderFinancials]:
+def _extract_financials_from_edgar(ticker: str) -> _ProviderFinancials | None:
     """Extract financials from EDGAR provider."""
     try:
         edgar = EdgarProvider(

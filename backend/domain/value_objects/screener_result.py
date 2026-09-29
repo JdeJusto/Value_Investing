@@ -5,20 +5,20 @@ from typing import Optional
 @dataclass
 class ScreenerRow:
     ticker: str
-    name: Optional[str] = None
-    price: Optional[float] = None
-    market_cap: Optional[float] = None
-    per: Optional[float] = None
-    pb: Optional[float] = None
-    roe: Optional[float] = None
-    roic: Optional[float] = None
-    operating_margin: Optional[float] = None
-    net_margin: Optional[float] = None
-    fcf_yield: Optional[float] = None
-    ev_ebit: Optional[float] = None
-    debt_to_equity: Optional[float] = None
-    revenue_growth: Optional[float] = None
-    fcf: Optional[float] = None
-    shares_outstanding: Optional[int] = None
-    score: Optional[float] = None
+    name: str | None = None
+    price: float | None = None
+    market_cap: float | None = None
+    per: float | None = None
+    pb: float | None = None
+    roe: float | None = None
+    roic: float | None = None
+    operating_margin: float | None = None
+    net_margin: float | None = None
+    fcf_yield: float | None = None
+    ev_ebit: float | None = None
+    debt_to_equity: float | None = None
+    revenue_growth: float | None = None
+    fcf: float | None = None
+    shares_outstanding: int | None = None
+    score: float | None = None
     extra: dict = field(default_factory=dict)

@@ -32,7 +32,8 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, replace
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 logger = logging.getLogger("backend.sec_health")
 
@@ -52,11 +53,11 @@ class SecHealth:
 
     available: bool
     reason: str
-    http_status: Optional[int] = None
+    http_status: int | None = None
     checked_at: float = 0.0
 
 
-_cache: Optional[SecHealth] = None
+_cache: SecHealth | None = None
 _cache_lock = threading.Lock()
 
 
@@ -103,12 +104,12 @@ def _probe(url: str, user_agent: str, timeout: float) -> SecHealth:
 
 def check_sec_availability(
     *,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     attempts: int = DEFAULT_ATTEMPTS,
     retry_delay: float = DEFAULT_RETRY_DELAY_SECONDS,
-    ttl: Optional[float] = None,
+    ttl: float | None = None,
     force: bool = False,
-    probe: Optional[Callable[[str, str, float], SecHealth]] = None,
+    probe: Callable[[str, str, float], SecHealth] | None = None,
 ) -> SecHealth:
     """Return (and cache) whether SEC EDGAR is reachable right now.
 

@@ -22,26 +22,26 @@ SELL_WARNING = "SELL_WARNING"
 TRIGGER_EVENT = "TRIGGER_EVENT"
 
 
-def composite_score(item: Optional[dict]) -> Optional[float]:
+def composite_score(item: dict | None) -> float | None:
     """The overall 0-100 score, or None when absent."""
     if not item:
         return None
     return (item.get("composite_score") or {}).get("total_score")
 
 
-def confidence_of(item: Optional[dict]) -> str:
+def confidence_of(item: dict | None) -> str:
     if not item:
         return "LOW"
     return (item.get("composite_score") or {}).get("confidence", "LOW")
 
 
-def trigger_label(trigger: Optional[str]) -> Optional[str]:
+def trigger_label(trigger: str | None) -> str | None:
     if trigger is None:
         return None
     return TRIGGER_LABELS.get(trigger, trigger.replace("_", " ").lower())
 
 
-def sell_warning_score_drop(previous: float, current: float) -> Optional[float]:
+def sell_warning_score_drop(previous: float, current: float) -> float | None:
     """Drop in total score; None when the score did not fall enough."""
     drop = previous - current
     if drop < SELL_WARNING_MIN_DROP:

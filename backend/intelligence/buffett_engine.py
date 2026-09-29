@@ -46,7 +46,7 @@ DRAWDOWN_PILLAR_WEIGHT = 0.40
 
 
 def _scale(
-    value: Optional[float], good: float, bad: float, invert: bool = False
+    value: float | None, good: float, bad: float, invert: bool = False
 ) -> float:
     """Linear score in [0, 100] between ``good`` (100) and ``bad`` (0)."""
     if value is None or value != value:  # NaN guard

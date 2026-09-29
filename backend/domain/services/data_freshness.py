@@ -38,7 +38,7 @@ def needs_refresh(financials: list[NormalizedFinancials]) -> bool:
     return any(is_stale(record) for record in financials)
 
 
-def days_since_loaded(financials: NormalizedFinancials) -> Optional[int]:
+def days_since_loaded(financials: NormalizedFinancials) -> int | None:
     """Age in days of a record, None when no load timestamp is stored."""
     if financials.loaded_at is None:
         return None

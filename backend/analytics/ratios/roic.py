@@ -6,13 +6,13 @@ from backend.analytics.calculator import MetricCalculator
 class RoicCalculator(MetricCalculator):
     def calculate(
         self,
-        ebit: Optional[float] = None,
+        ebit: float | None = None,
         tax_rate: float = 0.21,
-        total_debt: Optional[float] = None,
-        equity: Optional[float] = None,
-        cash: Optional[float] = None,
+        total_debt: float | None = None,
+        equity: float | None = None,
+        cash: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if ebit is None:
             return None
         nopat = ebit * (1 - tax_rate)
@@ -28,17 +28,17 @@ class RoicCalculator(MetricCalculator):
 class IncrementalRoicCalculator(MetricCalculator):
     def calculate(
         self,
-        ebit_current: Optional[float] = None,
-        ebit_prior: Optional[float] = None,
+        ebit_current: float | None = None,
+        ebit_prior: float | None = None,
         tax_rate: float = 0.21,
-        debt_current: Optional[float] = None,
-        debt_prior: Optional[float] = None,
-        equity_current: Optional[float] = None,
-        equity_prior: Optional[float] = None,
-        cash_current: Optional[float] = None,
-        cash_prior: Optional[float] = None,
+        debt_current: float | None = None,
+        debt_prior: float | None = None,
+        equity_current: float | None = None,
+        equity_prior: float | None = None,
+        cash_current: float | None = None,
+        cash_prior: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if any(v is None for v in [ebit_current, ebit_prior]):
             return None
         nopat0 = ebit_current * (1 - tax_rate)

@@ -6,15 +6,15 @@ from backend.analytics.calculator import MetricCalculator
 class AltmanZScoreCalculator(MetricCalculator):
     def calculate(
         self,
-        working_capital: Optional[float] = None,
-        total_assets: Optional[float] = None,
-        retained_earnings: Optional[float] = None,
-        ebit: Optional[float] = None,
-        market_cap: Optional[float] = None,
-        total_liabilities: Optional[float] = None,
-        revenue: Optional[float] = None,
+        working_capital: float | None = None,
+        total_assets: float | None = None,
+        retained_earnings: float | None = None,
+        ebit: float | None = None,
+        market_cap: float | None = None,
+        total_liabilities: float | None = None,
+        revenue: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if any(v is None for v in [total_assets, total_liabilities, revenue]):
             return None
         if total_assets == 0:

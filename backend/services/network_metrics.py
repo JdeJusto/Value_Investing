@@ -74,10 +74,10 @@ class NetworkMetrics:
         self,
         service: str,
         *,
-        latency_ms: Optional[float] = None,
+        latency_ms: float | None = None,
         retries: int = 0,
-        http_status: Optional[int] = None,
-        reason: Optional[str] = None,
+        http_status: int | None = None,
+        reason: str | None = None,
     ) -> None:
         """Record one network attempt for ``service`` (``sec`` / ``yahoo``).
 
@@ -103,11 +103,11 @@ class NetworkMetrics:
         except Exception:
             pass
 
-    def record_failure(self, service: str, reason: str, *, latency_ms: Optional[float] = None) -> None:
+    def record_failure(self, service: str, reason: str, *, latency_ms: float | None = None) -> None:
         """Record a failed attempt (counted as a request + 1 retry)."""
         self.record(service, latency_ms=latency_ms, retries=1, reason=reason)
 
-    def note_status(self, service: str, status: Optional[int]) -> None:
+    def note_status(self, service: str, status: int | None) -> None:
         """Count a bare HTTP status (used when a client exposes it)."""
         if status in (403, 429):
             self.record(service, http_status=int(status))

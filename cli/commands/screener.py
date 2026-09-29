@@ -29,7 +29,7 @@ from cli.formatters import (
 _PCT_FIELDS = {"roe", "roic", "fcf_yield", "op_margin", "net_margin", "revenue_growth"}
 
 
-def _pct(value: Optional[float]) -> Optional[float]:
+def _pct(value: float | None) -> float | None:
     if value is None:
         return None
     if value >= 1:

@@ -17,7 +17,7 @@ def position_cost_basis(position: Position) -> float:
     return position.quantity * position.avg_price
 
 
-def position_weight(position: Position, total_value: float) -> Optional[float]:
+def position_weight(position: Position, total_value: float) -> float | None:
     if total_value <= 0:
         return None
     return position_market_value(position) / total_value
@@ -31,7 +31,7 @@ def realized_pnl(position: Position) -> float:
     return position.realized_pnl
 
 
-def total_return(portfolio: Portfolio) -> Optional[float]:
+def total_return(portfolio: Portfolio) -> float | None:
     """(open market value + exit proceeds - total cost) / total cost."""
     cost = sum(position_cost_basis(p) for p in portfolio.positions)
     value = sum(position_market_value(p) for p in portfolio.positions if p.is_open)

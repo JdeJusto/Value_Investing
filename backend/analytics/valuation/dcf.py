@@ -6,13 +6,13 @@ from backend.analytics.calculator import MetricCalculator
 class DcfCalculator(MetricCalculator):
     def calculate(
         self,
-        free_cash_flow: Optional[float] = None,
-        wacc: Optional[float] = None,
+        free_cash_flow: float | None = None,
+        wacc: float | None = None,
         growth_rate: float = 0.05,
         terminal_growth: float = 0.02,
         years: int = 5,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if free_cash_flow is None:
             return None
         if wacc is None or not (0.0 < terminal_growth < wacc < 0.5):

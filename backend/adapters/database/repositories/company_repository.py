@@ -45,7 +45,7 @@ class CompanyRepository:
                 for m in models
             ]
 
-    def find_by_ticker(self, ticker: str) -> Optional[Company]:
+    def find_by_ticker(self, ticker: str) -> Company | None:
         with get_session() as session:
             stmt = select(CompanyModel).where(CompanyModel.ticker == ticker.upper())
             model = session.execute(stmt).scalar_one_or_none()

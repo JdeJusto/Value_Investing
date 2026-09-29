@@ -6,10 +6,10 @@ from backend.analytics.calculator import MetricCalculator
 class CompositeScoreCalculator(MetricCalculator):
     def calculate(
         self,
-        roe: Optional[float] = None,
-        pb: Optional[float] = None,
-        fcf_yield: Optional[float] = None,
-        operating_margin: Optional[float] = None,
+        roe: float | None = None,
+        pb: float | None = None,
+        fcf_yield: float | None = None,
+        operating_margin: float | None = None,
         **kwargs
     ) -> float:
         score = 0.0

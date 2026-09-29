@@ -44,7 +44,8 @@ import time
 from dataclasses import dataclass
 from datetime import date as date_cls
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
+from collections.abc import Iterable
 
 logger = logging.getLogger("backend.alerts_cache")
 
@@ -93,8 +94,8 @@ def sorted_alerts(alerts: Iterable[Any]) -> list:
 
 
 def input_digest(
-    analyses: dict[str, Optional[dict]],
-    previous: Optional[dict[str, dict]] = None,
+    analyses: dict[str, dict | None],
+    previous: dict[str, dict] | None = None,
 ) -> str:
     """Stable digest of the inputs the alert engine reads.
 
@@ -155,7 +156,7 @@ class AlertsCache:
         day: date_cls | str,
         run_id: str,
         digest: str,
-    ) -> Optional[list[dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         """Stored alerts for this exact (day, run, inputs), or None."""
         if not self.enabled:
             self.misses += 1

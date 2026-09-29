@@ -38,11 +38,11 @@ QUALITY_TRIGGER_REV_DELTA = 0.01
 QUALITY_TRIGGER_ROIC_DELTA = 0.02
 
 
-def _quality(item: dict, key: str, default=None) -> Optional[float]:
+def _quality(item: dict, key: str, default=None) -> float | None:
     return (item.get("quality_metrics") or {}).get(key, default)
 
 
-def _delta(item: dict, key: str) -> Optional[float]:
+def _delta(item: dict, key: str) -> float | None:
     return (item.get("delta_metrics") or {}).get(key)
 
 
@@ -59,7 +59,7 @@ def _confidence(item: dict) -> str:
 
 
 # ----------------------------------------------------------------------
-def undervalued_quality(item: dict) -> Optional[dict]:
+def undervalued_quality(item: dict) -> dict | None:
     """High quality at a discount to DCF value."""
     buffett = item.get("buffett_score")
     margin = item.get("dcf_margin_of_safety")
@@ -83,7 +83,7 @@ def undervalued_quality(item: dict) -> Optional[dict]:
     return None
 
 
-def compounders(item: dict) -> Optional[dict]:
+def compounders(item: dict) -> dict | None:
     """Sustained high ROIC with steady growth and reinvestment capacity."""
     roic = _quality(item, "roic_mean")
     cagr = _quality(item, "revenue_cagr")
@@ -111,7 +111,7 @@ def compounders(item: dict) -> Optional[dict]:
     return None
 
 
-def turnarounds(item: dict) -> Optional[dict]:
+def turnarounds(item: dict) -> dict | None:
     """Improving margins, deleveraging and recovering earnings."""
     margin_trend = _quality(item, "gross_margin_trend")
     debt_trend = _quality(item, "debt_trend")
@@ -137,7 +137,7 @@ def turnarounds(item: dict) -> Optional[dict]:
     return None
 
 
-def special_situations(item: dict) -> Optional[dict]:
+def special_situations(item: dict) -> dict | None:
     """Basic special situations: deep value, abnormal shifts, volatile quality."""
     reasons: list[str] = []
     found = False
@@ -178,7 +178,7 @@ def special_situations(item: dict) -> Optional[dict]:
     return None
 
 
-def inflection_point(item: dict) -> Optional[dict]:
+def inflection_point(item: dict) -> dict | None:
     """Earnings that turned positive, or revenue growth re-accelerating."""
     deltas = item.get("delta_metrics") or {}
     reasons: list[str] = []
@@ -203,7 +203,7 @@ def inflection_point(item: dict) -> Optional[dict]:
     }
 
 
-def fundamental_acceleration(item: dict) -> Optional[dict]:
+def fundamental_acceleration(item: dict) -> dict | None:
     """Top line accelerating while capital efficiency improves."""
     rev_delta = _delta(item, "revenue_growth_delta")
     roic_delta = _delta(item, "roic_delta")
@@ -229,7 +229,7 @@ def fundamental_acceleration(item: dict) -> Optional[dict]:
     return None
 
 
-def quality_with_trigger(item: dict) -> Optional[dict]:
+def quality_with_trigger(item: dict) -> dict | None:
     """A quality business just got a fundamental confirmation signal."""
     buffett = item.get("buffett_score")
     if buffett is None or buffett < QUALITY_WITH_TRIGGER_MIN_BUFFETT:
@@ -278,7 +278,7 @@ def detect_opportunities(item: dict) -> list[dict]:
     return [detector(item) for detector in DETECTORS if detector(item) is not None]
 
 
-def best_opportunity(item: dict) -> Optional[dict]:
+def best_opportunity(item: dict) -> dict | None:
     """The most relevant opportunity, or None."""
     opportunities = detect_opportunities(item)
     return opportunities[0] if opportunities else None

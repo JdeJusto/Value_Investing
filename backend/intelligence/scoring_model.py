@@ -29,7 +29,7 @@ LOW_QUALITY_THRESHOLD = 0.3
 
 
 def composite_score(
-    buffett_score: float, moat_score: float, data_quality_score: Optional[float]
+    buffett_score: float, moat_score: float, data_quality_score: float | None
 ) -> dict:
     """Weighted total plus letter rating."""
     quality = data_quality_score or 0.0
@@ -136,7 +136,7 @@ def generate_insights(metrics: dict, moat: dict) -> list[str]:
 
 # ----------------------------------------------------------------------
 def assess_investment(
-    rows: list[NormalizedFinancials], reliability: Optional[dict] = None
+    rows: list[NormalizedFinancials], reliability: dict | None = None
 ) -> dict:
     """Full intelligence report for one company history.
 

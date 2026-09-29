@@ -74,7 +74,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def load_alerts_config(path: Optional[str] = None) -> int:
+def load_alerts_config(path: str | None = None) -> int:
     """Read ``yahoo_429_streak_threshold`` from config/alerts.yaml.
 
     Same shape as :func:`backend.services.refresh_service.load_refresh_config`:

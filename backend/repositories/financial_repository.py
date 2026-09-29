@@ -7,7 +7,8 @@ source, upserted individually. Source selection is delegated to
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 import sqlalchemy as sa
 from sqlalchemy import delete, func, select
@@ -115,7 +116,7 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
 
     def get_by_year(
         self, ticker: str, fiscal_year: int
-    ) -> Optional[NormalizedFinancials]:
+    ) -> NormalizedFinancials | None:
         """Best available record for a year (highest priority, then quality)."""
         with self._session_factory() as session:
             models = session.execute(
@@ -186,7 +187,7 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
             session.commit()
 
     # FinancialRepository interface extensions for historical data (not implemented in SQL repo)
-    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> float | None:
         """Get shares outstanding from normalized financials for the given year."""
         record = self.get_by_year(ticker, fiscal_year)
         if record and record.shares_outstanding is not None:

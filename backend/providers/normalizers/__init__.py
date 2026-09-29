@@ -24,12 +24,12 @@ def _registry() -> dict[type, FinancialNormalizer]:
     }
 
 
-def get_normalizer(provider: object) -> Optional[FinancialNormalizer]:
+def get_normalizer(provider: object) -> FinancialNormalizer | None:
     """Return the normalizer for a provider instance by its concrete type."""
     return _registry().get(type(provider))
 
 
-def get_normalizer_by_source(source: ProviderName) -> Optional[FinancialNormalizer]:
+def get_normalizer_by_source(source: ProviderName) -> FinancialNormalizer | None:
     """Return the normalizer registered for a provider name."""
     for normalizer in _registry().values():
         if normalizer.source == source:

@@ -23,7 +23,7 @@ def _confidence(item: dict) -> str:
     return (item.get("composite_score") or {}).get("confidence", "LOW")
 
 
-def _opportunity_type(item: dict) -> Optional[str]:
+def _opportunity_type(item: dict) -> str | None:
     opportunity = item.get("opportunity")
     if opportunity:
         return opportunity.get("type")
@@ -147,7 +147,7 @@ def _revenue_persisted(deltas: dict) -> bool:
     return last is not None and last > 0 and prev > 0
 
 
-def detect_trigger(item: dict, thresholds: Optional[dict] = None) -> Optional[str]:
+def detect_trigger(item: dict, thresholds: dict | None = None) -> str | None:
     """The dominant *improvement* of the latest period, or None.
 
     Returns the strongest positive trigger whose delta clears both the
@@ -200,7 +200,7 @@ def detect_trigger(item: dict, thresholds: Optional[dict] = None) -> Optional[st
 
 
 def generate_signal(
-    item: dict, rank: float, thresholds: Optional[dict] = None
+    item: dict, rank: float, thresholds: dict | None = None
 ) -> dict:
     """Assign a BUY / WATCHLIST / HOLD / AVOID label and its reasons."""
     buffett = item.get("buffett_score")
@@ -258,7 +258,7 @@ def generate_signal(
     }
 
 
-def can_buy(rank: float, buffett: Optional[float], confidence: str) -> bool:
+def can_buy(rank: float, buffett: float | None, confidence: str) -> bool:
     """Compatibility helper: does this company pass the BUY bar?"""
     if buffett is None or buffett < 50:
         return False

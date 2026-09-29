@@ -62,7 +62,7 @@ MEDIUM_CONFIDENCE_COVERAGE = 0.5
 REQUIRED_HISTORY_YEARS = 8
 
 
-def _equity_of(financials: NormalizedFinancials) -> Optional[float]:
+def _equity_of(financials: NormalizedFinancials) -> float | None:
     if financials.stockholders_equity is not None:
         return financials.stockholders_equity
     if financials.total_assets is not None and financials.total_liabilities is not None:
@@ -70,7 +70,7 @@ def _equity_of(financials: NormalizedFinancials) -> Optional[float]:
     return None
 
 
-def _effective_tax_rate(financials: Optional[NormalizedFinancials]) -> Optional[float]:
+def _effective_tax_rate(financials: NormalizedFinancials | None) -> float | None:
     if not financials or financials.tax_provision is None:
         return None
     if not financials.pretax_income or financials.pretax_income == 0:
@@ -78,7 +78,7 @@ def _effective_tax_rate(financials: Optional[NormalizedFinancials]) -> Optional[
     return financials.tax_provision / financials.pretax_income
 
 
-def _sanitize_tax_rate(rate: Optional[float], default: float) -> float:
+def _sanitize_tax_rate(rate: float | None, default: float) -> float:
     if rate is None:
         return default
     return min(max(rate, 0.0), 1.0)
@@ -91,7 +91,7 @@ class CompanyAnalysisService:
         self,
         repository: FinancialRepository,
         market_provider: MarketDataProvider,
-        loader: Optional[DataLoader] = None,
+        loader: DataLoader | None = None,
         default_tax_rate: float = DEFAULT_TAX_RATE,
         default_wacc: float = DEFAULT_WACC,
         market_return: float = DEFAULT_MARKET_RETURN,
@@ -112,7 +112,7 @@ class CompanyAnalysisService:
         self._history_cache = history_cache
 
     # ------------------------------------------------------------------
-    def analyze(self, ticker: str, no_prices: bool = False) -> Optional[dict]:
+    def analyze(self, ticker: str, no_prices: bool = False) -> dict | None:
         """Compute the full metric suite for a ticker, or None if no data.
 
         With ``no_prices=True`` the market provider is never called and the
@@ -459,11 +459,11 @@ class CompanyAnalysisService:
         return report
 
     @staticmethod
-    def _mean(values) -> Optional[float]:
+    def _mean(values) -> float | None:
         present = [v for v in values if v is not None]
         return sum(present) / len(present) if present else None
 
-    def _market_edge(self, ticker: str, dcf_value: Optional[float]) -> dict:
+    def _market_edge(self, ticker: str, dcf_value: float | None) -> dict:
         """Current price, market cap and valuation gap used for opportunity
         detection.
 
@@ -488,7 +488,7 @@ class CompanyAnalysisService:
             "dcf_margin_of_safety": margin,
         }
 
-    def _safe_market(self, getter, ticker: str) -> Optional[float]:
+    def _safe_market(self, getter, ticker: str) -> float | None:
         try:
             value = getter(ticker)
             return value
@@ -504,7 +504,7 @@ class CompanyAnalysisService:
                 margins.append((row.revenue - row.cogs) / row.revenue)
         return margins
 
-    def _wacc(self, ticker: str, financials: NormalizedFinancials) -> Optional[float]:
+    def _wacc(self, ticker: str, financials: NormalizedFinancials) -> float | None:
         try:
             market_cap = self._market.get_market_cap(ticker)
             debt = financials.total_debt

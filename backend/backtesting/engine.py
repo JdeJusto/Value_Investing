@@ -1,6 +1,7 @@
 """Backtesting engine: turns historical analyses into performance metrics."""
 
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.backtesting.simulator import simulate
 from backend.backtesting.strategy import Strategy
@@ -24,7 +25,7 @@ def run_backtest(
     return result
 
 
-def snapshot_year(snapshot: dict) -> Optional[int]:
+def snapshot_year(snapshot: dict) -> int | None:
     return snapshot.get("year")
 
 

@@ -15,19 +15,19 @@ MOAT_TYPES = ("STRONG", "MODERATE", "WEAK", "NONE")
 class ScreenCriteria:
     """All documented filters. None means "no restriction"."""
 
-    min_market_cap: Optional[float] = None
-    max_market_cap: Optional[float] = None
-    sector: Optional[str] = None
-    industry: Optional[str] = None
-    min_revenue_growth: Optional[float] = None
-    min_roic: Optional[float] = None
-    max_debt_ratio: Optional[float] = None
-    min_buffett_score: Optional[float] = None
-    min_moat_score: Optional[float] = None
-    moat: Optional[str] = None
-    min_total_score: Optional[float] = None
-    min_margin_of_safety: Optional[float] = None
-    confidence: Optional[str] = None
+    min_market_cap: float | None = None
+    max_market_cap: float | None = None
+    sector: str | None = None
+    industry: str | None = None
+    min_revenue_growth: float | None = None
+    min_roic: float | None = None
+    max_debt_ratio: float | None = None
+    min_buffett_score: float | None = None
+    min_moat_score: float | None = None
+    moat: str | None = None
+    min_total_score: float | None = None
+    min_margin_of_safety: float | None = None
+    confidence: str | None = None
     tickers: set[str] = field(default_factory=set)
 
 

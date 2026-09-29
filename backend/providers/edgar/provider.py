@@ -29,7 +29,7 @@ class EdgarProvider(FinancialDataProvider):
         set_identity(f"{self._name} {self._email}")
         self._identity_set = True
 
-    def _get_company(self, ticker: str) -> Optional[Company]:
+    def _get_company(self, ticker: str) -> Company | None:
         if ticker not in self._companies:
             try:
                 from edgar import Company
@@ -52,7 +52,7 @@ class EdgarProvider(FinancialDataProvider):
 
     def get_income_statement(
         self, ticker: str, year_index: int = 0
-    ) -> Optional[IncomeStatement]:
+    ) -> IncomeStatement | None:
         fins = self._get_financials(ticker)
         if fins is None:
             return None
@@ -69,7 +69,7 @@ class EdgarProvider(FinancialDataProvider):
 
     def get_balance_sheet(
         self, ticker: str, year_index: int = 0
-    ) -> Optional[BalanceSheet]:
+    ) -> BalanceSheet | None:
         fins = self._get_financials(ticker)
         if fins is None:
             return None
@@ -85,7 +85,7 @@ class EdgarProvider(FinancialDataProvider):
 
     def get_cash_flow(
         self, ticker: str, year_index: int = 0
-    ) -> Optional[CashFlowStatement]:
+    ) -> CashFlowStatement | None:
         fins = self._get_financials(ticker)
         if fins is None:
             return None
@@ -99,34 +99,34 @@ class EdgarProvider(FinancialDataProvider):
         except Exception:
             return None
 
-    def get_total_assets(self, ticker: str) -> Optional[float]:
+    def get_total_assets(self, ticker: str) -> float | None:
         bs = self.get_balance_sheet(ticker)
         return bs.total_assets if bs else None
 
-    def get_total_liabilities(self, ticker: str) -> Optional[float]:
+    def get_total_liabilities(self, ticker: str) -> float | None:
         bs = self.get_balance_sheet(ticker)
         return bs.total_liabilities if bs else None
 
-    def get_stockholders_equity(self, ticker: str) -> Optional[float]:
+    def get_stockholders_equity(self, ticker: str) -> float | None:
         bs = self.get_balance_sheet(ticker)
         return bs.stockholders_equity if bs else None
 
-    def get_financials(self, ticker: str) -> Optional[object]:
+    def get_financials(self, ticker: str) -> object | None:
         """Return an object with financial attributes for comparison.
         This method is intended for use in scripts like compare_sources.py.
         """
         class _Financials:
             def __init__(self):
-                self.revenue: Optional[float] = None
-                self.net_income: Optional[float] = None
-                self.total_assets: Optional[float] = None
-                self.total_liabilities: Optional[float] = None
-                self.operating_cash_flow: Optional[float] = None
-                self.capital_expenditure: Optional[float] = None  # positive
-                self.shareholders_equity: Optional[float] = None
-                self.diluted_eps: Optional[float] = None
-                self.free_cash_flow: Optional[float] = None
-                self.fiscal_year: Optional[int] = None
+                self.revenue: float | None = None
+                self.net_income: float | None = None
+                self.total_assets: float | None = None
+                self.total_liabilities: float | None = None
+                self.operating_cash_flow: float | None = None
+                self.capital_expenditure: float | None = None  # positive
+                self.shareholders_equity: float | None = None
+                self.diluted_eps: float | None = None
+                self.free_cash_flow: float | None = None
+                self.fiscal_year: int | None = None
 
         try:
             fins = self._get_financials(ticker)

@@ -17,7 +17,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 
 class _LazyModuleProxy:
@@ -72,7 +73,7 @@ ABORT_REASON_401 = "yahoo_401"
 ABORT_REASON_OTHER = "yahoo_unavailable"
 
 
-def classify_fetch_exception(exc: BaseException) -> tuple[bool, Optional[int], str]:
+def classify_fetch_exception(exc: BaseException) -> tuple[bool, int | None, str]:
     """Classify one failed yfinance call: (non_transient, http_status, reason).
 
     Non-transient means "stop asking": 429 (rate limit) and 401 (invalid
@@ -108,7 +109,7 @@ class PriceStageAbort(Exception):
         self.after = after
 
 
-def _snapshot_price(snap: dict) -> Optional[float]:
+def _snapshot_price(snap: dict) -> float | None:
     """Extract the live price from a Yahoo .info dict, or None.
 
     ``regularMarketPrice`` is the current quote (identical to the latest
@@ -133,12 +134,12 @@ class PriceService:
 
     def __init__(
         self,
-        cache_ttl: Optional[int] = None,
+        cache_ttl: int | None = None,
         metrics=None,
         health_fn=None,
         abort_after: int = 0,
     ) -> None:
-        self._cache: Dict[str, Tuple[float, object]] = {}
+        self._cache: dict[str, tuple[float, object]] = {}
         if cache_ttl is None:
             try:
                 cache_ttl = int(os.getenv("PRICE_CACHE_TTL", str(DEFAULT_CACHE_TTL_SECONDS)))
@@ -157,9 +158,9 @@ class PriceService:
         # turns them into a stage abort. 0 disables the abort.
         self.abort_after = max(0, int(abort_after or 0))
         self._abort_lock = threading.Lock()
-        self._abort_reason: Optional[str] = None
+        self._abort_reason: str | None = None
         self._abort_streak = 0
-        self._stage_status: Dict[str, object] = {
+        self._stage_status: dict[str, object] = {
             "status": "ok",
             "aborted_reason": None,
             "aborted_after": 0,
@@ -170,7 +171,7 @@ class PriceService:
         *,
         metrics=None,
         health_fn=None,
-    ) -> "PriceService":
+    ) -> PriceService:
         """Attach run telemetry and/or the Yahoo preflight to this service.
 
         Used by the daily workflow on the process-level singleton, so the
@@ -204,7 +205,7 @@ class PriceService:
     # ------------------------------------------------------------------
     # public API
     # ------------------------------------------------------------------
-    def get_current_price(self, ticker: str) -> Optional[float]:
+    def get_current_price(self, ticker: str) -> float | None:
         """Return the latest closing price for a ticker, or None on failure."""
         key = f"current:{ticker.upper()}"
         cached = self._get_cached(key)
@@ -218,11 +219,11 @@ class PriceService:
 
     def get_current_prices(
         self,
-        tickers: List[str],
+        tickers: list[str],
         batch_size: int = 25,
         delay: float = 0.5,
         workers: int = 1,
-    ) -> Dict[str, Optional[float]]:
+    ) -> dict[str, float | None]:
         """Batch current-price fetch with rate-limit pacing.
 
         Prices already in the in-memory cache are reused; the rest are
@@ -232,7 +233,7 @@ class PriceService:
         in a bounded thread pool (the pause between batches still paces the
         requests). Nothing is persisted. Returns ``{TICKER: price-or-None}``.
         """
-        prices: Dict[str, Optional[float]] = {}
+        prices: dict[str, float | None] = {}
         remaining = [t.upper() for t in tickers if t]
         request_count = 0
         while remaining:
@@ -257,9 +258,9 @@ class PriceService:
     def get_historical_prices(
         self,
         ticker: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Tuple[date, float]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[tuple[date, float]]:
         """Return ``(date, close_price)`` pairs for a ticker and date range.
 
         Fetches fresh from Yahoo Finance; never persists. An empty list is
@@ -280,7 +281,7 @@ class PriceService:
         ticker: str,
         target_date: date,
         window_days: int = 15,
-    ) -> Optional[float]:
+    ) -> float | None:
         """Return the closing price of the trading day closest to a date.
 
         Apple's fiscal year, for example, ends in late September rather than
@@ -305,8 +306,8 @@ class PriceService:
         self,
         ticker: str,
         fiscal_year: int,
-        fiscal_year_end_date: Optional[date] = None,
-    ) -> Optional[float]:
+        fiscal_year_end_date: date | None = None,
+    ) -> float | None:
         """Return the closing price closest to a company's fiscal year end.
 
         ``fiscal_year_end_date`` can be supplied by the caller when the exact
@@ -319,7 +320,7 @@ class PriceService:
             fiscal_year_end_date = date.fromisoformat(fiscal_year_end_date)
         return self.get_price_on_date(ticker, fiscal_year_end_date)
 
-    def get_shares_outstanding(self, ticker: str) -> Optional[int]:
+    def get_shares_outstanding(self, ticker: str) -> int | None:
         """Return the current shares outstanding from Yahoo, or None."""
         key = f"shares:{ticker.upper()}"
         cached = self._get_cached(key)
@@ -340,7 +341,7 @@ class PriceService:
     # ------------------------------------------------------------------
     # additional MarketDataProvider methods (required by CompanyAnalysisService)
     # ------------------------------------------------------------------
-    def get_market_cap(self, ticker: str) -> Optional[float]:
+    def get_market_cap(self, ticker: str) -> float | None:
         """Return the current market capitalization from Yahoo, or None."""
         key = f"market_cap:{ticker.upper()}"
         cached = self._get_cached(key)
@@ -358,7 +359,7 @@ class PriceService:
             pass
         return None
 
-    def get_enterprise_value(self, ticker: str) -> Optional[float]:
+    def get_enterprise_value(self, ticker: str) -> float | None:
         """Return the current enterprise value from Yahoo, or None."""
         key = f"enterprise_value:{ticker.upper()}"
         cached = self._get_cached(key)
@@ -376,7 +377,7 @@ class PriceService:
             pass
         return None
 
-    def get_beta(self, ticker: str) -> Optional[float]:
+    def get_beta(self, ticker: str) -> float | None:
         """Return the current beta from Yahoo, or None."""
         key = f"beta:{ticker.upper()}"
         cached = self._get_cached(key)
@@ -402,12 +403,12 @@ class PriceService:
     # ------------------------------------------------------------------
     def get_market_snapshots(
         self,
-        tickers: List[str],
+        tickers: list[str],
         batch_size: int = 25,
         delay: float = 0.2,
         workers: int = 1,
         preflight: bool = True,
-    ) -> Dict[str, Optional[dict]]:
+    ) -> dict[str, dict | None]:
         """Batch current market-quote snapshot fetch (Yahoo .info, one call).
 
         Each ticker yields the parsed Yahoo ``.info`` quote dict — which
@@ -441,7 +442,7 @@ class PriceService:
                 }
                 return {}
         self._stage_status = {"status": "ok", "aborted_reason": None, "aborted_after": 0}
-        snapshots: Dict[str, Optional[dict]] = {}
+        snapshots: dict[str, dict | None] = {}
         remaining = [t.upper() for t in tickers if t]
         fetched = 0
         while remaining:
@@ -489,7 +490,7 @@ class PriceService:
                     pass
         return snapshots
 
-    def price_failure_counts(self) -> Dict[str, int]:
+    def price_failure_counts(self) -> dict[str, int]:
         """Per-category tally of the price failures seen by this instance.
 
         Categories are the ones :meth:`classify_price_failure` returns, plus
@@ -511,9 +512,9 @@ class PriceService:
     def _record_yahoo(
         self,
         *,
-        latency_ms: Optional[float] = None,
+        latency_ms: float | None = None,
         retries: int = 0,
-        reason: Optional[str] = None,
+        reason: str | None = None,
     ) -> None:
         """Record one Yahoo HTTP attempt in the run telemetry (never fatal)."""
         if self._metrics is None:
@@ -557,7 +558,7 @@ class PriceService:
         except Exception:
             pass
 
-    def _yahoo_is_known_down(self) -> Optional[str]:
+    def _yahoo_is_known_down(self) -> str | None:
         """Reason when a previous probe proved Yahoo unreachable, else None.
 
         No HTTP call: this only reads the preflight cache, so once a run knows
@@ -577,7 +578,7 @@ class PriceService:
             return cached.reason
         return None
 
-    def _fetch_market_snapshot(self, ticker: str) -> Optional[dict]:
+    def _fetch_market_snapshot(self, ticker: str) -> dict | None:
         """One Yahoo .info parse for ``ticker``, or None on failure.
 
         The .info quote summary is far more resilient than the chart endpoint
@@ -667,8 +668,8 @@ class PriceService:
         *,
         metrics=None,
         health_fn=None,
-        abort_after: Optional[int] = None,
-    ) -> "PriceService":
+        abort_after: int | None = None,
+    ) -> PriceService:
         """Attach run telemetry, the Yahoo preflight and the abort threshold.
 
         ``abort_after`` is the number of consecutive non-transient failures
@@ -690,7 +691,7 @@ class PriceService:
     def classify_price_failure(
         self,
         ticker: str,
-        known_ticker: Optional[Callable[[str], Optional[bool]]] = None,
+        known_ticker: Callable[[str], bool | None] | None = None,
     ) -> str:
         """Categorize a failed quote fetch for ``ticker``.
 
@@ -727,7 +728,7 @@ class PriceService:
         ticker = ticker.upper()
         if self._probe_has_data(ticker):
             return self._tally(PRICE_FAILURE_GLITCH)
-        known: Optional[bool] = None
+        known: bool | None = None
         if known_ticker is not None:
             try:
                 known = known_ticker(ticker)
@@ -835,7 +836,7 @@ class PriceService:
                 multiplier *= float(ratio)
         return multiplier
 
-    def _fetch_splits(self, ticker: str) -> List[Tuple[date, float]]:
+    def _fetch_splits(self, ticker: str) -> list[tuple[date, float]]:
         """Fetch the stock split history (date, ratio) for a ticker.
 
         Ratios are Yahoo's 'Stock Splits' values, i.e. the multiplier applied to the
@@ -849,7 +850,7 @@ class PriceService:
 
         try:
             series = yf.Ticker(ticker).splits
-            result: List[Tuple[date, float]] = []
+            result: list[tuple[date, float]] = []
             if series is not None and not series.empty:
                 for idx, ratio in series.items():
                     d = idx.date() if isinstance(idx, datetime) else date.fromisoformat(str(idx))
@@ -862,7 +863,7 @@ class PriceService:
     # ------------------------------------------------------------------
     # yfinance internals (kept separate for easy mocking in tests)
     # ------------------------------------------------------------------
-    def _fetch_current_price(self, ticker: str) -> Optional[float]:
+    def _fetch_current_price(self, ticker: str) -> float | None:
         """Latest close for ``ticker``, or None on failure.
 
         yfinance occasionally returns an empty ``period="1d"`` frame for a
@@ -897,11 +898,11 @@ class PriceService:
     def _fetch_historical_prices(
         self,
         ticker: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Tuple[date, float]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[tuple[date, float]]:
         try:
-            kwargs: Dict[str, object] = {}
+            kwargs: dict[str, object] = {}
             if start_date is not None:
                 kwargs["start"] = start_date
             if end_date is not None:
@@ -910,7 +911,7 @@ class PriceService:
             if hist is None or hist.empty:
                 return []
 
-            prices: List[Tuple[date, float]] = []
+            prices: list[tuple[date, float]] = []
             for idx, row in hist.iterrows():
                 try:
                     d = idx.date() if isinstance(idx, datetime) else idx.date()
@@ -936,7 +937,7 @@ def get_price_service() -> PriceService:
     return _PRICE_SERVICE
 
 
-_PRICE_SERVICE: Optional[PriceService] = None
+_PRICE_SERVICE: PriceService | None = None
 
 
 if __name__ == "__main__":

@@ -6,10 +6,10 @@ from backend.analytics.calculator import MetricCalculator
 class PbCalculator(MetricCalculator):
     def calculate(
         self,
-        market_cap: Optional[float] = None,
-        equity: Optional[float] = None,
+        market_cap: float | None = None,
+        equity: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if market_cap is not None and equity is not None and equity != 0:
             return market_cap / equity
         return None
@@ -18,10 +18,10 @@ class PbCalculator(MetricCalculator):
 class EvEbitCalculator(MetricCalculator):
     def calculate(
         self,
-        enterprise_value: Optional[float] = None,
-        ebit: Optional[float] = None,
+        enterprise_value: float | None = None,
+        ebit: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if enterprise_value is not None and ebit is not None and ebit != 0:
             return enterprise_value / ebit
         return None
@@ -30,11 +30,11 @@ class EvEbitCalculator(MetricCalculator):
 class NetDebtToEbitdaCalculator(MetricCalculator):
     def calculate(
         self,
-        total_debt: Optional[float] = None,
-        cash: Optional[float] = None,
-        ebitda: Optional[float] = None,
+        total_debt: float | None = None,
+        cash: float | None = None,
+        ebitda: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if total_debt is None or ebitda is None or ebitda == 0:
             return None
         # A missing share count is not a zero net debt: without debt data the
@@ -47,10 +47,10 @@ class NetDebtToEbitdaCalculator(MetricCalculator):
 class InterestCoverageCalculator(MetricCalculator):
     def calculate(
         self,
-        ebit: Optional[float] = None,
-        interest_expense: Optional[float] = None,
+        ebit: float | None = None,
+        interest_expense: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if ebit is None or interest_expense is None or interest_expense == 0:
             return None
         return ebit / abs(interest_expense)
@@ -59,10 +59,10 @@ class InterestCoverageCalculator(MetricCalculator):
 class CroicCalculator(MetricCalculator):
     def calculate(
         self,
-        free_cash_flow: Optional[float] = None,
-        invested_capital: Optional[float] = None,
+        free_cash_flow: float | None = None,
+        invested_capital: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if (
             free_cash_flow is not None
             and invested_capital is not None
@@ -75,12 +75,12 @@ class CroicCalculator(MetricCalculator):
 class OwnerEarningsCalculator(MetricCalculator):
     def calculate(
         self,
-        net_income: Optional[float] = None,
-        depreciation: Optional[float] = None,
-        maintenance_capex: Optional[float] = None,
-        working_capital_change: Optional[float] = None,
+        net_income: float | None = None,
+        depreciation: float | None = None,
+        maintenance_capex: float | None = None,
+        working_capital_change: float | None = None,
         **kwargs
-    ) -> Optional[float]:
+    ) -> float | None:
         if any(v is None for v in [net_income, depreciation, maintenance_capex]):
             return None
         owner = net_income + depreciation - maintenance_capex

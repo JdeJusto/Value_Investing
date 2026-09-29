@@ -27,7 +27,7 @@ class FinancialRepository(ABC):
     @abstractmethod
     def get_by_year(
         self, ticker: str, fiscal_year: int
-    ) -> Optional[NormalizedFinancials]:
+    ) -> NormalizedFinancials | None:
         """Return the normalized record for a given fiscal year, if stored."""
 
     @abstractmethod
@@ -47,7 +47,7 @@ class FinancialRepository(ABC):
         """
 
     @abstractmethod
-    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> float | None:
         """Get shares outstanding for a ticker and fiscal year.
 
         Args:

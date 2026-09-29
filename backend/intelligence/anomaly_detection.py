@@ -5,7 +5,8 @@ distribution (z-score vs the mean/std of the years *before* it) or
 jumps abnormally year over year. Deterministic, no ML, no providers.
 """
 
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.intelligence.quality_metrics import gross_margin, ordered_asc, roic
@@ -31,7 +32,7 @@ def _zscore_anomaly(
     rows: list[NormalizedFinancials],
     getter: Callable,
     threshold: float,
-) -> Optional[dict]:
+) -> dict | None:
     if len(rows) < MIN_HISTORY + 1:
         return None
     ordered = ordered_asc(rows)
@@ -65,7 +66,7 @@ def _yoy_anomaly(
     rows: list[NormalizedFinancials],
     getter: Callable,
     change_threshold: float,
-) -> Optional[dict]:
+) -> dict | None:
     ordered = ordered_asc(rows)
     if len(ordered) < 2:
         return None

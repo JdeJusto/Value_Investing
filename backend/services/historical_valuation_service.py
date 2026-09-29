@@ -34,8 +34,8 @@ class HistoricalValuationService:
 
     def __init__(
         self,
-        repository: Optional[FinancialRepository] = None,
-        price_service: Optional[PriceService] = None,
+        repository: FinancialRepository | None = None,
+        price_service: PriceService | None = None,
     ):
         """Initialize the historical valuation service.
 
@@ -48,7 +48,7 @@ class HistoricalValuationService:
         self._repository = repository or FinancialDatabaseRepository()
         self._price_service = price_service or PriceService()
 
-    def get_historical_pe_ratios(self, ticker: str) -> List[Dict[str, Any]]:
+    def get_historical_pe_ratios(self, ticker: str) -> list[dict[str, Any]]:
         """Get historical P/E ratios for a ticker.
 
         P/E = price_at_fiscal_year_end / EPS, where EPS is derived from
@@ -72,7 +72,7 @@ class HistoricalValuationService:
             })
         return pe_ratios
 
-    def get_historical_fcf_yields(self, ticker: str) -> List[Dict[str, Any]]:
+    def get_historical_fcf_yields(self, ticker: str) -> list[dict[str, Any]]:
         """Get historical FCF yields for a ticker.
 
         FCF yield = free_cash_flow / market_cap, where
@@ -99,7 +99,7 @@ class HistoricalValuationService:
             })
         return fcf_yields
 
-    def get_historical_valuation_summary(self, ticker: str) -> List[Dict[str, Any]]:
+    def get_historical_valuation_summary(self, ticker: str) -> list[dict[str, Any]]:
         """Calculate historical valuation ratios for a ticker.
 
         Uses fundamentals from the financial repository and real-time prices
@@ -125,7 +125,7 @@ class HistoricalValuationService:
         except Exception:
             return []
 
-        ratios: List[Dict[str, Any]] = []
+        ratios: list[dict[str, Any]] = []
         for year in sorted(financials_by_year.keys(), reverse=True):
             financials = financials_by_year[year]
 
@@ -187,7 +187,7 @@ class HistoricalValuationService:
 
         return ratios
 
-    def _safe_shares(self, ticker: str, fiscal_year: int) -> Optional[float]:
+    def _safe_shares(self, ticker: str, fiscal_year: int) -> float | None:
         try:
             shares = self._repository.get_shares_outstanding(ticker, fiscal_year)
             return float(shares) if shares is not None else None

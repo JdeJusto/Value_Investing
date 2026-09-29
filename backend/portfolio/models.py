@@ -18,8 +18,8 @@ class Position:
     entry_date: datetime
     thesis: str = ""
     signal_at_entry: str = ""
-    exit_date: Optional[datetime] = None
-    exit_price: Optional[float] = None
+    exit_date: datetime | None = None
+    exit_price: float | None = None
 
     # --- computed shortcuts ------------------------------------------
     @property
@@ -45,7 +45,7 @@ class Position:
         return (self.exit_price - self.avg_price) * self.quantity
 
     @property
-    def unrealized_return(self) -> Optional[float]:
+    def unrealized_return(self) -> float | None:
         if self.avg_price == 0:
             return None
         return (self.current_price - self.avg_price) / self.avg_price
@@ -88,7 +88,7 @@ class Portfolio:
     name: str = "default"
     positions: list[Position] = field(default_factory=list)
 
-    def position(self, ticker: str) -> Optional[Position]:
+    def position(self, ticker: str) -> Position | None:
         for p in self.positions:
             if p.ticker.upper() == ticker.upper() and p.is_open:
                 return p
@@ -115,7 +115,7 @@ class Portfolio:
         if not existing.thesis and addition.thesis:
             existing.thesis = addition.thesis
 
-    def remove(self, ticker: str) -> Optional[Position]:
+    def remove(self, ticker: str) -> Position | None:
         for p in self.positions:
             if p.ticker.upper() == ticker.upper():
                 self.positions.remove(p)
@@ -123,8 +123,8 @@ class Portfolio:
         return None
 
     def close(
-        self, ticker: str, price: float, exit_date: Optional[datetime] = None
-    ) -> Optional[Position]:
+        self, ticker: str, price: float, exit_date: datetime | None = None
+    ) -> Position | None:
         position = self.position(ticker)
         if position is None:
             return None

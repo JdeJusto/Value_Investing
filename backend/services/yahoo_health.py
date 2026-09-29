@@ -45,7 +45,8 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, replace
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 logger = logging.getLogger("backend.yahoo_health")
 
@@ -106,7 +107,7 @@ class YahooHealth:
 
     available: bool
     reason: str
-    http_status: Optional[int] = None
+    http_status: int | None = None
     checked_at: float = 0.0
     stage: str = STAGE_UNKNOWN
     crumb: bool = False
@@ -121,7 +122,7 @@ class YahooHealth:
         return self.http_status in (401, 429) or self.rate_limited
 
 
-_cache: Optional[YahooHealth] = None
+_cache: YahooHealth | None = None
 _cache_lock = threading.Lock()
 
 
@@ -226,7 +227,7 @@ def _probe(timeout: float) -> YahooHealth:
     return _probe_via_http(timeout)
 
 
-def _probe_via_yfinance() -> Optional[YahooHealth]:
+def _probe_via_yfinance() -> YahooHealth | None:
     """One ``fast_info`` call. None when yfinance is not importable here."""
     try:
         import yfinance as yf
@@ -389,12 +390,12 @@ def _probe_via_http(timeout: float) -> YahooHealth:
 
 def check_yahoo_availability(
     *,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     attempts: int = DEFAULT_ATTEMPTS,
     retry_delay: float = DEFAULT_RETRY_DELAY_SECONDS,
-    ttl: Optional[float] = None,
+    ttl: float | None = None,
     force: bool = False,
-    probe: Optional[Callable[..., YahooHealth]] = None,
+    probe: Callable[..., YahooHealth] | None = None,
 ) -> YahooHealth:
     """Return (and cache) whether Yahoo Finance is usable right now.
 
@@ -479,7 +480,7 @@ def probe(**kwargs) -> bool:
     return check_yahoo_availability(**kwargs).available
 
 
-def cached_yahoo_health() -> Optional[YahooHealth]:
+def cached_yahoo_health() -> YahooHealth | None:
     """The last probe result, without performing any HTTP call.
 
     Lets the price service short-circuit every remaining fetch of a run once a

@@ -13,9 +13,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=F
 
 
 async def get_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
+    token: str | None = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
-) -> Optional[UserModel]:
+) -> UserModel | None:
     if token is None:
         return None
     payload = decode_token(token)
@@ -36,7 +36,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Optional[UserModel] = Depends(get_current_user),
+    current_user: UserModel | None = Depends(get_current_user),
 ) -> UserModel:
     if current_user is None:
         raise HTTPException(

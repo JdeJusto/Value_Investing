@@ -26,8 +26,8 @@ def _get_screener_service() -> StockScreenerService:
 @celery_app.task(bind=True)
 def run_screener_task(
     self,
-    tickers: Optional[list[str]] = None,
-    filters: Optional[list[dict]] = None,
+    tickers: list[str] | None = None,
+    filters: list[dict] | None = None,
     top_n: int = 25,
     job_id: str = "",
 ):

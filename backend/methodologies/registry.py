@@ -35,7 +35,7 @@ class MethodologyRegistry:
             logger.debug("replacing registered methodology %r", key)
         self._items[key] = methodology
 
-    def get(self, name: str) -> Optional[Methodology]:
+    def get(self, name: str) -> Methodology | None:
         """Look up by name, or None."""
         return self._items.get(name)
 

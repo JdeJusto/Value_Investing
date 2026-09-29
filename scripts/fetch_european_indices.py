@@ -58,7 +58,7 @@ from scripts.universe_common import (
 logger = logging.getLogger("fetch_european_indices")
 
 
-def _name_column(df) -> Optional[str]:
+def _name_column(df) -> str | None:
     lowered = [str(c).strip().lower() for c in df.columns]
     for col, low in zip(df.columns, lowered):
         if low in ("company", "name"):
@@ -69,7 +69,7 @@ def _name_column(df) -> Optional[str]:
     return None
 
 
-def _ticker_column(df) -> Optional[str]:
+def _ticker_column(df) -> str | None:
     lowered = [str(c).strip().lower() for c in df.columns]
     for col, low in zip(df.columns, lowered):
         if "ticker" in low or "symbol" in low:
@@ -137,8 +137,8 @@ def fetch_index_constituents(code: str, frames=None) -> list[dict]:
 
 def build_universe_european(
     output: str = "config/universe_european.csv",
-    frames_by_code: Optional[dict] = None,
-    sec: Optional[dict] = None,
+    frames_by_code: dict | None = None,
+    sec: dict | None = None,
 ) -> dict:
     """Write the European universe CSV. Returns summary stats."""
     sec = sec or sec_company_tickers()

@@ -45,7 +45,7 @@ def equity_curve(
     return curve
 
 
-def cagr(curve: list[float]) -> Optional[float]:
+def cagr(curve: list[float]) -> float | None:
     if len(curve) < 2 or curve[0] <= 0 or curve[-1] <= 0:
         return None
     periods = len(curve) - 1
@@ -66,7 +66,7 @@ def max_drawdown(curve: list[float]) -> float:
     return worst
 
 
-def sharpe(returns: list[float], risk_free: float = RISK_FREE_RATE) -> Optional[float]:
+def sharpe(returns: list[float], risk_free: float = RISK_FREE_RATE) -> float | None:
     """Annualized Sharpe from per-period returns."""
     if len(returns) < 2:
         return None
@@ -78,7 +78,7 @@ def sharpe(returns: list[float], risk_free: float = RISK_FREE_RATE) -> Optional[
     return mean / (variance**0.5)
 
 
-def win_rate(returns: list[float]) -> Optional[float]:
+def win_rate(returns: list[float]) -> float | None:
     if not returns:
         return None
     return sum(1 for r in returns if r > 0) / len(returns)

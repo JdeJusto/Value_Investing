@@ -32,7 +32,8 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.services.price_service import PriceService
 from backend.services.sec_health import SecHealth, check_sec_availability
@@ -80,12 +81,12 @@ class RefreshResult:
     refreshed: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     failed: list[tuple[str, str]] = field(default_factory=list)
-    prices: dict[str, Optional[float]] = field(default_factory=dict)
+    prices: dict[str, float | None] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
     # Set when the SEC preflight declared EDGAR unavailable and the whole
     # targeted sync step was skipped (companies move to ``skipped``). The
     # reason is the human-readable probe outcome.
-    sec_skipped_reason: Optional[str] = None
+    sec_skipped_reason: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -99,7 +100,7 @@ class FdbGateway:
     not part of this gateway — they flow through PriceService.
     """
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: str | None = None):
         if database_url is None:
             database_url = os.environ.get(
                 "FINANCIAL_DATABASE_URL",
@@ -132,7 +133,7 @@ class FdbGateway:
 
     def staleness_bulk(
         self, tickers: list[str]
-    ) -> dict[str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]]:
+    ) -> dict[str, tuple[str | None, str | None, _dt.datetime | None]]:
         """Resolve (company_id, CIK, last ingestion timestamp) for many tickers.
 
         The whole scan runs in two queries instead of two round-trips per
@@ -148,7 +149,7 @@ class FdbGateway:
             if t and t not in seen:
                 seen.add(t)
                 lookup.append(t)
-        out: dict[str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]] = {
+        out: dict[str, tuple[str | None, str | None, _dt.datetime | None]] = {
             t: (None, None, None) for t in lookup
         }
         if not lookup:
@@ -207,7 +208,7 @@ class FdbGateway:
         return out
 
     # ------------------------------------------------------------------
-    def resolve_company(self, ticker: str) -> Optional[tuple[str, str]]:
+    def resolve_company(self, ticker: str) -> tuple[str, str] | None:
         """Return (company_id, CIK) for a ticker, preferring active listings.
 
         Returns None when the ticker has no listing or no CIK identifier.
@@ -238,7 +239,7 @@ class FdbGateway:
     def stale_companies(
         self,
         *,
-        max_age_hours: Optional[int] = None,
+        max_age_hours: int | None = None,
         limit: int = 500,
         priority: str = "recent_filings",
     ) -> list[dict]:
@@ -301,7 +302,7 @@ class FdbGateway:
             return []
         return [dict(row) for row in rows]
 
-    def last_synced_at(self, company_id: str) -> Optional[_dt.datetime]:
+    def last_synced_at(self, company_id: str) -> _dt.datetime | None:
         """Last ingestion timestamp for a company, from data timestamps.
 
         import_runs has no per-CIK scope, so freshness is derived from the
@@ -333,7 +334,7 @@ class FdbGateway:
         return _dt.datetime.fromisoformat(str(value))
 
 
-def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
+def load_refresh_config(path: str | None = None) -> RefreshConfig:
     """Load config/refresh.yaml into a RefreshConfig.
 
     The YAML file is intentionally tiny (flat ``key: value`` pairs), so it
@@ -509,13 +510,13 @@ class RefreshService:
 
     def __init__(
         self,
-        config: Optional[RefreshConfig] = None,
-        database_url: Optional[str] = None,
-        fdb_repo_path: Optional[str] = None,
-        price_service: Optional[PriceService] = None,
-        gateway: Optional[FdbGateway] = None,
-        sync_runner: Optional[Callable[[list[str], dict, Optional[str]], int]] = None,
-        sec_health_fn: Optional[Callable[[], SecHealth]] = None,
+        config: RefreshConfig | None = None,
+        database_url: str | None = None,
+        fdb_repo_path: str | None = None,
+        price_service: PriceService | None = None,
+        gateway: FdbGateway | None = None,
+        sync_runner: Callable[[list[str], dict, str | None], int] | None = None,
+        sec_health_fn: Callable[[], SecHealth] | None = None,
         metrics=None,
     ):
         self.config = config or load_refresh_config()
@@ -542,10 +543,10 @@ class RefreshService:
         tickers: list[str],
         *,
         force: bool = False,
-        max_age_hours: Optional[int] = None,
-        skip_refresh: Optional[bool] = None,
+        max_age_hours: int | None = None,
+        skip_refresh: bool | None = None,
         fetch_prices: bool = True,
-        progress_cb: Optional[Callable[[str, "bool | str"], None]] = None,
+        progress_cb: Callable[[str, bool | str], None] | None = None,
     ) -> RefreshResult:
         """Ensure freshness of the given tickers and fetch their prices.
 
@@ -675,7 +676,7 @@ class RefreshService:
         self,
         work: list[tuple[str, str]],
         workers: int,
-        progress_cb: Optional[Callable[[str, "bool | str"], None]] = None,
+        progress_cb: Callable[[str, bool | str], None] | None = None,
     ) -> dict[str, bool | str]:
         """Run several targeted CIK syncs concurrently.
 
@@ -706,7 +707,7 @@ class RefreshService:
         self,
         tickers: list[str],
         *,
-        max_age_hours: Optional[int] = None,
+        max_age_hours: int | None = None,
     ) -> tuple[list[str], list[str], list[str]]:
         """Read-only staleness estimate: (stale, fresh, unknown) tickers.
 
@@ -724,7 +725,7 @@ class RefreshService:
         self,
         tickers: list[str],
         *,
-        max_age_hours: Optional[int] = None,
+        max_age_hours: int | None = None,
     ) -> tuple[list[str], list[str], list[str]]:
         """One-pass staleness scan: ``(stale, fresh, unknown)``.
 
@@ -739,7 +740,7 @@ class RefreshService:
             if max_age_hours is not None
             else self.config.freshness_max_age_hours
         )
-        ranked: list[tuple[Optional[float], str]] = []
+        ranked: list[tuple[float | None, str]] = []
         fresh: list[str] = []
         unknown: list[str] = []
 
@@ -789,7 +790,7 @@ class RefreshService:
 
     def _staleness_map(
         self, tickers: list[str]
-    ) -> dict[str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]]:
+    ) -> dict[str, tuple[str | None, str | None, _dt.datetime | None]]:
         """Resolve (company_id, CIK, last sync time) for many tickers.
 
         Prefers the gateway's two-query bulk scan and transparently falls
@@ -804,7 +805,7 @@ class RefreshService:
             except Exception:
                 pass
         meta: dict[
-            str, tuple[Optional[str], Optional[str], Optional[_dt.datetime]]
+            str, tuple[str | None, str | None, _dt.datetime | None]
         ] = {}
         for ticker in dedup:
             try:
@@ -823,7 +824,7 @@ class RefreshService:
             meta[ticker] = (company_id, cik, last)
         return meta
 
-    def _fetch_prices(self, tickers: list[str]) -> dict[str, Optional[float]]:
+    def _fetch_prices(self, tickers: list[str]) -> dict[str, float | None]:
         try:
             return self._price_service.get_current_prices(tickers)
         except Exception:
@@ -838,9 +839,9 @@ class RefreshService:
 
     @staticmethod
     def _notify_progress(
-        progress_cb: Optional[Callable[[str, "bool | str"], None]],
+        progress_cb: Callable[[str, bool | str], None] | None,
         ticker: str,
-        status: "bool | str",
+        status: bool | str,
     ) -> None:
         """Fire the optional progress hook; never let it break the refresh."""
         if progress_cb is None:

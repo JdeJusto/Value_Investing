@@ -16,8 +16,8 @@ class StockScreenerService:
         self,
         repository: FinancialRepository,
         market_provider: MarketDataProvider,
-        loader: Optional[DataLoader] = None,
-        price_service: Optional[PriceService] = None,
+        loader: DataLoader | None = None,
+        price_service: PriceService | None = None,
     ):
         self._analysis = CompanyAnalysisService(
             repository, market_provider, loader=loader
@@ -29,9 +29,9 @@ class StockScreenerService:
 
     def screen(
         self,
-        tickers: Optional[list[str]] = None,
-        filters: Optional[list[FilterCriteria]] = None,
-        top_n: Optional[int] = None,
+        tickers: list[str] | None = None,
+        filters: list[FilterCriteria] | None = None,
+        top_n: int | None = None,
         progress_callback=None,
         no_prices: bool = False,
     ) -> list[ScreenerRow]:
@@ -131,7 +131,7 @@ class StockScreenerService:
 
     def _analyze_ticker(
         self, ticker: str, no_prices: bool = False
-    ) -> Optional[ScreenerRow]:
+    ) -> ScreenerRow | None:
         d = self._analysis.analyze(ticker, no_prices=no_prices)
         if d is None:
             return None
@@ -181,7 +181,7 @@ class StockScreenerService:
         )
 
     def _enrich_with_real_time_price(
-        self, d: dict, ticker: str, price: Optional[float]
+        self, d: dict, ticker: str, price: float | None
     ) -> dict:
         """Fill in price-dependent valuation metrics from real-time prices.
 

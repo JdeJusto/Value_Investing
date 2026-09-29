@@ -34,7 +34,7 @@ def overconcentration(
 
 
 def sector_exposure(
-    portfolio: Portfolio, sectors: dict[str, Optional[str]], top: int = 3
+    portfolio: Portfolio, sectors: dict[str, str | None], top: int = 3
 ) -> list[dict]:
     """Weight per sector; unknown sectors are grouped as 'N/A'."""
     value = sum(p.market_value for p in portfolio.positions if p.is_open)

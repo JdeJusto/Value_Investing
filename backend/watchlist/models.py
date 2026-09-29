@@ -45,7 +45,7 @@ class Watchlist:
     name: str = "default"
     items: list[WatchlistItem] = field(default_factory=list)
 
-    def item(self, ticker: str) -> Optional[WatchlistItem]:
+    def item(self, ticker: str) -> WatchlistItem | None:
         for item in self.items:
             if item.ticker == ticker.upper().strip():
                 return item
@@ -60,13 +60,13 @@ class Watchlist:
             return
         self.items.append(item)
 
-    def remove(self, ticker: str) -> Optional[WatchlistItem]:
+    def remove(self, ticker: str) -> WatchlistItem | None:
         found = self.item(ticker)
         if found is not None:
             self.items.remove(found)
         return found
 
-    def set_status(self, ticker: str, status: str) -> Optional[WatchlistItem]:
+    def set_status(self, ticker: str, status: str) -> WatchlistItem | None:
         if status not in STATUSES:
             raise ValueError(f"unknown watchlist status '{status}'")
         item = self.item(ticker)

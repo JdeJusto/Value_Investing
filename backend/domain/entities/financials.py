@@ -4,49 +4,49 @@ from typing import Optional
 
 @dataclass
 class IncomeStatement:
-    revenue: Optional[float] = None
-    cogs: Optional[float] = None
-    gross_profit: Optional[float] = None
-    operating_income: Optional[float] = None
-    ebit: Optional[float] = None
-    ebitda: Optional[float] = None
-    net_income: Optional[float] = None
-    interest_expense: Optional[float] = None
-    tax_provision: Optional[float] = None
-    pretax_income: Optional[float] = None
-    effective_tax_rate: Optional[float] = None
+    revenue: float | None = None
+    cogs: float | None = None
+    gross_profit: float | None = None
+    operating_income: float | None = None
+    ebit: float | None = None
+    ebitda: float | None = None
+    net_income: float | None = None
+    interest_expense: float | None = None
+    tax_provision: float | None = None
+    pretax_income: float | None = None
+    effective_tax_rate: float | None = None
     # Additional income statement fields
-    operating_expense: Optional[float] = None
-    research_development: Optional[float] = None
-    sga: Optional[float] = None
-    non_operating_income_expense: Optional[float] = None
+    operating_expense: float | None = None
+    research_development: float | None = None
+    sga: float | None = None
+    non_operating_income_expense: float | None = None
 
 
 @dataclass
 class BalanceSheet:
-    total_assets: Optional[float] = None
-    total_liabilities: Optional[float] = None
-    total_debt: Optional[float] = None
-    cash_and_equivalents: Optional[float] = None
-    working_capital: Optional[float] = None
-    retained_earnings: Optional[float] = None
-    stockholders_equity: Optional[float] = None
+    total_assets: float | None = None
+    total_liabilities: float | None = None
+    total_debt: float | None = None
+    cash_and_equivalents: float | None = None
+    working_capital: float | None = None
+    retained_earnings: float | None = None
+    stockholders_equity: float | None = None
 
 
 @dataclass
 class CashFlowStatement:
-    operating_cash_flow: Optional[float] = None
-    capital_expenditure: Optional[float] = None
-    free_cash_flow: Optional[float] = None
-    depreciation_amortization: Optional[float] = None
-    dividends_paid: Optional[float] = None
-    repurchase_of_stock: Optional[float] = None
-    working_capital_change: Optional[float] = None
+    operating_cash_flow: float | None = None
+    capital_expenditure: float | None = None
+    free_cash_flow: float | None = None
+    depreciation_amortization: float | None = None
+    dividends_paid: float | None = None
+    repurchase_of_stock: float | None = None
+    working_capital_change: float | None = None
 
 
 @dataclass
 class FinancialStatement:
-    income: Optional[IncomeStatement] = None
-    balance: Optional[BalanceSheet] = None
-    cash_flow: Optional[CashFlowStatement] = None
-    year: Optional[int] = None
+    income: IncomeStatement | None = None
+    balance: BalanceSheet | None = None
+    cash_flow: CashFlowStatement | None = None
+    year: int | None = None

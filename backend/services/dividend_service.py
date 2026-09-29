@@ -48,14 +48,14 @@ class DividendRecord:
     amount: float
 
 
-def _parse_dividends(raw) -> List[DividendRecord]:
+def _parse_dividends(raw) -> list[DividendRecord]:
     """Normalize a yfinance dividend Series into records, most recent first.
 
     yfinance returns a pandas Series indexed by tz-aware timestamps; the
     index can also be a plain list of timestamps depending on the version, so
     both are handled. Unparseable entries are skipped, not fatal.
     """
-    records: List[DividendRecord] = []
+    records: list[DividendRecord] = []
     if raw is None:
         return records
     try:
@@ -93,11 +93,11 @@ class DividendService:
 
     def __init__(
         self,
-        cache_ttl: Optional[int] = None,
+        cache_ttl: int | None = None,
         health_fn=None,
         yf_ticker=None,
     ) -> None:
-        self._cache: Dict[str, Tuple[float, List[DividendRecord]]] = {}
+        self._cache: dict[str, tuple[float, list[DividendRecord]]] = {}
         self._cache_ttl = (
             int(cache_ttl)
             if cache_ttl is not None
@@ -109,7 +109,7 @@ class DividendService:
         self._yf_ticker = yf_ticker or _yf_ticker
 
     # ------------------------------------------------------------------
-    def _get_cached(self, ticker: str) -> Optional[List[DividendRecord]]:
+    def _get_cached(self, ticker: str) -> list[DividendRecord] | None:
         entry = self._cache.get(ticker)
         if entry is None:
             return None
@@ -120,12 +120,12 @@ class DividendService:
             self._cache.pop(ticker, None)
         return None
 
-    def _set_cached(self, ticker: str, records: List[DividendRecord]) -> None:
+    def _set_cached(self, ticker: str, records: list[DividendRecord]) -> None:
         with self._lock:
             self._cache[ticker] = (time.time(), records)
 
     # ------------------------------------------------------------------
-    def get_dividends(self, ticker: str) -> List[DividendRecord]:
+    def get_dividends(self, ticker: str) -> list[DividendRecord]:
         """Dividend history for ``ticker``, most recent first.
 
         Returns an empty list when the provider is unreachable or the company
@@ -196,7 +196,7 @@ def _yf_ticker(ticker: str):
     return yf.Ticker(ticker)
 
 
-_default_service: Optional[DividendService] = None
+_default_service: DividendService | None = None
 _default_lock = threading.Lock()
 
 

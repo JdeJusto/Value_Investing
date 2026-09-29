@@ -11,7 +11,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.domain.interfaces.data_loader import DataLoader
 from backend.domain.interfaces.financial_repository import FinancialRepository
@@ -64,12 +65,12 @@ class DataPipelineService(DataLoader):
         self,
         repository: FinancialRepository,
         primary: FinancialDataProvider,
-        fallback: Optional[FinancialDataProvider] = None,
-        market: Optional[MarketDataProvider] = None,
-        normalizers: Optional[dict[type, FinancialNormalizer]] = None,
-        company_saver: Optional[Callable[[str], None]] = None,
+        fallback: FinancialDataProvider | None = None,
+        market: MarketDataProvider | None = None,
+        normalizers: dict[type, FinancialNormalizer] | None = None,
+        company_saver: Callable[[str], None] | None = None,
         default_years: int = DEFAULT_HISTORY_YEARS,
-        report_source: Optional[ProviderName] = None,
+        report_source: ProviderName | None = None,
     ):
         self._repository = repository
         self._primary = primary
@@ -134,8 +135,8 @@ class DataPipelineService(DataLoader):
         if self._fallback is not None:
             providers.append(self._fallback)
 
-        last_error: Optional[str] = None
-        best: Optional[tuple[list[NormalizedFinancials], type]] = None
+        last_error: str | None = None
+        best: tuple[list[NormalizedFinancials], type] | None = None
         for index, provider in enumerate(providers):
             if index > 0 and best is not None:
                 # The primary delivered enough usable years; the fallback

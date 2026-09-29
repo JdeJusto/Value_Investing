@@ -113,8 +113,8 @@ def fetch_holdings(url: str = IWM_HOLDINGS_URL) -> str:
 
 def build_universe_russell2000(
     output: str = "config/universe_russell2000.csv",
-    holdings_text: Optional[str] = None,
-    sec: Optional[dict] = None,
+    holdings_text: str | None = None,
+    sec: dict | None = None,
 ) -> dict:
     """Write the Russell 2000 universe CSV. Returns summary stats."""
     if holdings_text is None:

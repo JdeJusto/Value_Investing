@@ -108,7 +108,7 @@ class AnalysisCache:
         safe = "".join(ch for ch in ticker.upper() if ch.isalnum() or ch in "-._")
         return self.directory / f"{safe}.json"
 
-    def fingerprint_for(self, ticker: str) -> Optional[str]:
+    def fingerprint_for(self, ticker: str) -> str | None:
         """Cheap change-detector digest from the repository (None = no cache)."""
         if not self.enabled:
             return None
@@ -123,7 +123,7 @@ class AnalysisCache:
         return str(value) if value else None
 
     # ------------------------------------------------------------------
-    def get(self, ticker: str, fingerprint: str) -> Optional[list[NormalizedFinancials]]:
+    def get(self, ticker: str, fingerprint: str) -> list[NormalizedFinancials] | None:
         """Cached rows for this exact (ticker, fingerprint, version), or None."""
         rows = self._read_rows(ticker, fingerprint)
         if rows is None:
@@ -133,7 +133,7 @@ class AnalysisCache:
 
     def _read_rows(
         self, ticker: str, fingerprint: str
-    ) -> Optional[list[NormalizedFinancials]]:
+    ) -> list[NormalizedFinancials] | None:
         """Load and validate the entry; ``None`` for any kind of miss."""
         if not self.enabled or not fingerprint:
             self._count("misses")
@@ -257,7 +257,7 @@ class AnalysisCache:
         self._write(ticker, fingerprint, fundamentals=None, extra=payload)
 
     # ------------------------------------------------------------------
-    def _load(self, ticker: str, fingerprint: str) -> Optional[dict]:
+    def _load(self, ticker: str, fingerprint: str) -> dict | None:
         """Raw entry for (ticker, fingerprint) or None — no stats side effects."""
         if not self.enabled or not fingerprint:
             return None
@@ -278,8 +278,8 @@ class AnalysisCache:
         self,
         ticker: str,
         fingerprint: str,
-        fundamentals: Optional[list] = None,
-        extra: Optional[dict] = None,
+        fundamentals: list | None = None,
+        extra: dict | None = None,
     ) -> None:
         """Atomic write of one entry (fundamentals and/or lookups)."""
         if not self.enabled or not fingerprint:

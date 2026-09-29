@@ -35,7 +35,7 @@ def _analysis(
     revenue_cv: float = 0.2,
     sector: str = "Technology",
     industry: str = "Software",
-    delta: Optional[dict] = None,
+    delta: dict | None = None,
     **pillars,
 ) -> dict:
     deltas = {

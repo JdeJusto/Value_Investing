@@ -63,7 +63,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
     def get_income_statement(
         self, ticker: str, year_index: int = 0
-    ) -> Optional[IncomeStatement]:
+    ) -> IncomeStatement | None:
         t = self._get_ticker(ticker)
         try:
             ism = t.income_stmt
@@ -84,7 +84,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
     def get_balance_sheet(
         self, ticker: str, year_index: int = 0
-    ) -> Optional[BalanceSheet]:
+    ) -> BalanceSheet | None:
         t = self._get_ticker(ticker)
         try:
             bs = t.balance_sheet
@@ -114,7 +114,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
     def get_cash_flow(
         self, ticker: str, year_index: int = 0
-    ) -> Optional[CashFlowStatement]:
+    ) -> CashFlowStatement | None:
         t = self._get_ticker(ticker)
         try:
             cf = t.cashflow
@@ -161,30 +161,30 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         except (KeyError, AttributeError, TypeError):
             return None
 
-    def get_market_cap(self, ticker: str) -> Optional[float]:
+    def get_market_cap(self, ticker: str) -> float | None:
         return self._get_ticker(ticker).info.get("marketCap")
 
-    def get_enterprise_value(self, ticker: str) -> Optional[float]:
+    def get_enterprise_value(self, ticker: str) -> float | None:
         return self._get_ticker(ticker).info.get("enterpriseValue")
 
-    def get_current_price(self, ticker: str) -> Optional[float]:
+    def get_current_price(self, ticker: str) -> float | None:
         t = self._get_ticker(ticker)
         hist = t.history(period="1d")
         if not hist.empty:
             return float(hist["Close"].iloc[-1])
         return None
 
-    def get_beta(self, ticker: str) -> Optional[float]:
+    def get_beta(self, ticker: str) -> float | None:
         return self._get_ticker(ticker).info.get("beta")
 
-    def get_company_name(self, ticker: str) -> Optional[str]:
+    def get_company_name(self, ticker: str) -> str | None:
         info = self._get_ticker(ticker).info
         return info.get("longName") or info.get("shortName")
 
-    def get_shares_outstanding(self, ticker: str) -> Optional[int]:
+    def get_shares_outstanding(self, ticker: str) -> int | None:
         return self._get_ticker(ticker).info.get("sharesOutstanding")
 
-    def get_eps(self, ticker: str, year_index: int = 0) -> Optional[float]:
+    def get_eps(self, ticker: str, year_index: int = 0) -> float | None:
         """Diluted EPS for the requested annual period.
 
         Prefers Yahoo's reported 'Diluted EPS' row; falls back to
@@ -311,23 +311,23 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         except Exception:
             return 0.08
 
-    def get_financials(self, ticker: str, year_index: int = 0) -> Optional[object]:
+    def get_financials(self, ticker: str, year_index: int = 0) -> object | None:
         """Return an object with financial attributes for comparison.
         This method is intended for use in scripts like compare_sources.py.
         ``year_index`` selects the fiscal year column (0 = most recent).
         """
         class _Financials:
             def __init__(self):
-                self.revenue: Optional[float] = None
-                self.net_income: Optional[float] = None
-                self.total_assets: Optional[float] = None
-                self.total_liabilities: Optional[float] = None
-                self.operating_cash_flow: Optional[float] = None
-                self.capital_expenditure: Optional[float] = None  # positive
-                self.shareholders_equity: Optional[float] = None
-                self.diluted_eps: Optional[float] = None
-                self.free_cash_flow: Optional[float] = None
-                self.fiscal_year: Optional[int] = None
+                self.revenue: float | None = None
+                self.net_income: float | None = None
+                self.total_assets: float | None = None
+                self.total_liabilities: float | None = None
+                self.operating_cash_flow: float | None = None
+                self.capital_expenditure: float | None = None  # positive
+                self.shareholders_equity: float | None = None
+                self.diluted_eps: float | None = None
+                self.free_cash_flow: float | None = None
+                self.fiscal_year: int | None = None
 
         try:
             ticker_obj = self._get_ticker(ticker)

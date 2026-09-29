@@ -5,7 +5,8 @@ and scores); the service itself never touches providers directly.
 """
 
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from backend.portfolio.allocation import (
     overconcentration,
@@ -19,14 +20,14 @@ from backend.screener.opportunity_engine import best_opportunity
 from backend.screener.ranking_engine import rank_score
 from backend.screener.signals import generate_signal
 
-Analyzer = Callable[[str], Optional[dict]]
+Analyzer = Callable[[str], dict | None]
 
 
 class PortfolioService:
     def __init__(
         self,
         repository: PortfolioRepository,
-        analyzer: Optional[Analyzer] = None,
+        analyzer: Analyzer | None = None,
     ):
         self._repository = repository
         self._analyzer = analyzer
@@ -37,7 +38,7 @@ class PortfolioService:
         ticker: str,
         quantity: float,
         avg_price: float,
-        entry_date: Optional[datetime] = None,
+        entry_date: datetime | None = None,
         thesis: str = "",
         signal_at_entry: str = "",
     ) -> Position:
@@ -57,7 +58,7 @@ class PortfolioService:
         self._save(portfolio)
         return position
 
-    def exit(self, ticker: str, price: float) -> Optional[Position]:
+    def exit(self, ticker: str, price: float) -> Position | None:
         """Close a position at ``price`` and record realized PnL."""
         portfolio = self._load()
         closed = portfolio.close(ticker, price)
@@ -65,7 +66,7 @@ class PortfolioService:
             self._save(portfolio)
         return closed
 
-    def remove(self, ticker: str) -> Optional[Position]:
+    def remove(self, ticker: str) -> Position | None:
         portfolio = self._load()
         removed = portfolio.remove(ticker)
         if removed is not None:
@@ -165,5 +166,5 @@ class PortfolioService:
         }
 
     @staticmethod
-    def _sector_map(portfolio: Portfolio) -> dict[str, Optional[str]]:
+    def _sector_map(portfolio: Portfolio) -> dict[str, str | None]:
         return {p.ticker: None for p in portfolio.positions}

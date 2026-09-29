@@ -48,7 +48,7 @@ class JsonFinancialRepository(FinancialRepository):
 
     def get_by_year(
         self, ticker: str, fiscal_year: int
-    ) -> Optional[NormalizedFinancials]:
+    ) -> NormalizedFinancials | None:
         data = self._read(ticker)
         year_records = data.get(str(fiscal_year), {})
         records = [
@@ -100,7 +100,7 @@ class JsonFinancialRepository(FinancialRepository):
         )
 
     # FinancialRepository interface extensions for historical data
-    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> Optional[float]:
+    def get_shares_outstanding(self, ticker: str, fiscal_year: int) -> float | None:
         """Get shares outstanding from normalized financials for the given year."""
         record = self.get_by_year(ticker, fiscal_year)
         if record and record.shares_outstanding is not None:
