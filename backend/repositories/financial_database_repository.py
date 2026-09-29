@@ -916,6 +916,19 @@ class FinancialDatabaseRepository(FinancialRepository):
         ):
             income_data['ebit'] = income_data['operating_income']
 
+        # Gross profit = revenue - cost of revenue is the standard US-GAAP
+        # identity, used when a filer does not tag GrossProfit directly. GM
+        # last filed the tag in FY2012 and T stopped after the 2023 restatement,
+        # but their cost lines (CostOfGoodsAndServicesSold / CostOfRevenue)
+        # remain tagged for earlier years, so the margin series is kept instead
+        # of dropped. Never overrides a filed figure (fires only when absent).
+        if (
+            income_data.get('gross_profit') is None
+            and income_data.get('revenue') is not None
+            and income_data.get('cogs') is not None
+        ):
+            income_data['gross_profit'] = income_data['revenue'] - income_data['cogs']
+
         # REITs whose rental income is the whole top line (no revenue tag filed,
         # or only a small contract-revenue tag) report it as OperatingLease
         # LeaseIncome. Prefer the rental figure when it dominates whatever
