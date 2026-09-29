@@ -41,7 +41,8 @@
     "data_source_priority": 0,
     "derived_metrics": [],
     "current_assets": 40000000.0,
-    "current_liabilities": 30000000.0
+    "current_liabilities": 30000000.0,
+    "inventory": 5606127.25
   },
   {
     "ticker": "TEST",
@@ -83,7 +84,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 5779512.63
   },
   {
     "ticker": "TEST",
@@ -125,7 +127,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 5958260.44
   },
   {
     "ticker": "TEST",
@@ -167,7 +170,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 6142536.53
   },
   {
     "ticker": "TEST",
@@ -209,7 +213,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 6332511.89
   },
   {
     "ticker": "TEST",
@@ -251,7 +256,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 6528362.77
   },
   {
     "ticker": "TEST",
@@ -293,7 +299,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 6730270.9
   },
   {
     "ticker": "TEST",
@@ -335,7 +342,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 6938423.61
   },
   {
     "ticker": "TEST",
@@ -377,7 +385,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 7153014.03
   },
   {
     "ticker": "TEST",
@@ -419,7 +428,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 7374241.27
   },
   {
     "ticker": "TEST",
@@ -461,7 +471,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 7602310.59
   },
   {
     "ticker": "TEST",
@@ -503,7 +514,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 7837433.59
   },
   {
     "ticker": "TEST",
@@ -545,7 +557,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 8079828.45
   },
   {
     "ticker": "TEST",
@@ -587,7 +600,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 8329720.05
   },
   {
     "ticker": "TEST",
@@ -629,7 +643,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 8587340.26
   },
   {
     "ticker": "TEST",
@@ -671,7 +686,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 8852928.1
   },
   {
     "ticker": "TEST",
@@ -713,7 +729,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 9126730.0
   },
   {
     "ticker": "TEST",
@@ -755,7 +772,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 9409000.0
   },
   {
     "ticker": "TEST",
@@ -797,7 +815,8 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 9700000.0
   },
   {
     "ticker": "TEST",
@@ -839,6 +858,7 @@
     "data_quality_score": null,
     "is_complete": false,
     "data_source_priority": 0,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 10000000.0
   }
 ]

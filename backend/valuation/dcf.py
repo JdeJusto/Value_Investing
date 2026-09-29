@@ -27,13 +27,9 @@ from __future__ import annotations
 import statistics
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.methodologies.common.company_type import is_financial
 from backend.valuation.base import DCFAssumptions, DCFResult
 
-#: A company whose interest expense exceeds this share of revenue is treated
-#: as financial (banks/insurers book an interest-based top line; their
-#: operating cash flow is not free cash flow). Documented heuristic, not a
-#: taxonomy — see README "Known limitations".
-_FINANCIAL_INTEREST_REVENUE_RATIO = 0.30
 #: Margin of safety is reported on a [-10, +10] band so a tiny denominator
 #: cannot produce pathological percentages (e.g. -3000%).
 _MOS_CAP = 10.0
@@ -104,15 +100,20 @@ class DCFValuation:
 
         latest = rows[0]
 
-        # A financial company (interest-income-driven top line) has no free
-        # cash flow in the DCF sense; bail out BEFORE projecting anything with
-        # a documented reason (fixture dcf_financial_company.json carries this
-        # signature). This is a heuristic, not an exact taxonomy.
-        financial_reason = self._financial_company_reason(latest)
-        if financial_reason:
+        # A financial company (bank/insurer) has no free cash flow in the DCF
+        # sense; bail out BEFORE projecting anything with a documented reason
+        # (fixture dcf_financial_company.json carries this signature). The
+        # shared company-type detector is used so the DCF never disagrees with
+        # the methodologies about what a financial is.
+        if is_financial(latest, getattr(latest, "sector", None)):
             return self._insufficient(
                 result,
-                [financial_reason],
+                [
+                    (
+                        "Financial company: DCF (free cash flow) does not apply "
+                        "to banks/insurers."
+                    )
+                ],
                 ["non-financial company"],
             )
 
@@ -214,53 +215,6 @@ class DCFValuation:
     # ------------------------------------------------------------------
     # inputs
     # ------------------------------------------------------------------
-    @staticmethod
-    def _financial_company_reason(latest) -> str | None:
-        """Return a documented financial-company reason, or None.
-
-        Two independent signals, OR-combined (both are heuristics, not a
-        taxonomy):
-
-        1. Interest expense >= 30% of revenue — the archetype of an
-           interest-income-driven top line (fixture-backed).
-        2. Positive net income with non-positive operating cash flow and no
-           reported capital expenditure, while revenue is present — the
-           fingerprint of a bank whose CFO is dominated by operating
-           asset/liability flows and whose interest expense / capex are not
-           reconstructed by the data layer (e.g. JPM). Such a company cannot
-           be DCF'd on any reading, so this only changes the reason label,
-           never a number.
-        """
-        revenue = latest.revenue
-        interest_expense = latest.interest_expense
-        if (
-            revenue
-            and revenue > 0
-            and interest_expense
-            and interest_expense > 0
-            and interest_expense / revenue >= _FINANCIAL_INTEREST_REVENUE_RATIO
-        ):
-            return (
-                f"Financial company: interest expense is {interest_expense / revenue:.0%} of revenue;"
-                " DCF (free cash flow) does not apply to banks/insurers."
-            )
-        if (
-            revenue
-            and revenue > 0
-            and latest.net_income
-            and latest.net_income > 0
-            and latest.operating_cash_flow is not None
-            and latest.operating_cash_flow <= 0
-            and latest.capital_expenditure is None
-        ):
-            return (
-                "Financial company: positive net income with non-positive "
-                "operating cash flow and no capital expenditure (interest-"
-                "based business); DCF (free cash flow) does not apply to "
-                "banks/insurers."
-            )
-        return None
-
     @staticmethod
     def _fcf(row: NormalizedFinancials) -> float | None:
         """Free cash flow for one row: direct or OCF - capex."""

@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import Confidence, Verdict
 from backend.methodologies.graham_dodd.methodology import GrahamDoddMethodology
 
@@ -278,3 +279,50 @@ def test_rules_expose_all_five():
         "graham_dodd.rule_4_balance_sheet_strength",
         "graham_dodd.rule_5_margin_of_safety",
     }
+
+
+# ---------------------------------------------------------------------------
+# financial companies (banks/insurers are out of scope for deep value; the
+# shared company-type detector guards before any rule runs)
+# ---------------------------------------------------------------------------
+def test_financial_company_insufficient():
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "T",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 50e9,
+                "net_income": 10e9,
+                "long_term_debt": 200e9,
+                "total_assets": 500e9,
+                "total_liabilities": 470e9,
+            }
+        )
+    ]
+    result = GrahamDoddMethodology().evaluate("T", rows, _Prices(100.0))
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
+    assert result.confidence == Confidence.HIGH
+    assert result.metrics["financial_company"] is True
+    assert result.passed_rules == []
+    assert result.failed_rules == []
+    assert any("financial" in r.lower() for r in result.reasons)
+
+
+def test_financial_sector_hint_insufficient():
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "T",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 50e9,
+                "net_income": 10e9,
+                "sector": "Financial Services",
+            }
+        )
+    ]
+    result = GrahamDoddMethodology().evaluate("T", rows, _Prices(100.0))
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.metrics["financial_company"] is True

@@ -32,6 +32,7 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
+from backend.methodologies.common.company_type import is_financial
 from backend.methodologies.lynch_garp.rules import (
     ALL_RULES,
     RULE_5_DIVIDEND_ADJUSTED_PEG,
@@ -82,46 +83,6 @@ class LynchGARPMethodology(Methodology):
     family = "GARP"
 
     # ------------------------------------------------------------------
-    # financial-company detection
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _is_financial_company(row: NormalizedFinancials | None) -> bool:
-        """True for banks/insurers where the GARP debt and inventory rules
-        do not apply (structurally high leverage, no inventory line).
-
-        Signals (any one is enough):
-        1. ``sector`` field (when present) is a financial industry;
-        2. no inventory AND (long-term) debt is more than 5x net income;
-        3. bank-like balance sheet: total_liabilities / total_assets > 0.85.
-        """
-        if row is None:
-            return False
-        sector = getattr(row, "sector", None)
-        if sector and "financial" in str(sector).lower():
-            return True
-        inventory = getattr(row, "inventory", None)
-        net_income = row.net_income
-        debt = row.long_term_debt
-        if debt is None:
-            debt = row.total_debt
-        if (
-            inventory is None
-            and debt is not None
-            and net_income is not None
-            and net_income > 0
-            and debt / net_income > 5.0
-        ):
-            return True
-        total_assets = row.total_assets
-        total_liabilities = row.total_liabilities
-        return bool(
-            total_assets
-            and total_liabilities
-            and total_assets > 0
-            and total_liabilities / total_assets > 0.85
-        )
-
-    # ------------------------------------------------------------------
     # Methodology ABC
     # ------------------------------------------------------------------
     def evaluate(
@@ -134,7 +95,7 @@ class LynchGARPMethodology(Methodology):
         price = self._current_price(ticker, prices)
 
         latest = rows[0] if rows else None
-        if self._is_financial_company(latest):
+        if is_financial(latest, getattr(latest, "sector", None)):
             financial_reason = (
                 "Lynch GARP rules do not apply to financial companies "
                 "(banks, insurers). Debt and inventory rules are "

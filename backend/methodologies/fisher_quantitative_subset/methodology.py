@@ -19,6 +19,7 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
+from backend.methodologies.common.company_type import is_financial
 from backend.methodologies.fisher_quantitative_subset.rules import (
     RULES,
     RULES_SOURCES,
@@ -102,6 +103,30 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 red_flags=[],
                 confidence=Confidence.LOW,
                 sources=RULES_SOURCES,
+            )
+
+        latest = rows[0]
+        if is_financial(latest, getattr(latest, "sector", None)):
+            return MethodologyResult(
+                methodology=self.name,
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.INSUFFICIENT_DATA,
+                score=None,
+                metrics={"financial_company": True},
+                reasons=[
+                    (
+                        "Fisher's criteria assume a product company with "
+                        "inventory, gross margin and R&D; financials (banks, "
+                        "insurers) do not fit."
+                    ),
+                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=RULES_SOURCES,
+                passed_rules=[],
+                failed_rules=[],
             )
 
         status = {

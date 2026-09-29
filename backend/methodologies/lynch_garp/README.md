@@ -76,11 +76,13 @@ structurally different balance sheet — high leverage, no inventory — so
 `lynch_garp` detects them and returns **INSUFFICIENT_DATA** with confidence
 HIGH instead of forcing a verdict.
 
-Detection (`LynchGARPMethodology._is_financial_company`, any signal suffices):
+Detection (`backend/methodologies/common/company_type.py::is_financial`, any signal suffices):
 
 1. `sector` field (when present) is a financial industry.
 2. No inventory reported **and** (long-term) debt is more than 5x net income.
 3. Bank-like balance sheet: `total_liabilities / total_assets > 0.85`.
+4. Positive net income with non-positive operating cash flow and no reported
+   capital expenditure (bank cash-flow fingerprint).
 
 For a company that trips the detector the score is `None`, no rules are
 evaluated, and the reason explains that the GARP rules do not apply.

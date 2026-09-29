@@ -16,7 +16,8 @@
     "data_quality_score": 0.9,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 15000000000
   },
   {
     "ticker": "FORDDCF",
@@ -33,7 +34,8 @@
     "data_quality_score": 0.9,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 14000000000
   },
   {
     "ticker": "FORDDCF",
@@ -50,6 +52,7 @@
     "data_quality_score": 0.9,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 13000000000
   }
 ]

@@ -15,6 +15,7 @@ import pytest
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import Confidence, Verdict
+from backend.methodologies.common.company_type import is_financial
 from backend.methodologies.lynch_garp.methodology import LynchGARPMethodology
 
 SHARES = 100_000_000
@@ -113,8 +114,12 @@ def _load(name):
     ]
 
 
-def _bank_like(rows, latest_debt=10_000_000_000.0, assets=11_000_000_000.0,
-               liabilities=10_000_000_000.0):
+def _bank_like(
+    rows,
+    latest_debt=10_000_000_000.0,
+    assets=11_000_000_000.0,
+    liabilities=10_000_000_000.0,
+):
     """Rebuild rows so the latest year looks like a bank: no inventory,
     leverage > 5x net income, liabilities/assets ~0.91."""
     ordered = sorted(rows, key=lambda r: r.fiscal_year, reverse=True)
@@ -132,9 +137,8 @@ def _bank_like(rows, latest_debt=10_000_000_000.0, assets=11_000_000_000.0,
 # Financial-company detection (banks/insurers are out of scope for GARP)
 # ---------------------------------------------------------------------------
 def test_financial_company_detected_bank_like_balance_sheet():
-    mgmt = LynchGARPMethodology()
     rows = _bank_like(_backbone())
-    assert mgmt._is_financial_company(rows[0]) is True
+    assert is_financial(rows[0]) is True
 
 
 def test_financial_company_evaluate_returns_insufficient_with_reason():
@@ -150,19 +154,17 @@ def test_financial_company_evaluate_returns_insufficient_with_reason():
 
 
 def test_non_financial_company_not_detected():
-    mgmt = LynchGARPMethodology()
     rows = _backbone()  # no inventory, but debt/NI ~0.54 and no balance sheet
-    assert mgmt._is_financial_company(rows[0]) is False
+    assert is_financial(rows[0]) is False
 
 
 def test_no_inventory_low_debt_not_financial():
-    mgmt = LynchGARPMethodology()
     ordered = sorted(_backbone(), key=lambda r: r.fiscal_year, reverse=True)
     rows = [
         replace(ordered[0], inventory=None, long_term_debt=100_000_000.0)
     ] + ordered[1:]
-    assert mgmt._is_financial_company(rows[0]) is False
-    res = mgmt.evaluate("T", rows, _Price(None))
+    assert is_financial(rows[0]) is False
+    res = LynchGARPMethodology().evaluate("T", rows, _Price(None))
     assert res.verdict != Verdict.INSUFFICIENT_DATA
 
 

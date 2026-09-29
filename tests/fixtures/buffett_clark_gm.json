@@ -41,7 +41,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 17000000000
   },
   {
     "ticker": "GM",
@@ -85,7 +86,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 16000000000
   },
   {
     "ticker": "GM",
@@ -129,6 +131,7 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "inventory": 15000000000
   }
 ]

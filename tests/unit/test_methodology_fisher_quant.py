@@ -666,3 +666,47 @@ def test_readme_disclaimer_present():
     assert "It is NOT Fisher." in text
     assert "scuttlebutt" in text
     assert "docs/methodology_decisions.md" in text
+
+
+# ---------------------------------------------------------------------------
+# financial companies (banks/insurers are out of scope; the shared company-type
+# detector guards before any rule runs)
+# ---------------------------------------------------------------------------
+def test_financial_company_insufficient():
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "T",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 30e9,
+                "net_income": 8e9,
+                "operating_cash_flow": -10e9,
+            }
+        )
+    ]
+    result = FisherQuantitativeSubsetMethodology().evaluate("T", rows, _Prices())
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
+    assert result.confidence == Confidence.HIGH
+    assert result.metrics["financial_company"] is True
+    assert result.failed_rules == []
+    assert any("financial" in r.lower() for r in result.reasons)
+
+
+def test_financial_sector_hint_insufficient():
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "T",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 30e9,
+                "net_income": 8e9,
+                "sector": "Financial Services",
+            }
+        )
+    ]
+    result = FisherQuantitativeSubsetMethodology().evaluate("T", rows, _Prices())
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.metrics["financial_company"] is True

@@ -15,6 +15,7 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
+from backend.methodologies.common.company_type import is_financial
 
 from .rules import ALL_RULES
 
@@ -56,6 +57,34 @@ class BuffettClarkMethodology(Methodology):
         prices: Any,
     ) -> MethodologyResult:
         rows = self._clean_rows(fundamentals)
+        latest = self._latest(rows)
+        if latest is not None and is_financial(latest, latest.sector):
+            return MethodologyResult(
+                methodology=self.name,
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.INSUFFICIENT_DATA,
+                score=None,
+                metrics={
+                    "financial_company": True,
+                    "rule_outcomes": {},
+                    "fiscal_years_analyzed": len(rows),
+                },
+                reasons=[
+                    (
+                        "Buffett/Clark DCA criteria do not apply to financial "
+                        "companies (banks, insurers): gross margin, interest "
+                        "burden and debt thresholds assume a product company."
+                    ),
+                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=[rule.source for rule in ALL_RULES],
+                passed_rules=[],
+                failed_rules=[],
+            )
+
         results = [
             self._rule_1_gross_margin(rows),
             self._rule_2_interest_burden(rows),

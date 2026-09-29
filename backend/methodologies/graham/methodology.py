@@ -18,21 +18,20 @@ criterion returns INSUFFICIENT_DATA unless the caller supplies the split. See
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
-from backend.services.dividend_service import get_dividend_service
-from typing import Any, Optional
-
+from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import (
     Confidence,
     Methodology,
     MethodologyResult,
     Verdict,
 )
+from backend.methodologies.common.company_type import is_financial
 from backend.methodologies.graham.rules import (
     ALL_RULES,
     VERDICT_CRITERIA,
 )
-from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 
 # Verbatim thresholds (Chapter 14).
 _MIN_SALES = 100_000_000  # industrial companies, 1973 dollars
@@ -60,9 +59,9 @@ class CriterionResult:
     """Outcome of one criterion: pass, fail, or not evaluable."""
 
     rule_id: str
-    passed: Optional[bool]
-    value: Optional[float]
-    threshold: Optional[float]
+    passed: bool | None
+    value: float | None
+    threshold: float | None
     detail: str
 
 
@@ -95,6 +94,35 @@ class GrahamMethodology(Methodology):
     ) -> MethodologyResult:
         rows = self._clean_rows(fundamentals)
         price = self._current_price(ticker, prices)
+
+        latest = self._latest(rows)
+        if latest is not None and is_financial(latest, latest.sector):
+            return MethodologyResult(
+                methodology=self.name + ("_modernized" if self.era_adjustment else ""),
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.INSUFFICIENT_DATA,
+                score=None,
+                metrics={
+                    "financial_company": True,
+                    "criteria_outcomes": {},
+                    "current_price": price,
+                    "fiscal_years_analyzed": len(rows),
+                },
+                reasons=[
+                    (
+                        "Graham defensive criteria do not apply to financial "
+                        "companies (banks, insurers). The balance-sheet criteria "
+                        "assume an industrial or utility."
+                    ),
+                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=[rule.source for rule in ALL_RULES],
+                passed_rules=[],
+                failed_rules=[],
+            )
 
         results = [
             self._criterion_1_size(rows),
@@ -145,15 +173,23 @@ class GrahamMethodology(Methodology):
             "utility_threshold": self._min_utility_assets,
             "source": "The Intelligent Investor, 4th revised (1973), Ch. 14",
             "known_limitations": [
-                "criterion 2 (current ratio >= 2:1) needs the current-assets / "
-                "current-liabilities split, which NormalizedFinancials does not "
-                "carry; it returns INSUFFICIENT_DATA unless supplied",
-                "criterion 3 uses total_debt as a conservative proxy for "
-                "long-term debt (stricter than the book)",
-                "criterion 4 counts years with dividends_paid > 0; a missing "
-                "cash-flow statement reads as no dividend",
-                "written for industrials and utilities; banks and financials do "
-                "not fit the balance-sheet criteria",
+                (
+                    "criterion 2 (current ratio >= 2:1) needs the current-assets / "
+                    "current-liabilities split, which NormalizedFinancials does not "
+                    "carry; it returns INSUFFICIENT_DATA unless supplied"
+                ),
+                (
+                    "criterion 3 uses total_debt as a conservative proxy for "
+                    "long-term debt (stricter than the book)"
+                ),
+                (
+                    "criterion 4 counts years with dividends_paid > 0; a missing "
+                    "cash-flow statement reads as no dividend"
+                ),
+                (
+                    "written for industrials and utilities; banks and financials do "
+                    "not fit the balance-sheet criteria"
+                ),
             ],
         }
 
@@ -167,7 +203,7 @@ class GrahamMethodology(Methodology):
         return rows
 
     @staticmethod
-    def _current_price(ticker: str, prices: Any) -> Optional[float]:
+    def _current_price(ticker: str, prices: Any) -> float | None:
         getter = getattr(prices, "get_current_price", None)
         if not callable(getter):
             return None
@@ -213,7 +249,11 @@ class GrahamMethodology(Methodology):
         guessing — see README.md.
         """
         latest = self._latest(rows)
-        if latest is None or latest.current_assets is None or latest.current_liabilities is None:
+        if (
+            latest is None
+            or latest.current_assets is None
+            or latest.current_liabilities is None
+        ):
             return CriterionResult(
                 "graham.criterion_2_current_ratio",
                 None,
@@ -325,7 +365,7 @@ class GrahamMethodology(Methodology):
             f"{growth:+.0%} over the decade (3-year averages)",
         )
 
-    def _criterion_6_pe(self, rows, price: Optional[float]) -> CriterionResult:
+    def _criterion_6_pe(self, rows, price: float | None) -> CriterionResult:
         if price is None:
             return CriterionResult(
                 "graham.criterion_6_pe", None, None, _MAX_PE, "no live price available"
@@ -363,7 +403,7 @@ class GrahamMethodology(Methodology):
             f"P/E {pe:.1f} on 3-year average EPS",
         )
 
-    def _criterion_7_pbv(self, rows, price: Optional[float]) -> CriterionResult:
+    def _criterion_7_pbv(self, rows, price: float | None) -> CriterionResult:
         if price is None:
             return CriterionResult(
                 "graham.criterion_7_pbv",
@@ -423,7 +463,7 @@ class GrahamMethodology(Methodology):
     @staticmethod
     def _verdict(
         passed, failed, unknown, combined
-    ) -> tuple[Verdict, Optional[float], Confidence]:
+    ) -> tuple[Verdict, float | None, Confidence]:
         if len(unknown) > 2:
             return Verdict.INSUFFICIENT_DATA, None, Confidence.LOW
         score = round(len(passed) / len(VERDICT_CRITERIA) * 100, 2)

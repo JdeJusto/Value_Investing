@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from backend.domain.entities.financials import (
     BalanceSheet,
@@ -92,6 +92,11 @@ class NormalizedFinancials:
 
     # --- Context ---------------------------------------------------------
     shares_outstanding: int | None = None
+    #: GICS-like sector label (e.g. "Technology", "Financial Services",
+    #: "Real Estate"); supplied by the Financial-DataBase company metadata
+    #: when available, else None. Consumers must treat None as "unknown
+    #: sector", never as a specific sector.
+    sector: str | None = None
     # Multiplier that restates this row's as-reported ``shares_outstanding``
     # on today's post-split basis: the product of every stock-split ratio
     # that took effect AFTER this row's fiscal year end. A 4:1 split means a
@@ -129,7 +134,7 @@ class NormalizedFinancials:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "NormalizedFinancials":
+    def from_dict(cls, data: dict[str, Any]) -> NormalizedFinancials:
         """Rebuild an object from :meth:`to_dict` output (and JSON storage)."""
         clean: dict[str, Any] = {}
         known = {f.name for f in fields(cls)}
@@ -163,9 +168,9 @@ class RawFinancialsYear:
 
     ticker: str
     year: int
-    income: Optional[IncomeStatement] = None
-    balance: Optional[BalanceSheet] = None
-    cash_flow: Optional[CashFlowStatement] = None
+    income: IncomeStatement | None = None
+    balance: BalanceSheet | None = None
+    cash_flow: CashFlowStatement | None = None
     shares_outstanding: int | float | None = None
 
     def is_empty(self) -> bool:

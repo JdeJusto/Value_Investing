@@ -7,7 +7,7 @@ Security Analysis (1934).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from backend.methodologies.base import (
     Confidence,
@@ -15,15 +15,17 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
+from backend.methodologies.common.company_type import is_financial
+
 from .rules import ALL_RULES
 
 
 @dataclass
 class _RuleResult:
     rule_id: str
-    passed: Optional[bool]
-    value: Optional[float]
-    threshold: Optional[float]
+    passed: bool | None
+    value: float | None
+    threshold: float | None
     detail: str
 
 
@@ -56,6 +58,36 @@ class GrahamDoddMethodology(Methodology):
     ) -> MethodologyResult:
         rows = self._clean_rows(fundamentals)
         price = self._current_price(ticker, prices)
+
+        latest = self._latest(rows)
+        if latest is not None and is_financial(latest, latest.sector):
+            return MethodologyResult(
+                methodology=self.name,
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.INSUFFICIENT_DATA,
+                score=None,
+                metrics={
+                    "financial_company": True,
+                    "rule_outcomes": {},
+                    "current_price": price,
+                    "fiscal_years_analyzed": len(rows),
+                },
+                reasons=[
+                    (
+                        "Graham & Dodd deep-value criteria do not apply to "
+                        "financial companies (banks, insurers): NWC, earnings "
+                        "stability and balance-sheet strength assume a product "
+                        "company."
+                    ),
+                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=[rule.source for rule in ALL_RULES],
+                passed_rules=[],
+                failed_rules=[],
+            )
 
         results = [
             self._rule_1_nwc(rows, price),
@@ -96,42 +128,53 @@ class GrahamDoddMethodology(Methodology):
     # ------------------------------------------------------------------
     # Rules
     # ------------------------------------------------------------------
-    def _rule_1_nwc(self, rows, price: Optional[float]) -> _RuleResult:
+    def _rule_1_nwc(self, rows, price: float | None) -> _RuleResult:
         """Price < 2/3 of NWC per share."""
         latest = self._latest(rows)
         if latest is None:
-            return _RuleResult(
-                "graham_dodd.rule_1_nwc", None, None, None, "no data"
-            )
+            return _RuleResult("graham_dodd.rule_1_nwc", None, None, None, "no data")
         if price is None:
-            return _RuleResult(
-                "graham_dodd.rule_1_nwc", None, None, None, "no price"
-            )
+            return _RuleResult("graham_dodd.rule_1_nwc", None, None, None, "no price")
         if latest.current_assets is None or latest.current_liabilities is None:
             return _RuleResult(
-                "graham_dodd.rule_1_nwc", None, None, None,
+                "graham_dodd.rule_1_nwc",
+                None,
+                None,
+                None,
                 "no current assets/liabilities",
             )
         if latest.shares_outstanding is None or latest.shares_outstanding <= 0:
             return _RuleResult(
-                "graham_dodd.rule_1_nwc", None, None, None,
+                "graham_dodd.rule_1_nwc",
+                None,
+                None,
+                None,
                 "no shares outstanding",
             )
         nwc = latest.current_assets - latest.current_liabilities
         if nwc <= 0:
             return _RuleResult(
-                "graham_dodd.rule_1_nwc", None, nwc, None,
+                "graham_dodd.rule_1_nwc",
+                None,
+                nwc,
+                None,
                 "negative NWC — cannot evaluate",
             )
         nwc_per_share = nwc / latest.shares_outstanding
         threshold = self._NWC_PRICE_RATIO * nwc_per_share
         if price < threshold:
             return _RuleResult(
-                "graham_dodd.rule_1_nwc", True, price, threshold,
+                "graham_dodd.rule_1_nwc",
+                True,
+                price,
+                threshold,
                 f"price ${price:.2f} < 2/3 NWC/share ${threshold:.2f}",
             )
         return _RuleResult(
-            "graham_dodd.rule_1_nwc", False, price, threshold,
+            "graham_dodd.rule_1_nwc",
+            False,
+            price,
+            threshold,
             f"price ${price:.2f} >= 2/3 NWC/share ${threshold:.2f}",
         )
 
@@ -139,10 +182,13 @@ class GrahamDoddMethodology(Methodology):
         """Operating income / interest expense >= 1.5x in 5 of last 6 years."""
         if len(rows) < self._COVERAGE_YEARS_TOTAL:
             return _RuleResult(
-                "graham_dodd.rule_2_fixed_charge_coverage", None, None, None,
+                "graham_dodd.rule_2_fixed_charge_coverage",
+                None,
+                None,
+                None,
                 f"needs {self._COVERAGE_YEARS_TOTAL} years of data",
             )
-        recent = rows[:self._COVERAGE_YEARS_TOTAL]
+        recent = rows[: self._COVERAGE_YEARS_TOTAL]
         years_passed = 0
         years_evaluated = 0
         for r in recent:
@@ -155,18 +201,25 @@ class GrahamDoddMethodology(Methodology):
                 years_passed += 1
         if years_evaluated < self._COVERAGE_YEARS_TOTAL:
             return _RuleResult(
-                "graham_dodd.rule_2_fixed_charge_coverage", None, None, None,
+                "graham_dodd.rule_2_fixed_charge_coverage",
+                None,
+                None,
+                None,
                 f"only {years_evaluated} years with data",
             )
         if years_passed >= self._COVERAGE_YEARS_REQUIRED:
             return _RuleResult(
-                "graham_dodd.rule_2_fixed_charge_coverage", True,
-                years_passed, self._COVERAGE_YEARS_REQUIRED,
+                "graham_dodd.rule_2_fixed_charge_coverage",
+                True,
+                years_passed,
+                self._COVERAGE_YEARS_REQUIRED,
                 f"coverage >= 1.5x in {years_passed}/{self._COVERAGE_YEARS_TOTAL} years",
             )
         return _RuleResult(
-            "graham_dodd.rule_2_fixed_charge_coverage", False,
-            years_passed, self._COVERAGE_YEARS_REQUIRED,
+            "graham_dodd.rule_2_fixed_charge_coverage",
+            False,
+            years_passed,
+            self._COVERAGE_YEARS_REQUIRED,
             f"coverage >= 1.5x in only {years_passed}/{self._COVERAGE_YEARS_TOTAL} years",
         )
 
@@ -174,22 +227,29 @@ class GrahamDoddMethodology(Methodology):
         """Net income positive in at least 7 of the last 10 years."""
         if len(rows) < self._EARNINGS_YEARS_TOTAL:
             return _RuleResult(
-                "graham_dodd.rule_3_earnings_stability", None, None, None,
+                "graham_dodd.rule_3_earnings_stability",
+                None,
+                None,
+                None,
                 f"needs {self._EARNINGS_YEARS_TOTAL} years of data",
             )
-        recent = rows[:self._EARNINGS_YEARS_TOTAL]
+        recent = rows[: self._EARNINGS_YEARS_TOTAL]
         years_positive = sum(
             1 for r in recent if r.net_income is not None and r.net_income > 0
         )
         if years_positive >= self._EARNINGS_YEARS_REQUIRED:
             return _RuleResult(
-                "graham_dodd.rule_3_earnings_stability", True,
-                years_positive, self._EARNINGS_YEARS_REQUIRED,
+                "graham_dodd.rule_3_earnings_stability",
+                True,
+                years_positive,
+                self._EARNINGS_YEARS_REQUIRED,
                 f"positive earnings in {years_positive}/{self._EARNINGS_YEARS_TOTAL} years",
             )
         return _RuleResult(
-            "graham_dodd.rule_3_earnings_stability", False,
-            years_positive, self._EARNINGS_YEARS_REQUIRED,
+            "graham_dodd.rule_3_earnings_stability",
+            False,
+            years_positive,
+            self._EARNINGS_YEARS_REQUIRED,
             f"positive earnings in only {years_positive}/{self._EARNINGS_YEARS_TOTAL} years",
         )
 
@@ -198,50 +258,71 @@ class GrahamDoddMethodology(Methodology):
         latest = self._latest(rows)
         if latest is None:
             return _RuleResult(
-                "graham_dodd.rule_4_balance_sheet_strength", None, None, None,
+                "graham_dodd.rule_4_balance_sheet_strength",
+                None,
+                None,
+                None,
                 "no data",
             )
         if latest.total_liabilities is None or latest.total_assets is None:
             return _RuleResult(
-                "graham_dodd.rule_4_balance_sheet_strength", None, None, None,
+                "graham_dodd.rule_4_balance_sheet_strength",
+                None,
+                None,
+                None,
                 "no liabilities/assets data",
             )
         if latest.total_assets <= 0:
             return _RuleResult(
-                "graham_dodd.rule_4_balance_sheet_strength", None, None, None,
+                "graham_dodd.rule_4_balance_sheet_strength",
+                None,
+                None,
+                None,
                 "non-positive assets",
             )
         ratio = latest.total_liabilities / latest.total_assets
         if ratio <= self._LIABILITIES_TO_ASSETS_MAX:
             return _RuleResult(
-                "graham_dodd.rule_4_balance_sheet_strength", True,
-                ratio, self._LIABILITIES_TO_ASSETS_MAX,
+                "graham_dodd.rule_4_balance_sheet_strength",
+                True,
+                ratio,
+                self._LIABILITIES_TO_ASSETS_MAX,
                 f"liabilities/assets {ratio:.2f} <= {self._LIABILITIES_TO_ASSETS_MAX}",
             )
         return _RuleResult(
-            "graham_dodd.rule_4_balance_sheet_strength", False,
-            ratio, self._LIABILITIES_TO_ASSETS_MAX,
+            "graham_dodd.rule_4_balance_sheet_strength",
+            False,
+            ratio,
+            self._LIABILITIES_TO_ASSETS_MAX,
             f"liabilities/assets {ratio:.2f} > {self._LIABILITIES_TO_ASSETS_MAX}",
         )
 
     def _rule_5_margin_of_safety(self, results, verdict) -> _RuleResult:
         """Qualitative margin of safety — does NOT contribute to score."""
         r1 = results[0]
-        n_passed = sum(1 for r in results if r.passed is True)
         n_failed = sum(1 for r in results if r.passed is False)
 
         if r1.passed:
             return _RuleResult(
-                "graham_dodd.rule_5_margin_of_safety", True, None, None,
+                "graham_dodd.rule_5_margin_of_safety",
+                True,
+                None,
+                None,
                 "PASS: NWC test suggests deep discount",
             )
         if n_failed >= 3:
             return _RuleResult(
-                "graham_dodd.rule_5_margin_of_safety", False, None, None,
+                "graham_dodd.rule_5_margin_of_safety",
+                False,
+                None,
+                None,
                 "FAIL: multiple quantitative rules fail",
             )
         return _RuleResult(
-            "graham_dodd.rule_5_margin_of_safety", None, None, None,
+            "graham_dodd.rule_5_margin_of_safety",
+            None,
+            None,
+            None,
             "WATCH: NWC test fails but company is otherwise strong",
         )
 
@@ -257,10 +338,22 @@ class GrahamDoddMethodology(Methodology):
             return Verdict.INSUFFICIENT_DATA
 
         # Check specific conditions
-        r1_pass = any(r.rule_id == "graham_dodd.rule_1_nwc" and r.passed for r in passed)
-        r2_pass = any(r.rule_id == "graham_dodd.rule_2_fixed_charge_coverage" and r.passed for r in passed)
-        r3_pass = any(r.rule_id == "graham_dodd.rule_3_earnings_stability" and r.passed for r in passed)
-        r4_fail = any(r.rule_id == "graham_dodd.rule_4_balance_sheet_strength" and r.passed is False for r in failed)
+        r1_pass = any(
+            r.rule_id == "graham_dodd.rule_1_nwc" and r.passed for r in passed
+        )
+        r2_pass = any(
+            r.rule_id == "graham_dodd.rule_2_fixed_charge_coverage" and r.passed
+            for r in passed
+        )
+        r3_pass = any(
+            r.rule_id == "graham_dodd.rule_3_earnings_stability" and r.passed
+            for r in passed
+        )
+        r4_fail = any(
+            r.rule_id == "graham_dodd.rule_4_balance_sheet_strength"
+            and r.passed is False
+            for r in failed
+        )
 
         if r4_fail:
             return Verdict.AVOID
@@ -278,7 +371,7 @@ class GrahamDoddMethodology(Methodology):
 
         return Verdict.AVOID
 
-    def _score(self, passed, failed, unknown) -> Optional[float]:
+    def _score(self, passed, failed, unknown) -> float | None:
         """Score = (quantitative_passed / 4) * 100."""
         if len(unknown) > 2:
             return None
@@ -330,12 +423,12 @@ class GrahamDoddMethodology(Methodology):
         return sorted(rows, key=lambda r: r.fiscal_year, reverse=True)
 
     @staticmethod
-    def _latest(rows) -> Optional[Any]:
+    def _latest(rows) -> Any | None:
         """Return the most recent row."""
         return rows[0] if rows else None
 
     @staticmethod
-    def _current_price(ticker: str, prices: Any) -> Optional[float]:
+    def _current_price(ticker: str, prices: Any) -> float | None:
         """Get current price from the price service."""
         if prices is None:
             return None
@@ -344,7 +437,7 @@ class GrahamDoddMethodology(Methodology):
             return None
         try:
             return getter(ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001 — no price is not an error
             return None
 
     # ------------------------------------------------------------------

@@ -22,10 +22,10 @@ import pytest
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import Confidence, Verdict
 from backend.methodologies.graham.methodology import (
-    GrahamMethodology,
+    _MAX_PBV,
     _MAX_PE,
     _MAX_PE_PBV_PRODUCT,
-    _MAX_PBV,
+    GrahamMethodology,
 )
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -455,3 +455,50 @@ def test_pe_and_pbv_are_insufficient_without_a_share_count():
     assert result.metrics["criterion_7_pbv"] is None
     assert "graham.criterion_6_pe" not in result.passed_rules
     assert "graham.criterion_6_pe" not in result.failed_rules
+
+
+# ---------------------------------------------------------------------------
+# financial companies (banks/insurers are out of scope for the defensive
+# screen; the shared company-type detector guards before any criterion runs)
+# ---------------------------------------------------------------------------
+def test_financial_company_insufficient():
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "T",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 50e9,
+                "net_income": 10e9,
+                "long_term_debt": 200e9,
+                "total_assets": 500e9,
+                "total_liabilities": 470e9,
+            }
+        )
+    ]
+    result = GrahamMethodology().evaluate("T", rows, _Prices(100.0))
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
+    assert result.confidence == Confidence.HIGH
+    assert result.metrics["financial_company"] is True
+    assert result.passed_rules == []
+    assert result.failed_rules == []
+    assert any("financial" in r.lower() for r in result.reasons)
+
+
+def test_financial_company_sector_hint_insufficient():
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "T",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 50e9,
+                "net_income": 10e9,
+                "sector": "Financial Services",
+            }
+        )
+    ]
+    result = GrahamMethodology().evaluate("T", rows, _Prices(100.0))
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.metrics["financial_company"] is True
