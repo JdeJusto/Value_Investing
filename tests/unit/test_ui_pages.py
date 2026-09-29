@@ -171,6 +171,7 @@ def test_apply_numeric_filters():
     ]
     assert [r["ticker"] for r in apply_numeric_filters(rows)] == ["A", "B", "C"]
     assert [r["ticker"] for r in apply_numeric_filters(rows, mcap_min=10.0)] == ["B"]
+    assert [r["ticker"] for r in apply_numeric_filters(rows, mcap_max=10.0)] == ["A"]
     assert [r["ticker"] for r in apply_numeric_filters(rows, pe_max=20.0)] == ["A"]
     assert [r["ticker"] for r in apply_numeric_filters(rows, roe_min=0.10)] == ["A"]
     assert [r["ticker"] for r in apply_numeric_filters(rows, fcf_min=0.02)] == ["A"]

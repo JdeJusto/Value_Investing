@@ -1,9 +1,16 @@
-"""Screener — interactive filters over the master universe.
+"""Screener — filters over the master universe with an explicit Run button.
 
-Nothing runs on page load: the user clicks "Run screener". The heavy lifting
-is the existing StockScreenerService (analytics + prices); the methodology
-verdict and Lynch category columns come from the ui_adapter evaluation of the
-displayed rows only (capped), never the whole universe.
+Flow (SQL-first where it is cheap):
+
+1. Pre-filters before any screening: universe (config/universe.csv) and
+   sector (one bulk query to Financial-DataBase).
+2. The candidate set is capped by "Max tickers"; if verdict/category filters
+   are active and the candidate set was larger, a warning says so.
+3. The existing StockScreenerService screens the capped set (analytics +
+   prices), then the numeric filters (market cap range, P/E, ROE, FCF yield)
+   are applied.
+4. Verdict and Lynch category are enriched for every screened row (the cap
+   already bounds the work) and the categorical filters applied last.
 """
 
 from __future__ import annotations
@@ -28,7 +35,12 @@ from ui._shared import (
     metric_row,
     page_header,
 )
-from ui.services import get_screener_service, load_fundamentals, load_sector_map
+from ui.services import (
+    get_screener_service,
+    load_fundamentals,
+    load_sector_map_bulk,
+    load_sector_options,
+)
 
 DEFAULT_METHODOLOGY = "buffett_classic"
 VERDICTS = ["BUY", "WATCH", "HOLD", "AVOID", "INSUFFICIENT_DATA"]
@@ -41,8 +53,8 @@ CATEGORIES = [
     "ASSET_PLAY",
     "UNKNOWN",
 ]
-ENRICH_CAP = 300
 DISPLAY_CAP = 200
+SECONDS_PER_TICKER = 0.6
 
 
 def main() -> None:
@@ -66,8 +78,14 @@ def _filter_panel() -> dict:
                 ["SP500", "NASDAQ100", "Russell2000", "All"],
                 default=["SP500"],
             )
+            sectors = st.multiselect("Sector", load_sector_options())
             max_tickers = st.number_input(
-                "Max tickers", min_value=50, max_value=2000, value=300, step=50
+                "Max tickers",
+                min_value=50,
+                max_value=1000,
+                value=300,
+                step=50,
+                help="Cap on the candidate set after the SQL pre-filters.",
             )
             methodology = st.selectbox(
                 "Methodology",
@@ -76,20 +94,30 @@ def _filter_panel() -> dict:
             )
         with col2:
             mcap_min = st.number_input("Market cap min ($B)", min_value=0.0, value=0.0)
+            mcap_max = st.number_input(
+                "Market cap max ($B, 0 = off)", min_value=0.0, value=0.0
+            )
             pe_max = st.number_input("P/E max (0 = off)", min_value=0.0, value=0.0)
-            fcf_min = st.slider("FCF yield min (%)", 0.0, 20.0, 0.0, 0.5)
         with col3:
             roe_min = st.slider("ROE min (%)", 0.0, 50.0, 0.0, 1.0)
+            fcf_min = st.slider("FCF yield min (%)", 0.0, 20.0, 0.0, 0.5)
             verdicts = st.multiselect("Verdict", VERDICTS)
             categories = st.multiselect("Lynch category", CATEGORIES)
+        st.caption(
+            f"Rendimiento estimado: ~{SECONDS_PER_TICKER} s/ticker → "
+            f"~{int(SECONDS_PER_TICKER * max_tickers / 60)} min para "
+            f"{int(max_tickers)} tickers."
+        )
     return {
         "universes": universes,
+        "sectors": sectors,
         "max_tickers": int(max_tickers),
         "methodology": methodology,
         "mcap_min": mcap_min,
+        "mcap_max": mcap_max,
         "pe_max": pe_max,
-        "fcf_min": fcf_min / 100.0,
         "roe_min": roe_min / 100.0,
+        "fcf_min": fcf_min / 100.0,
         "verdicts": verdicts,
         "categories": categories,
     }
@@ -108,10 +136,32 @@ def _default_methodology_index() -> int:
 
 
 def _run(filters: dict) -> None:
-    tickers = _universe_tickers(tuple(filters["universes"]))[: filters["max_tickers"]]
+    tickers = _universe_tickers(tuple(filters["universes"]))
     if not tickers:
         st.warning("El universo seleccionado está vacío (¿config/universe.csv?).")
         return
+
+    sectors: dict[str, str | None] = {}
+    if filters["sectors"]:
+        sectors = load_sector_map_bulk(tuple(tickers))
+        tickers = [
+            ticker for ticker in tickers if sectors.get(ticker) in filters["sectors"]
+        ]
+
+    candidates = len(tickers)
+    if (filters["verdicts"] or filters["categories"]) and candidates > filters[
+        "max_tickers"
+    ]:
+        st.warning(
+            "El filtro de verdict/categoría se aplica solo a los primeros "
+            f"{filters['max_tickers']} tickers tras los filtros SQL "
+            f"({candidates} candidatos). Aumenta 'Max tickers' para cubrir más."
+        )
+    tickers = tickers[: filters["max_tickers"]]
+    if not tickers:
+        st.warning("Ningún ticker pasa los filtros de universo/sector.")
+        return
+
     progress = st.progress(0.0, text=f"Screening {len(tickers)} tickers...")
 
     def callback(current, total, ticker):
@@ -122,15 +172,23 @@ def _run(filters: dict) -> None:
 
     rows = _screen_cached(tuple(tickers), callback)
     progress.progress(1.0, text=f"Completado: {len(rows)} filas")
-    rows = _apply_numeric_filters(rows, filters)
-    rows = _enrich(rows[:ENRICH_CAP], filters["methodology"])
+    rows = apply_numeric_filters(
+        rows,
+        mcap_min=filters["mcap_min"],
+        mcap_max=filters["mcap_max"],
+        pe_max=filters["pe_max"],
+        roe_min=filters["roe_min"],
+        fcf_min=filters["fcf_min"],
+    )
+    rows = _enrich(rows, filters["methodology"], sectors)
     if filters["verdicts"]:
         rows = [row for row in rows if row["Verdict"] in filters["verdicts"]]
     if filters["categories"]:
         rows = [row for row in rows if row["Category"] in filters["categories"]]
     st.session_state["sc_rows"] = rows
     st.session_state["sc_meta"] = {
-        "universe": len(tickers),
+        "candidates": candidates,
+        "screened": len(tickers),
         "methodology": filters["methodology"],
     }
 
@@ -170,19 +228,10 @@ def _universe_tickers(universes: tuple[str, ...]) -> list[str]:
     return parse_universe_tickers(UNIVERSE_PATH.read_text(encoding="utf-8"), universes)
 
 
-def _apply_numeric_filters(rows: list[dict], filters: dict) -> list[dict]:
-    return apply_numeric_filters(
-        rows,
-        mcap_min=filters["mcap_min"],
-        pe_max=filters["pe_max"],
-        roe_min=filters["roe_min"],
-        fcf_min=filters["fcf_min"],
-    )
-
-
-def _enrich(rows: list[dict], methodology: str) -> list[dict]:
+def _enrich(rows: list[dict], methodology: str, sectors: dict) -> list[dict]:
     tickers = [row["ticker"] for row in rows]
-    sectors = load_sector_map(tuple(tickers)) if tickers else {}
+    if not sectors:
+        sectors = load_sector_map_bulk(tuple(tickers)) if tickers else {}
     enriched = []
     for row in rows:
         ticker = row["ticker"]
@@ -218,7 +267,8 @@ def _results() -> None:
     rows = st.session_state["sc_rows"]
     meta = st.session_state.get("sc_meta", {})
     st.caption(
-        f"Universo: {meta.get('universe')} tickers · metodología: "
+        f"Candidatos tras filtros SQL: {meta.get('candidates')} · "
+        f"screened: {meta.get('screened')} · metodología: "
         f"{meta.get('methodology')} · filas: {len(rows)}"
     )
     if not rows:

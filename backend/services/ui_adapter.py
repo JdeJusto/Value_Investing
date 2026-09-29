@@ -595,6 +595,7 @@ def apply_numeric_filters(
     rows: list[dict[str, Any]],
     *,
     mcap_min: float = 0.0,
+    mcap_max: float = 0.0,
     pe_max: float = 0.0,
     roe_min: float = 0.0,
     fcf_min: float = 0.0,
@@ -611,6 +612,8 @@ def apply_numeric_filters(
         roe = row.get("roe")
         fcf = row.get("fcf_yield")
         if mcap_min and (mcap is None or mcap < mcap_min * 1e9):
+            return False
+        if mcap_max and (mcap is None or mcap > mcap_max * 1e9):
             return False
         if pe_max and (per is None or per > pe_max):
             return False

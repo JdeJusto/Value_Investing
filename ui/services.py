@@ -92,3 +92,53 @@ def load_sector_map(tickers: tuple[str, ...]) -> dict:
             rows = []
         sectors[ticker] = rows[0].sector if rows else None
     return sectors
+
+
+def _fdb_url() -> str:
+    import os
+
+    return os.environ.get(
+        "FINANCIAL_DATABASE_URL",
+        "postgresql://financial:test@localhost:5432/financial_database",
+    )
+
+
+@st.cache_data(ttl=3600)
+def load_sector_options() -> list[str]:
+    """Distinct sectors in Financial-DataBase (screener filter options)."""
+    import psycopg2
+
+    try:
+        with psycopg2.connect(_fdb_url()) as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT sector FROM companies "
+                "WHERE sector IS NOT NULL ORDER BY sector"
+            )
+            return [row[0] for row in cur.fetchall()]
+    except Exception:  # noqa: BLE001 — DB down: no sector options, not a crash
+        return []
+
+
+@st.cache_data(ttl=3600)
+def load_sector_map_bulk(tickers: tuple[str, ...]) -> dict[str, str | None]:
+    """Sector per ticker in ONE query (screener pre-filter)."""
+    if not tickers:
+        return {}
+    import psycopg2
+
+    found: dict[str, str | None] = {}
+    try:
+        with psycopg2.connect(_fdb_url()) as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT cl.ticker, c.sector
+                FROM company_listings cl
+                JOIN companies c ON c.id = cl.company_id
+                WHERE UPPER(cl.ticker) = ANY(%s) AND cl.is_active
+                """,
+                ([ticker.upper() for ticker in tickers],),
+            )
+            found = {row[0].upper(): row[1] for row in cur.fetchall()}
+    except Exception:  # noqa: BLE001 — DB down: no sectors, filtering degrades
+        found = {}
+    return {ticker.upper(): found.get(ticker.upper()) for ticker in tickers}
