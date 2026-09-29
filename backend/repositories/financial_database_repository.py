@@ -1356,13 +1356,42 @@ class FinancialDatabaseRepository(FinancialRepository):
         # and we don't have multiple sources, so we return the same as list_years.
         return self.list_years(ticker)
 
+    # Core fields any usable fiscal year must populate. A reconstructed row
+    # whose bucket picked up only stray non-income facts (e.g. an in-progress
+    # year fed by an 8-K — NetFeeAmt/TtlFeeAmt/...) carries none of them and
+    # is not a usable year: it must never be served as the latest available.
+    _EMPTY_ROW_FIELDS = (
+        "revenue",
+        "net_income",
+        "total_assets",
+        "shares_outstanding",
+    )
+
+    @staticmethod
+    def _row_is_empty(row: NormalizedFinancials) -> bool:
+        """True when a row has none of the core fields any analysis needs.
+
+        A fiscal_year bucket rebuilt from stray facts only (see
+        ``_EMPTY_ROW_FIELDS``) is all-empty for every methodology and must be
+        skipped instead of anchoring the "latest year" read.
+        """
+        return all(
+            getattr(row, field) is None
+            for field in FinancialDatabaseRepository._EMPTY_ROW_FIELDS
+        )
+
     def get_best_available(self, ticker: str) -> List[NormalizedFinancials]:
         """Return the most consistent usable history for a ticker.
 
         For Financial-DataBase, we assume SEC EDGAR data is consistently
-        high quality, so we just return all available years.
+        high quality, so we return all available years — except all-empty
+        ones (``_row_is_empty``). An all-empty row is an in-progress
+        fiscal-year bucket that only picked up stray non-income facts; no
+        analysis must read it as the latest year. Returns [] when no usable
+        row exists.
         """
-        return self.list_all(ticker)
+        rows = self.list_all(ticker)
+        return [row for row in rows if not self._row_is_empty(row)]
 
     def has_data(self, ticker: str) -> bool:
         """True if at least one record exists for the ticker."""
