@@ -113,9 +113,12 @@ def max_yoy_decline(rows: list[NormalizedFinancials]) -> float | None:
     ordered = ordered_asc(rows)
     declines: list[float] = []
     for prev, curr in zip(ordered, ordered[1:]):
-        if prev.net_income is not None and curr.net_income is not None:
-            if prev.net_income != 0:
-                declines.append((curr.net_income - prev.net_income) / prev.net_income)
+        if (
+            prev.net_income is not None
+            and curr.net_income is not None
+            and prev.net_income != 0
+        ):
+            declines.append((curr.net_income - prev.net_income) / prev.net_income)
     return min(declines) if declines else None
 
 

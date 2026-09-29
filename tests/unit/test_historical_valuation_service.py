@@ -24,9 +24,11 @@ class TestHistoricalValuationService:
     @pytest.fixture
     def service(self):
         """Create a HistoricalValuationService with mocked deps."""
-        with patch("backend.services.historical_valuation_service.FinancialDatabaseRepository"):
-            with patch("backend.services.historical_valuation_service.PriceService"):
-                return HistoricalValuationService()
+        with (
+            patch("backend.services.historical_valuation_service.FinancialDatabaseRepository"),
+            patch("backend.services.historical_valuation_service.PriceService"),
+        ):
+            return HistoricalValuationService()
 
     @pytest.fixture
     def mock_repo(self):
@@ -59,9 +61,11 @@ class TestHistoricalValuationService:
         mock_repo.get_fiscal_year_end_date.return_value = None
         mock_prices.get_price_at_fiscal_year_end.side_effect = [192.53, 129.93]
 
-        with patch.object(service, '_repository', mock_repo):
-            with patch.object(service, '_price_service', mock_prices):
-                result = service.get_historical_valuation_summary('AAPL')
+        with (
+            patch.object(service, '_repository', mock_repo),
+            patch.object(service, '_price_service', mock_prices),
+        ):
+            result = service.get_historical_valuation_summary('AAPL')
 
         assert len(result) == 2
         assert result[0]['fiscal_year'] == 2023
@@ -89,9 +93,11 @@ class TestHistoricalValuationService:
         mock_repo.get_shares_outstanding.return_value = 15_744_231_000
         mock_prices.get_price_at_fiscal_year_end.return_value = None
 
-        with patch.object(service, '_repository', mock_repo):
-            with patch.object(service, '_price_service', mock_prices):
-                result = service.get_historical_valuation_summary('AAPL')
+        with (
+            patch.object(service, '_repository', mock_repo),
+            patch.object(service, '_price_service', mock_prices),
+        ):
+            result = service.get_historical_valuation_summary('AAPL')
 
         assert len(result) == 1
         assert result[0]['price'] is None
@@ -121,9 +127,11 @@ class TestHistoricalValuationService:
         # Simulate a 4:1 split happening after the fiscal year end.
         mock_prices.get_split_adjustment.return_value = 4.0
 
-        with patch.object(service, '_repository', mock_repo):
-            with patch.object(service, '_price_service', mock_prices):
-                result = service.get_historical_valuation_summary('AAPL')
+        with (
+            patch.object(service, '_repository', mock_repo),
+            patch.object(service, '_price_service', mock_prices),
+        ):
+            result = service.get_historical_valuation_summary('AAPL')
 
         adjusted_shares = 15_744_231_000 * 4.0
         assert result[0]['split_adjustment'] == 4.0
@@ -143,10 +151,12 @@ class TestHistoricalValuationService:
         mock_repo.get_fiscal_year_end_date.return_value = None
         mock_prices.get_price_at_fiscal_year_end.return_value = 192.53
 
-        with patch.object(service, '_repository', mock_repo):
-            with patch.object(service, '_price_service', mock_prices):
-                pe_ratios = service.get_historical_pe_ratios('AAPL')
-                fcf_yields = service.get_historical_fcf_yields('AAPL')
+        with (
+            patch.object(service, '_repository', mock_repo),
+            patch.object(service, '_price_service', mock_prices),
+        ):
+            pe_ratios = service.get_historical_pe_ratios('AAPL')
+            fcf_yields = service.get_historical_fcf_yields('AAPL')
 
         assert 'pe_ratio' in pe_ratios[0]
         assert pe_ratios[0]['pe_ratio'] is not None
@@ -166,9 +176,11 @@ class TestHistoricalValuationService:
         mock_repo.get_fiscal_year_end_date.return_value = None
         mock_prices.get_price_at_fiscal_year_end.side_effect = [192.53, None]
 
-        with patch.object(service, '_repository', mock_repo):
-            with patch.object(service, '_price_service', mock_prices):
-                table_output = service.format_valuation_table('AAPL')
+        with (
+            patch.object(service, '_repository', mock_repo),
+            patch.object(service, '_price_service', mock_prices),
+        ):
+            table_output = service.format_valuation_table('AAPL')
 
         assert '2023' in table_output
         assert '2022' in table_output

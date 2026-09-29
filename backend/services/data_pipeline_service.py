@@ -137,11 +137,14 @@ class DataPipelineService(DataLoader):
         last_error: str | None = None
         best: tuple[list[NormalizedFinancials], type] | None = None
         for index, provider in enumerate(providers):
-            if index > 0 and best is not None:
-                # The primary delivered enough usable years; the fallback
-                # would only add network cost without improving coverage.
-                if _usable_count(best[0]) >= history_years:
-                    break
+            # The primary delivered enough usable years; the fallback
+            # would only add network cost without improving coverage.
+            if (
+                index > 0
+                and best is not None
+                and _usable_count(best[0]) >= history_years
+            ):
+                break
             try:
                 raw_years = self._fetch_history(provider, ticker, history_years)
                 if not raw_years:

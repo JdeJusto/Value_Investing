@@ -45,28 +45,35 @@ class TestSqlAnalysisService:
 
     def test_get_available_scripts_empty_directory(self, service_with_mock_repo):
         """Test getting available scripts when directory is empty."""
-        with patch('os.path.exists', return_value=True):
-            with patch('os.listdir', return_value=[]):
-                scripts = service_with_mock_repo.get_available_scripts()
-                assert scripts == []
+        with (
+            patch('os.path.exists', return_value=True),
+            patch('os.listdir', return_value=[]),
+        ):
+            scripts = service_with_mock_repo.get_available_scripts()
+            assert scripts == []
 
     def test_get_available_scripts_with_files(self, service_with_mock_repo):
         """Test getting available scripts with SQL files."""
-        with patch('os.path.exists', return_value=True):
-            with patch('os.listdir', return_value=['company_overview.sql', 'ratios.sql', 'README.md']):
-                with patch('builtins.open') as mock_open:
-                    mock_open.return_value.__enter__.return_value.read.side_effect = [
-                        "-- Description: Company overview\nSELECT 1",
-                        "-- Description: Financial ratios\nSELECT 2",
-                        "Not a SQL file"
-                    ]
-                    with patch('os.path.join', side_effect=lambda *args: '/'.join(args)):
-                        scripts = service_with_mock_repo.get_available_scripts()
-                        assert len(scripts) == 2
-                        assert scripts[0]['name'] == 'company_overview'
-                        assert scripts[0]['description'] == 'Description: Company overview'
-                        assert scripts[1]['name'] == 'ratios'
-                        assert scripts[1]['description'] == 'Description: Financial ratios'
+        with (
+            patch('os.path.exists', return_value=True),
+            patch(
+                'os.listdir',
+                return_value=['company_overview.sql', 'ratios.sql', 'README.md'],
+            ),
+            patch('builtins.open') as mock_open,
+            patch('os.path.join', side_effect=lambda *args: '/'.join(args)),
+        ):
+            mock_open.return_value.__enter__.return_value.read.side_effect = [
+                "-- Description: Company overview\nSELECT 1",
+                "-- Description: Financial ratios\nSELECT 2",
+                "Not a SQL file",
+            ]
+            scripts = service_with_mock_repo.get_available_scripts()
+            assert len(scripts) == 2
+            assert scripts[0]['name'] == 'company_overview'
+            assert scripts[0]['description'] == 'Description: Company overview'
+            assert scripts[1]['name'] == 'ratios'
+            assert scripts[1]['description'] == 'Description: Financial ratios'
 
     def test_extract_description(self, service_with_mock_repo):
         """Test extracting description from SQL content."""
@@ -99,12 +106,14 @@ class TestSqlAnalysisService:
 
     def test_execute_script_empty_file(self, service_with_mock_repo):
         """Test executing an empty script file."""
-        with patch('os.path.exists', return_value=True):
-            with patch('builtins.open') as mock_open:
-                mock_open.return_value.__enter__.return_value.read.return_value = ""
-                result = service_with_mock_repo.execute_script("empty")
-                assert result.success == False
-                assert "empty" in result.error_message
+        with (
+            patch('os.path.exists', return_value=True),
+            patch('builtins.open') as mock_open,
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = ""
+            result = service_with_mock_repo.execute_script("empty")
+            assert result.success == False
+            assert "empty" in result.error_message
 
     def test_get_company_overview_not_found(self, service_with_mock_repo):
         """Test company overview when ticker not found."""
@@ -180,21 +189,23 @@ class TestSqlAnalysisService:
         service_with_mock_repo._scripts_dir = "/fake/scripts"
         script_content = "SELECT unnest(:ciks::text[]) as cik"
 
-        with patch('os.path.exists', return_value=True):
-            with patch('builtins.open') as mock_open:
-                mock_open.return_value.__enter__.return_value.read.return_value = script_content
-                # Mock the DB pieces used by execute_script.
-                conn = MagicMock()
-                cur = MagicMock()
-                cur.description = [["cik"]]
-                cur.fetchall.return_value = [("0000320193",)]
-                cur.__enter__.return_value = cur
-                conn.cursor.return_value = cur
-                service_with_mock_repo._repository._get_connection.return_value = conn
+        with (
+            patch('os.path.exists', return_value=True),
+            patch('builtins.open') as mock_open,
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = script_content
+            # Mock the DB pieces used by execute_script.
+            conn = MagicMock()
+            cur = MagicMock()
+            cur.description = [["cik"]]
+            cur.fetchall.return_value = [("0000320193",)]
+            cur.__enter__.return_value = cur
+            conn.cursor.return_value = cur
+            service_with_mock_repo._repository._get_connection.return_value = conn
 
-                result = service_with_mock_repo.execute_script(
-                    "compare", {"ciks": ["0000320193", "0000789019"]}
-                )
+            result = service_with_mock_repo.execute_script(
+                "compare", {"ciks": ["0000320193", "0000789019"]}
+            )
 
         assert result.success is True
         assert result.script_name == "compare_companies"

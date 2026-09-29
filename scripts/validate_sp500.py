@@ -714,10 +714,11 @@ def main() -> None:
     ext_out = DATA_DIR / "validation_external_200.csv"
     disc = DATA_DIR / "validation_discrepancies_200.csv"
 
-    if args.step in ("constituents", "all"):
-        if not const.exists() or args.step == "constituents":
-            print(f"[{_now()}] constituents")
-            build_constituents(const, args.verbose)
+    if args.step in ("constituents", "all") and (
+        not const.exists() or args.step == "constituents"
+    ):
+        print(f"[{_now()}] constituents")
+        build_constituents(const, args.verbose)
     if args.step in ("sample", "all"):
         print(f"[{_now()}] sample")
         build_sample(sample, args.seed, args.limit)

@@ -143,10 +143,14 @@ def special_situations(item: dict) -> dict | None:
 
     price = item.get("current_price")
     book_value = _quality(item, "book_value_per_share")
-    if price and book_value and book_value > 0:
-        if price / book_value <= SPECIAL_MAX_PRICE_BOOK:
-            found = True
-            reasons.append(f"price {price / book_value:.0%} of book value per share")
+    if (
+        price
+        and book_value
+        and book_value > 0
+        and price / book_value <= SPECIAL_MAX_PRICE_BOOK
+    ):
+        found = True
+        reasons.append(f"price {price / book_value:.0%} of book value per share")
 
     income_change = _quality(item, "net_income_change")
     if (
