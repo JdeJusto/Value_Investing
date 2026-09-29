@@ -42,3 +42,17 @@ refresh_workers: 2
 # sleeping for a failure that was never transient. Set to 0 to disable the
 # abort and keep retrying every ticker.
 price_abort_after_consecutive_non_transient: 3
+
+# Supplementary "not-from-canon" DCF sections (backend/valuation/).
+#
+# The DCF module is deliberately NOT part of any book methodology: it never
+# appears in compare-methodologies, methodologies list, a composite score or
+# a ranking. These toggles only control where its *supplementary* sections
+# show up so it can be disabled without a code change.
+#
+# Environment overrides: DCF_IN_ANALYZE_FULL, DCF_IN_DAILY_REPORT,
+# DCF_DAILY_REPORT_TOP_N.
+dcf:
+  in_analyze_full: true
+  in_daily_report: true
+  daily_report_top_n: 10

@@ -426,6 +426,84 @@ def load_refresh_config(path: Optional[str] = None) -> RefreshConfig:
     return config
 
 
+@dataclass
+class DCFConfig:
+    """Toggles for the supplementary ``not-from-canon`` DCF sections.
+
+    The DCF module (``backend/valuation/``) sits outside the five book
+    methodologies by design; these flags only control where its supplementary
+    sections appear (analyze-full, daily report) — never any scoring.
+    """
+
+    in_analyze_full: bool = True
+    in_daily_report: bool = True
+    daily_report_top_n: int = 10
+
+
+def load_dcf_config(path: str | None = None) -> DCFConfig:
+    """Load the ``dcf:`` block of config/refresh.yaml (optional overlay).
+
+    Parsed with the same dependency-free line parser as refresh.yaml: the
+    file is optional and missing keys fall back to the defaults. Environment
+    overrides: ``DCF_IN_ANALYZE_FULL``, ``DCF_IN_DAILY_REPORT`` and
+    ``DCF_DAILY_REPORT_TOP_N``.
+    """
+    config = DCFConfig()
+    if path is None:
+        base = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "config",
+        )
+        path = os.path.join(base, "refresh.yaml")
+        if not os.path.exists(path):
+            path = os.path.join(base, "refresh.yml")
+    if path and os.path.exists(path):
+        in_dcf = False
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                raw_line = line.rstrip("\n")
+                stripped = raw_line.strip()
+                if stripped == "dcf:":
+                    in_dcf = True
+                    continue
+                if in_dcf and stripped and not raw_line[:1].isspace():
+                    # A sibling top-level key ends the dcf block.
+                    in_dcf = False
+                if not in_dcf:
+                    continue
+                body = stripped.split("#", 1)[0].strip()
+                if not body or ":" not in body:
+                    continue
+                key, _, value = body.partition(":")
+                key, value = key.strip().lower(), value.strip()
+                if key == "in_analyze_full":
+                    config.in_analyze_full = value.lower() in ("true", "1", "yes")
+                elif key == "in_daily_report":
+                    config.in_daily_report = value.lower() in ("true", "1", "yes")
+                elif key == "daily_report_top_n":
+                    try:
+                        config.daily_report_top_n = max(1, int(value))
+                    except ValueError:
+                        pass
+    env = os.environ
+    if env.get("DCF_IN_ANALYZE_FULL", "").strip():
+        config.in_analyze_full = (
+            env["DCF_IN_ANALYZE_FULL"].strip().lower() in ("true", "1", "yes")
+        )
+    if env.get("DCF_IN_DAILY_REPORT", "").strip():
+        config.in_daily_report = (
+            env["DCF_IN_DAILY_REPORT"].strip().lower() in ("true", "1", "yes")
+        )
+    if env.get("DCF_DAILY_REPORT_TOP_N", "").strip():
+        try:
+            config.daily_report_top_n = max(
+                1, int(env["DCF_DAILY_REPORT_TOP_N"].strip())
+            )
+        except ValueError:
+            pass
+    return config
+
+
 class RefreshService:
     """Ensure analyzed tickers are fresh and return their current prices."""
 
