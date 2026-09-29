@@ -69,7 +69,7 @@ def load_state(path: str) -> dict:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
             return data if isinstance(data, dict) else {}
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except FileNotFoundError, json.JSONDecodeError, OSError:
         return {}
 
 
@@ -129,11 +129,15 @@ def build_markdown(report: DailyReport) -> str:
     lines.append(report.sec_update)
     lines.append("")
 
-    lines.append(f"Universe screened: **{report.universe_size}** companies "
-                 f"| prices: **{report.prices_mode}**")
+    lines.append(
+        f"Universe screened: **{report.universe_size}** companies "
+        f"| prices: **{report.prices_mode}**"
+    )
     lines.append("")
-    lines.append(f"Screened results that passed: **{report.screened_count}**"
-                 f" | coverage: **{_coverage_pct(report)}**")
+    lines.append(
+        f"Screened results that passed: **{report.screened_count}**"
+        f" | coverage: **{_coverage_pct(report)}**"
+    )
     lines.append("")
     if report.runtime_seconds:
         lines.append(f"Runtime: **{report.runtime_seconds:.0f}s**")
@@ -142,24 +146,30 @@ def build_markdown(report: DailyReport) -> str:
     # The "never persisted" guarantee holds for every mode that touched prices,
     # so it is stated whenever the run asked for them at all.
     if report.prices_mode != "no-prices":
-        lines.append("> Real-time prices are fetched from Yahoo Finance into an "
-                     "in-memory cache only at request time — **no price is ever "
-                     "persisted** to any database (the Financial-DataBase `prices` "
-                     "table is untouched by Value Investing).")
+        lines.append(
+            "> Real-time prices are fetched from Yahoo Finance into an "
+            "in-memory cache only at request time — **no price is ever "
+            "persisted** to any database (the Financial-DataBase `prices` "
+            "table is untouched by Value Investing)."
+        )
         lines.append("")
 
     if report.prices_mode == "unavailable":
-        lines.append("> Prices were **not** available for this run: the Yahoo "
-                     "preflight found the provider unreachable, so every "
-                     "price-derived column below is N/A. See `## Price stage` "
-                     "for the failure breakdown.")
+        lines.append(
+            "> Prices were **not** available for this run: the Yahoo "
+            "preflight found the provider unreachable, so every "
+            "price-derived column below is N/A. See `## Price stage` "
+            "for the failure breakdown."
+        )
         lines.append("")
 
     if report.network:
         lines.append("## Network")
         lines.append("")
         net = report.network
-        sec_throttled = int(net.get("sec_403_count", 0)) + int(net.get("sec_429_count", 0))
+        sec_throttled = int(net.get("sec_403_count", 0)) + int(
+            net.get("sec_429_count", 0)
+        )
         lines.append(
             f"SEC company syncs: **{net.get('sec_requests', 0)}** "
             f"(retries {net.get('sec_retries', 0)}, "
@@ -170,9 +180,11 @@ def build_markdown(report: DailyReport) -> str:
             f"avg {_fmt(net.get('avg_yahoo_latency_ms', 0), 'number')} ms)"
         )
         lines.append("")
-        lines.append("> SEC counters are per company sync (VI delegates the HTTP "
-                     "requests to the Financial-DataBase subprocess); Yahoo "
-                     "counters are per HTTP attempt.")
+        lines.append(
+            "> SEC counters are per company sync (VI delegates the HTTP "
+            "requests to the Financial-DataBase subprocess); Yahoo "
+            "counters are per HTTP attempt."
+        )
         lines.append("")
 
     stage = report.prices_stage or {}
@@ -187,7 +199,11 @@ def build_markdown(report: DailyReport) -> str:
             # Stable order: the categories the engine can produce, then any
             # extra one a future classifier might add.
             known = ("yahoo_glitch", "mapping", "delisted", "unknown", "no_yahoo")
-            parts = [f"{name}: {int(failures.get(name, 0))}" for name in known if name in failures]
+            parts = [
+                f"{name}: {int(failures.get(name, 0))}"
+                for name in known
+                if name in failures
+            ]
             parts += [
                 f"{name}: {int(count)}"
                 for name, count in sorted(failures.items())
@@ -198,11 +214,14 @@ def build_markdown(report: DailyReport) -> str:
             lines.append("Failures by category — none")
         lines.append("")
         if int(failures.get("no_yahoo", 0) or 0) and not any(
-            failures.get(name, 0) for name in ("yahoo_glitch", "mapping", "delisted", "unknown")
+            failures.get(name, 0)
+            for name in ("yahoo_glitch", "mapping", "delisted", "unknown")
         ):
-            lines.append("> Every price-derived field is N/A because the Yahoo "
-                         "preflight found the provider unreachable "
-                         "(`no_yahoo`); no per-ticker probe was attempted.")
+            lines.append(
+                "> Every price-derived field is N/A because the Yahoo "
+                "preflight found the provider unreachable "
+                "(`no_yahoo`); no per-ticker probe was attempted."
+            )
             lines.append("")
 
     stage_state = report.price_stage or {}
@@ -233,8 +252,7 @@ def build_markdown(report: DailyReport) -> str:
             )
             lines.append(title)
             lines.append("")
-            for line in lines_of_alert:
-                lines.append(line)
+            lines.extend(lines_of_alert)
             lines.append("")
 
     if report.rows:
@@ -266,13 +284,10 @@ def build_markdown(report: DailyReport) -> str:
     if report.alerts:
         lines.append("## Alerts")
         for alert in report.alerts:
-            label = ALERT_LABELS.get(
-                alert["alert_type"], alert["alert_type"]
-            )
+            label = ALERT_LABELS.get(alert["alert_type"], alert["alert_type"])
             reason = "; ".join(alert["reason"]) if alert["reason"] else "-"
             lines.append(
-                f"- **{alert['ticker']}** — {label} "
-                f"(*{alert['confidence']}*): {reason}"
+                f"- **{alert['ticker']}** — {label} (*{alert['confidence']}*): {reason}"
             )
         lines.append("")
 
@@ -305,8 +320,10 @@ def build_markdown(report: DailyReport) -> str:
                     f"{item.get('reason')}"
                 )
         lines.append("")
-        lines.append("⚠️ This section is NOT part of any book methodology. It is "
-                     "supplementary and clearly labeled not-from-canon.")
+        lines.append(
+            "⚠️ This section is NOT part of any book methodology. It is "
+            "supplementary and clearly labeled not-from-canon."
+        )
         lines.append("")
 
     if report.missing:
@@ -335,7 +352,5 @@ def render_alerts(alerts: list[Alert]) -> list[str]:
     for alert in alerts:
         label = ALERT_LABELS.get(alert.alert_type, alert.alert_type)
         reason = "; ".join(alert.reason) if alert.reason else "-"
-        lines.append(
-            f"  {alert.ticker:<10} [{label}] ({alert.confidence}) {reason}"
-        )
+        lines.append(f"  {alert.ticker:<10} [{label}] ({alert.confidence}) {reason}")
     return lines

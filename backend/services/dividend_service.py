@@ -33,6 +33,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
+from itertools import pairwise
 
 logger = logging.getLogger("backend.dividend_service")
 
@@ -65,13 +66,13 @@ def _parse_dividends(raw) -> list[DividendRecord]:
         # Skip NaT (Not a Time) keys — they can't be converted to dates
         # and would crash the sort below (NaT != NaT is True).
         try:
-            if key != key:  # NaT check
+            if key != key:  # noqa: PLR0124 — NaT check (NaT != NaT is True)
                 continue
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         try:
             value = float(amount)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if value <= 0:
             continue
@@ -169,7 +170,7 @@ class DividendService:
             return 0
         years = sorted({r.ex_date.year for r in records}, reverse=True)
         streak = 1
-        for previous, current in zip(years, years[1:]):
+        for previous, current in pairwise(years):
             if previous - current == 1:
                 streak += 1
             else:

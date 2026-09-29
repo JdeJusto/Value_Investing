@@ -105,10 +105,7 @@ def matches(item: dict, criteria: ScreenCriteria) -> bool:
         if confidence is None or levels.get(confidence, -1) < want:
             return False
 
-    if criteria.tickers and item.get("ticker") not in criteria.tickers:
-        return False
-
-    return True
+    return not (criteria.tickers and item.get("ticker") not in criteria.tickers)
 
 
 def from_kwargs(**kwargs) -> ScreenCriteria:

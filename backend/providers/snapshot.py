@@ -17,6 +17,8 @@ valuation fields (never the analysis) gracefully.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.services.price_service import _snapshot_price
 
@@ -25,7 +27,7 @@ class SnapshotMarketProvider(MarketDataProvider):
     """MarketDataProvider reading only from a prefetched quote snapshot."""
 
     #: Keys normalized from the raw Yahoo .info dict.
-    _FIELD_KEYS = {
+    _FIELD_KEYS: ClassVar[dict[str, str]] = {
         "market_cap": "marketCap",
         "enterprise_value": "enterpriseValue",
         "beta": "beta",
@@ -80,9 +82,7 @@ class SnapshotMarketProvider(MarketDataProvider):
         return float(value) if value is not None else None
 
     def get_enterprise_value(self, ticker: str) -> float | None:
-        value = self._or_fallback(
-            ticker, "enterprise_value", "get_enterprise_value"
-        )
+        value = self._or_fallback(ticker, "enterprise_value", "get_enterprise_value")
         return float(value) if value is not None else None
 
     def get_current_price(self, ticker: str) -> float | None:
@@ -101,5 +101,5 @@ class SnapshotMarketProvider(MarketDataProvider):
             return None
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None

@@ -75,7 +75,7 @@ class StockScreenerService:
                     continue
                 if self._passes_filters(row, filters):
                     results.append(row)
-            except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
+            except Exception:  # noqa: BLE001, S112 — boundary catch-all (external libs/network raise many types)
                 continue
 
             # With snapshots prefetched the loop is CPU/DB-bound; the pacing
@@ -154,9 +154,7 @@ class StockScreenerService:
         # If the market provider failed to produce price-derived metrics, try
         # to compute them from the real-time price + fundamentals (repository).
         enriched = (
-            self._enrich_with_real_time_price(d, ticker, price)
-            if not no_prices
-            else d
+            self._enrich_with_real_time_price(d, ticker, price) if not no_prices else d
         )
 
         return ScreenerRow(

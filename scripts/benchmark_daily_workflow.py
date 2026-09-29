@@ -19,9 +19,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 def _format_timings(phases: dict[str, float]) -> str:
     order = ("refresh", "prices", "analysis", "alerts", "report", "total")
-    return " · ".join(
-        f"{name} {phases[name]:.1f}s" for name in order if name in phases
-    )
+    return " · ".join(f"{name} {phases[name]:.1f}s" for name in order if name in phases)
 
 
 def run(limit: int, workers: int, no_update: bool, out_dir: str) -> dict[str, float]:
@@ -44,6 +42,7 @@ def run(limit: int, workers: int, no_update: bool, out_dir: str) -> dict[str, fl
         cmd,
         cwd=str(REPO_ROOT),
         capture_output=True,
+        check=False,
         text=True,
     )
     combined = proc.stdout + "\n" + proc.stderr
@@ -54,7 +53,7 @@ def run(limit: int, workers: int, no_update: bool, out_dir: str) -> dict[str, fl
         try:
             name, seconds = line.strip().split("[timing]")[1].strip().split(":")
             phases[name.strip()] = float(seconds.split("s")[0])
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             continue
     if not phases:
         print(combined[-3000:], file=sys.stderr)
@@ -76,11 +75,12 @@ def main() -> None:
 
     phases = run(args.limit, args.workers, args.no_update, args.out)
     universe = args.limit or "full"
-    print(f"universe={universe} workers={args.workers}: "
-          f"{_format_timings(phases)}")
-    print(f"  total {phases.get('total', 0):.1f}s · prices "
-          f"{phases.get('prices', 0):.1f}s · analysis "
-          f"{phases.get('analysis', 0):.1f}s")
+    print(f"universe={universe} workers={args.workers}: {_format_timings(phases)}")
+    print(
+        f"  total {phases.get('total', 0):.1f}s · prices "
+        f"{phases.get('prices', 0):.1f}s · analysis "
+        f"{phases.get('analysis', 0):.1f}s"
+    )
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ metrics. It depends only on :class:`NormalizedFinancials` and never
 touches providers.
 """
 
+from itertools import pairwise
 
 from backend.analytics.ratios.roic import RoicCalculator
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
@@ -112,7 +113,7 @@ def max_yoy_decline(rows: list[NormalizedFinancials]) -> float | None:
     """Largest year-over-year drop in net income, as a negative fraction."""
     ordered = ordered_asc(rows)
     declines: list[float] = []
-    for prev, curr in zip(ordered, ordered[1:]):
+    for prev, curr in pairwise(ordered):
         if (
             prev.net_income is not None
             and curr.net_income is not None
@@ -339,6 +340,8 @@ def compute_quality_metrics(
         "retained_earnings_positive": (
             True
             if last.retained_earnings is not None and last.retained_earnings >= 0
-            else False if last.retained_earnings is not None else None
+            else False
+            if last.retained_earnings is not None
+            else None
         ),
     }

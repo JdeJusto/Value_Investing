@@ -114,7 +114,9 @@ class FdbGateway:
         from psycopg2.extras import RealDictCursor
 
         if self._conn is None or self._conn.closed:
-            self._conn = psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
+            self._conn = psycopg2.connect(
+                self.database_url, cursor_factory=RealDictCursor
+            )
         return self._conn
 
     def close(self) -> None:
@@ -347,7 +349,9 @@ def load_refresh_config(path: str | None = None) -> RefreshConfig:
     # Config file (optional overlay).
     if path is None:
         path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
             "config",
             "refresh.yml",
         )
@@ -395,7 +399,11 @@ def load_refresh_config(path: str | None = None) -> RefreshConfig:
     # Environment overrides.
     env = os.environ
     if env.get("REFRESH_AUTO", "").strip():
-        config.auto_refresh = env["REFRESH_AUTO"].strip().lower() in ("true", "1", "yes")
+        config.auto_refresh = env["REFRESH_AUTO"].strip().lower() in (
+            "true",
+            "1",
+            "yes",
+        )
     if env.get("FRESHNESS_MAX_AGE_HOURS", "").strip():
         try:
             config.freshness_max_age_hours = int(env["FRESHNESS_MAX_AGE_HOURS"])
@@ -407,8 +415,10 @@ def load_refresh_config(path: str | None = None) -> RefreshConfig:
         except ValueError:
             pass
     if env.get("REFRESH_SKIP_FLAG", "").strip():
-        config.skip_refresh_flag = (
-            env["REFRESH_SKIP_FLAG"].strip().lower() in ("true", "1", "yes")
+        config.skip_refresh_flag = env["REFRESH_SKIP_FLAG"].strip().lower() in (
+            "true",
+            "1",
+            "yes",
         )
     if env.get("REFRESH_WORKERS", "").strip():
         try:
@@ -451,7 +461,9 @@ def load_dcf_config(path: str | None = None) -> DCFConfig:
     config = DCFConfig()
     if path is None:
         base = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
             "config",
         )
         path = os.path.join(base, "refresh.yaml")
@@ -487,12 +499,16 @@ def load_dcf_config(path: str | None = None) -> DCFConfig:
                         pass
     env = os.environ
     if env.get("DCF_IN_ANALYZE_FULL", "").strip():
-        config.in_analyze_full = (
-            env["DCF_IN_ANALYZE_FULL"].strip().lower() in ("true", "1", "yes")
+        config.in_analyze_full = env["DCF_IN_ANALYZE_FULL"].strip().lower() in (
+            "true",
+            "1",
+            "yes",
         )
     if env.get("DCF_IN_DAILY_REPORT", "").strip():
-        config.in_daily_report = (
-            env["DCF_IN_DAILY_REPORT"].strip().lower() in ("true", "1", "yes")
+        config.in_daily_report = env["DCF_IN_DAILY_REPORT"].strip().lower() in (
+            "true",
+            "1",
+            "yes",
         )
     if env.get("DCF_DAILY_REPORT_TOP_N", "").strip():
         try:
@@ -567,7 +583,9 @@ class RefreshService:
                 breaks the refresh.
         """
         threshold = (
-            max_age_hours if max_age_hours is not None else self.config.freshness_max_age_hours
+            max_age_hours
+            if max_age_hours is not None
+            else self.config.freshness_max_age_hours
         )
         if skip_refresh is None:
             skip_refresh = self.config.skip_refresh_flag or not self.config.auto_refresh
@@ -582,7 +600,9 @@ class RefreshService:
             skip_refresh = True
 
         if skip_refresh:
-            result.notes.append("SEC refresh disabled (--no-refresh / skip_refresh_flag)")
+            result.notes.append(
+                "SEC refresh disabled (--no-refresh / skip_refresh_flag)"
+            )
 
         dedup: list[str] = []
         seen: set[str] = set()
@@ -606,9 +626,7 @@ class RefreshService:
 
             company_id, cik, last = meta.get(ticker, (None, None, None))
             if company_id is None or cik is None:
-                result.failed.append(
-                    (ticker, "no CIK mapping in Financial-DataBase")
-                )
+                result.failed.append((ticker, "no CIK mapping in Financial-DataBase"))
                 continue
 
             age_hours = None
@@ -690,8 +708,7 @@ class RefreshService:
         outcomes: dict[str, bool | str] = {}
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {
-                pool.submit(self._sync_company, cik): ticker
-                for ticker, cik in work
+                pool.submit(self._sync_company, cik): ticker for ticker, cik in work
             }
             for future in as_completed(futures):
                 ticker = futures[future]
@@ -757,9 +774,7 @@ class RefreshService:
                 ranked.append((None, ticker))  # never ingested → refreshable, oldest
                 continue
             try:
-                age_hours = (
-                    now - last
-                ).total_seconds() / 3600.0
+                age_hours = (now - last).total_seconds() / 3600.0
             except TypeError:
                 ranked.append((None, ticker))  # unparseable timestamp → treat as stale
                 continue
@@ -803,9 +818,7 @@ class RefreshService:
                 return bulk(dedup)
             except Exception:  # noqa: BLE001, S110 — fall back to per-ticker reads
                 pass
-        meta: dict[
-            str, tuple[str | None, str | None, _dt.datetime | None]
-        ] = {}
+        meta: dict[str, tuple[str | None, str | None, _dt.datetime | None]] = {}
         for ticker in dedup:
             try:
                 resolved = self._gateway.resolve_company(ticker)
@@ -913,13 +926,12 @@ class RefreshService:
                 cwd=repo,
                 env=env,
                 capture_output=True,
+                check=False,
                 text=True,
                 timeout=self.config.refresh_timeout_seconds,
             )
         except subprocess.TimeoutExpired:
-            return (
-                f"SEC sync timed out after {self.config.refresh_timeout_seconds}s"
-            )
+            return f"SEC sync timed out after {self.config.refresh_timeout_seconds}s"
         except FileNotFoundError:
             return f"Financial-DataBase CLI not runnable at {repo}"
         except Exception as exc:  # noqa: BLE001

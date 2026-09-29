@@ -6,8 +6,6 @@ triggers heavy third-party SDK imports (yfinance, edgartools).
 
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.domain.value_objects.financials_normalized import ProviderName
 from backend.providers.normalizers.base import FinancialNormalizer
 from backend.providers.normalizers.edgar_normalizer import EdgarNormalizer

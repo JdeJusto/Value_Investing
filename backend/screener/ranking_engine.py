@@ -36,9 +36,9 @@ CALIBRATION_MAX = 90.0
 # conditions applies: a company with several problems is capped harder than
 # one with a single weakness, and a loss-making one cannot outrank a company
 # that merely burns cash.
-LEVERAGED_RANK_CAP = 60.0       # negative free cash flow (cash burn)
-LEVERAGED_DEBT_CAP = 52.0       # debt-to-equity >= 1.5
-LEVERAGED_COVERAGE_CAP = 48.0   # interest coverage < 3x (negative included)
+LEVERAGED_RANK_CAP = 60.0  # negative free cash flow (cash burn)
+LEVERAGED_DEBT_CAP = 52.0  # debt-to-equity >= 1.5
+LEVERAGED_COVERAGE_CAP = 48.0  # interest coverage < 3x (negative included)
 
 # Weighted components used by the calibrated rank (must sum to 1.0).
 _COMPONENT_WEIGHTS = (
@@ -136,24 +136,24 @@ def momentum_reasons(item: dict) -> list[str]:
     reasons: list[str] = []
     if (v := deltas.get("revenue_growth_delta")) is not None:
         if v >= 0.02:
-            reasons.append(f"revenue growth accelerating by {v*100:.1f}pp")
+            reasons.append(f"revenue growth accelerating by {v * 100:.1f}pp")
         elif v <= -0.02:
-            reasons.append(f"revenue growth slowing by {abs(v)*100:.1f}pp")
+            reasons.append(f"revenue growth slowing by {abs(v) * 100:.1f}pp")
     if (v := deltas.get("gross_margin_delta")) is not None:
         if v >= 0.015:
-            reasons.append(f"gross margin expanding by {v*100:.1f}pp")
+            reasons.append(f"gross margin expanding by {v * 100:.1f}pp")
         elif v <= -0.015:
-            reasons.append(f"gross margin compressing by {abs(v)*100:.1f}pp")
+            reasons.append(f"gross margin compressing by {abs(v) * 100:.1f}pp")
     if (v := deltas.get("roic_delta")) is not None:
         if v >= 0.03:
-            reasons.append(f"ROIC improving by {v*100:.1f}pp")
+            reasons.append(f"ROIC improving by {v * 100:.1f}pp")
         elif v <= -0.03:
-            reasons.append(f"ROIC deteriorating by {abs(v)*100:.1f}pp")
+            reasons.append(f"ROIC deteriorating by {abs(v) * 100:.1f}pp")
     if (v := deltas.get("fcf_delta")) is not None:
         if v >= 0.20:
-            reasons.append(f"FCF surging {v*100:.0f}%")
+            reasons.append(f"FCF surging {v * 100:.0f}%")
         elif v <= -0.20:
-            reasons.append(f"FCF declining {abs(v)*100:.0f}%")
+            reasons.append(f"FCF declining {abs(v) * 100:.0f}%")
     return reasons
 
 
@@ -251,8 +251,8 @@ def calibrated_rank(item: dict, items: Iterable[dict]) -> float:
     vectors: dict[str, list[float]] = {name: [] for name, _ in _COMPONENT_WEIGHTS}
     for other in pool:
         raw = component_scores(other)
-        for name in vectors:
-            vectors[name].append(raw[name])
+        for name, values in vectors.items():
+            values.append(raw[name])
 
     raw = component_scores(item)
     blended = sum(
@@ -260,9 +260,7 @@ def calibrated_rank(item: dict, items: Iterable[dict]) -> float:
         for name, weight in _COMPONENT_WEIGHTS
     )
     blended = min(max(blended, 0.0), 1.0)
-    score = round(
-        CALIBRATION_MIN + (CALIBRATION_MAX - CALIBRATION_MIN) * blended, 2
-    )
+    score = round(CALIBRATION_MIN + (CALIBRATION_MAX - CALIBRATION_MIN) * blended, 2)
     return min(score, health_cap(item))
 
 

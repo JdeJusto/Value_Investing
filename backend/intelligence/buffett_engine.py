@@ -5,6 +5,7 @@ combined with fixed weights. Every pillar answer can be traced back to a
 single rule, so the filter stays transparent and explainable.
 """
 
+import math
 
 # Pillar weights, summing to 1.0
 PROFITABILITY_WEIGHT = 0.35
@@ -44,11 +45,9 @@ CV_PILLAR_WEIGHT = 0.60
 DRAWDOWN_PILLAR_WEIGHT = 0.40
 
 
-def _scale(
-    value: float | None, good: float, bad: float, invert: bool = False
-) -> float:
+def _scale(value: float | None, good: float, bad: float, invert: bool = False) -> float:
     """Linear score in [0, 100] between ``good`` (100) and ``bad`` (0)."""
-    if value is None or value != value:  # NaN guard
+    if value is None or math.isnan(value):  # NaN guard
         return 0.0
     if good == bad:
         return 100.0 if value >= good else 0.0

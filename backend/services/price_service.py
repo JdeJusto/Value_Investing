@@ -141,8 +141,10 @@ class PriceService:
         self._cache: dict[str, tuple[float, object]] = {}
         if cache_ttl is None:
             try:
-                cache_ttl = int(os.getenv("PRICE_CACHE_TTL", str(DEFAULT_CACHE_TTL_SECONDS)))
-            except (TypeError, ValueError):
+                cache_ttl = int(
+                    os.getenv("PRICE_CACHE_TTL", str(DEFAULT_CACHE_TTL_SECONDS))
+                )
+            except TypeError, ValueError:
                 cache_ttl = DEFAULT_CACHE_TTL_SECONDS
         self._cache_ttl = cache_ttl
         # Optional run telemetry (NetworkMetrics) and availability preflight
@@ -164,26 +166,6 @@ class PriceService:
             "aborted_reason": None,
             "aborted_after": 0,
         }
-
-    def configure(
-        self,
-        *,
-        metrics=None,
-        health_fn=None,
-    ) -> PriceService:
-        """Attach run telemetry and/or the Yahoo preflight to this service.
-
-        Used by the daily workflow on the process-level singleton, so the
-        preflight guards every fetch of the run (not only the batch prefetch)
-        and the telemetry sees the single-price calls the analysis makes.
-        Returns self so it can be chained.
-        """
-        if metrics is not None or health_fn is not None:
-            if metrics is not None:
-                self._metrics = metrics
-            if health_fn is not None:
-                self._health_fn = health_fn
-        return self
 
     # ------------------------------------------------------------------
     # cache helpers
@@ -239,7 +221,9 @@ class PriceService:
             batch, remaining = remaining[:batch_size], remaining[batch_size:]
             if workers > 1:
                 with ThreadPoolExecutor(max_workers=workers) as pool:
-                    for ticker, price in zip(batch, pool.map(self.get_current_price, batch)):
+                    for ticker, price in zip(
+                        batch, pool.map(self.get_current_price, batch)
+                    ):
                         prices[ticker] = price
             else:
                 for ticker in batch:
@@ -391,7 +375,7 @@ class PriceService:
                     beta = float(beta)
                     self._set_cached(key, beta)
                     return beta
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     pass
         except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
             pass
@@ -440,7 +424,11 @@ class PriceService:
                     "aborted_after": 0,
                 }
                 return {}
-        self._stage_status = {"status": "ok", "aborted_reason": None, "aborted_after": 0}
+        self._stage_status = {
+            "status": "ok",
+            "aborted_reason": None,
+            "aborted_after": 0,
+        }
         snapshots: dict[str, dict | None] = {}
         remaining = [t.upper() for t in tickers if t]
         fetched = 0
@@ -485,7 +473,7 @@ class PriceService:
             if shares is not None:
                 try:
                     self._set_cached(f"shares:{ticker}", int(shares))
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     pass
         return snapshots
 
@@ -627,8 +615,13 @@ class PriceService:
                 reason=reason,
             )
             # Exponential backoff: 1s, 2s between retries
-            wait_time = 1.0 * (2 ** attempt)
-            logger.debug("Yahoo .info attempt %d failed for %s, retrying in %.1fs", attempt + 1, ticker, wait_time)
+            wait_time = 1.0 * (2**attempt)
+            logger.debug(
+                "Yahoo .info attempt %d failed for %s, retrying in %.1fs",
+                attempt + 1,
+                ticker,
+                wait_time,
+            )
             time.sleep(wait_time)
         return None
 
@@ -648,10 +641,13 @@ class PriceService:
                 self._abort_streak = 0
             self._abort_streak += 1
             streak = self._abort_streak
-        self._note_price_failure(PRICE_FAILURE_NO_YAHOO if reason == ABORT_REASON_OTHER else reason)
+        self._note_price_failure(
+            PRICE_FAILURE_NO_YAHOO if reason == ABORT_REASON_OTHER else reason
+        )
         if self.abort_after and streak >= self.abort_after:
-            raise PriceStageAbort(reason, f"consecutive failures on {ticker or 'yahoo'}",
-                                  after=streak)
+            raise PriceStageAbort(
+                reason, f"consecutive failures on {ticker or 'yahoo'}", after=streak
+            )
 
     def _note_transient_success(self) -> None:
         with self._abort_lock:
@@ -852,7 +848,11 @@ class PriceService:
             result: list[tuple[date, float]] = []
             if series is not None and not series.empty:
                 for idx, ratio in series.items():
-                    d = idx.date() if isinstance(idx, datetime) else date.fromisoformat(str(idx))
+                    d = (
+                        idx.date()
+                        if isinstance(idx, datetime)
+                        else date.fromisoformat(str(idx))
+                    )
                     result.append((d, float(ratio)))
             self._set_cached(key, tuple(result))
             return result
@@ -913,7 +913,7 @@ class PriceService:
             prices: list[tuple[date, float]] = []
             for idx, row in hist.iterrows():
                 try:
-                    d = idx.date() if isinstance(idx, datetime) else idx.date()
+                    d = idx.date()
                 except Exception:  # noqa: BLE001
                     d = date.fromisoformat(str(idx))
                 close = row.get("Close")
@@ -921,7 +921,7 @@ class PriceService:
                     continue
                 try:
                     prices.append((d, float(close)))
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     continue
             return prices
         except Exception:  # noqa: BLE001
@@ -946,6 +946,7 @@ if __name__ == "__main__":
         print(f"{ticker}: current price = {price}")
         fy_end = service.get_price_at_fiscal_year_end(ticker, 2023)
         print(f"{ticker}: FY2023 price ~ {fy_end}")
+
 
 def _abort_reason(health) -> str:
     """Machine-readable abort reason for a failed preflight."""
