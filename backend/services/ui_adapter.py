@@ -622,3 +622,50 @@ def apply_numeric_filters(
         return not (fcf_min and (fcf is None or fcf < fcf_min))
 
     return [row for row in rows if keep(row)]
+
+
+def refresh_portfolio_prices(portfolio: Any, price_service: Any) -> dict[str, dict]:
+    """Current price per open position vs the stored one; persists nothing.
+
+    Returns ``{ticker: {"stored", "new", "delta_pct"}}``. Tickers whose fetch
+    fails (or returns a non-positive price) are omitted — no fabricated price.
+    """
+    refreshed: dict[str, dict] = {}
+    for position in portfolio.positions:
+        if not position.is_open:
+            continue
+        try:
+            price = price_service.get_current_price(position.ticker)
+        except Exception:  # noqa: BLE001 — a failed fetch is not a crash
+            price = None
+        if price is None or price <= 0:
+            continue
+        stored = float(position.current_price or 0.0)
+        delta = (float(price) - stored) / stored if stored else None
+        refreshed[position.ticker] = {
+            "stored": stored,
+            "new": float(price),
+            "delta_pct": delta,
+        }
+    return refreshed
+
+
+def save_portfolio_prices(
+    portfolio: Any, prices: dict[str, dict], repository: Any
+) -> int:
+    """Persist refreshed prices through the repository; returns how many.
+
+    Only tickers present in ``prices`` are touched; the portfolio object is
+    updated in place and saved atomically by the repository. This is the only
+    path that writes prices, and the UI calls it from an explicit button.
+    """
+    updated = 0
+    for ticker, data in prices.items():
+        position = portfolio.position(ticker)
+        if position is None:
+            continue
+        position.current_price = float(data["new"])
+        updated += 1
+    if updated:
+        repository.save(portfolio)
+    return updated

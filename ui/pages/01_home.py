@@ -13,7 +13,12 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
-from backend.services.ui_adapter import build_portfolio_view, latest_daily_report
+from backend.services.ui_adapter import (
+    build_portfolio_view,
+    latest_daily_report,
+    refresh_portfolio_prices,
+    save_portfolio_prices,
+)
 from ui._shared import (
     DASH,
     REPORTS_DIR,
@@ -23,7 +28,7 @@ from ui._shared import (
     page_header,
     page_link,
 )
-from ui.services import load_portfolio, load_sector_map
+from ui.services import get_price_service, load_portfolio, load_sector_map
 
 PORTFOLIO_PATH = "data/portfolio.json"
 
@@ -60,6 +65,45 @@ def _portfolio_summary() -> None:
         ]
     )
     page_link("pages/04_portfolio.py", label="Open Portfolio")
+    _refresh_prices(portfolio, path)
+
+
+def _refresh_prices(portfolio, path: str) -> None:
+    col1, col2 = st.columns(2)
+    if col1.button("Refresh prices", key="home_refresh"):
+        st.session_state["home_prices"] = refresh_portfolio_prices(
+            portfolio, get_price_service()
+        )
+    prices = st.session_state.get("home_prices")
+    if col2.button(
+        "Save prices to portfolio",
+        key="home_save",
+        type="primary",
+        disabled=not prices,
+    ):
+        from backend.portfolio.portfolio_repository import JsonPortfolioRepository
+
+        updated = save_portfolio_prices(
+            portfolio, prices, JsonPortfolioRepository(path)
+        )
+        st.session_state.pop("home_prices", None)
+        st.success(f"Precios guardados en la cartera ({updated} posiciones).")
+        st.rerun()
+    if not prices:
+        return
+    st.dataframe(
+        [
+            {
+                "Ticker": ticker,
+                "Stored": f"{data['stored']:,.2f}",
+                "New": f"{data['new']:,.2f}",
+                "Delta": format_pct(data["delta_pct"]),
+            }
+            for ticker, data in prices.items()
+        ],
+        width="stretch",
+        hide_index=True,
+    )
 
 
 def _latest_report() -> None:
@@ -113,8 +157,8 @@ def _quick_actions() -> None:
         page_link("pages/03_screener.py", label="Run screener")
     with col3:
         st.caption(
-            "Refresh prices: run `python -m scripts.daily_workflow` from the CLI "
-            "(the UI never persists prices)."
+            "The full daily pipeline (SEC refresh + screening + alerts) runs "
+            "from the CLI: `python -m scripts.daily_workflow`."
         )
 
 
