@@ -414,11 +414,21 @@ class DCFValuation:
 
         # Split-restated dividend per share, newest-first (fiscal_year, dps).
         dps_stream: list[tuple[int, float]] = []
+        preferred_adjusted = False
         for row in rows[:_DDM_WINDOW_YEARS]:
             if row.dividends_paid is not None and row.shares_outstanding:
                 s = row.shares_outstanding * (row.split_adjustment_factor or 1.0)
                 if s > 0:
-                    dps_stream.append((row.fiscal_year, float(row.dividends_paid) / s))
+                    dividend = float(row.dividends_paid)
+                    # No common-only cash tag? Subtract the preferred
+                    # dividends reported in the income statement so the DDM
+                    # base is the common dividend (JPM, C, GS, MS...).
+                    preferred = getattr(row, "preferred_dividends", None)
+                    if preferred is not None and preferred > 0:
+                        dividend = max(0.0, dividend - float(preferred))
+                        preferred_adjusted = True
+                    dps_stream.append((row.fiscal_year, dividend / s))
+        result.preferred_dividend_adjusted = preferred_adjusted
         if not dps_stream or dps_stream[0][1] <= 0:
             return self._insufficient(
                 result,
@@ -562,6 +572,12 @@ class DCFValuation:
                 ),
                 "Single-stage Gordon growth: no WACC/growth sensitivity grid.",
             ]
+
+        if preferred_adjusted:
+            result.reasons.append(
+                "Preferred dividends subtracted from the total dividend base "
+                "(no common-only dividend tag filed)."
+            )
 
         if value is None or value <= 0:
             return self._insufficient(

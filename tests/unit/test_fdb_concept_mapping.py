@@ -107,3 +107,14 @@ def test_t_style_year_derives_gross_margin():
         _fact("CostOfRevenue", 75_130_000_000),
     )
     assert income["gross_profit"] == 122_428_000_000 - 75_130_000_000
+
+
+def test_preferred_dividend_tag_maps_to_preferred_dividends():
+    """JPM/C/GS/MS file preferred dividends under DividendsPreferredStock."""
+    income = _income(_fact("DividendsPreferredStock", 1_600_000_000))
+    assert income["preferred_dividends"] == 1_600_000_000
+
+
+def test_preferred_dividend_alternative_tag_maps():
+    income = _income(_fact("PreferredStockDividendsAndOtherAdjustments", 900_000_000))
+    assert income["preferred_dividends"] == 900_000_000

@@ -150,6 +150,13 @@ INCOME_STATEMENT_CONCEPTS = {
     "NetIncomeLoss": "net_income",
     "NetIncome": "net_income",
     "ProfitLoss": "net_income",
+    # Preferred dividends (income statement). The DDM subtracts them from the
+    # total dividend base for financials whose only cash tag is the total
+    # PaymentsOfDividends (JPM, C, GS, MS...); common-only tags are preferred
+    # where they exist.
+    "DividendsPreferredStock": "preferred_dividends",
+    "DividendsPreferredStockCash": "preferred_dividends",
+    "PreferredStockDividendsAndOtherAdjustments": "preferred_dividends",
 }
 
 # Some companies tag several elements with identical fiscal periods (e.g.
@@ -1117,6 +1124,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             research_development=income.get("research_development"),
             sga=income.get("sga"),
             non_operating_income_expense=income.get("non_operating_income_expense"),
+            preferred_dividends=income.get("preferred_dividends"),
             # Context
             shares_outstanding=balance.get("shares_outstanding"),
             split_adjustment_factor=split_adjustment_factor,

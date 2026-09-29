@@ -87,6 +87,10 @@ class NormalizedFinancials:
     free_cash_flow: float | None = None
     depreciation_amortization: float | None = None
     dividends_paid: float | None = None
+    #: Preferred dividends from the income statement (``DividendsPreferredStock``
+    #: / ``PreferredStockDividendsAndOtherAdjustments``); used by the DDM to
+    #: subtract preferred from the total dividend base for financials.
+    preferred_dividends: float | None = None
     repurchase_of_stock: float | None = None
     working_capital_change: float | None = None
 

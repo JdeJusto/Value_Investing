@@ -294,6 +294,59 @@ def test_two_stage_ddm_deterministic_across_runs():
 
 
 # ---------------------------------------------------------------------------
+# DDM preferred dividend adjustment
+# ---------------------------------------------------------------------------
+def _bank_rows_with_preferred(dps_years, preferred_per_share=0.2, shares=2_000_000_000):
+    """Bank rows whose total dividend includes a tagged preferred slice."""
+    rows = []
+    for i, dps in enumerate(dps_years):
+        year = 2025 - i
+        rows.append(
+            _row(
+                year,
+                revenue=100e9,
+                net_income=30e9,
+                shares_outstanding=shares,
+                dividends_paid=(dps + preferred_per_share) * shares,
+                preferred_dividends=preferred_per_share * shares,
+                sector="Financial Services",
+            )
+        )
+    return rows
+
+
+def test_ddm_subtracts_preferred_dividends():
+    # Same total paid in both cases; only the second tags the preferred slice,
+    # so its common base (and value) must be lower.
+    baseline, _ = _evaluate(_bank_rows([1.64, 1.40, 1.20]), beta=1.0)
+    adjusted, _ = _evaluate(_bank_rows_with_preferred([1.44, 1.20, 1.00]), beta=1.0)
+    assert baseline.preferred_dividend_adjusted is False
+    assert adjusted.preferred_dividend_adjusted is True
+    assert adjusted.intrinsic_value_per_share < baseline.intrinsic_value_per_share
+    assert any("Preferred dividends" in r for r in adjusted.reasons)
+
+
+def test_ddm_preferred_adjustment_recovers_common_dividend():
+    # A tagged preferred slice on top of the common dividend must land on the
+    # same value as filing only the common dividend.
+    plain, _ = _evaluate(_bank_rows([1.44, 1.20, 1.00]), beta=1.0)
+    tagged, _ = _evaluate(_bank_rows_with_preferred([1.44, 1.20, 1.00]), beta=1.0)
+    assert tagged.preferred_dividend_adjusted is True
+    assert tagged.intrinsic_value_per_share == pytest.approx(
+        plain.intrinsic_value_per_share
+    )
+
+
+def test_preferred_adjustment_not_applied_to_non_financials():
+    rows = _standard_rows([6e9, 5e9, 4e9])
+    for row in rows:
+        row.preferred_dividends = 1e9
+    result, _ = _evaluate(rows, price=10.0)
+    assert result.variant == "standard"
+    assert result.preferred_dividend_adjusted is False
+
+
+# ---------------------------------------------------------------------------
 # Hyper-growth — observed positive FCF years only
 # ---------------------------------------------------------------------------
 def _hyper_rows(fcf_window, revenue_2025=260e9, sector=None):

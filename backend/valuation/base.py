@@ -64,3 +64,6 @@ class DCFResult:
     #: ``reit`` (funds from operations), ``ddm_financial`` (dividend discount
     #: model) and ``hyper_growth`` (observed positive FCF years).
     variant: str = "standard"
+    #: True when the DDM subtracted preferred dividends from the total
+    #: dividend base (financials with no common-only dividend tag).
+    preferred_dividend_adjusted: bool = False
