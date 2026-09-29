@@ -510,6 +510,7 @@ class TestDcfStaysOutsideMethodologies:
             "fisher_quantitative_subset",
             "graham",
             "graham_dodd",
+            "lynch_garp",
         }
         assert not any("dcf" in name.lower() for name in names)
 

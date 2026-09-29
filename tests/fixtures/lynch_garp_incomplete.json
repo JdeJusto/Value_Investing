@@ -1,0 +1,35 @@
+[
+  {
+    "ticker": "T",
+    "fiscal_year": 2022,
+    "period": "FY",
+    "revenue": null,
+    "net_income": null,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": null,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2023,
+    "period": "FY",
+    "revenue": -250000000.0,
+    "net_income": -50000000.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": null,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2024,
+    "period": "FY",
+    "revenue": 500000000.0,
+    "net_income": 100000000.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": null,
+    "currency": "USD"
+  }
+]

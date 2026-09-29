@@ -1,0 +1,112 @@
+[
+  {
+    "ticker": "T",
+    "fiscal_year": 2015,
+    "period": "FY",
+    "revenue": 500000000.0,
+    "net_income": 100000000.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2016,
+    "period": "FY",
+    "revenue": 625000000.0,
+    "net_income": 125000000.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2017,
+    "period": "FY",
+    "revenue": 781250000.0,
+    "net_income": 156250000.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2018,
+    "period": "FY",
+    "revenue": 976562500.0,
+    "net_income": 195312500.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2019,
+    "period": "FY",
+    "revenue": 1220703125.0,
+    "net_income": 244140625.0,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2020,
+    "period": "FY",
+    "revenue": 1525878906.25,
+    "net_income": 305175781.25,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2021,
+    "period": "FY",
+    "revenue": 1907348632.8125,
+    "net_income": 381469726.5625,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2022,
+    "period": "FY",
+    "revenue": 2384185791.015625,
+    "net_income": 476837158.203125,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2023,
+    "period": "FY",
+    "revenue": 2980232238.7695312,
+    "net_income": 596046447.7539062,
+    "shares_outstanding": 100000000,
+    "total_debt": null,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  },
+  {
+    "ticker": "T",
+    "fiscal_year": 2024,
+    "period": "FY",
+    "revenue": 3725290298.461914,
+    "net_income": 745058059.6923828,
+    "shares_outstanding": 100000000,
+    "total_debt": 400000000.0,
+    "dividends_paid": 20000000.0,
+    "currency": "USD"
+  }
+]

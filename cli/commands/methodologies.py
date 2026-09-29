@@ -20,6 +20,7 @@ from cli.commands import (
     analyze_fisher_quant,
     analyze_graham,
     analyze_graham_dodd,
+    analyze_lynch_garp,
     compare_methodologies,
     methodologies_list,
     methodologies_show,
@@ -42,4 +43,5 @@ def register(subparsers) -> None:
     analyze_buffett_classic.register(subparsers)
     analyze_fisher_quant.register(subparsers)
     analyze_graham_dodd.register(subparsers)
+    analyze_lynch_garp.register(subparsers)
     compare_methodologies.register(subparsers)
