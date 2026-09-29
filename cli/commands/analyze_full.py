@@ -7,11 +7,14 @@ requested). Sections:
   2. Real-time price & valuation (PriceService, never persisted)
   3. Fundamental metrics
   4. Quality assessment (Buffett score, moat, rating, DCF)
+     + DCF valuation (supplementary, not-from-canon; after quality, before
+       the historical table; optional via --no-dcf or config dcf.in_analyze_full)
   5. Historical valuation (P/E and FCF yield by fiscal year)
   6. Risks / anomalies / triggers
 
 Every section degrades to N/A when its data source is unavailable; a failing
-ticker never stops the rest of the batch.
+ticker never stops the rest of the batch. The supplementary DCF block is
+deliberately NOT part of any book methodology and never affects scoring.
 """
 
 import sys
@@ -29,6 +32,7 @@ from cli.formatters import (
     fmt_dollar,
     fmt_pct,
     fmt_ratio,
+    green,
     print_header,
     print_key_value,
     print_table,
@@ -56,6 +60,11 @@ def register(subparsers):
         "--no-prices",
         action="store_true",
         help="No consultar precios en tiempo real (la seccion 2 queda parcial)",
+    )
+    p.add_argument(
+        "--no-dcf",
+        action="store_true",
+        help="Omitir la seccion DCF suplementaria (not-from-canon)",
     )
     add_refresh_arguments(p)
     p.set_defaults(func=_run)
@@ -153,6 +162,78 @@ def _section_quality(row_input, quality):
         print(f"     Insight: {text}")
 
 
+def render_dcf_section(result) -> None:
+    """Render the supplementary DCF block (not-from-canon) for analyze-full."""
+    from backend.valuation.base import SOURCE
+    from backend.valuation.dcf import INSUFFICIENT_DATA
+
+    print_header(f"DCF Valuation (supplementary, {SOURCE})")
+    if result.verdict == INSUFFICIENT_DATA:
+        print_key_value("Verdict", dim(result.verdict))
+        reason = "; ".join(result.reasons) if result.reasons else "-"
+        print_key_value("Razon", reason)
+        if result.missing_inputs:
+            print_key_value("Faltan", ", ".join(result.missing_inputs))
+    else:
+        verdict_color = {
+            "UNDERVALUED": green,
+            "FAIR": yellow,
+            "OVERVALUED": red,
+        }.get(result.verdict, lambda t: t)
+        print_key_value(
+            "Intrinsic value/share", _fmt(result.intrinsic_value_per_share, fmt_dollar)
+        )
+        print_key_value("Current price", _fmt(result.current_price, fmt_dollar))
+        print_key_value("Margin of safety", _fmt(result.margin_of_safety, fmt_pct))
+        print_key_value("Verdict", verdict_color(result.verdict))
+        fcf_label = {1: "FCF base (1y)", 2: "FCF base (2y avg)"}.get(
+            result.fcf_years, "FCF base (3y avg)"
+        )
+        print()
+        print(f"  {bold('Assumptions')}")
+        for label, value in (
+            ("WACC", _fmt(result.wacc, lambda v: f"{v:.2%}")),
+            (fcf_label, _fmt(result.fcf_base, fmt_dollar)),
+            ("Growth years 1-5", _fmt(result.growth_1_5, fmt_pct)),
+            ("Growth years 6-10", _fmt(result.growth_6_10, fmt_pct)),
+            ("Terminal growth", f"{result.terminal_growth:.2%}"),
+        ):
+            print(f"  {label:<20} : {value}")
+    print()
+    print(f"  {yellow('⚠️')} This valuation is NOT part of any book-derived methodology.")
+    print("     It is a practical addition labeled not-from-canon.")
+    print("     See backend/valuation/README.md for assumptions and limits.")
+
+
+def _dcf_enabled(args) -> bool:
+    """True unless --no-dcf or the config disables the DCF section."""
+    if getattr(args, "no_dcf", False):
+        return False
+    try:
+        from backend.services.refresh_service import load_dcf_config
+
+        return load_dcf_config().in_analyze_full
+    except Exception:  # noqa: BLE001 — config problems must not break the report
+        return True
+
+
+def _section_dcf(ticker, repo=None, price_service=None) -> None:
+    """Supplementary DCF section; never raises (degrades to a message)."""
+    try:
+        from backend.app.cli import build_financial_repository
+        from backend.services.price_service import get_price_service
+        from backend.valuation.dcf import DCFValuation
+
+        repo = repo if repo is not None else build_financial_repository()
+        if price_service is None:
+            price_service = get_price_service()
+        rows = repo.get_best_available(ticker)
+        result = DCFValuation().evaluate(ticker, rows, price_service)
+        render_dcf_section(result)
+    except Exception as e:  # noqa: BLE001 — a failing DCF must never stop the report
+        print(f"     {red('DCF unavailable:')} {e}")
+
+
 def _section_historical(ticker):
     print(bold("5) Valoracion historica"))
     service = HistoricalValuationService()
@@ -245,6 +326,8 @@ def _run(args):
             )
             _section_fundamentals(d)
             _section_quality(d, d.get("quality_metrics") or {})
+            if _dcf_enabled(args):
+                _section_dcf(ticker)
             _section_historical(ticker)
             _section_risks(d)
             print()
