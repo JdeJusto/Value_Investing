@@ -263,12 +263,21 @@ def _raw(ticker: str) -> None:
     rows = [
         {
             "Métrica": key,
-            "Valor": "—" if value is None else value,
+            "Valor": _format_metric(value),
         }
         for key, value in sorted(result.items())
         if not isinstance(value, (dict, list))
     ]
     dataframe_with_download(rows, f"{ticker}_metrics.csv", f"raw_{ticker}")
+
+
+def _format_metric(value) -> str:
+    """Metrics tables are string columns: Arrow must never guess types."""
+    if value is None:
+        return "—"
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return str(value)
+    return f"{value:,.2f}"
 
 
 main()

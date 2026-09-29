@@ -91,6 +91,40 @@ def rows_to_csv(rows: list[dict[str, Any]]) -> str:
     return buffer.getvalue()
 
 
+def normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Coerce mixed-type columns to strings so Arrow never has to guess.
+
+    A column holding both numbers and strings (e.g. a metrics table with
+    floats and a "HIGH" label) is stringified end to end; numeric-only
+    columns keep their numbers and Nones (Arrow renders nulls). This is the
+    explicit dtype normalization the UI applies before every st.dataframe.
+    """
+    if not rows:
+        return rows
+    columns = list(rows[0].keys())
+    kinds: dict[str, set[str]] = {column: set() for column in columns}
+    for row in rows:
+        for column in columns:
+            value = row.get(column)
+            if value is None:
+                continue
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                kinds[column].add("num")
+            else:
+                kinds[column].add("str")
+    mixed = {column for column, seen in kinds.items() if len(seen) > 1}
+    if not mixed:
+        return rows
+    normalized = []
+    for row in rows:
+        new_row = dict(row)
+        for column in mixed:
+            value = row.get(column)
+            new_row[column] = DASH if value is None else str(value)
+        normalized.append(new_row)
+    return normalized
+
+
 def dataframe_with_download(
     rows: list[dict[str, Any]],
     filename: str,
@@ -102,6 +136,7 @@ def dataframe_with_download(
     if not rows:
         st.info("Sin filas que mostrar.")
         return
+    rows = normalize_rows(rows)
     kwargs: dict[str, Any] = {"width": "stretch", "hide_index": True}
     if height is not None:
         kwargs["height"] = height

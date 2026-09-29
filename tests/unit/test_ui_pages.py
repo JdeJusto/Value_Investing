@@ -19,7 +19,7 @@ from backend.services.ui_adapter import (
     parse_daily_report,
     parse_universe_tickers,
 )
-from ui._shared import format_pct, format_value, rows_to_csv
+from ui._shared import format_pct, format_value, normalize_rows, rows_to_csv
 
 PAGES = [
     str(Path(__file__).resolve().parents[2] / page)
@@ -58,6 +58,24 @@ def test_rows_to_csv_roundtrip():
     csv_text = rows_to_csv([{"A": 1, "B": "x"}, {"A": 2, "B": "y"}])
     assert csv_text.splitlines() == ["A,B", "1,x", "2,y"]
     assert rows_to_csv([]) == ""
+
+
+def test_normalize_rows_stringifies_mixed_columns():
+    rows = [
+        {"Metrica": "a", "Valor": 1.5},
+        {"Metrica": "b", "Valor": "HIGH"},
+        {"Metrica": "c", "Valor": None},
+    ]
+    normalized = normalize_rows(rows)
+    assert all(isinstance(row["Valor"], str) for row in normalized)
+    assert normalized[2]["Valor"] == "—"
+
+
+def test_normalize_rows_keeps_numeric_columns():
+    rows = [{"A": 1.0, "B": "x"}, {"A": None, "B": "y"}]
+    normalized = normalize_rows(rows)
+    assert normalized[0]["A"] == 1.0
+    assert normalized[1]["A"] is None
 
 
 # ---------------------------------------------------------------------------
