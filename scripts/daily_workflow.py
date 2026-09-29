@@ -83,7 +83,17 @@ SNAPSHOT_WORKERS_CAP = 6
 NAMED_UNIVERSE_TOKENS = frozenset({"sp500", "nasdaq100", "russell2000", "european"})
 # source_index tokens naming European indices (--universe european).
 EUROPEAN_INDEX_SOURCES = frozenset(
-    {"FTSE100", "DAX40", "CAC40", "IBEX35", "FTSE_MIB", "AEX", "SMI", "OMXS30", "OMXC25"}
+    {
+        "FTSE100",
+        "DAX40",
+        "CAC40",
+        "IBEX35",
+        "FTSE_MIB",
+        "AEX",
+        "SMI",
+        "OMXS30",
+        "OMXC25",
+    }
 )
 
 
@@ -125,9 +135,7 @@ def _row_sources(source_index: str) -> set[str]:
     return sources
 
 
-def resolve_universe(
-    spec: str, master_path: str = MASTER_UNIVERSE
-) -> list[str]:
+def resolve_universe(spec: str, master_path: str = MASTER_UNIVERSE) -> list[str]:
     """Resolve a ``--universe`` value into a ticker list.
 
     ``spec`` may be a file path (existing behaviour — the file is loaded
@@ -147,7 +155,9 @@ def resolve_universe(
     if spec and os.path.isfile(spec):
         return _load_universe(spec)
 
-    tokens = {t.strip().lower() for t in spec.split(",") if t.strip()} if spec else set()
+    tokens = (
+        {t.strip().lower() for t in spec.split(",") if t.strip()} if spec else set()
+    )
     if not tokens or "all" in tokens:
         if not os.path.isfile(master_path):
             raise SystemExit(
@@ -267,7 +277,10 @@ def _run_targeted_refresh(
             logger.info(
                 "refresh cap: %d stale > max-refresh %d — refreshing the %d "
                 "most-recently-synced and deferring %d to the next run",
-                stale_count, max_refresh, len(pool), len(deferred),
+                stale_count,
+                max_refresh,
+                len(pool),
+                len(deferred),
             )
 
     result = service.ensure_fresh_and_prices(
@@ -295,7 +308,10 @@ def _run_targeted_refresh(
             parts.append(f"{len(deferred)} deferred (--max-refresh)")
         parts.append(f"{elapsed:.0f}s")
     else:
-        parts = [f"{len(result.refreshed)} refreshed", f"{len(result.skipped)} fresh/skipped"]
+        parts = [
+            f"{len(result.refreshed)} refreshed",
+            f"{len(result.skipped)} fresh/skipped",
+        ]
         if result.failed:
             parts.append(f"{len(result.failed)} failed")
         parts.append(f"{elapsed:.0f}s")
@@ -434,7 +450,7 @@ def _run(args) -> None:
     )
 
     report_date = (
-        date.fromisoformat(args.date) if args.date else datetime.now().date()
+        date.fromisoformat(args.date) if args.date else datetime.now().date()  # noqa: DTZ005 — the report follows the local calendar day
     )
     start_time = time.time()
     universe = resolve_universe(args.universe)
@@ -624,9 +640,7 @@ def _run(args) -> None:
         prefetch_thread.join()
         if "exc" in prefetch_result:
             raise prefetch_result["exc"]
-        market_provider = prefetch_result.get(
-            "provider", SnapshotMarketProvider({})
-        )
+        market_provider = prefetch_result.get("provider", SnapshotMarketProvider({}))
         price_failures = prefetch_result.get("failures", {})
         timings["prices"] = prefetch_result.get("elapsed", 0.0)
         # wall time that blocked the run after the refresh (≈0 when the
@@ -748,9 +762,7 @@ def _run(args) -> None:
                 _progress["done"] += 1
                 done = _progress["done"]
             if done % 100 == 0:
-                logger.info(
-                    "analysis progress: %d / %d tickers", done, len(universe)
-                )
+                logger.info("analysis progress: %d / %d tickers", done, len(universe))
         return cache[ticker]
 
     # Real-time price enrichment served from the warm cache above, fetched
@@ -772,9 +784,7 @@ def _run(args) -> None:
         return
 
     previous = (
-        {}
-        if args.dry_run
-        else load_state(str(Path(args.out) / "daily_state.json"))
+        {} if args.dry_run else load_state(str(Path(args.out) / "daily_state.json"))
     )
 
     # Alerts are evaluated over the whole universe because the TRIGGER_EVENT
@@ -843,9 +853,7 @@ def _run(args) -> None:
     if args.no_prices:
         price_notes.append("prices not fetched (--no-prices); valuation may be N/A")
     else:
-        unavailable = [
-            item.ticker for item in screened if not (item.metrics or {})
-        ]
+        unavailable = [item.ticker for item in screened if not (item.metrics or {})]
         if unavailable:
             price_notes.append(
                 f"real-time price unavailable for: {', '.join(unavailable)}"
@@ -855,18 +863,16 @@ def _run(args) -> None:
         # skipped silently (INFO only) so a known-dead symbol never clutters
         # the daily report.
         glitches = sorted(
-            t for t, c in price_failures.items()
-            if c == PRICE_FAILURE_GLITCH
+            t for t, c in price_failures.items() if c == PRICE_FAILURE_GLITCH
         )
         mapping_gaps = sorted(
-            t for t, c in price_failures.items()
-            if c == PRICE_FAILURE_MAPPING
+            t for t, c in price_failures.items() if c == PRICE_FAILURE_MAPPING
         )
         undetermined = sorted(
-            t for t, c in price_failures.items()
-            if c not in (
-                PRICE_FAILURE_GLITCH, PRICE_FAILURE_MAPPING, PRICE_FAILURE_DELISTED
-            )
+            t
+            for t, c in price_failures.items()
+            if c
+            not in (PRICE_FAILURE_GLITCH, PRICE_FAILURE_MAPPING, PRICE_FAILURE_DELISTED)
         )
         if glitches:
             price_notes.append(
@@ -894,11 +900,15 @@ def _run(args) -> None:
         if not args.no_prices
         else {"processed": 0, "failures": {}}
     )
-    price_stage_outcome = dict(stage_outcome) if stage_outcome else {
-        "status": "ok",
-        "aborted_reason": None,
-        "aborted_after": 0,
-    }
+    price_stage_outcome = (
+        dict(stage_outcome)
+        if stage_outcome
+        else {
+            "status": "ok",
+            "aborted_reason": None,
+            "aborted_after": 0,
+        }
+    )
 
     report = DailyReport(
         report_date=report_date,
@@ -1148,7 +1158,9 @@ def _dcf_rows_for_report(rows, args, fdb_repo, price_service) -> list[dict]:
         ticker = row.get("ticker", "")
         try:
             fundamentals = fdb_repo.get_best_available(ticker)
-            result_rows.append(_dcf_dict(dcf.evaluate(ticker, fundamentals, price_service)))
+            result_rows.append(
+                _dcf_dict(dcf.evaluate(ticker, fundamentals, price_service))
+            )
         except Exception as e:  # noqa: BLE001 — the DCF must never break the daily run
             result_rows.append(
                 {"ticker": ticker, "verdict": "ERROR", "reason": f"DCF failed: {e}"}
@@ -1220,7 +1232,9 @@ def build_parser() -> argparse.ArgumentParser:
         "(default: config/refresh.yaml refresh_workers, 2)",
     )
     p.add_argument(
-        "--no-update", action="store_true", help="Skip the SEC refresh but still screen + write"
+        "--no-update",
+        action="store_true",
+        help="Skip the SEC refresh but still screen + write",
     )
     refresh_group = p.add_mutually_exclusive_group()
     refresh_group.add_argument(
