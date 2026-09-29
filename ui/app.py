@@ -1,3 +1,10 @@
+"""Value Investing — Streamlit entry point (5-page app).
+
+Navigation is programmatic (``st.navigation``) so the pages carry stable
+titles and the old manual radio is gone. Pages live in ``ui/pages/`` as
+numbered scripts and run standalone under ``AppTest`` too.
+"""
+
 import sys
 from pathlib import Path
 
@@ -9,52 +16,16 @@ import streamlit as st
 
 st.set_page_config(
     page_title="Value Investing",
-    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-from ui.pages.analysis import render_analysis
-from ui.pages.company import render_company
-from ui.pages.methodologies import render_methodologies
-from ui.pages.portfolio import render_portfolio
-from ui.pages.screener import render_screener
+pages = [
+    st.Page("pages/01_home.py", title="Home", default=True),
+    st.Page("pages/02_analysis.py", title="Analysis"),
+    st.Page("pages/03_screener.py", title="Screener"),
+    st.Page("pages/04_portfolio.py", title="Portfolio"),
+    st.Page("pages/05_reports.py", title="Reports"),
+]
 
-PAGE_RENDERERS = {
-    "Screener": render_screener,
-    "Metodologías + DCF": render_methodologies,
-    "Cartera": render_portfolio,
-    "Análisis Detallado": render_analysis,
-    "Vista Rápida": render_company,
-}
-
-
-def main():
-    if "page" not in st.session_state:
-        st.session_state.page = "Screener"
-
-    with st.sidebar:
-        st.title("📈 Value Investing")
-        st.markdown("---")
-        options = list(PAGE_RENDERERS.keys())
-        page = st.session_state.page if st.session_state.page in options else options[0]
-        selected = st.radio(
-            "Navegación",
-            options=options,
-            index=options.index(page),
-            key="nav",
-        )
-        if selected != st.session_state.page:
-            st.session_state.page = selected
-            st.rerun()
-
-        st.markdown("---")
-        st.caption("Análisis fundamental de acciones")
-        st.caption("Datos: Yahoo Finance + SEC EDGAR")
-
-    render = PAGE_RENDERERS[st.session_state.page]
-    render()
-
-
-if __name__ == "__main__":
-    main()
+st.navigation(pages).run()

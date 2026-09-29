@@ -11,8 +11,10 @@ stub) and are never persisted.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
 
 from backend.methodologies.registry import discover, registry
@@ -474,3 +476,146 @@ def remove_position(service: Any, ticker: str, portfolio: Any = None):
     if removed is None:
         raise PortfolioActionError(f"No hay posición para {normalized}.")
     return removed
+
+
+# ---------------------------------------------------------------------------
+# Daily report parsing (Home page)
+# ---------------------------------------------------------------------------
+_ALERT_RE = re.compile(
+    r"^-\s+\*\*(?P<ticker>[A-Z0-9.\-]+)\*\*\s+—\s+(?P<kind>.*?)\s+"
+    r"\(\*(?P<severity>[A-Z]+)\*\):\s+(?P<message>.*)$"
+)
+
+
+def parse_daily_report(text: str) -> dict[str, Any]:
+    """Parse a ``daily_*.md`` report into screened rows and alerts.
+
+    Pure function (no filesystem): the Home page and its tests feed it the
+    markdown text. Returns ``{"date", "screened", "alerts"}``; both lists are
+    empty when the section is missing.
+    """
+    date: str | None = None
+    screened: list[dict[str, Any]] = []
+    alerts: list[dict[str, Any]] = []
+    section: str | None = None
+    header: list[str] | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("# ") and date is None:
+            parts = line.lstrip("# ").split("—")
+            if len(parts) == 2:
+                date = parts[1].strip()
+        if line.startswith("## "):
+            section = line[3:].strip().lower()
+            header = None
+            continue
+        if section == "screened" and line.startswith("|"):
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if all(set(cell) <= {"-", " "} for cell in cells):
+                continue
+            if header is None:
+                header = cells
+                continue
+            if len(cells) == len(header):
+                screened.append(dict(zip(header, cells)))
+        elif section == "alerts":
+            match = _ALERT_RE.match(line)
+            if match:
+                alerts.append(match.groupdict())
+    return {"date": date, "screened": screened, "alerts": alerts}
+
+
+def parse_daily_report_file(path: str | Path) -> dict[str, Any]:
+    """Read a report file and parse it (``filename`` added to the result)."""
+    file_path = Path(path)
+    parsed = parse_daily_report(file_path.read_text(encoding="utf-8"))
+    parsed["filename"] = file_path.name
+    return parsed
+
+
+def latest_daily_report(reports_dir: str | Path) -> dict[str, Any] | None:
+    """Newest ``daily_*.md`` in ``reports_dir`` parsed, or None."""
+    directory = Path(reports_dir)
+    if not directory.exists():
+        return None
+    files = sorted(directory.glob("daily_*.md"))
+    if not files:
+        return None
+    return parse_daily_report_file(files[-1])
+
+
+def list_reports(reports_dir: str | Path) -> list[dict[str, Any]]:
+    """Every ``*.md`` report with date/size/mtime, newest first."""
+    directory = Path(reports_dir)
+    if not directory.exists():
+        return []
+    entries = []
+    for path in directory.glob("*.md"):
+        stat = path.stat()
+        entries.append(
+            {
+                "filename": path.name,
+                "date": datetime.fromtimestamp(stat.st_mtime, tz=UTC).strftime(
+                    "%Y-%m-%d"
+                ),
+                "size": stat.st_size,
+                "mtime": stat.st_mtime,
+                "path": str(path),
+            }
+        )
+    return sorted(entries, key=lambda entry: entry["mtime"], reverse=True)
+
+
+def parse_universe_tickers(
+    csv_text: str, universes: list[str] | tuple[str, ...]
+) -> list[str]:
+    """Tickers from the master-universe CSV for the selected source indexes.
+
+    Pure function: ``universes`` empty or containing "All" means every row.
+    """
+    import csv
+    import io
+
+    selected = {universe.upper() for universe in universes}
+    include_all = not selected or "ALL" in selected
+    tickers = set()
+    for row in csv.DictReader(io.StringIO(csv_text)):
+        sources = {
+            source.strip().upper()
+            for source in (row.get("source_index") or "").split(",")
+        }
+        if include_all or sources & selected:
+            ticker = (row.get("ticker") or "").strip().upper()
+            if ticker:
+                tickers.add(ticker)
+    return sorted(tickers)
+
+
+def apply_numeric_filters(
+    rows: list[dict[str, Any]],
+    *,
+    mcap_min: float = 0.0,
+    pe_max: float = 0.0,
+    roe_min: float = 0.0,
+    fcf_min: float = 0.0,
+) -> list[dict[str, Any]]:
+    """Filter screener rows by market cap (B), P/E, ROE and FCF yield.
+
+    A disabled filter (<= 0) keeps rows with missing values; an active filter
+    drops rows whose metric is missing (no data cannot prove the filter).
+    """
+
+    def keep(row: dict[str, Any]) -> bool:
+        mcap = row.get("market_cap")
+        per = row.get("per")
+        roe = row.get("roe")
+        fcf = row.get("fcf_yield")
+        if mcap_min and (mcap is None or mcap < mcap_min * 1e9):
+            return False
+        if pe_max and (per is None or per > pe_max):
+            return False
+        if roe_min and (roe is None or roe < roe_min):
+            return False
+        return not (fcf_min and (fcf is None or fcf < fcf_min))
+
+    return [row for row in rows if keep(row)]

@@ -16,3 +16,8 @@ extend-immutable-calls = [
     "fastapi.Form",
     "fastapi.Security",
 ]
+
+[lint.per-file-ignores]
+# Streamlit's multi-page convention requires numeric filename prefixes,
+# which are not valid Python module names (N999).
+"ui/pages/*.py" = ["N999"]
