@@ -33,6 +33,7 @@ from backend.methodologies.common.company_type import (
     detect_company_type,
 )
 from backend.valuation.base import DCFAssumptions, DCFResult
+from backend.valuation.wacc import compute_wacc
 
 #: Margin of safety is reported on a [-10, +10] band so a tiny denominator
 #: cannot produce pathological percentages (e.g. -3000%).
@@ -858,45 +859,24 @@ class DCFValuation:
         return reasons
 
     def _wacc(self, latest, price_service, ticker, result) -> float:
-        """WACC = E/V * CoE + D/V * CoD * (1 - tax); overrides honored."""
+        """WACC = E/V * CoE + D/V * CoD * (1 - tax); overrides honored.
+
+        Delegates to the shared :func:`backend.valuation.wacc.compute_wacc` so
+        the DCF and the Yahoo provider cannot drift apart.
+        """
         a = self.assumptions
         if a.wacc_override is not None:
             return float(a.wacc_override)
-
-        beta = price_service.get_beta(ticker)
-        if beta is None or beta <= 0:
-            beta = 1.0
-        cost_of_equity = a.risk_free_rate + beta * a.equity_risk_premium
-
-        cost_of_debt = cost_of_equity
-        if (
-            latest.interest_expense
-            and latest.interest_expense > 0
-            and latest.total_debt
-            and latest.total_debt > 0
-        ):
-            cost_of_debt = latest.interest_expense / latest.total_debt
-
-        debt = (
-            float(latest.total_debt)
-            if latest.total_debt and latest.total_debt > 0
-            else 0.0
+        return compute_wacc(
+            beta=price_service.get_beta(ticker),
+            interest_expense=latest.interest_expense,
+            total_debt=latest.total_debt,
+            market_cap=price_service.get_market_cap(ticker),
+            book_equity=latest.stockholders_equity,
+            risk_free_rate=a.risk_free_rate,
+            equity_risk_premium=a.equity_risk_premium,
+            tax_rate=a.tax_rate,
         )
-        equity = None
-        market_cap = price_service.get_market_cap(ticker)
-        if market_cap and market_cap > 0:
-            equity = float(market_cap)
-        elif latest.stockholders_equity and latest.stockholders_equity > 0:
-            # Book equity fallback when no market value is available.
-            equity = float(latest.stockholders_equity)
-
-        if equity is None or equity <= 0:
-            # All-equity fallback: no equity value can be priced.
-            return cost_of_equity
-        total = equity + debt
-        e_weight = equity / total
-        d_weight = debt / total
-        return e_weight * cost_of_equity + d_weight * cost_of_debt * (1.0 - a.tax_rate)
 
     # ------------------------------------------------------------------
     # projection

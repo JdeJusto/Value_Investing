@@ -8,6 +8,7 @@ from backend.domain.entities.financials import (
     IncomeStatement,
 )
 from backend.domain.interfaces.provider import FinancialDataProvider, MarketDataProvider
+from backend.valuation.wacc import compute_wacc
 
 if TYPE_CHECKING:
     # Both libraries are imported lazily inside the methods (heavy imports);
@@ -36,7 +37,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
         try:
             return bool(np.isnan(value))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
     def _safe_val(self, series, index=0):
@@ -45,7 +46,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             if self._is_nan(val):
                 return None
             return val
-        except (IndexError, AttributeError, KeyError, TypeError):
+        except IndexError, AttributeError, KeyError, TypeError:
             return None
 
     def _get(self, df: pd.DataFrame, name: str, index: int = 0):
@@ -53,7 +54,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         raising KeyError (some statements omit rows like Operating Income)."""
         try:
             return self._safe_val(df.loc[name], index)
-        except (KeyError, IndexError, AttributeError, TypeError):
+        except KeyError, IndexError, AttributeError, TypeError:
             return None
 
     def _pick(self, df: pd.DataFrame, candidates: list[str], index: int = 0):
@@ -63,7 +64,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 if self._is_nan(val):
                     continue
                 return val
-            except (KeyError, IndexError, AttributeError, TypeError):
+            except KeyError, IndexError, AttributeError, TypeError:
                 continue
         return None
 
@@ -85,7 +86,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 tax_provision=self._get(ism, "Tax Provision", year_index),
                 pretax_income=self._get(ism, "Pretax Income", year_index),
             )
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             return None
 
     def get_balance_sheet(
@@ -115,7 +116,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                     year_index,
                 ),
             )
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             return None
 
     def get_cash_flow(
@@ -164,7 +165,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                     year_index,
                 ),
             )
-        except (KeyError, AttributeError, TypeError):
+        except KeyError, AttributeError, TypeError:
             return None
 
     def get_market_cap(self, ticker: str) -> float | None:
@@ -208,7 +209,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             )
             if ni is not None and shares:
                 return float(ni) / float(shares)
-        except (KeyError, AttributeError, TypeError):
+        except KeyError, AttributeError, TypeError:
             pass
         return None
 
@@ -222,7 +223,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             )
             if years:
                 return years
-        except (KeyError, AttributeError, TypeError):
+        except KeyError, AttributeError, TypeError:
             pass
         return []
 
@@ -251,7 +252,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 )
             entries.sort(key=lambda e: e["end_date"], reverse=True)
             return entries
-        except (KeyError, AttributeError, TypeError):
+        except KeyError, AttributeError, TypeError:
             return []
 
     def get_risk_free_rate(self) -> float:
@@ -290,38 +291,29 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         return 0.05
 
     def get_wacc(self, ticker: str) -> float:
-        try:
-            mcap = self.get_market_cap(ticker)
-            bs = self.get_balance_sheet(ticker)
-            debt = bs.total_debt if bs else None
-            if mcap is None or debt is None:
-                return 0.08
-            total_cap = mcap + debt
-            wd = debt / total_cap if total_cap != 0 else 0.5
-            1.0 - wd
+        """Real WACC via the shared formula (same constants as the DCF).
 
-            cost_equity = self._risk_free_rate + beta * (
-                self._market_return - self._risk_free_rate
-            )
-            if financials.interest_expense is not None and debt != 0:
-                cost_debt = abs(financials.interest_expense) / debt
-            else:
-                cost_debt = DEFAULT_COST_OF_DEBT
-
-            tax_rate = _sanitize_tax_rate(
-                _effective_tax_rate(financials), self._default_tax_rate
-            )
-            return weight_equity * cost_equity + weight_debt * cost_debt * (
-                1 - tax_rate
-            )
-        except Exception:  # noqa: BLE001
-            return 0.08
+        Uses the provider's own getters; missing inputs degrade exactly like
+        the DCF: beta <= 0 or missing -> 1.0, no usable interest/debt -> cost
+        of debt = cost of equity, no priceable equity value -> the cost of
+        equity is returned (all-equity).
+        """
+        ism = self.get_income_statement(ticker)
+        bs = self.get_balance_sheet(ticker)
+        return compute_wacc(
+            beta=self.get_beta(ticker),
+            interest_expense=ism.interest_expense if ism else None,
+            total_debt=bs.total_debt if bs else None,
+            market_cap=self.get_market_cap(ticker),
+            book_equity=bs.stockholders_equity if bs else None,
+        )
 
     def get_financials(self, ticker: str, year_index: int = 0) -> object | None:
         """Return an object with financial attributes for comparison.
         This method is intended for use in scripts like compare_sources.py.
         ``year_index`` selects the fiscal year column (0 = most recent).
         """
+
         class _Financials:
             def __init__(self):
                 self.revenue: float | None = None
@@ -347,18 +339,42 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
             fin = _Financials()
             if income:
-                fin.revenue = float(income.revenue) if income.revenue is not None else None
-                fin.net_income = float(income.net_income) if income.net_income is not None else None
+                fin.revenue = (
+                    float(income.revenue) if income.revenue is not None else None
+                )
+                fin.net_income = (
+                    float(income.net_income) if income.net_income is not None else None
+                )
             if balance:
-                fin.total_assets = float(balance.total_assets) if balance.total_assets is not None else None
-                fin.total_liabilities = float(balance.total_liabilities) if balance.total_liabilities is not None else None
-                fin.shareholders_equity = float(balance.stockholders_equity) if balance.stockholders_equity is not None else None
+                fin.total_assets = (
+                    float(balance.total_assets)
+                    if balance.total_assets is not None
+                    else None
+                )
+                fin.total_liabilities = (
+                    float(balance.total_liabilities)
+                    if balance.total_liabilities is not None
+                    else None
+                )
+                fin.shareholders_equity = (
+                    float(balance.stockholders_equity)
+                    if balance.stockholders_equity is not None
+                    else None
+                )
             if cash_flow:
-                fin.operating_cash_flow = float(cash_flow.operating_cash_flow) if cash_flow.operating_cash_flow is not None else None
+                fin.operating_cash_flow = (
+                    float(cash_flow.operating_cash_flow)
+                    if cash_flow.operating_cash_flow is not None
+                    else None
+                )
                 capex = cash_flow.capital_expenditure
                 if capex is not None:
                     fin.capital_expenditure = abs(float(capex))
-                fin.free_cash_flow = float(cash_flow.free_cash_flow) if cash_flow.free_cash_flow is not None else None
+                fin.free_cash_flow = (
+                    float(cash_flow.free_cash_flow)
+                    if cash_flow.free_cash_flow is not None
+                    else None
+                )
             # Calculate diluted EPS (as-reported fiscal-year basis)
             fin.diluted_eps = self.get_eps(ticker, year_index)
             # Attempt to get fiscal year (matching the selected column)
