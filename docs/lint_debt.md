@@ -1,16 +1,28 @@
 # Lint debt
 
-Estado tras la limpieza del **2026-09-29**: `ruff check .` pasa de **983 a 62
+Estado tras la limpieza del **2026-09-29**: `ruff check .` pasa de **983 a 50
 errores**. El sprint aplicó autofixes mecánicos por lotes (imports, typing
 moderno, `datetime.UTC`, simplificaciones) y documentó los catch-all
 intencionales con `# noqa` + razón. La configuración mínima vive en
 `ruff.toml` (`target-version = py314` y la excepción de FastAPI para B008).
 
-## Remanente (62) y por qué
+## Bugs corregidos después del sprint (F821 eliminado)
+
+- **`YahooFinanceProvider.get_wacc`** referenciaba nombres inexistentes y
+  devolvía siempre 0.08. Corregido delegando en la nueva función compartida
+  `backend/valuation/wacc.py::compute_wacc` (mismas constantes que el DCF),
+  usada también por `DCFValuation._wacc`. Commit `c3b8aae`.
+- **`backend/app/cli.py`** usaba `CompanyRepository` sin importarlo (solo
+  estaba importado dentro de `build_data_pipeline`); los `except` amplios
+  enmascaraban el `NameError`. Ambos usos ahora importan el adaptador de
+  forma perezosa y capturan solo `(SQLAlchemyError, OSError)`, de modo que
+  futuros `NameError` afloran. Se eliminó además la definición duplicada
+  muerta de `build_financial_repository` (F811). Commit `5b140d6`.
+
+## Remanente (50) y por qué
 
 | Código | Nº | Motivo / plan |
 | --- | --- | --- |
-| **F821** | 11 | **Bugs reales descubiertos — NO arreglados en el sprint** (regla: documentar, no arreglar en silencio):<br>• `backend/providers/yahoo/provider.py::get_wacc` referencia variables inexistentes (`beta`, `financials`, `weight_equity`, ...); el `except` lo traga y **siempre devuelve 0.08**. Follow-up: reimplementarlo con `PriceService.get_beta`/coste de deuda o retirarlo.<br>• `backend/app/cli.py::_tracked_tickers`/`_company_enrichment` usan `CompanyRepository` **sin import**; los `except` lo enmascaran y caen siempre al fallback silencioso. Follow-up: importar el adaptador (o retirar el camino muerto).<br>• Resto: anotaciones que referencian imports perezosos ya cubiertas con `TYPE_CHECKING` en yahoo/edgar; quedan las de `get_wacc`. |
 | SIM117 / SIM102 | 14 | Fusión de `with`/`if` anidados con comentarios intercalados; ruff no los autocorrige. Cosmético. |
 | DTZ001 / DTZ005 | 9 | `datetime` naive preexistente; añadir tzinfo cambia semántica en comparaciones → requiere revisión caso a caso. |
 | F401 | 3 | Re-exports protegidos en `__init__.py` (ruff no los elimina por diseño). |
