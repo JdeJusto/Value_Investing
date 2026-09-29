@@ -1,0 +1,92 @@
+[
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2015,
+    "period": "FY",
+    "revenue": 1000000000.0,
+    "net_income": 200000000.0,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2016,
+    "period": "FY",
+    "revenue": 1030000000.0,
+    "net_income": 206000000.0,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2017,
+    "period": "FY",
+    "revenue": 1060900000.0,
+    "net_income": 212180000.0,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2018,
+    "period": "FY",
+    "revenue": 1092727000.0,
+    "net_income": 218545400.0,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2019,
+    "period": "FY",
+    "revenue": 1125508810.0,
+    "net_income": 225101762.0,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2020,
+    "period": "FY",
+    "revenue": 1159274074.3,
+    "net_income": 231854814.86,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2021,
+    "period": "FY",
+    "revenue": 1194052296.53,
+    "net_income": 238810459.31,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2022,
+    "period": "FY",
+    "revenue": 1229873865.42,
+    "net_income": 245974773.08,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2023,
+    "period": "FY",
+    "revenue": 1266770081.39,
+    "net_income": 253354016.28,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  },
+  {
+    "ticker": "SLOW",
+    "fiscal_year": 2024,
+    "period": "FY",
+    "revenue": 1304773183.83,
+    "net_income": 260954636.77,
+    "shares_outstanding": 200000000,
+    "dividends_paid": 20000000.0
+  }
+]

@@ -729,3 +729,119 @@ def test_turnaround_peg_failure_is_insufficient_not_fail():
     res = _evaluate_cap(rows, price=10.0, market_cap=1_000_000_000.0)
     assert res.metrics["lynch_category"] == "TURNAROUND"
     assert res.metrics["rule_1_criterion"] == "turnaround_peg"
+
+
+# ---------------------------------------------------------------------------
+# Category precedence: Fast Grower over Cyclical for high-CAGR companies
+# ---------------------------------------------------------------------------
+def test_categorize_fast_grower_large_cap():
+    rows = _growth_rows(0.25)
+    assert _category(rows, market_cap=50_000_000_000.0) == "FAST_GROWER"
+
+
+def test_categorize_fast_grower_beats_cyclical_sector():
+    # A 30% grower in a cyclical sector is still a Fast Grower: the high CAGR
+    # wins over the sector volatility.
+    rows = _growth_rows(0.30, sector="Consumer Cyclical")
+    assert _category(rows, market_cap=5_000_000_000.0) == "FAST_GROWER"
+
+
+def test_categorize_cyclical_with_stable_revenue():
+    # Flat revenue, volatile earnings: the classic cyclical shape.
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=1_000_000_000.0,
+            sector="Energy",
+        )
+        for i, v in enumerate(values)
+    ]
+    assert _category(rows, market_cap=20_000_000_000.0) == "CYCLICAL"
+
+
+def test_categorize_slow_grower_high_cap_low_growth():
+    rows = _growth_rows(0.03, dividends=20_000_000.0)
+    assert _category(rows, market_cap=200_000_000_000.0) == "SLOW_GROWER"
+
+
+def test_fast_grower_with_negative_margin_not_fast_grower():
+    # 25% revenue CAGR and 4 of 5 profitable years, but the latest year loses
+    # money: the positive-margin requirement keeps it out of Fast Grower.
+    revenues = [1.0e9 * (1.25**i) for i in range(5)]
+    incomes = [r * 0.1 for r in revenues]
+    incomes[-1] = -50e6
+    rows = [
+        _cat_row(2020 + i, net_income=incomes[i], revenue=revenues[i]) for i in range(5)
+    ]
+    assert _category(rows, market_cap=5_000_000_000.0) != "FAST_GROWER"
+
+
+# ---------------------------------------------------------------------------
+# Score consistency: hidden for categories whose Rule 1 is not the PEG
+# ---------------------------------------------------------------------------
+def test_slow_grower_score_hidden():
+    rows = _growth_rows(0.03, dividends=20_000_000.0, debt=100_000_000.0)
+    res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
+    assert res.metrics["lynch_category"] == "SLOW_GROWER"
+    assert res.score is None
+    assert "Slow Grower" in res.metrics["score_note"]
+    assert "dividend stability" in res.metrics["score_note"]
+
+
+def test_asset_play_score_hidden():
+    rows = _growth_rows(0.0, equity=1_000_000_000.0)
+    res = _evaluate_cap(rows, price=5.0, market_cap=500_000_000.0)
+    assert res.metrics["lynch_category"] == "ASSET_PLAY"
+    assert res.score is None
+    assert "Asset Play" in res.metrics["score_note"]
+    assert "price-to-book" in res.metrics["score_note"]
+
+
+def test_stalwart_score_numeric():
+    rows = _growth_rows(0.12, debt=100_000_000.0)
+    res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
+    assert res.metrics["lynch_category"] == "STALWART"
+    assert res.score is not None
+
+
+def test_fast_grower_score_numeric():
+    rows = _growth_rows(0.30, debt=100_000_000.0)
+    res = _evaluate_cap(rows, price=20.0, market_cap=5_000_000_000.0)
+    assert res.metrics["lynch_category"] == "FAST_GROWER"
+    assert res.score is not None
+
+
+def test_cyclical_score_numeric():
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=float(v) * 5e6,
+            sector="Energy",
+        )
+        for i, v in enumerate(values)
+    ]
+    res = _evaluate_cap(rows, price=10.0, market_cap=20_000_000_000.0)
+    assert res.metrics["lynch_category"] == "CYCLICAL"
+    assert res.score is not None
+
+
+def test_turnaround_score_numeric():
+    # Ten years: four good years, then a deep dip and a recovery in progress.
+    values = [100, 110, 120, 130, 140, -20, -10, -5, 10, 15]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=abs(float(v)) * 5e6,
+            debt=30_000_000.0,
+            dividends=5_000_000.0,
+        )
+        for i, v in enumerate(values)
+    ]
+    res = _evaluate_cap(rows, price=10.0, market_cap=1_000_000_000.0)
+    assert res.metrics["lynch_category"] == "TURNAROUND"
+    assert res.score is not None

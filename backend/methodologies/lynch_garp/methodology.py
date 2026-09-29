@@ -120,12 +120,26 @@ CATEGORY_LABELS = {
     LynchCategory.UNKNOWN: "Unclassified",
 }
 
+#: Categories whose Rule 1 is not the PEG: the generic passed/evaluable score
+#: is not comparable across categories, so it is hidden (never invented).
+_SCORELESS_CATEGORIES = frozenset({LynchCategory.SLOW_GROWER, LynchCategory.ASSET_PLAY})
+_SCORE_NOTES = {
+    LynchCategory.SLOW_GROWER: (
+        "Score not applicable for Slow Grower; the verdict is based on "
+        "dividend stability and margin stability."
+    ),
+    LynchCategory.ASSET_PLAY: (
+        "Score not applicable for Asset Play; the verdict is based on the "
+        "price-to-book discount."
+    ),
+}
+
 
 class LynchGARPMethodology(Methodology):
     """The GARP screen, as a self-contained book methodology."""
 
     name = "lynch_garp"
-    version = "1.1.0"
+    version = "1.2.0"
     family = "GARP"
 
     # ------------------------------------------------------------------
@@ -205,6 +219,11 @@ class LynchGARPMethodology(Methodology):
         ]
 
         verdict, score, confidence = self._verdict(category, outcomes, rows)
+        if category in _SCORELESS_CATEGORIES:
+            # Rule 1 is not the PEG for these categories; the generic
+            # passed/evaluable score is not comparable and is hidden rather
+            # than invented (the verdict + category carry the judgment).
+            score = None
         red_flags = self._red_flags(outcomes)
         reasons = self._reasons(outcomes, verdict, category)
 
@@ -341,15 +360,26 @@ class LynchGARPMethodology(Methodology):
         return (newest.revenue / oldest.revenue) ** (1.0 / span) - 1.0
 
     @staticmethod
-    def _eps_growth_count(rows, comparisons: int = _CATEGORY_YEARS) -> int:
-        """Year-over-year EPS increases over the newest ``comparisons`` years."""
-        ordered = sorted(rows, key=lambda r: r.fiscal_year)[-(comparisons + 1) :]
-        eps = [LynchGARPMethodology._eps(r) for r in ordered]
-        return sum(
-            1
-            for i in range(1, len(eps))
-            if eps[i] is not None and eps[i - 1] is not None and eps[i] > eps[i - 1]
-        )
+    def _eps_positive_years(rows, years: int = _CATEGORY_YEARS) -> int:
+        """Newest ``years`` fiscal years with positive earnings per share."""
+        count = 0
+        for row in rows[:years]:
+            eps = LynchGARPMethodology._eps(row)
+            if eps is not None and eps > 0:
+                count += 1
+        return count
+
+    @staticmethod
+    def _net_margin(row) -> float | None:
+        """Net income / revenue for one row, or None when not computable."""
+        if (
+            row is None
+            or row.revenue is None
+            or row.revenue <= 0
+            or row.net_income is None
+        ):
+            return None
+        return row.net_income / row.revenue
 
     @staticmethod
     def _dividend_years(rows, years: int) -> int:
@@ -434,11 +464,18 @@ class LynchGARPMethodology(Methodology):
         Stalwart > Slow Grower > UNKNOWN. Missing inputs never fabricate a
         category: the company falls through to UNKNOWN and the generic PEG
         screen applies.
+
+        Fast Grower is deliberately generous with size — modern fast growers
+        are often large caps (TSLA, NVDA) — but strict on the growth story:
+        revenue CAGR >= 20% with positive EPS in >= 4 of 5 years and a
+        positive net margin. Large caps (>= $10B) qualify from 20% growth;
+        any size qualifies from 25%.
         """
         latest = rows[0] if rows else None
         if latest is None:
             return LynchCategory.UNKNOWN
         revenue_cagr = self._revenue_cagr(rows)
+        margin = self._net_margin(latest)
         negative_years = sum(
             1 for r in rows[:_CATEGORY_YEARS] if (r.net_income or 0) < 0
         )
@@ -452,9 +489,11 @@ class LynchGARPMethodology(Methodology):
         if (
             revenue_cagr is not None
             and revenue_cagr >= _FAST_GROWER_CAGR
-            and self._eps_growth_count(rows) >= _CATEGORY_YEARS
+            and self._eps_positive_years(rows) >= _CATEGORY_YEARS - 1
+            and margin is not None
+            and margin > 0.0
             and (
-                (market_cap is not None and market_cap < _STALWART_MARKET_CAP)
+                (market_cap is not None and market_cap >= _STALWART_MARKET_CAP)
                 or revenue_cagr >= _FAST_GROWER_HIGH_CAGR
             )
         ):
@@ -943,4 +982,6 @@ class LynchGARPMethodology(Methodology):
             metrics["lynch_category"] = category.value
             metrics["lynch_category_label"] = CATEGORY_LABELS[category]
             metrics["rule_1_criterion"] = criterion
+        if category in _SCORELESS_CATEGORIES:
+            metrics["score_note"] = _SCORE_NOTES[category]
         return metrics

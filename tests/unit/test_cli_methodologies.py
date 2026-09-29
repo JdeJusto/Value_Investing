@@ -10,8 +10,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 from cli.main import main
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -155,7 +153,10 @@ def test_compare_with_two_methodologies_renders_cleanly(monkeypatch, capsys):
 
 
 def test_compare_unknown_methodology_warns_and_skips(monkeypatch, capsys):
-    _run(["compare-methodologies", "AAPL", "--methodologies", "graham,nonexistent"], monkeypatch)
+    _run(
+        ["compare-methodologies", "AAPL", "--methodologies", "graham,nonexistent"],
+        monkeypatch,
+    )
     captured = capsys.readouterr()
     assert "unknown methodology 'nonexistent'" in captured.out
     assert "graham" in captured.out
@@ -182,7 +183,12 @@ def test_compare_renders_all_five_methodologies(monkeypatch, capsys):
 
 def test_score_none_renders_as_em_dash(monkeypatch, capsys):
     """Decision 10: a methodology without a numeric scale renders —, not 0.0."""
-    from backend.methodologies.base import Confidence, Methodology, MethodologyResult, Verdict
+    from backend.methodologies.base import (
+        Confidence,
+        Methodology,
+        MethodologyResult,
+        Verdict,
+    )
 
     class _NoScore(Methodology):
         name = "noscore"
@@ -191,9 +197,16 @@ def test_score_none_renders_as_em_dash(monkeypatch, capsys):
 
         def evaluate(self, ticker, fundamentals, prices):
             return MethodologyResult(
-                methodology="noscore", version=self.version, family=self.family,
-                verdict=Verdict.BUY, score=None, metrics={}, reasons=[],
-                red_flags=[], confidence=Confidence.HIGH, sources=[],
+                methodology="noscore",
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.BUY,
+                score=None,
+                metrics={},
+                reasons=[],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=[],
             )
 
         def rules(self):
@@ -202,7 +215,6 @@ def test_score_none_renders_as_em_dash(monkeypatch, capsys):
         def metadata(self):
             return {}
 
-    import cli.commands.compare_methodologies as compare
     import sys
 
     # The package re-exports the singleton, so patch the real module object.
@@ -227,3 +239,22 @@ def test_no_price_means_no_network_and_no_db(monkeypatch, capsys):
     # With criteria 2/3 evaluable from fundamentals alone, the verdict
     # without a price is WATCH (4 of 7 pass), not INSUFFICIENT_DATA.
     assert "WATCH" in out
+
+
+# ----------------------------------------------------------------------
+# analyze-lynch-garp
+# ----------------------------------------------------------------------
+
+
+def test_analyze_lynch_garp_slow_grower_hides_score(monkeypatch, capsys):
+    """A slow grower shows the category and no numeric score, plus the note."""
+    _run(
+        ["analyze-lynch-garp", "KO"],
+        monkeypatch,
+        price=100.0,
+        repo_fixture="lynch_garp_slow_grower.json",
+    )
+    out = capsys.readouterr().out
+    assert "Slow Grower" in out
+    assert "Score : —" in out
+    assert "Score not applicable for Slow Grower" in out
