@@ -5,6 +5,7 @@ import sys
 import time
 
 from dotenv import load_dotenv
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.analytics.interpretation import print_analysis
 from backend.analytics.service import CompanyAnalysisService
@@ -35,30 +36,6 @@ sec_email = os.getenv("SEC_EMAIL", "").strip()
 sec_name = os.getenv("SEC_NAME", "").strip() or "Value Investing"
 
 logger = logging.getLogger("backend.app")
-
-
-def build_financial_repository() -> FinancialRepository:
-    # Try Financial-DataBase repository first
-    try:
-        financial_db_repo = FinancialDatabaseRepository()
-        if financial_db_repo.available():
-            logger.info("Using Financial-DataBase financial repository")
-            return financial_db_repo
-    except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
-        logger.warning(f"Financial-DataBase repository unavailable: {e}")
-
-    # Fall back to existing PostgreSQL repository
-    # (imported lazily — SQLAlchemy is heavy and is only needed on this path)
-    from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
-
-    repository = SqlAlchemyFinancialRepository()
-    if repository.available():
-        logger.info("Using PostgreSQL financial repository")
-        return repository
-
-    # Finally fall back to JSON storage
-    logger.warning("PostgreSQL unavailable — falling back to JSON storage")
-    return JsonFinancialRepository(os.getenv("NORMALIZED_DATA_DIR", "data/normalized"))
 
 
 def build_data_pipeline() -> DataPipelineService:
@@ -241,7 +218,7 @@ def refresh_analysis_inputs(
     if freshness_hours is not None:
         try:
             freshness_hours = int(freshness_hours)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             freshness_hours = None
 
     skip = None  # None => let the config decide (skip_refresh_flag/auto_refresh)
@@ -270,9 +247,7 @@ def _print_refresh_summary(result, *, universe_wide: bool = False) -> None:
     pieces = []
     if result.refreshed:
         n = len(result.refreshed)
-        pieces.append(
-            green(f"{n} sincronizado{'s' if n > 1 else ''} con SEC")
-        )
+        pieces.append(green(f"{n} sincronizado{'s' if n > 1 else ''} con SEC"))
     if result.skipped:
         pieces.append(dim(f"{len(result.skipped)} sin tocar"))
     if sync_failures:
@@ -318,9 +293,17 @@ def _tracked_tickers() -> list[str]:
     """Tickers tracked in storage, falling back to the static universe if the
     database is unavailable so the CLI keeps working."""
     try:
+        # Imported lazily (the adapter creates the SQLAlchemy engine at import
+        # time) so a bad DATABASE_URL cannot break unrelated CLI commands.
+        from backend.adapters.database.repositories.company_repository import (
+            CompanyRepository,
+        )
+
         return [c.ticker for c in CompanyRepository().list_all()] or TICKERS
-    except Exception:  # noqa: BLE001 — database down must not kill the CLI
-        logger.warning("storage unavailable — falling back to static ticker list")
+    except (SQLAlchemyError, OSError) as e:  # database down must not kill the CLI
+        logger.warning(
+            "storage unavailable — falling back to static ticker list: %s", e
+        )
         return TICKERS
 
 
@@ -395,11 +378,15 @@ def build_watchlist_service():
 def _company_enrichment():
     def enrich(ticker: str, item: dict) -> dict:
         try:
+            from backend.adapters.database.repositories.company_repository import (
+                CompanyRepository,
+            )
+
             company = CompanyRepository().find_by_ticker(ticker)
             if company:
                 item["sector"] = company.sector
                 item["industry"] = company.industry
-        except Exception as e:  # noqa: BLE001
+        except (SQLAlchemyError, OSError) as e:
             logger.warning("company metadata unavailable for %s: %s", ticker, e)
         return item
 
@@ -444,9 +431,9 @@ def cmd_analyze(args):
         ticker = row["ticker"]
         score = row["score"]
         if score is not None:
-            print(f"{i+1}. {ticker} : {score:.4f}")
+            print(f"{i + 1}. {ticker} : {score:.4f}")
         else:
-            print(f"{i+1}. {ticker} : sin score")
+            print(f"{i + 1}. {ticker} : sin score")
     print(f"\nTop pick: {df.iloc[0]['ticker']}")
 
 
@@ -608,7 +595,8 @@ def main():
 
     # Historical valuation command
     p_hist = sub.add_parser(
-        "historical-valuation", help="Show historical valuation ratios (P/E and FCF yield)"
+        "historical-valuation",
+        help="Show historical valuation ratios (P/E and FCF yield)",
     )
     p_hist.set_defaults(func=cmd_historical_valuation)
 
