@@ -1,38 +1,33 @@
 # Lint debt
 
-Estado tras la limpieza del **2026-09-29**: `ruff check .` pasa de **983 a 50
-errores**. El sprint aplicó autofixes mecánicos por lotes (imports, typing
-moderno, `datetime.UTC`, simplificaciones) y documentó los catch-all
-intencionales con `# noqa` + razón. La configuración mínima vive en
-`ruff.toml` (`target-version = py314` y la excepción de FastAPI para B008).
+## No remaining lint debt as of 2026-09-29
 
-## Bugs corregidos después del sprint (F821 eliminado)
+`ruff check .` passes with **0 errors** (down from 983 at the start of the
+cleanup) and `ruff format --check` is clean on every touched file.
 
-- **`YahooFinanceProvider.get_wacc`** referenciaba nombres inexistentes y
-  devolvía siempre 0.08. Corregido delegando en la nueva función compartida
-  `backend/valuation/wacc.py::compute_wacc` (mismas constantes que el DCF),
-  usada también por `DCFValuation._wacc`. Commit `c3b8aae`.
-- **`backend/app/cli.py`** usaba `CompanyRepository` sin importarlo (solo
-  estaba importado dentro de `build_data_pipeline`); los `except` amplios
-  enmascaraban el `NameError`. Ambos usos ahora importan el adaptador de
-  forma perezosa y capturan solo `(SQLAlchemyError, OSError)`, de modo que
-  futuros `NameError` afloran. Se eliminó además la definición duplicada
-  muerta de `build_financial_repository` (F811). Commit `5b140d6`.
+What the cleanup did, in order:
 
-## Remanente (50) y por qué
+1. **Mechanical autofixes**: import hygiene (F401/I001/RUF100 with the full
+   rule set active), modern typing (UP045/006/035/007/037), `datetime.UTC`
+   (UP017), SIM/ISC/C408/RUF022.
+2. **Documented boundary catch-alls**: `# noqa: BLE001` / `S110` / `S112`
+   with the reason inline (providers, network, parser boundaries) — never a
+   blanket noqa.
+3. **Config** (`ruff.toml`): `target-version = "py314"`, FastAPI
+   `Depends()`/`Query()`/... exempted from B008, and N999 ignored for the
+   numbered Streamlit pages.
+4. **Two real bugs** found by F821 and fixed with tests: the Yahoo
+   `get_wacc` undefined-name path (now the shared `compute_wacc`) and the
+   missing `CompanyRepository` import in `app/cli.py`.
+5. **Isolated fixes**: dead duplicate methods (F811), `itertools.pairwise`
+   (RUF007), identical isinstance branches (RUF034), explicit
+   `check=False` (PLW1510), negated returns (SIM103/SIM211), dict
+   iteration with `.items()` (PLC0206), `lines.extend` (PERF402),
+   `ClassVar` (RUF012), duplicated fixture key (F601), `max()` (FURB192),
+   implicit concatenation (FLY002) and specific frozen-dataclass
+   exceptions in tests (B017).
 
-| Código | Nº | Motivo / plan |
-| --- | --- | --- |
-| SIM117 / SIM102 | 14 | Fusión de `with`/`if` anidados con comentarios intercalados; ruff no los autocorrige. Cosmético. |
-| DTZ001 / DTZ005 | 9 | `datetime` naive preexistente; añadir tzinfo cambia semántica en comparaciones → requiere revisión caso a caso. |
-| F401 | 3 | Re-exports protegidos en `__init__.py` (ruff no los elimina por diseño). |
-| C408, F811, PLR0124, RUF007, RUF012, PLW1510, S112, B017, SIM103, PLC0206, PERF402, RUF034, SIM211, F601 | 25 | Casos aislados que requieren revisión individual; algunos son intencionales (`S112`/`B017` en tests). |
-
-## Cómo se hizo (para futuros sprints)
-
-- `ruff check . --fix` **siempre con el conjunto completo de reglas**: un
-  `--select` estrecho hace que `RUF100` juzgue los `# noqa` como no usados y
-  los elimine (pasó una vez con 160 suppressions; se revirtió).
-- Los catch-all de frontera (red/parsers/telemetría) llevan
-  `# noqa: BLE001 — boundary catch-all ...` con la razón inline.
-- Cada lote se validó con la suite completa antes de commitear.
+The `# noqa` comments that remain in the codebase are intentional and each
+carries a reason on the same line: boundary catches, the NaT check in the
+dividend sorter, yfinance's naive split-index fixtures, and local
+human-readable log timestamps.
