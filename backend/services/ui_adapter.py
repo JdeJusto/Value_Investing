@@ -12,6 +12,7 @@ stub) and are never persisted.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from typing import Any
 
 from backend.methodologies.registry import discover, registry
@@ -367,3 +368,109 @@ def build_portfolio_view(portfolio: Any, sectors: dict | None = None) -> Portfol
         risk=risk_concentration(portfolio),
         warnings=warnings,
     )
+
+
+# ---------------------------------------------------------------------------
+# Portfolio actions (validated; the UI form and buttons call these)
+# ---------------------------------------------------------------------------
+class PortfolioActionError(ValueError):
+    """A portfolio action that failed validation; the message is user-facing."""
+
+
+def validate_new_position(
+    ticker: str,
+    shares: float | None,
+    price: float | None,
+    entry_date: date | None = None,
+    ticker_checker: Any = None,
+    today: date | None = None,
+) -> str:
+    """Validate an add-position input; returns the normalized ticker.
+
+    ``ticker_checker`` is an optional callable that answers "does this ticker
+    exist in the fundamentals database?"; when omitted, no existence check is
+    performed (graceful fallback).
+    """
+    normalized = (ticker or "").strip().upper()
+    if not normalized:
+        raise PortfolioActionError("El ticker es obligatorio.")
+    if ticker_checker is not None and not ticker_checker(normalized):
+        raise PortfolioActionError(
+            f"El ticker {normalized} no existe en la base de datos."
+        )
+    if shares is None or shares <= 0:
+        raise PortfolioActionError("Las acciones deben ser mayores que 0.")
+    if price is None or price <= 0:
+        raise PortfolioActionError("El precio debe ser mayor que 0.")
+    reference = today or datetime.now(timezone.utc).date()
+    if entry_date is not None and entry_date > reference:
+        raise PortfolioActionError("La fecha de entrada no puede ser futura.")
+    return normalized
+
+
+def add_position(
+    service: Any,
+    ticker: str,
+    shares: float | None,
+    price: float | None,
+    entry_date: date | None = None,
+    thesis: str = "",
+    signal: str = "",
+    ticker_checker: Any = None,
+    today: date | None = None,
+):
+    """Validated add; averages into an existing open position when present."""
+    normalized = validate_new_position(
+        ticker, shares, price, entry_date, ticker_checker, today
+    )
+    entry_dt = None
+    if entry_date is not None:
+        entry_dt = datetime(
+            entry_date.year, entry_date.month, entry_date.day, tzinfo=timezone.utc
+        )
+    return service.add(
+        normalized,
+        shares,
+        price,
+        entry_date=entry_dt,
+        thesis=thesis,
+        signal_at_entry=signal,
+    )
+
+
+def exit_position(
+    service: Any, ticker: str, price: float | None, portfolio: Any = None
+):
+    """Validated exit; returns the closed position (realized PnL recorded)."""
+    normalized = (ticker or "").strip().upper()
+    if not normalized:
+        raise PortfolioActionError("El ticker es obligatorio.")
+    if price is None or price <= 0:
+        raise PortfolioActionError("El precio de salida debe ser mayor que 0.")
+    if portfolio is not None:
+        position = portfolio.position(normalized)
+        if position is None:
+            raise PortfolioActionError(f"No hay posición abierta para {normalized}.")
+        if position.quantity <= 0:
+            raise PortfolioActionError(
+                f"{normalized} no tiene acciones; usa Remove en lugar de Exit."
+            )
+    closed = service.exit(normalized, price)
+    if closed is None:
+        raise PortfolioActionError(f"No hay posición abierta para {normalized}.")
+    return closed
+
+
+def remove_position(service: Any, ticker: str, portfolio: Any = None):
+    """Validated remove (no PnL recorded); returns the removed position."""
+    normalized = (ticker or "").strip().upper()
+    if not normalized:
+        raise PortfolioActionError("El ticker es obligatorio.")
+    if portfolio is not None and not any(
+        p.ticker.upper() == normalized for p in portfolio.positions
+    ):
+        raise PortfolioActionError(f"No hay posición para {normalized}.")
+    removed = service.remove(normalized)
+    if removed is None:
+        raise PortfolioActionError(f"No hay posición para {normalized}.")
+    return removed
