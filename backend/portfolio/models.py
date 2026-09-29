@@ -5,7 +5,7 @@ the portfolio answers "what do I hold and why do I hold it".
 """
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -129,7 +129,7 @@ class Portfolio:
         if position is None:
             return None
         position.exit_price = price
-        position.exit_date = exit_date or datetime.now()
+        position.exit_date = exit_date or datetime.now(UTC)
         return position
 
     def to_dict(self) -> dict[str, Any]:

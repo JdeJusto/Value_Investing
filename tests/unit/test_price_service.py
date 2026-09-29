@@ -272,7 +272,10 @@ class TestPriceService:
     def test_get_split_adjustment_applies_future_splits(self, service):
         """Test that splits after the target date multiply the factor."""
         splits = pd.Series(
-            {datetime(2014, 6, 9): 7.0, datetime(2020, 8, 31): 4.0}
+            {
+                datetime(2014, 6, 9): 7.0,  # noqa: DTZ001 — yfinance split index
+                datetime(2020, 8, 31): 4.0,  # noqa: DTZ001 — yfinance split index
+            }
         )
         mock_ticker = Mock()
         mock_ticker.splits = splits
@@ -291,7 +294,9 @@ class TestPriceService:
 
     def test_get_split_adjustment_ignores_past_splits(self, service):
         """Test that splits before the target date are ignored."""
-        splits = pd.Series({datetime(2014, 6, 9): 7.0})
+        splits = pd.Series(
+            {datetime(2014, 6, 9): 7.0}  # noqa: DTZ001 — yfinance split index
+        )
         mock_ticker = Mock()
         mock_ticker.splits = splits
 
@@ -304,7 +309,10 @@ class TestPriceService:
         """An integer fiscal year resolves to December 31 like the price-on-
         fiscal-year-end fallback, so an int never raises a TypeError."""
         splits = pd.Series(
-            {datetime(2014, 6, 9): 7.0, datetime(2020, 8, 31): 4.0}
+            {
+                datetime(2014, 6, 9): 7.0,  # noqa: DTZ001 — yfinance split index
+                datetime(2020, 8, 31): 4.0,  # noqa: DTZ001 — yfinance split index
+            }
         )
         mock_ticker = Mock()
         mock_ticker.splits = splits

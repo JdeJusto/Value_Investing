@@ -64,7 +64,9 @@ METRICS = [
 
 
 def _now() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now().strftime(  # noqa: DTZ005 — local time for log readability
+        "%Y-%m-%d %H:%M:%S"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ statuses: MONITORING -> BOUGHT (moved to the portfolio) or DISCARDED.
 """
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 MONITORING = "MONITORING"
@@ -34,7 +34,7 @@ class WatchlistItem:
             added_at=(
                 datetime.fromisoformat(data["added_at"])
                 if data.get("added_at")
-                else datetime.now()
+                else datetime.now(UTC)
             ),
             note=data.get("note", ""),
         )
