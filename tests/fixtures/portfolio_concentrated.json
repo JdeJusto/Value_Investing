@@ -1,0 +1,23 @@
+{
+  "name": "default",
+  "positions": [
+    {
+      "ticker": "AAPL",
+      "quantity": 90,
+      "avg_price": 100.0,
+      "current_price": 100.0,
+      "entry_date": "2025-01-15T00:00:00",
+      "thesis": "moat fuerte",
+      "signal_at_entry": "BUY"
+    },
+    {
+      "ticker": "KO",
+      "quantity": 10,
+      "avg_price": 100.0,
+      "current_price": 100.0,
+      "entry_date": "2025-03-01T00:00:00",
+      "thesis": "dividend stability",
+      "signal_at_entry": "BUY"
+    }
+  ]
+}

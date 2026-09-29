@@ -67,3 +67,28 @@ def load_historical_valuation(ticker: str) -> list:
         return service.get_historical_valuation_summary(ticker)
     except Exception:  # noqa: BLE001 — no history is not a crash
         return []
+
+
+@st.cache_data(ttl=60)
+def load_portfolio(path: str):
+    """Read-only load of the portfolio JSON; nothing is written."""
+    from backend.portfolio.portfolio_repository import JsonPortfolioRepository
+
+    try:
+        return JsonPortfolioRepository(path).load()
+    except Exception:  # noqa: BLE001 — a broken file must not crash the page
+        return None
+
+
+@st.cache_data(ttl=3600)
+def load_sector_map(tickers: tuple[str, ...]) -> dict:
+    """Sector per ticker from the fundamentals repository (None when unknown)."""
+    repository = build_financial_repository()
+    sectors: dict[str, str | None] = {}
+    for ticker in tickers:
+        try:
+            rows = [row for row in repository.get_best_available(ticker) if row]
+        except Exception:  # noqa: BLE001 — an unknown sector is not an error
+            rows = []
+        sectors[ticker] = rows[0].sector if rows else None
+    return sectors

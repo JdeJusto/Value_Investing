@@ -1,0 +1,32 @@
+{
+  "name": "default",
+  "positions": [
+    {
+      "ticker": "AAPL",
+      "quantity": 10,
+      "avg_price": 180.0,
+      "current_price": 340.0,
+      "entry_date": "2025-01-15T00:00:00",
+      "thesis": "moat fuerte",
+      "signal_at_entry": "BUY"
+    },
+    {
+      "ticker": "MSFT",
+      "quantity": 10,
+      "avg_price": 300.0,
+      "current_price": 300.0,
+      "entry_date": "2025-02-01T00:00:00",
+      "thesis": "cloud growth",
+      "signal_at_entry": "WATCH"
+    },
+    {
+      "ticker": "KO",
+      "quantity": 100,
+      "avg_price": 20.0,
+      "current_price": 20.0,
+      "entry_date": "2025-03-01T00:00:00",
+      "thesis": "dividend stability",
+      "signal_at_entry": "BUY"
+    }
+  ]
+}

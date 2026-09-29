@@ -15,6 +15,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from backend.methodologies.registry import discover, registry
+from backend.portfolio.allocation import (
+    overconcentration,
+    risk_concentration,
+    sector_exposure,
+)
+from backend.portfolio.performance import portfolio_performance
 from backend.valuation.dcf import DCFValuation
 
 #: Human labels for the DCF variants. Mirrors ``cli/commands/dcf.py`` on
@@ -285,3 +291,79 @@ def run_methodologies(
 def run_dcf(ticker: str, rows: list[Any], price_service: Any) -> DCFView:
     """Evaluate the not-from-canon DCF and shape it for the UI."""
     return build_dcf_view(DCFValuation().evaluate(ticker, rows, price_service))
+
+
+#: A sector above this weight triggers a concentration warning.
+SECTOR_CONCENTRATION_THRESHOLD = 0.40
+
+
+@dataclass
+class PortfolioView:
+    """Everything the UI needs for the read-only portfolio page."""
+
+    name: str
+    is_empty: bool
+    positions: list[dict[str, Any]] = field(default_factory=list)
+    totals: dict[str, Any] = field(default_factory=dict)
+    sector_exposure: list[dict[str, Any]] = field(default_factory=list)
+    risk: dict[str, Any] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+
+
+def build_portfolio_view(portfolio: Any, sectors: dict | None = None) -> PortfolioView:
+    """Pure transformation: a Portfolio -> portfolio page view data.
+
+    Read-only: reuses the pure performance/allocation functions; it never
+    refreshes or saves prices (the CLI owns that side effect).
+    """
+    sectors = sectors or {}
+    performance = portfolio_performance(portfolio)
+    open_positions = [p for p in portfolio.positions if p.is_open]
+    rows: list[dict[str, Any]] = []
+    for position in open_positions:
+        has_price = bool(position.current_price and position.current_price > 0)
+        rows.append(
+            {
+                "Ticker": position.ticker,
+                "Shares": position.quantity,
+                "Avg Price": fmt_or_dash(position.avg_price),
+                "Current Price": (
+                    fmt_or_dash(position.current_price) if has_price else DASH
+                ),
+                "Value": fmt_or_dash(position.market_value) if has_price else DASH,
+                "PnL": fmt_or_dash(position.unrealized_pnl) if has_price else DASH,
+                "PnL%": (
+                    fmt_or_dash(position.unrealized_return, percent=True)
+                    if has_price
+                    else DASH
+                ),
+                "Thesis": position.thesis or DASH,
+                "Signal": position.signal_at_entry or DASH,
+            }
+        )
+    exposure = sector_exposure(portfolio, sectors, top=50)
+    warnings = [
+        f"{finding['ticker']} pesa {finding['weight']:.1%} de la cartera (umbral 25%)"
+        for finding in overconcentration(portfolio)
+    ]
+    warnings += [
+        f"El sector {row['sector']} pesa {row['weight']:.1%} de la cartera (umbral 40%)"
+        for row in exposure
+        if row["sector"] != "N/A" and row["weight"] > SECTOR_CONCENTRATION_THRESHOLD
+    ]
+    return PortfolioView(
+        name=portfolio.name,
+        is_empty=not open_positions,
+        positions=rows,
+        totals={
+            "market_value": performance["market_value"],
+            "cost_basis": performance["cost_basis"],
+            "unrealized_pnl": performance["unrealized_pnl"],
+            "realized_pnl": performance["realized_pnl"],
+            "total_pnl": performance["total_pnl"],
+            "total_return": performance["total_return"],
+        },
+        sector_exposure=exposure,
+        risk=risk_concentration(portfolio),
+        warnings=warnings,
+    )
