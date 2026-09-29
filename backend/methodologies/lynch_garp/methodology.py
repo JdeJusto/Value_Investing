@@ -58,12 +58,8 @@ _FLAG_BY_RULE = {
         "Earnings declined in 4+ of the last 10 years"
     ),
     "lynch_garp.rule_3_debt_conservatism": "Long-term debt above 4x net income",
-    "lynch_garp.rule_4_inventory_vs_sales": (
-        "Inventory growing 50% faster than sales"
-    ),
-    "lynch_garp.rule_5_dividend_adjusted_peg": (
-        "Dividend-adjusted PEG above 1.5"
-    ),
+    "lynch_garp.rule_4_inventory_vs_sales": ("Inventory growing 50% faster than sales"),
+    "lynch_garp.rule_5_dividend_adjusted_peg": ("Dividend-adjusted PEG above 1.5"),
 }
 
 
@@ -133,9 +129,7 @@ class LynchGARPMethodology(Methodology):
             "label": self.name,
             "version": self.version,
             "family": self.family,
-            "source": (
-                "One Up on Wall Street (1989); Beating the Street (1993)"
-            ),
+            "source": ("One Up on Wall Street (1989); Beating the Street (1993)"),
             "known_limitations": [
                 "does not apply to financials (no inventory line; different "
                 "debt model)",
@@ -239,16 +233,10 @@ class LynchGARPMethodology(Methodology):
         peg = pe / (growth * 100.0)
         detail = f"PEG {peg:.2f} (P/E {pe:.1f} / growth {growth:.1%})"
         if peg <= _PEG_PASS:
-            return RuleOutcome(
-                "lynch_garp.rule_1_peg", _PASS, peg, _PEG_PASS, detail
-            )
+            return RuleOutcome("lynch_garp.rule_1_peg", _PASS, peg, _PEG_PASS, detail)
         if peg <= _PEG_WATCH:
-            return RuleOutcome(
-                "lynch_garp.rule_1_peg", _WATCH, peg, _PEG_WATCH, detail
-            )
-        return RuleOutcome(
-            "lynch_garp.rule_1_peg", _FAIL, peg, _PEG_WATCH, detail
-        )
+            return RuleOutcome("lynch_garp.rule_1_peg", _WATCH, peg, _PEG_WATCH, detail)
+        return RuleOutcome("lynch_garp.rule_1_peg", _FAIL, peg, _PEG_WATCH, detail)
 
     def _rule_2_growth_consistency(self, rows) -> RuleOutcome:
         if len(rows) < 10:
@@ -275,10 +263,7 @@ class LynchGARPMethodology(Methodology):
                 "no year-over-year EPS comparisons available",
             )
         grew = sum(1 for c in comparisons if c)
-        detail = (
-            f"EPS grew in {grew} of {len(comparisons)} year-over-year "
-            "comparisons"
-        )
+        detail = f"EPS grew in {grew} of {len(comparisons)} year-over-year comparisons"
         if grew >= _MIN_GROWTH_YEARS:
             return RuleOutcome(
                 "lynch_garp.rule_2_growth_consistency",
@@ -392,10 +377,7 @@ class LynchGARPMethodology(Methodology):
             )
         inv_growth = inv_l / inv_p - 1.0
         sales_growth = latest.revenue / prev.revenue - 1.0
-        detail = (
-            f"inventory growth {inv_growth:.1%} vs sales growth "
-            f"{sales_growth:.1%}"
-        )
+        detail = f"inventory growth {inv_growth:.1%} vs sales growth {sales_growth:.1%}"
         if inv_growth <= sales_growth:
             return RuleOutcome(
                 "lynch_garp.rule_4_inventory_vs_sales",
@@ -531,9 +513,7 @@ class LynchGARPMethodology(Methodology):
         return parts
 
     @staticmethod
-    def _metrics(
-        outcomes, price: Optional[float], rows
-    ) -> dict[str, Any]:
+    def _metrics(outcomes, price: Optional[float], rows) -> dict[str, Any]:
         metrics: dict[str, Any] = {
             o.rule_id.replace("lynch_garp.", ""): o.value for o in outcomes
         }

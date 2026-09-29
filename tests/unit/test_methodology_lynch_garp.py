@@ -50,7 +50,9 @@ def _row(year, net_income, revenue=None, shares=SHARES, debt=None, dividends=Non
         ticker="T",
         fiscal_year=year,
         period="FY",
-        revenue=revenue if revenue is not None else (net_income * 5.0 if net_income else None),
+        revenue=revenue
+        if revenue is not None
+        else (net_income * 5.0 if net_income else None),
         net_income=net_income,
         shares_outstanding=shares,
         total_debt=debt,
@@ -61,7 +63,13 @@ def _row(year, net_income, revenue=None, shares=SHARES, debt=None, dividends=Non
 def _series(ni_values, debt=None, dividends=None, revenue_factor=5.0):
     years = list(range(2015, 2015 + len(ni_values)))
     return [
-        _row(y, ni, revenue=(ni * revenue_factor) if ni is not None else None, debt=debt, dividends=dividends)
+        _row(
+            y,
+            ni,
+            revenue=(ni * revenue_factor) if ni is not None else None,
+            debt=debt,
+            dividends=dividends,
+        )
         for y, ni in zip(years, ni_values)
     ]
 
