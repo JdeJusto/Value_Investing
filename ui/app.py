@@ -16,10 +16,12 @@ st.set_page_config(
 
 from ui.pages.analysis import render_analysis
 from ui.pages.company import render_company
+from ui.pages.methodologies import render_methodologies
 from ui.pages.screener import render_screener
 
 PAGE_RENDERERS = {
     "Screener": render_screener,
+    "Metodologías + DCF": render_methodologies,
     "Análisis Detallado": render_analysis,
     "Vista Rápida": render_company,
 }
