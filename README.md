@@ -48,16 +48,84 @@ cp .env.example .env
 Edit `.env` before making SEC requests. Replace the example `SEC_USER_AGENT` with a descriptive application name and a real contact address. Set `SEC_EMAIL` and `SEC_NAME` for the direct `edgartools` provider. Never commit `.env` or real credentials.
 
 ```bash
+# With pipenv (creates .venv automatically)
+pipenv install --dev
+pipenv shell                # or prefix every command with: pipenv run
+# Without pipenv: use the checked-in venv wrapper
+source .venv/bin/activate   # python3.13+ venv
+```
+
+```bash
 ./vi debug
 ./vi load-data AAPL
 ./vi analyze AAPL
 ./vi screener --tickers AAPL,MSFT
-./run_ui.sh                 # Streamlit UI at http://localhost:8501
+./run_ui.sh                 # Streamlit UI (5 pages) at http://localhost:8501
 ```
 
-`./vi` runs the project's virtual environment without requiring `pipenv run`. The complete environment-variable list is in [`.env.example`](.env.example). `FINANCIAL_DATABASE_URL` is optional; without a reachable Financial-DataBase instance, the application can use its local JSON repository and configured live providers.
+`./vi` runs the project's virtual environment without requiring `pipenv run` (equivalent to `.venv/bin/python main.py ...`). The complete environment-variable list is in [`.env.example`](.env.example). The variables that matter day to day:
+
+| Variable | Purpose |
+| --- | --- |
+| `SEC_USER_AGENT` | Required for SEC requests (app name + real contact, e.g. `MyApp/1.0 me@example.com`). |
+| `SEC_EMAIL` / `SEC_NAME` | Contact for the direct `edgartools` provider. |
+| `FINANCIAL_DATABASE_URL` | Financial-DataBase PostgreSQL URL (default `postgresql://financial:test@localhost:5432/financial_database`). Optional: without a reachable FDB the app falls back to the local JSON repository and live providers. |
+| `DATA_RAW_DIR` | Raw SEC download directory used by the FDB sync subprocess. |
+| `PORTFOLIO_PATH` | Portfolio JSON (default `data/portfolio.json`). |
+
+### Analysis commands
+
+```bash
+./vi analyze-graham AAPL
+./vi analyze-buffett-classic AAPL
+./vi analyze-buffett-clark AAPL
+./vi analyze-graham-dodd AAPL
+./vi analyze-fisher-quant AAPL
+./vi analyze-lynch-garp AAPL
+./vi compare-methodologies AAPL     # all methodologies side by side
+./vi dcf AAPL                       # not-from-canon DCF (REIT/DDM/hyper-growth variants)
+./vi analyze-full AAPL              # consolidated 6-section report
+```
+
+### Streamlit UI (5 pages)
+
+```bash
+./run_ui.sh                 # Home · Analysis · Screener · Portfolio · Reports
+```
+
+Do **not** run `python -m ui.app`: the app is launched with Streamlit (`streamlit run ui/app.py`, which `run_ui.sh` wraps). Pages are `ui/pages/01_home.py` … `05_reports.py`; data loading is cached in memory and prices are never persisted (the only price write is the explicit "Save prices to portfolio" button).
+
+### Portfolio
+
+```bash
+./vi portfolio view
+./vi portfolio performance
+./vi portfolio add AAPL 10 180.00 --thesis "moat"
+./vi portfolio exit AAPL 340.00
+./vi portfolio remove AAPL
+```
+
+### Daily workflow
+
+```bash
+source .venv/bin/activate
+python -m scripts.daily_workflow                    # full run (writes data/reports/daily_*.md)
+python -m scripts.daily_workflow --dry-run --limit 5 --top 3   # safe smoke run
+```
+
+The daily report feeds the Home page (top opportunities + alerts).
 
 The optional Docker Compose stack includes PostgreSQL, Redis, the FastAPI service, Celery workers, and the React frontend. It is for local development, not a production deployment; configure secrets, database migrations, and network access before exposing any service.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `ModuleNotFoundError: No module named 'dotenv'` | You are running with the system Python. Activate the venv (`source .venv/bin/activate`) or use `./vi` / `pipenv run`. `python-dotenv` is already installed and declared in `Pipfile`/`Pipfile.lock`; the daily workflow also degrades gracefully without it. |
+| `Connection refused` to PostgreSQL | Check the service and the URL in `.env` (`FINANCIAL_DATABASE_URL` for Financial-DataBase, `DATABASE_URL` for the local store). The CLI falls back to JSON storage when the database is unreachable. |
+| `pyarrow.lib.ArrowInvalid` in the UI | Fixed by the dataframe normalizer (`ui/_shared.normalize_rows`); update `main` and reload the page. |
+| Yahoo throttling (HTTP 429, prices N/A) | Wait and retry. Prices are cached in memory only (15 min) and degrade to "—"; nothing is fabricated or persisted. |
+| Streamlit on a busy port | `./run_ui.sh` uses 8501; run `streamlit run ui/app.py --server.port N` for another port. |
 
 ## Tests
 
