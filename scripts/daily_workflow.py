@@ -833,6 +833,7 @@ def _run(args) -> None:
 
     rows = [_row_of(item, name_resolver) for item in screened[: args.top]]
     missing = sorted(tick for tick in universe if cache.get(tick) is None)
+    dcf_rows = _dcf_rows_for_report(rows, args, fdb_repo, price_service)
 
     price_notes = []
     if args.no_prices:
@@ -902,6 +903,7 @@ def _run(args) -> None:
         sec_update=sec_update_status,
         prices_mode=_prices_mode(args, price_service, prefetch_result),
         rows=rows,
+        dcf_rows=dcf_rows,
         alerts=[alert_to_dict(a) for a in alerts],
         missing=missing,
         price_notes=price_notes,
@@ -1104,6 +1106,52 @@ def _row_of(item, name_resolver=None) -> dict:
     }
 
 
+def _dcf_dict(result) -> dict:
+    """Compact DCF row for the daily report (not-from-canon)."""
+    return {
+        "ticker": result.ticker,
+        "intrinsic": result.intrinsic_value_per_share,
+        "price": result.current_price,
+        "mos": result.margin_of_safety,
+        "verdict": result.verdict,
+        "reason": "; ".join(result.reasons) if result.reasons else "",
+    }
+
+
+def _dcf_rows_for_report(rows, args, fdb_repo, price_service) -> list[dict]:
+    """Supplementary not-from-canon DCF block for the daily report.
+
+    Runs only for the top ``dcf.daily_report_top_n`` tickers of this run
+    (default 10) so the report stays fast. It reads only the fundamentals
+    repository and the price service, NEVER reorders or rescues anything, and
+    is skipped entirely when the user passes ``--no-dcf``, the config
+    disables it, or prices were not fetched for this run.
+    """
+    if getattr(args, "no_dcf", False):
+        return []
+    if price_service is None:
+        return []
+    from backend.services.refresh_service import load_dcf_config
+
+    cfg = load_dcf_config()
+    if not cfg.in_daily_report:
+        return []
+    from backend.valuation.dcf import DCFValuation
+
+    dcf = DCFValuation()
+    result_rows: list[dict] = []
+    for row in rows[: cfg.daily_report_top_n]:
+        ticker = row.get("ticker", "")
+        try:
+            fundamentals = fdb_repo.get_best_available(ticker)
+            result_rows.append(_dcf_dict(dcf.evaluate(ticker, fundamentals, price_service)))
+        except Exception as e:  # noqa: BLE001 — the DCF must never break the daily run
+            result_rows.append(
+                {"ticker": ticker, "verdict": "ERROR", "reason": f"DCF failed: {e}"}
+            )
+    return result_rows
+
+
 def ordered_name_of(item):
     """Company name when available, otherwise a simple placeholder."""
     try:
@@ -1233,6 +1281,11 @@ def build_parser() -> argparse.ArgumentParser:
         "every company's financials from Financial-DataBase",
     )
     p.add_argument("--top", type=int, default=20, help="Top rows in the table")
+    p.add_argument(
+        "--no-dcf",
+        action="store_true",
+        help="Skip the supplementary DCF valuation section (not-from-canon)",
+    )
     p.add_argument(
         "--fdb-dir",
         default=os.getenv("FDB_DIR", "../Financial-DataBase"),

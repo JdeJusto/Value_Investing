@@ -38,6 +38,9 @@ class DailyReport:
     price_stage: dict = field(default_factory=dict)
     yahoo_streak: dict = field(default_factory=dict)
     runtime_seconds: float = 0.0
+    # Supplementary not-from-canon DCF rows for the report (precomputed by
+    # the daily workflow; rendered after `## Alerts`, before `## Missing data`).
+    dcf_rows: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -56,6 +59,7 @@ class DailyReport:
             "price_stage": self.price_stage,
             "yahoo_streak": self.yahoo_streak,
             "runtime_seconds": self.runtime_seconds,
+            "dcf_rows": self.dcf_rows,
         }
 
 
@@ -270,6 +274,39 @@ def build_markdown(report: DailyReport) -> str:
                 f"- **{alert['ticker']}** — {label} "
                 f"(*{alert['confidence']}*): {reason}"
             )
+        lines.append("")
+
+    if report.dcf_rows:
+        lines.append("## DCF Valuation (supplementary, not-from-canon)")
+        lines.append("")
+        lines.append(
+            f"The DCF module ran for the top **{len(report.dcf_rows)}** "
+            "tickers of this run (supplementary, not-from-canon — see "
+            "`backend/valuation/README.md` for assumptions and limits)."
+        )
+        lines.append("")
+        lines.append("| Ticker | Intrinsic | Price | MoS | Verdict |")
+        lines.append("|--------|-----------|-------|-----|---------|")
+        for item in report.dcf_rows:
+            lines.append(
+                "| {} | {} | {} | {} | {} |".format(
+                    item.get("ticker", ""),
+                    _fmt(item.get("intrinsic"), "dollar"),
+                    _fmt(item.get("price"), "dollar"),
+                    _fmt(item.get("mos"), "pct"),
+                    item.get("verdict") or "N/A",
+                )
+            )
+        for item in report.dcf_rows:
+            verdict = (item.get("verdict") or "").upper()
+            if verdict in ("INSUFFICIENT_DATA", "ERROR") and item.get("reason"):
+                lines.append(
+                    f"- *{item.get('ticker')}* {item.get('verdict')}: "
+                    f"{item.get('reason')}"
+                )
+        lines.append("")
+        lines.append("⚠️ This section is NOT part of any book methodology. It is "
+                     "supplementary and clearly labeled not-from-canon.")
         lines.append("")
 
     if report.missing:
