@@ -1,8 +1,9 @@
 """Unit tests for the analyze-full consolidated report command."""
 
-import pytest
 from argparse import Namespace
 from unittest.mock import Mock
+
+import pytest
 
 from backend.domain.value_objects.screener_result import ScreenerRow
 from backend.services.screener_service import StockScreenerService

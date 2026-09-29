@@ -2,10 +2,11 @@
 Unit tests for compare_sources.py script.
 """
 
-import pytest
-from unittest.mock import Mock, patch
-import sys
 import os
+import sys
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add the scripts directory to the path so we can import the module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../scripts'))

@@ -133,7 +133,7 @@ class WatchlistService:
             return empty
         try:
             result = self._analyzer(ticker)
-        except Exception:  # noqa: BLE001 — analysis must not break the watchlist
+        except Exception:
             result = None
         if not result:
             return empty

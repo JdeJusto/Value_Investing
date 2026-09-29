@@ -106,7 +106,7 @@ def load_alerts_config(path: Optional[str] = None) -> int:
                         return max(1, int(value.strip()))
                     except ValueError:
                         return DEFAULT_THRESHOLD
-    except OSError as exc:  # noqa: BLE001 — a bad config must not break a run
+    except OSError as exc:
         logger.warning("yahoo streak: could not read %s: %s", path, exc)
     return DEFAULT_THRESHOLD
 
@@ -200,7 +200,7 @@ class YahooStreakTracker:
                 return blank
         except FileNotFoundError:
             return blank
-        except Exception as exc:  # noqa: BLE001 — corrupt state must not block
+        except Exception as exc:
             logger.warning("yahoo streak: unreadable state %s: %s", self.state_path, exc)
             return blank
         blank.update({k: v for k, v in data.items() if k in blank})
@@ -221,7 +221,7 @@ class YahooStreakTracker:
             with open(tmp, "w", encoding="utf-8") as handle:
                 json.dump(state, handle, indent=2)
             os.replace(tmp, self.state_path)
-        except Exception as exc:  # noqa: BLE001 — telemetry must never break a run
+        except Exception as exc:
             logger.warning("yahoo streak: could not write %s: %s", self.state_path, exc)
 
     # ------------------------------------------------------------------
@@ -229,7 +229,7 @@ class YahooStreakTracker:
         try:
             self.flag_path.parent.mkdir(parents=True, exist_ok=True)
             self.flag_path.write_text(text, encoding="utf-8")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("yahoo streak: could not write %s: %s", self.flag_path, exc)
 
     def _clear_flag(self) -> bool:
@@ -238,7 +238,7 @@ class YahooStreakTracker:
             if self.flag_path.exists():
                 self.flag_path.unlink()
                 return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("yahoo streak: could not remove %s: %s", self.flag_path, exc)
         return False
 

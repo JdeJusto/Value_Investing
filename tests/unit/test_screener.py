@@ -429,7 +429,11 @@ def _rank_dict(ticker, buffett=80, total=80, margin=0.3, moat_type="STRONG", moa
 
 
 def test_calibrated_rank_spreads_scores():
-    from backend.screener.ranking_engine import calibrated_rank, CALIBRATION_MIN, CALIBRATION_MAX
+    from backend.screener.ranking_engine import (
+        CALIBRATION_MAX,
+        CALIBRATION_MIN,
+        calibrated_rank,
+    )
 
     items = [_rank_dict(f"T{i}", total=40 + i * 5) for i in range(10)]
     ranks = [calibrated_rank(it, items) for it in items]
@@ -450,7 +454,7 @@ def test_calibrated_rank_quality_leads_over_cheapness():
 
 def test_health_cap_penalizes_negative_fcf():
     """Negative FCF caps even a fundamentally strong company at the cap."""
-    from backend.screener.ranking_engine import calibrated_rank, LEVERAGED_RANK_CAP
+    from backend.screener.ranking_engine import LEVERAGED_RANK_CAP, calibrated_rank
 
     # "BEST" has the strongest fundamentals but burns cash.
     best = _rank_dict("BEST", buffett=95, total=99, roic=0.30, cagr=0.25, fcf=-2e9)
@@ -462,7 +466,11 @@ def test_health_cap_penalizes_negative_fcf():
 
 
 def test_health_cap_penalizes_high_debt():
-    from backend.screener.ranking_engine import health_cap, LEVERAGED_DEBT_CAP, LEVERAGED_RANK_CAP
+    from backend.screener.ranking_engine import (
+        LEVERAGED_DEBT_CAP,
+        LEVERAGED_RANK_CAP,
+        health_cap,
+    )
 
     low_debt = _rank_dict("LOW", debt_to_equity=0.4)
     high_debt = _rank_dict("HIGH", debt_to_equity=2.0)
@@ -471,7 +479,11 @@ def test_health_cap_penalizes_high_debt():
 
 
 def test_health_cap_penalizes_weak_coverage():
-    from backend.screener.ranking_engine import health_cap, LEVERAGED_COVERAGE_CAP, LEVERAGED_RANK_CAP
+    from backend.screener.ranking_engine import (
+        LEVERAGED_COVERAGE_CAP,
+        LEVERAGED_RANK_CAP,
+        health_cap,
+    )
 
     strong = _rank_dict("STRONG", interest_coverage=12.0)
     weak = _rank_dict("WEAK", interest_coverage=2.5)
@@ -480,7 +492,7 @@ def test_health_cap_penalizes_weak_coverage():
 
 
 def test_health_cap_allows_good_health():
-    from backend.screener.ranking_engine import health_cap, CALIBRATION_MAX
+    from backend.screener.ranking_engine import CALIBRATION_MAX, health_cap
 
     item = _rank_dict("GOOD", fcf=10e9, debt_to_equity=0.5, interest_coverage=15.0)
     assert health_cap(item) == CALIBRATION_MAX
@@ -490,10 +502,10 @@ def test_health_cap_applies_most_restrictive_of_ALL_matching_caps():
     """The bug: only the first matching condition was applied. A company
     with several problems must be capped by the most restrictive of them."""
     from backend.screener.ranking_engine import (
-        health_cap,
         LEVERAGED_COVERAGE_CAP,
         LEVERAGED_DEBT_CAP,
         LEVERAGED_RANK_CAP,
+        health_cap,
     )
 
     # Negative FCF + high leverage + weak coverage all at once → coverage cap.

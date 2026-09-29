@@ -69,7 +69,7 @@ def test_concurrent_updates_are_not_lost():
         try:
             for _ in range(200):
                 metrics.record("yahoo", latency_ms=10.0, retries=1)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(exc)
 
     threads = [threading.Thread(target=worker, args=(n,)) for n in range(8)]

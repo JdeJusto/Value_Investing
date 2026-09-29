@@ -14,8 +14,6 @@ from __future__ import annotations
 import datetime as dt
 import os
 
-import pytest
-
 from backend.services.refresh_service import (
     DEFAULT_FRESHNESS_MAX_AGE_HOURS,
     DEFAULT_REFRESH_WORKERS,

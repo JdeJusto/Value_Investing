@@ -73,7 +73,7 @@ def discover() -> int:
             module = importlib.import_module(
                 f"backend.methodologies.{module_info.name}"
             )
-        except Exception as exc:  # noqa: BLE001 — one bad package must not hide the rest
+        except Exception as exc:
             logger.warning(
                 "methodologies: could not import %s: %s", module_info.name, exc
             )

@@ -293,7 +293,7 @@ class LynchGARPMethodology(Methodology):
             return None
         try:
             value = getter(ticker)
-        except Exception:  # noqa: BLE001 — no price is not an error
+        except Exception:
             return None
         try:
             return float(value) if value is not None else None
@@ -334,7 +334,7 @@ class LynchGARPMethodology(Methodology):
                 value = getter(ticker)
                 if value is not None:
                     return float(value)
-            except Exception:  # noqa: BLE001, S110 — no market cap is not an error
+            except Exception:
                 pass
         if (
             price is not None

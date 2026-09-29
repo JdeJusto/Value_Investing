@@ -117,7 +117,7 @@ class AnalysisCache:
             return None
         try:
             value = getter(ticker)
-        except Exception:  # noqa: BLE001 — a fingerprint failure is a miss
+        except Exception:
             self._count("errors")
             return None
         return str(value) if value else None
@@ -144,7 +144,7 @@ class AnalysisCache:
         except FileNotFoundError:
             self._count("misses")
             return None
-        except Exception as exc:  # noqa: BLE001 — a corrupt entry is a miss
+        except Exception as exc:
             self._count("errors")
             logger.warning("analysis cache: unreadable entry for %s: %s", ticker, exc)
             self._count("misses")
@@ -158,7 +158,7 @@ class AnalysisCache:
             return None
         try:
             return [NormalizedFinancials.from_dict(row) for row in payload["fundamentals"]]
-        except Exception as exc:  # noqa: BLE001 — never let the cache break a run
+        except Exception as exc:
             self._count("errors")
             logger.warning("analysis cache: bad payload for %s: %s", ticker, exc)
             self._count("misses")
@@ -264,7 +264,7 @@ class AnalysisCache:
         try:
             with open(self.path_for(ticker), encoding="utf-8") as handle:
                 payload = json.load(handle)
-        except Exception:  # noqa: BLE001 — unreadable entry: treat as absent
+        except Exception:
             return None
         if (
             not isinstance(payload, dict)
@@ -308,7 +308,7 @@ class AnalysisCache:
             with open(tmp, "w", encoding="utf-8") as handle:
                 json.dump(base, handle, separators=(",", ":"))
             os.replace(tmp, path)
-        except Exception as exc:  # noqa: BLE001 — caching must never break a run
+        except Exception as exc:
             self._count("errors")
             logger.debug("analysis cache: could not store %s: %s", ticker, exc)
             return
@@ -317,5 +317,5 @@ class AnalysisCache:
     def invalidate(self, ticker: str) -> None:
         try:
             self.path_for(ticker).unlink(missing_ok=True)
-        except Exception:  # noqa: BLE001 — invalidation is best effort
+        except Exception:
             self._count("errors")

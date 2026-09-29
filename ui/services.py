@@ -43,11 +43,11 @@ def load_quote(ticker: str) -> dict:
     service = get_price_service()
     try:
         price = service.get_current_price(ticker)
-    except Exception:  # noqa: BLE001 — a missing quote must not break the page
+    except Exception:
         price = None
     try:
         market_cap = service.get_market_cap(ticker)
-    except Exception:  # noqa: BLE001 — a missing market cap is not an error
+    except Exception:
         market_cap = None
     return {"price": price, "market_cap": market_cap}
 
@@ -65,7 +65,7 @@ def load_historical_valuation(ticker: str) -> list:
     )
     try:
         return service.get_historical_valuation_summary(ticker)
-    except Exception:  # noqa: BLE001 — no history is not a crash
+    except Exception:
         return []
 
 
@@ -76,7 +76,7 @@ def load_portfolio(path: str):
 
     try:
         return JsonPortfolioRepository(path).load()
-    except Exception:  # noqa: BLE001 — a broken file must not crash the page
+    except Exception:
         return None
 
 
@@ -88,7 +88,7 @@ def load_sector_map(tickers: tuple[str, ...]) -> dict:
     for ticker in tickers:
         try:
             rows = [row for row in repository.get_best_available(ticker) if row]
-        except Exception:  # noqa: BLE001 — an unknown sector is not an error
+        except Exception:
             rows = []
         sectors[ticker] = rows[0].sector if rows else None
     return sectors

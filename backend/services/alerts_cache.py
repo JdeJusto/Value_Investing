@@ -166,7 +166,7 @@ class AlertsCache:
         except FileNotFoundError:
             self.misses += 1
             return None
-        except Exception as exc:  # noqa: BLE001 — a corrupt entry is a miss
+        except Exception as exc:
             logger.warning("alerts cache: unreadable entry for %s: %s", day, exc)
             self.misses += 1
             return None
@@ -213,7 +213,7 @@ class AlertsCache:
             with open(tmp, "w", encoding="utf-8") as handle:
                 json.dump(payload, handle, ensure_ascii=False, default=str)
             os.replace(tmp, path)
-        except Exception as exc:  # noqa: BLE001 — caching must never break a run
+        except Exception as exc:
             logger.warning("alerts cache: could not store %s: %s", day, exc)
             return
         self.writes += 1

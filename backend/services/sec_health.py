@@ -97,7 +97,7 @@ def _probe(url: str, user_agent: str, timeout: float) -> SecHealth:
                 time.time(),
             )
         return SecHealth(False, f"SEC returned HTTP {exc.code}", exc.code, time.time())
-    except Exception as exc:  # noqa: BLE001 — any failure means unavailable
+    except Exception as exc:
         return SecHealth(False, f"SEC unreachable: {exc}", None, time.time())
 
 

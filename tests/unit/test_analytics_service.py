@@ -2,8 +2,8 @@
 
 import pytest
 
-from backend.analytics.service import CompanyAnalysisService
 from backend.analytics.ratios.leverage import NetDebtToEbitdaCalculator
+from backend.analytics.service import CompanyAnalysisService
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,

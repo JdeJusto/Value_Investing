@@ -10,7 +10,9 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from backend.domain.interfaces.financial_repository import FinancialRepository
-from backend.repositories.financial_database_repository import FinancialDatabaseRepository
+from backend.repositories.financial_database_repository import (
+    FinancialDatabaseRepository,
+)
 from backend.services.price_service import PriceService
 
 
@@ -120,7 +122,7 @@ class HistoricalValuationService:
                 for row in self._repository.list_years(ticker)
                 if not self._row_is_empty(row)
             }
-        except Exception:  # noqa: BLE001
+        except Exception:
             return []
 
         ratios: List[Dict[str, Any]] = []
@@ -189,7 +191,7 @@ class HistoricalValuationService:
         try:
             shares = self._repository.get_shares_outstanding(ticker, fiscal_year)
             return float(shares) if shares is not None else None
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
     def _safe_fiscal_year_end(self, ticker: str, fiscal_year: int):
@@ -197,7 +199,7 @@ class HistoricalValuationService:
         try:
             if hasattr(self._repository, "get_fiscal_year_end_date"):
                 return self._repository.get_fiscal_year_end_date(ticker, fiscal_year)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
         return None
 

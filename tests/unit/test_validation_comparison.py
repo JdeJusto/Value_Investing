@@ -9,23 +9,28 @@ discovered by it:
 - EPS must use an as-reported diluted share basis (not the current share
   count) on both the repository and Yahoo sides.
 """
+import os
+import sys
 from datetime import date
+from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
-from types import SimpleNamespace
 
+from backend.providers.yahoo.provider import YahooFinanceProvider
 from backend.repositories.financial_database_repository import (
     FinancialDatabaseRepository,
 )
-from backend.providers.yahoo.provider import YahooFinanceProvider
-
-import sys
-import os
-from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../scripts"))
-from validate_sp500 import METRICS, compare_rows, _severity, _load_exclusions, _match_exclusion
+from validate_sp500 import (
+    METRICS,
+    _load_exclusions,
+    _match_exclusion,
+    _severity,
+    compare_rows,
+)
 
 
 def _fact(concept, value, period_end, period="FY", period_start=None):

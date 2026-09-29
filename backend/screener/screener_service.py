@@ -191,7 +191,7 @@ class ScreenerService:
             metrics["ev_ebit"] = ev_ebit
 
             item["price_metrics"] = metrics
-        except Exception:  # noqa: BLE001 — price failure must not kill the screen
+        except Exception:
             item["price_metrics"] = {}
 
     def _screen(self, criteria: ScreenCriteria) -> list[ScreenedCompany]:

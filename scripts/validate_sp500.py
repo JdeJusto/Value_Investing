@@ -242,7 +242,7 @@ def vi_metrics_for(repo, price_service, ticker: str, target_fy: Optional[int] = 
                 "ok": True,
             }
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         row["error"] = f"{type(exc).__name__}: {exc}"
     return row
 
@@ -347,7 +347,7 @@ def ext_metrics_for(
                 "ok": True,
             }
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         row["error"] = f"{type(exc).__name__}: {exc}"
     return row
 

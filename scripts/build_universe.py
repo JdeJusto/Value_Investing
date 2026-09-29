@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.universe_common import EUROPEAN_INDEXES  # noqa: E402
+from scripts.universe_common import EUROPEAN_INDEXES
 
 # Canonical source_index ordering (unknown tokens appended alphabetically).
 _CANON = ["SP500", "NASDAQ100", "Russell2000"] + sorted(EUROPEAN_INDEXES)

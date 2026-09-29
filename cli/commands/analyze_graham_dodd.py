@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from cli.formatters import (
-    bold,
     dim,
     green,
     print_header,
@@ -51,7 +50,6 @@ def _confidence_color(confidence: str):
 
 def _run(args):
     from backend.app.cli import build_financial_repository
-    from backend.methodologies.graham_dodd import GrahamDoddMethodology
     from backend.methodologies.registry import discover, registry
     from backend.services.price_service import get_price_service
 

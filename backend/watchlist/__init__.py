@@ -1,6 +1,6 @@
 """Watchlist package: models, persistence, service (monitoring + export)."""
 
-from backend.watchlist.models import (  # noqa: F401
+from backend.watchlist.models import (
     BOUGHT,
     DISCARDED,
     MONITORING,
@@ -8,11 +8,11 @@ from backend.watchlist.models import (  # noqa: F401
     Watchlist,
     WatchlistItem,
 )
-from backend.watchlist.watchlist_repository import (  # noqa: F401
+from backend.watchlist.watchlist_repository import (
     JsonWatchlistRepository,
     WatchlistRepository,
 )
-from backend.watchlist.watchlist_service import WatchlistService  # noqa: F401
+from backend.watchlist.watchlist_service import WatchlistService
 
 __all__ = [
     "BOUGHT",

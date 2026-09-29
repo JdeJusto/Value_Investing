@@ -353,7 +353,7 @@ class CompanyAnalysisService:
                 if callable(invalidate):
                     invalidate(ticker.upper())
                 rows = self._repository.get_best_available(ticker)
-            except Exception:  # noqa: BLE001 — missing data must not kill analysis
+            except Exception:
                 logger.warning("analytics: could not load data for %s", ticker)
         # Drop all-empty (in-progress) years so the "current year" is always a
         # completed fiscal year with actual values.
@@ -376,7 +376,7 @@ class CompanyAnalysisService:
             return self._repository.get_best_available(ticker)
         try:
             self._loader.load_ticker(ticker, force=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("analytics: could not refresh data for %s", ticker)
         # See _load_history: the loader writes through its own repository
         # instance, so invalidate the cache before the re-read.
@@ -492,7 +492,7 @@ class CompanyAnalysisService:
         try:
             value = getter(ticker)
             return value
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
     def _gross_margins(
@@ -530,5 +530,5 @@ class CompanyAnalysisService:
             return weight_equity * cost_equity + weight_debt * cost_debt * (
                 1 - tax_rate
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None

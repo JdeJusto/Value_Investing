@@ -51,12 +51,12 @@ from pathlib import Path
 # Allow `python -m scripts.catch_up_stale` from the repository root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.services.refresh_service import (  # noqa: E402
+from backend.services.refresh_service import (
     FdbGateway,
     RefreshService,
     load_refresh_config,
 )
-from backend.services.sec_health import check_sec_availability  # noqa: E402
+from backend.services.sec_health import check_sec_availability
 
 logger = logging.getLogger("catch_up_stale")
 

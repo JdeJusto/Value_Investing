@@ -120,7 +120,7 @@ def _ticker_exists(ticker: str) -> bool:
     """FDB existence check; a database failure falls back to allowing."""
     try:
         rows = load_fundamentals(ticker)
-    except Exception:  # noqa: BLE001 — DB down: do not block the action
+    except Exception:
         return True
     return bool(rows)
 

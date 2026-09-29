@@ -12,14 +12,12 @@ import json
 import threading
 from datetime import datetime, timezone
 
-import pytest
-
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
     ProviderName,
 )
-from backend.services.analysis_cache import AnalysisCache, ANALYSIS_VERSION
+from backend.services.analysis_cache import ANALYSIS_VERSION, AnalysisCache
 
 
 def _row(year: int, revenue: float | None = 100.0) -> NormalizedFinancials:
@@ -172,7 +170,7 @@ def test_concurrent_writes_and_reads_are_consistent(tmp_path):
             for i in range(10):
                 cache.put(f"T{n}", "fp-1", [_row(2020 + i)])
                 cache.get(f"T{n}", "fp-1")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(exc)
 
     threads = [threading.Thread(target=worker, args=(n,)) for n in range(4)]

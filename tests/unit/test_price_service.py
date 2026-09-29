@@ -2,11 +2,11 @@
 Unit tests for PriceService (real-time price fetching without persistence).
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from unittest.mock import Mock, patch
 
 from backend.services.price_service import PriceService
 

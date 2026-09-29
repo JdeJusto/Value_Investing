@@ -16,8 +16,10 @@ from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.domain.value_objects.financials_normalized import ProviderName
 from backend.providers.tickers import TICKERS
+from backend.repositories.financial_database_repository import (
+    FinancialDatabaseRepository,
+)
 from backend.repositories.json_financial_repository import JsonFinancialRepository
-from backend.repositories.financial_database_repository import FinancialDatabaseRepository
 from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.price_service import get_price_service
@@ -318,7 +320,7 @@ def _tracked_tickers() -> list[str]:
     database is unavailable so the CLI keeps working."""
     try:
         return [c.ticker for c in CompanyRepository().list_all()] or TICKERS
-    except Exception:  # noqa: BLE001 — database down must not kill the CLI
+    except Exception:
         logger.warning("storage unavailable — falling back to static ticker list")
         return TICKERS
 
@@ -398,7 +400,7 @@ def _company_enrichment():
             if company:
                 item["sector"] = company.sector
                 item["industry"] = company.industry
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("company metadata unavailable for %s: %s", ticker, e)
         return item
 

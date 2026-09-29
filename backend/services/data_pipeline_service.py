@@ -91,7 +91,7 @@ class DataPipelineService(DataLoader):
             return
         try:
             self._company_saver(ticker)
-        except Exception:  # noqa: BLE001 — registration must not block the pipeline
+        except Exception:
             logger.warning("pipeline: could not register company %s", ticker)
 
     # ------------------------------------------------------------------
@@ -159,7 +159,7 @@ class DataPipelineService(DataLoader):
                     best = (normalized, type(provider))
                 if _usable_count(normalized) >= history_years:
                     break
-            except Exception as exc:  # noqa: BLE001 — provider failures are expected
+            except Exception as exc:
                 last_error = f"{type(provider).__name__}: {exc}"
                 logger.exception(
                     "pipeline: %s failed via %s", ticker, type(provider).__name__
@@ -194,22 +194,22 @@ class DataPipelineService(DataLoader):
         if self._market is not None:
             try:
                 shares = self._market.get_shares_outstanding(ticker)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("pipeline: shares outstanding unavailable for %s", ticker)
 
         raw_years: list[RawFinancialsYear] = []
         for index in range(years):
             try:
                 income = provider.get_income_statement(ticker, index)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 income = None
             try:
                 balance = provider.get_balance_sheet(ticker, index)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 balance = None
             try:
                 cash_flow = provider.get_cash_flow(ticker, index)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 cash_flow = None
 
             if income is None and balance is None and cash_flow is None:
@@ -238,7 +238,7 @@ class DataPipelineService(DataLoader):
         if callable(getter):
             try:
                 return getter(ticker)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return []
         return []
 

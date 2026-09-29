@@ -17,7 +17,6 @@ ticker never stops the rest of the batch. The supplementary DCF block is
 deliberately NOT part of any book methodology and never affects scoring.
 """
 
-import sys
 
 from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.app.cli import (
@@ -35,7 +34,6 @@ from cli.formatters import (
     green,
     print_header,
     print_key_value,
-    print_table,
     red,
     yellow,
 )
@@ -80,7 +78,7 @@ def _company_overview(ticker: str, name) -> tuple:
         return (company.sector if company else None), (
             company.industry if company else None
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None, None
 
 
@@ -213,7 +211,7 @@ def _dcf_enabled(args) -> bool:
         from backend.services.refresh_service import load_dcf_config
 
         return load_dcf_config().in_analyze_full
-    except Exception:  # noqa: BLE001 — config problems must not break the report
+    except Exception:
         return True
 
 
@@ -230,7 +228,7 @@ def _section_dcf(ticker, repo=None, price_service=None) -> None:
         rows = repo.get_best_available(ticker)
         result = DCFValuation().evaluate(ticker, rows, price_service)
         render_dcf_section(result)
-    except Exception as e:  # noqa: BLE001 — a failing DCF must never stop the report
+    except Exception as e:
         print(f"     {red('DCF unavailable:')} {e}")
 
 
@@ -239,7 +237,7 @@ def _section_historical(ticker):
     service = HistoricalValuationService()
     try:
         table = service.format_valuation_table(ticker)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"     {red('ERROR:')} {e}")
         return
     print(table)
@@ -263,7 +261,7 @@ def _section_risks(row_input):
         trigger = trigger_label(detect_trigger(row_input))
         if trigger:
             triggers.append(trigger)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     if triggers:
         print(f"     {yellow('Trigger:')} {', '.join(triggers)}")
@@ -297,7 +295,7 @@ def _run(args):
     for ticker in tickers:
         try:
             row = service._analyze_ticker(ticker, no_prices=args.no_prices)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"\n{red(ticker)} — {red('ERROR:')} {e}")
             continue
 
@@ -332,5 +330,5 @@ def _run(args):
             _section_risks(d)
             print()
             print("-" * 72)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"\n  {red('ERROR:')} generando informe de {ticker}: {e}")
