@@ -634,6 +634,9 @@ def _run(args) -> None:
         timings["prices"] = 0.0
     tick = time.time()
 
+    # stage_outcome is also read for the report below even when there is no
+    # run state (--dry-run), so it must exist outside that block.
+    stage_outcome: dict = {}
     if run_state is not None:
         snapshots = prefetch_result.get("snapshots") or {}
         run_state.set_stage("prices")
@@ -649,7 +652,6 @@ def _run(args) -> None:
                 note_no_yahoo(len(universe))
             failure_counts = dict(price_service.price_failure_counts())
         run_state.set_prices_stage(len(universe), failure_counts)
-        stage_outcome = {}
         status_fn = getattr(price_service, "price_stage_status", None)
         if callable(status_fn):
             stage_outcome = status_fn()
