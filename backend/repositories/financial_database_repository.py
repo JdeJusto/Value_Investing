@@ -218,6 +218,13 @@ CASH_FLOW_FIELD_PRIORITY = {
         "UtilitiesOperatingExpenseDepreciationAndAmortization",
         "CostOfGoodsSoldDepreciationDepletionAndAmortization",
     ],
+    "dividends_paid": [
+        # Common-stock-specific tag (USB, WFC and recent BAC filings); the
+        # broader PaymentsOfDividends (JPM) is the fallback when only it exists.
+        "PaymentsOfDividendsCommonStock",
+        "PaymentsOfDividends",
+        "DividendsPaid",
+    ],
 }
 CASH_FLOW_CONCEPT_RANK = {
     concept: rank
@@ -328,6 +335,7 @@ CASH_FLOW_CONCEPTS = {
     "UtilitiesOperatingExpenseDepreciationAndAmortization": "depreciation_amortization",
     "CostOfGoodsSoldDepreciationDepletionAndAmortization": "depreciation_amortization",
     # Dividends Paid
+    "PaymentsOfDividendsCommonStock": "dividends_paid",
     "PaymentsOfDividends": "dividends_paid",
     "DividendsPaid": "dividends_paid",
     # Repurchase of Stock
