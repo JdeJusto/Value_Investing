@@ -12,4 +12,4 @@ fi
 
 echo "Arrancando Value Investing UI..."
 echo "Abre http://localhost:8501 en tu navegador"
-"$VENV_STREAMLIT" run "$SCRIPT_DIR/ui/app.py"
+"$VENV_STREAMLIT" run "$SCRIPT_DIR/ui/app.py" --server.headless true
