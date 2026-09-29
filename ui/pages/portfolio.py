@@ -9,7 +9,7 @@ working unchanged.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import streamlit as st
 
@@ -163,7 +163,7 @@ def _render_add_form(portfolio, path: str) -> None:
         col3, col4 = st.columns(2)
         signal = col3.selectbox("Señal", SIGNALS)
         entry_date = col4.date_input(
-            "Fecha de entrada", value=datetime.now(timezone.utc).date()
+            "Fecha de entrada", value=datetime.now(UTC).date()
         )
         submitted = st.form_submit_button("Añadir posición", type="primary")
 

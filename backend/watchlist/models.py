@@ -27,7 +27,7 @@ class WatchlistItem:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> "WatchlistItem":
+    def from_dict(cls, data: dict) -> WatchlistItem:
         return cls(
             ticker=data["ticker"].upper().strip(),
             status=data.get("status", MONITORING),
@@ -85,7 +85,7 @@ class Watchlist:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Watchlist":
+    def from_dict(cls, data: dict) -> Watchlist:
         return cls(
             name=data.get("name", "default"),
             items=[WatchlistItem.from_dict(i) for i in data.get("items", [])],

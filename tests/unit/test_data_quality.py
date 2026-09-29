@@ -1,6 +1,6 @@
 """Unit tests for data freshness, completeness and quality scoring."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 import pytest
 
@@ -30,7 +30,7 @@ def _record(
         "free_cash_flow": 15.0,
         "ebitda": 30.0,
     }
-    loaded_at = datetime.now(timezone.utc) - (
+    loaded_at = datetime.now(UTC) - (
         timedelta(days=100) if stale_by_age else timedelta(days=1)
     )
     record = NormalizedFinancials(

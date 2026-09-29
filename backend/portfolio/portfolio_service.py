@@ -5,7 +5,7 @@ and scores); the service itself never touches providers directly.
 """
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from backend.portfolio.allocation import (
     overconcentration,
@@ -49,7 +49,7 @@ class PortfolioService:
             quantity=quantity,
             avg_price=avg_price,
             current_price=avg_price,
-            entry_date=entry_date or datetime.now(timezone.utc),
+            entry_date=entry_date or datetime.now(UTC),
             thesis=thesis,
             signal_at_entry=signal_at_entry,
         )

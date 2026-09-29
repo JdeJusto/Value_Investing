@@ -615,7 +615,7 @@ class RefreshService:
             if last is not None:
                 try:
                     age_hours = (
-                        _dt.datetime.now(_dt.timezone.utc) - last
+                        _dt.datetime.now(_dt.UTC) - last
                     ).total_seconds() / 3600.0
                 except TypeError:
                     age_hours = None
@@ -746,7 +746,7 @@ class RefreshService:
         if not self._gateway.available():
             return [], [], self._dedup(tickers)
 
-        now = _dt.datetime.now(_dt.timezone.utc)
+        now = _dt.datetime.now(_dt.UTC)
         meta = self._staleness_map(self._dedup(tickers))
         for ticker in self._dedup(tickers):
             company_id, _cik, last = meta.get(ticker, (None, None, None))

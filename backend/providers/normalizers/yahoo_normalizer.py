@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
@@ -81,7 +81,7 @@ class YahooNormalizer(FinancialNormalizer):
                 int(raw.shares_outstanding) if raw.shares_outstanding else None
             ),
             source=self.source,
-            loaded_at=datetime.now(timezone.utc),
+            loaded_at=datetime.now(UTC),
             derived_metrics=derived_metrics,
         )
         return apply_quality_metrics(financials)

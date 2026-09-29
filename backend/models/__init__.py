@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from sqlalchemy import (
     JSON,
@@ -19,7 +19,7 @@ from backend.core.database import Base
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class UserModel(Base):

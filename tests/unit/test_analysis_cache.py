@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.value_objects.financials_normalized import (
@@ -32,7 +32,7 @@ def _row(year: int, revenue: float | None = 100.0) -> NormalizedFinancials:
         total_assets=300.0,
         total_liabilities=120.0,
         free_cash_flow=25.0,
-        loaded_at=datetime.now(timezone.utc),
+        loaded_at=datetime.now(UTC),
     )
 
 

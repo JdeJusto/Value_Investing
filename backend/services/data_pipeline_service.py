@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from backend.domain.interfaces.data_loader import DataLoader
 from backend.domain.interfaces.financial_repository import FinancialRepository
@@ -189,7 +189,7 @@ class DataPipelineService(DataLoader):
     ) -> list[RawFinancialsYear]:
         """Collect raw statements per fiscal year from one provider."""
         fiscal_years = self._fiscal_year_labels(provider, ticker)
-        today_year = datetime.now(timezone.utc).year
+        today_year = datetime.now(UTC).year
         shares = None
         if self._market is not None:
             try:

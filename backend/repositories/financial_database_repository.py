@@ -11,7 +11,7 @@ import hashlib
 import math
 import os
 import threading
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, UTC
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -1065,7 +1065,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             NormalizedFinancials object
         """
         if loaded_at is None:
-            loaded_at = datetime.now(timezone.utc)
+            loaded_at = datetime.now(UTC)
 
         income = statements["income"]
         balance = statements["balance"]

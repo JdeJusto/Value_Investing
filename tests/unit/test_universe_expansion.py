@@ -506,7 +506,7 @@ class TestStalenessRanked:
         return G(companies, last_synced)
 
     def test_ranks_most_recent_first_and_never_synced_last(self):
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         companies = {"A": ("a", "1"), "B": ("b", "2"), "C": ("c", "3")}
         last = {
             "a": now - dt.timedelta(hours=200),
@@ -521,7 +521,7 @@ class TestStalenessRanked:
         assert unknown == []
 
     def test_fresh_excluded_and_unknown_kept(self):
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         companies = {"A": ("a", "1")}
         last = {"a": now - dt.timedelta(hours=10)}  # fresh (< 168h)
         service = self._service(self._gateway(companies, last))
@@ -531,7 +531,7 @@ class TestStalenessRanked:
         assert unknown == ["NOPE"]
 
     def test_check_freshness_still_returns_plain_tuple(self):
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         companies = {"A": ("a", "1")}
         last = {"a": now - dt.timedelta(hours=200)}
         service = self._service(self._gateway(companies, last))

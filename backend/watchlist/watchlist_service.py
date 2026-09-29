@@ -5,7 +5,7 @@ touches providers directly. Exports are plain CSV-ready dicts.
 """
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from backend.screener.opportunity_engine import best_opportunity
 from backend.screener.ranking_engine import rank_score
@@ -34,7 +34,7 @@ class WatchlistService:
     def add(self, ticker: str, note: str = "") -> WatchlistItem:
         watchlist = self._load()
         t = ticker.upper().strip()
-        item = WatchlistItem(ticker=t, note=note, added_at=datetime.now(timezone.utc))
+        item = WatchlistItem(ticker=t, note=note, added_at=datetime.now(UTC))
         watchlist.add(item)
         self._save(watchlist)
         return item

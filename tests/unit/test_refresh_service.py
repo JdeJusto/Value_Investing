@@ -24,7 +24,7 @@ from backend.services.refresh_service import (
 )
 from backend.services.sec_health import SecHealth
 
-NOW = dt.datetime.now(dt.timezone.utc)
+NOW = dt.datetime.now(dt.UTC)
 STALE = NOW - dt.timedelta(hours=200)  # older than the 168h threshold
 FRESH = NOW - dt.timedelta(hours=10)
 

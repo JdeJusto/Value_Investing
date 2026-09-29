@@ -522,7 +522,7 @@ class TestSharesOutstandingPreference:
         return {"value": value, "period_end": period_end, "filing_date": filing_date}
 
     def test_prefer_diluted_queries_weighted_average_concept(self, monkeypatch):
-        repo, executed, params = self._make_repo(monkeypatch, [
+        repo, _executed, params = self._make_repo(monkeypatch, [
             [self._row("466733000")],   # diluted weighted-average
             [self._row("469000000")],   # cover-page anchor
         ])
@@ -532,7 +532,7 @@ class TestSharesOutstandingPreference:
         assert params and "WeightedAverageNumber" in params[0][2]
 
     def test_default_preference_starts_with_end_of_period(self, monkeypatch):
-        repo, executed, params = self._make_repo(monkeypatch, [
+        repo, _executed, params = self._make_repo(monkeypatch, [
             [self._row("466335000")],   # CommonStockSharesOutstanding
             [self._row("470000000")],   # cover-page anchor
         ])
@@ -563,7 +563,7 @@ class TestSharesOutstandingPreference:
         # small-ratio duplicate must NOT win: PriceService already applies the
         # 2:1 split adjustment to the as-reported count, so picking the
         # restated value would double-count the split and halve EPS.
-        repo, executed, _ = self._make_repo(monkeypatch, [
+        repo, _executed, _ = self._make_repo(monkeypatch, [
             [],  # CommonStockSharesOutstanding: not filed
             [
                 self._row("137300000", date(2015, 12, 31), date(2016, 2, 16)),
@@ -685,7 +685,7 @@ class TestComparisonThresholds:
     )
     def test_pct_metrics(self, metric, threshold_kind, threshold):
         below = _row({metric: 100.0})
-        above = _row({metric: 100.0 * (1 + threshold / 100) + 0.01})
+        _row({metric: 100.0 * (1 + threshold / 100) + 0.01})
         assert compare_rows(below, {**below, metric: 101.0}) == [] or metric not in [
             d["metric"] for d in compare_rows(below, _row({metric: 101.0}))
         ]

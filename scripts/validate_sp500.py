@@ -637,7 +637,7 @@ def _summarize(
     by_metric = Counter(r["metric"] for r in flagged)
     by_sev = Counter(r["severity"] for r in flagged)
     total = len(flagged)
-    n_excl = sum(excluded_by_severity.values()) if excluded_by_severity else 0
+    sum(excluded_by_severity.values()) if excluded_by_severity else 0
     n_high = by_sev.get("HIGH", 0)
     n_med = by_sev.get("MEDIUM", 0)
     n_low = by_sev.get("LOW", 0)

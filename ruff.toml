@@ -1,0 +1,18 @@
+# Minimal ruff configuration. The project predates a lint config; only the
+# settings the lint sprint needed are pinned here.
+target-version = "py314"
+
+[lint.flake8-bugbear]
+# FastAPI dependency injection uses Depends()/Query()/... in argument
+# defaults by design; these are the documented exceptions.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Security",
+]

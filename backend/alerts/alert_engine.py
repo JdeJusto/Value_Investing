@@ -73,7 +73,7 @@ def _sell_alert(
     if drop is None:
         return None
     reasons = [
-        f"score total {prev_score:.1f} -> {current_score:.1f} " f"(-{drop:.0f} puntos)"
+        (f"score total {prev_score:.1f} -> {current_score:.1f} " f"(-{drop:.0f} puntos)")
     ]
     trigger = trigger_label(detect_trigger(current, thresholds=thresholds))
     if trigger:

@@ -3,7 +3,7 @@
 No providers, no network — prices and analytics are mocked.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import pytest
 
@@ -29,7 +29,7 @@ def _position(
         quantity=quantity,
         avg_price=avg_price,
         current_price=current if current is not None else avg_price,
-        entry_date=datetime(year, 1, 1, tzinfo=timezone.utc),
+        entry_date=datetime(year, 1, 1, tzinfo=UTC),
         **kwargs,
     )
 

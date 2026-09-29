@@ -7,6 +7,13 @@ from backend.domain.entities.financials import (
 )
 from backend.domain.interfaces.provider import FinancialDataProvider
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # edgartools is imported lazily at first use (heavy); the annotations
+    # only need the name at type-check time.
+    from edgar import Company
+
 
 class EdgarProvider(FinancialDataProvider):
     def __init__(self, email: str, name: str):

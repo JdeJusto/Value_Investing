@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 
@@ -17,7 +17,7 @@ def is_stale(financials: NormalizedFinancials) -> bool:
     if financials.loaded_at is None:
         return True
 
-    stale_by_age = financials.loaded_at < datetime.now(timezone.utc) - timedelta(
+    stale_by_age = financials.loaded_at < datetime.now(UTC) - timedelta(
         days=STALE_AFTER_DAYS
     )
     stale_by_quality = (
@@ -41,4 +41,4 @@ def days_since_loaded(financials: NormalizedFinancials) -> int | None:
     """Age in days of a record, None when no load timestamp is stored."""
     if financials.loaded_at is None:
         return None
-    return (datetime.now(timezone.utc) - financials.loaded_at).days
+    return (datetime.now(UTC) - financials.loaded_at).days

@@ -12,7 +12,7 @@ stub) and are never persisted.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, UTC
 from typing import Any
 
 from backend.methodologies.registry import discover, registry
@@ -402,7 +402,7 @@ def validate_new_position(
         raise PortfolioActionError("Las acciones deben ser mayores que 0.")
     if price is None or price <= 0:
         raise PortfolioActionError("El precio debe ser mayor que 0.")
-    reference = today or datetime.now(timezone.utc).date()
+    reference = today or datetime.now(UTC).date()
     if entry_date is not None and entry_date > reference:
         raise PortfolioActionError("La fecha de entrada no puede ser futura.")
     return normalized
@@ -426,7 +426,7 @@ def add_position(
     entry_dt = None
     if entry_date is not None:
         entry_dt = datetime(
-            entry_date.year, entry_date.month, entry_date.day, tzinfo=timezone.utc
+            entry_date.year, entry_date.month, entry_date.day, tzinfo=UTC
         )
     return service.add(
         normalized,

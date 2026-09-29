@@ -33,7 +33,7 @@ import logging
 import os
 import secrets
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +75,7 @@ def is_transient_failure(reason: str) -> bool:
 
 def new_run_id(now: datetime | None = None) -> str:
     """A sortable run id: ``2026-09-25T08:00:00Z-abc123``."""
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     return f"{moment:%Y-%m-%dT%H:%M:%SZ}-{secrets.token_hex(3)}"
 
 
@@ -443,7 +443,7 @@ class RunState:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _fsync_dir(path: Path) -> None:

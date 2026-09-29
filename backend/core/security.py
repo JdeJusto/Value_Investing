@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from typing import Any
 
 import bcrypt
@@ -24,9 +24,9 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
@@ -34,7 +34,7 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
 
 
 def create_refresh_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

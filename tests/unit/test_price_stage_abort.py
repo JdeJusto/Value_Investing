@@ -393,7 +393,7 @@ def test_old_run_state_reads_as_ok(tmp_path):
     from backend.services.run_state import RUN_STATE_FILENAME, RunState
 
     path = tmp_path / RUN_STATE_FILENAME
-    state = RunState.create(
+    RunState.create(
         path, universe_spec="all", options={}, total_tickers=10
     )
     payload = json.loads(path.read_text())

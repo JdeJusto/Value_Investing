@@ -6,7 +6,7 @@ no database, and no writes (the adapter is read-only by design).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 import pytest
@@ -28,7 +28,7 @@ def _position(ticker, quantity=1.0, avg=100.0, current=100.0):
         quantity=quantity,
         avg_price=avg,
         current_price=current,
-        entry_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        entry_date=datetime(2025, 1, 1, tzinfo=UTC),
     )
 
 

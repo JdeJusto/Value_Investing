@@ -41,7 +41,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -71,7 +71,7 @@ def is_rate_limit(health) -> bool:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def load_alerts_config(path: str | None = None) -> int:
@@ -136,9 +136,9 @@ class StreakUpdate:
         rate_limited = bool(state.get("rate_limited", True))
         kind = "HTTP 429 (rate limit)" if rate_limited else "an unrelated failure"
         lines = [
-            f"Yahoo has been unavailable for the last "
+            (f"Yahoo has been unavailable for the last "
             f"**{self.consecutive_failures} consecutive runs** "
-            f"(threshold {self.threshold}) — {kind}.",
+            f"(threshold {self.threshold}) — {kind}."),
             f"First failure: {state.get('first_failure_at') or 'unknown'} · "
             f"Last failure: {state.get('last_failure_at') or 'unknown'}"
             + (
@@ -146,14 +146,14 @@ class StreakUpdate:
                 if state.get("last_failure_reason")
                 else ""
             ),
-            "Impact: P/E, P/B, FCF yield, EV/EBIT and margin of safety are N/A, "
+            ("Impact: P/E, P/B, FCF yield, EV/EBIT and margin of safety are N/A, "
             "and `rank_score` loses its margin-of-safety and momentum "
-            "components, so `BUY_SIGNAL` alerts can be suppressed.",
-            "Action: verify manually with "
+            "components, so `BUY_SIGNAL` alerts can be suppressed."),
+            ("Action: verify manually with "
             "`curl -s -o /dev/null -w '%{http_code}\\n' -H 'User-Agent: Mozilla/5.0' "
             "'https://query1.finance.yahoo.com/v8/finance/chart/AAPL"
             "?range=1d&interval=1d'`, then re-run "
-            "`python -m scripts.daily_workflow --universe sp500 --limit 20`.",
+            "`python -m scripts.daily_workflow --universe sp500 --limit 20`."),
         ]
         if not rate_limited:
             lines.insert(

@@ -1,6 +1,6 @@
 """Unit tests for the normalized financials value object."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import pytest
 
@@ -18,7 +18,7 @@ def test_to_dict_from_dict_roundtrip():
         net_income=96_995_000_000.0,
         shares_outstanding=15_220_000_000,
         source=ProviderName.YAHOO,
-        loaded_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        loaded_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     restored = NormalizedFinancials.from_dict(record.to_dict())
 
@@ -35,7 +35,7 @@ def test_to_dict_serializes_source_and_date():
         ticker="MSFT",
         fiscal_year=2024,
         source=ProviderName.EDGAR,
-        loaded_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        loaded_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     data = record.to_dict()
 

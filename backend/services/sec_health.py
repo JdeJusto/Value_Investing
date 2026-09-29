@@ -144,9 +144,8 @@ def check_sec_availability(
 
     with _cache_lock:
         cached = _cache
-    if cached is not None and not force:
-        if time.time() - cached.checked_at < ttl:
-            return cached
+    if cached is not None and not force and time.time() - cached.checked_at < ttl:
+        return cached
 
     total = max(1, int(attempts))
     health = SecHealth(False, "SEC availability unknown", None, time.time())

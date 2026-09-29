@@ -10,6 +10,7 @@ from backend.domain.value_objects.financials_normalized import (
     ProviderName,
 )
 from backend.repositories.json_financial_repository import JsonFinancialRepository
+from datetime import UTC
 
 
 class MockMarketProvider(MarketDataProvider):
@@ -286,11 +287,11 @@ def test_analyze_refreshes_when_data_stale(repo, market):
 
     def fresh_record():
         record = _quality_record(2024)
-        record.loaded_at = datetime.now(timezone.utc)
+        record.loaded_at = datetime.now(UTC)
         return record
 
     stale = fresh_record()
-    stale.loaded_at = datetime.now(timezone.utc) - timedelta(days=120)
+    stale.loaded_at = datetime.now(UTC) - timedelta(days=120)
     repo.upsert(stale)
     loader = RecordingLoader()
     loader.load_ticker = lambda ticker, years=None, force=False: repo.upsert(

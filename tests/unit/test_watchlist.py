@@ -3,7 +3,7 @@
 No providers, no network — analytics are mocked.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import pytest
 
@@ -23,7 +23,7 @@ def _item(ticker, status=MONITORING, note="", year=2026) -> WatchlistItem:
         ticker=ticker,
         status=status,
         note=note,
-        added_at=datetime(year, 1, 1, tzinfo=timezone.utc),
+        added_at=datetime(year, 1, 1, tzinfo=UTC),
     )
 
 

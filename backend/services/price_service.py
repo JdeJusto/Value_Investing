@@ -296,7 +296,7 @@ class PriceService:
         prices = self.get_historical_prices(ticker, start_date=start, end_date=end)
         if not prices:
             return None
-        best_date, best_close = min(
+        _best_date, best_close = min(
             prices, key=lambda p: abs((p[0] - target_date).days)
         )
         return best_close

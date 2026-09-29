@@ -7,6 +7,14 @@ from backend.domain.entities.financials import (
 )
 from backend.domain.interfaces.provider import FinancialDataProvider, MarketDataProvider
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Both libraries are imported lazily inside the methods (heavy imports);
+    # the annotations only need the names at type-check time.
+    import pandas as pd
+    import yfinance as yf
+
 
 class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
     def __init__(self):
@@ -290,7 +298,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 return 0.08
             total_cap = mcap + debt
             wd = debt / total_cap if total_cap != 0 else 0.5
-            we = 1.0 - wd
+            1.0 - wd
 
             cost_equity = self._risk_free_rate + beta * (
                 self._market_return - self._risk_free_rate
@@ -328,11 +336,11 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 self.fiscal_year: int | None = None
 
         try:
-            ticker_obj = self._get_ticker(ticker)
+            self._get_ticker(ticker)
             income = self.get_income_statement(ticker, year_index)
             balance = self.get_balance_sheet(ticker, year_index)
             cash_flow = self.get_cash_flow(ticker, year_index)
-            shares_outstanding = self.get_shares_outstanding(ticker)
+            self.get_shares_outstanding(ticker)
 
             if not any([income, balance, cash_flow]):
                 return None

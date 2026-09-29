@@ -80,17 +80,17 @@ class FilterCriteria:
         return False
 
     @classmethod
-    def lt(cls, field: str, value: float) -> "FilterCriteria":
+    def lt(cls, field: str, value: float) -> FilterCriteria:
         return cls(field=field, operator=FilterOperator.LT, value=value)
 
     @classmethod
-    def gt(cls, field: str, value: float) -> "FilterCriteria":
+    def gt(cls, field: str, value: float) -> FilterCriteria:
         return cls(field=field, operator=FilterOperator.GT, value=value)
 
     @classmethod
-    def between(cls, field: str, low: float, high: float) -> "FilterCriteria":
+    def between(cls, field: str, low: float, high: float) -> FilterCriteria:
         return cls(field=field, operator=FilterOperator.BETWEEN, value=(low, high))
 
     @classmethod
-    def eq(cls, field: str, value: Any) -> "FilterCriteria":
+    def eq(cls, field: str, value: Any) -> FilterCriteria:
         return cls(field=field, operator=FilterOperator.EQ, value=value)

@@ -11,7 +11,7 @@ This is a pure domain module: no pandas, no network, no database.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from enum import Enum
 from typing import Any
 
@@ -157,7 +157,7 @@ class NormalizedFinancials:
                     value = None
             clean[key] = value
         if clean.get("loaded_at") is None:
-            clean["loaded_at"] = datetime.now(timezone.utc)
+            clean["loaded_at"] = datetime.now(UTC)
         return cls(**clean)
 
 

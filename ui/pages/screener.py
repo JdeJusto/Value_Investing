@@ -56,7 +56,7 @@ def render_screener():
 
     filters: list[FilterCriteria] = render_filter_controls()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, _col3 = st.columns(3)
     with col1:
         top_n = st.number_input(
             "Top N resultados", min_value=1, max_value=100, value=25
