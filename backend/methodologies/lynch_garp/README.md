@@ -35,7 +35,7 @@ UNKNOWN**) and records it as `metrics["lynch_category"]`.
 
 | Category | Detection | Success criteria | Verdict thresholds |
 | --- | --- | --- | --- |
-| **Fast Grower** | revenue CAGR ≥ 20%, positive EPS in ≥ 4 of 5 years, net margin > 0, and (market cap ≥ $10B or CAGR ≥ 25%) | hyper growth with margins | generic logic; inventory watch tightened to 1.25x; above 30% growth the PEG band gets a +0.2 premium |
+| **Fast Grower** | revenue CAGR ≥ 20%, positive EPS in ≥ 4 of 5 years, net margin > 0 (no size gate) | hyper growth with margins | generic logic; inventory watch tightened to 1.25x; above 30% growth the PEG band gets a +0.2 premium |
 | **Stalwart** | revenue CAGR 8-20%, market cap ≥ $10B, positive earnings in ≥ 4 of 5 years | steady growth at a reasonable PEG | generic logic (unchanged) |
 | **Slow Grower** | revenue CAGR 0-8%, dividends in ≥ 5 of 5 years, market cap ≥ $10B | stable dividends, no earnings decline | **BUY** if the dividend did not decline in ≥ 4 of 5 years and the net margin is stable; **WATCH** if the dividend was paid every year; **HOLD** otherwise; a core-rule FAIL caps at WATCH. A low PEG is *not* required |
 | **Cyclical** | sector Basic Materials / Energy / Industrials (or Consumer Cyclical) **and** earnings volatility (σ/mean) > 0.5 over 10 years | buying near the trough | generic logic + a "check position in the cycle" warning in the reasons |

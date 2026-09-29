@@ -739,6 +739,13 @@ def test_categorize_fast_grower_large_cap():
     assert _category(rows, market_cap=50_000_000_000.0) == "FAST_GROWER"
 
 
+def test_categorize_fast_grower_small_cap_22pct():
+    # Lynch's classic criterion: a small aggressive company growing 20-25%.
+    # No size gate: a < $10B company at 22% CAGR is a Fast Grower.
+    rows = _growth_rows(0.22)
+    assert _category(rows, market_cap=5_000_000_000.0) == "FAST_GROWER"
+
+
 def test_categorize_fast_grower_beats_cyclical_sector():
     # A 30% grower in a cyclical sector is still a Fast Grower: the high CAGR
     # wins over the sector volatility.

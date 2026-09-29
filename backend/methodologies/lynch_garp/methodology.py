@@ -59,7 +59,6 @@ _FAST_GROWER_INVENTORY_FACTOR = 1.25
 # precedence order documented in the README.
 _STALWART_MARKET_CAP = 10_000_000_000.0
 _FAST_GROWER_CAGR = 0.20
-_FAST_GROWER_HIGH_CAGR = 0.25
 _HYPER_GROWTH_CAGR = 0.30
 _HYPER_GROWTH_PEG_PREMIUM = 0.2
 _SLOW_GROWER_CAGR = 0.08
@@ -465,11 +464,12 @@ class LynchGARPMethodology(Methodology):
         category: the company falls through to UNKNOWN and the generic PEG
         screen applies.
 
-        Fast Grower is deliberately generous with size — modern fast growers
-        are often large caps (TSLA, NVDA) — but strict on the growth story:
-        revenue CAGR >= 20% with positive EPS in >= 4 of 5 years and a
-        positive net margin. Large caps (>= $10B) qualify from 20% growth;
-        any size qualifies from 25%.
+        Fast Grower follows Lynch's classic criterion — a small/aggressive
+        company growing 20-25% a year — with no size gate at all: any
+        company with revenue CAGR >= 20%, positive EPS in >= 4 of 5 years
+        and a positive net margin is a Fast Grower, large cap or not
+        (TSLA, NVDA included). ``market_cap`` is still used to tell
+        Stalwarts and Slow Growers (large, slower) apart.
         """
         latest = rows[0] if rows else None
         if latest is None:
@@ -492,10 +492,6 @@ class LynchGARPMethodology(Methodology):
             and self._eps_positive_years(rows) >= _CATEGORY_YEARS - 1
             and margin is not None
             and margin > 0.0
-            and (
-                (market_cap is not None and market_cap >= _STALWART_MARKET_CAP)
-                or revenue_cagr >= _FAST_GROWER_HIGH_CAGR
-            )
         ):
             return LynchCategory.FAST_GROWER
         if self._is_cyclical(sector, rows):
