@@ -9,11 +9,14 @@ from __future__ import annotations
 
 from datetime import date as _date
 
+import pytest
+
 from backend.alerts.alert_engine import Alert
 from backend.services.alerts_cache import alert_sort_key, sorted_alerts
 from backend.services.daily_report_service import DailyReport, build_markdown
 from backend.services.yahoo_health import YahooHealth
 from scripts.daily_workflow import _prices_mode, sort_alerts
+
 
 # ----------------------------------------------------------------------
 # Fix 1.2 — prices_mode

@@ -80,7 +80,7 @@ def _run(args):
     price = service.get_current_price(ticker)
     try:
         market_cap = service.get_market_cap(ticker)
-    except Exception:
+    except Exception:  # noqa: BLE001 — no market cap is not an error
         market_cap = None
 
     result = methodology.evaluate(ticker, rows, _Prices(price, market_cap))

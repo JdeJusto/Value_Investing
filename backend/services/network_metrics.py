@@ -100,7 +100,7 @@ class NetworkMetrics:
                 if latency_ms is not None:
                     bucket["latency_ms"] += float(latency_ms)
                     bucket["samples"] += 1
-        except Exception:
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
             pass
 
     def record_failure(self, service: str, reason: str, *, latency_ms: float | None = None) -> None:
@@ -123,7 +123,7 @@ class NetworkMetrics:
             with self._lock:
                 failures = self._price_failures.setdefault(str(category), 0)
                 self._price_failures[str(category)] = failures + int(count)
-        except Exception:
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
             pass
 
     def price_failures(self) -> dict[str, int]:

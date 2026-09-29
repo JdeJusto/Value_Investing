@@ -297,7 +297,7 @@ class FdbGateway:
             with self._connection().cursor() as cur:
                 cur.execute(sql, (str(hours), int(limit)))
                 rows = cur.fetchall() or []
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — a gateway query never crashes a run
             logger.warning("stale_companies: query failed: %s", exc)
             return []
         return [dict(row) for row in rows]
@@ -698,7 +698,7 @@ class RefreshService:
                 ticker = futures[future]
                 try:
                     outcomes[ticker] = future.result()
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 — never break the batch
                     outcomes[ticker] = f"SEC sync raised: {exc}"
                 self._notify_progress(progress_cb, ticker, outcomes[ticker])
         return outcomes
@@ -802,7 +802,7 @@ class RefreshService:
         if bulk is not None:
             try:
                 return bulk(dedup)
-            except Exception:
+            except Exception:  # noqa: BLE001 — fall back to per-ticker reads
                 pass
         meta: dict[
             str, tuple[str | None, str | None, _dt.datetime | None]
@@ -810,7 +810,7 @@ class RefreshService:
         for ticker in dedup:
             try:
                 resolved = self._gateway.resolve_company(ticker)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 resolved = None
             if resolved is None:
                 meta[ticker] = (None, None, None)
@@ -819,7 +819,7 @@ class RefreshService:
             last = None
             try:
                 last = self._gateway.last_synced_at(company_id)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 last = None
             meta[ticker] = (company_id, cik, last)
         return meta
@@ -827,14 +827,14 @@ class RefreshService:
     def _fetch_prices(self, tickers: list[str]) -> dict[str, float | None]:
         try:
             return self._price_service.get_current_prices(tickers)
-        except Exception:
+        except Exception:  # noqa: BLE001 — prices must never break the command
             return {}
 
     def _probe_sec(self) -> SecHealth:
         """Run the injectable SEC preflight; never let it break the command."""
         try:
             return self._sec_health_fn()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — probe failure ≠ command failure
             return SecHealth(False, f"SEC preflight failed: {exc}", None, 0.0)
 
     @staticmethod
@@ -848,7 +848,7 @@ class RefreshService:
             return
         try:
             progress_cb(ticker, status)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — checkpointing must not crash
             logger.warning("progress callback failed for %s: %s", ticker, exc)
 
     def sync_one(self, cik: str) -> bool | str:
@@ -883,7 +883,7 @@ class RefreshService:
                     self._metrics.record_failure(
                         "sec", str(status), latency_ms=latency_ms
                     )
-            except Exception:
+            except Exception:  # noqa: BLE001 — telemetry must not break a sync
                 pass
         return status
 
@@ -923,7 +923,7 @@ class RefreshService:
             )
         except FileNotFoundError:
             return f"Financial-DataBase CLI not runnable at {repo}"
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return f"SEC sync failed to start: {exc}"
 
         if completed.returncode == 0:

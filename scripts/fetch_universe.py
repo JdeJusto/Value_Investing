@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -64,7 +65,7 @@ def _wiki_sp500() -> list[str]:
             str(t).strip().replace(".", "-") for t in df[col] if str(t).strip()
         ]
         return tickers
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("failed to fetch S&P 500 list from Wikipedia: %s", exc)
         return []
 
@@ -88,7 +89,6 @@ def _wiki_nasdaq100() -> list[str]:
             html = response.read().decode("utf-8")
 
         import io
-
         import pandas as pd
 
         frames = pd.read_html(io.StringIO(html))
@@ -137,7 +137,7 @@ def _wiki_nasdaq100() -> list[str]:
                         }
                     )
         return []
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("failed to fetch Nasdaq-100 list from Wikipedia: %s", exc)
         return []
 

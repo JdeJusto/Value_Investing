@@ -11,15 +11,14 @@ prices live here, in real time.
 
 from __future__ import annotations
 
-import logging
 import os
 import threading
 import time
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from collections.abc import Callable
-
 
 class _LazyModuleProxy:
     """Lazy module attribute proxy.
@@ -334,7 +333,7 @@ class PriceService:
                 shares = int(shares)
                 self._set_cached(key, shares)
                 return shares
-        except Exception:
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
             pass
         return None
 
@@ -355,7 +354,7 @@ class PriceService:
                 market_cap = float(market_cap)
                 self._set_cached(key, market_cap)
                 return market_cap
-        except Exception:
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
             pass
         return None
 
@@ -373,7 +372,7 @@ class PriceService:
                 ev = float(ev)
                 self._set_cached(key, ev)
                 return ev
-        except Exception:
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
             pass
         return None
 
@@ -394,7 +393,7 @@ class PriceService:
                     return beta
                 except (TypeError, ValueError):
                     pass
-        except Exception:
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
             pass
         return None
 
@@ -506,7 +505,7 @@ class PriceService:
             return {}
         try:
             return dict(getter())
-        except Exception:
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
             return {}
 
     def _record_yahoo(
@@ -523,7 +522,7 @@ class PriceService:
             self._metrics.record(
                 "yahoo", latency_ms=latency_ms, retries=retries, reason=reason
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — telemetry must never break a fetch
             pass
 
     def yahoo_available(self, *, force: bool = False):
@@ -536,7 +535,7 @@ class PriceService:
             return None
         try:
             health = self._health_fn(force=force)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — a broken probe never fails a run
             logger.warning("Yahoo preflight error: %s", exc)
             return None
         self._last_health = health
@@ -555,7 +554,7 @@ class PriceService:
             return
         try:
             note(category, count)
-        except Exception:
+        except Exception:  # noqa: BLE001 — telemetry must never break a run
             pass
 
     def _yahoo_is_known_down(self) -> str | None:
@@ -572,7 +571,7 @@ class PriceService:
             from backend.services.yahoo_health import cached_yahoo_health
 
             cached = cached_yahoo_health()
-        except Exception:
+        except Exception:  # noqa: BLE001 — never let telemetry break a fetch
             return None
         if cached is not None and not cached.available:
             return cached.reason
@@ -610,7 +609,7 @@ class PriceService:
                     self._note_transient_success()
                     return info
                 reason = "empty quote summary"
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — transient Yahoo errors
                 non_transient, status, reason = classify_fetch_exception(exc)
                 if non_transient:
                     self._record_yahoo(
@@ -732,7 +731,7 @@ class PriceService:
         if known_ticker is not None:
             try:
                 known = known_ticker(ticker)
-            except Exception:
+            except Exception:  # noqa: BLE001 — listing lookup must not break
                 known = None
         if not self._yahoo_is_answering():
             # A provider-wide outage explains "no data" far better than a
@@ -756,7 +755,7 @@ class PriceService:
             return False
         try:
             return self._probe_has_data("AAPL")
-        except Exception:
+        except Exception:  # noqa: BLE001 — an unhealthy provider is not "delisted"
             return False
 
     def _tally(self, category: str) -> str:
@@ -785,7 +784,7 @@ class PriceService:
                 info = yf.Ticker(ticker).info
                 if isinstance(info, dict) and info.get("quoteType") is not None:
                     return True
-            except Exception:
+            except Exception:  # noqa: BLE001 — probe must never raise
                 pass
             if attempt == 1:
                 time.sleep(0.75)
@@ -793,7 +792,7 @@ class PriceService:
             hist = yf.Ticker(ticker).history(period="1d")
             if hist is not None and not hist.empty:
                 return True
-        except Exception:
+        except Exception:  # noqa: BLE001 — probe must never raise
             pass
         return False
 
@@ -857,7 +856,7 @@ class PriceService:
                     result.append((d, float(ratio)))
             self._set_cached(key, tuple(result))
             return result
-        except Exception:
+        except Exception:  # noqa: BLE001 — provider failure must not break analysis
             return []
 
     # ------------------------------------------------------------------
@@ -884,7 +883,7 @@ class PriceService:
                     )
                     return float(hist["Close"].iloc[-1])
                 reason = "empty history frame"
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — transient Yahoo errors
                 reason = str(exc)
             self._record_yahoo(
                 latency_ms=(time.time() - started) * 1000.0,
@@ -915,7 +914,7 @@ class PriceService:
             for idx, row in hist.iterrows():
                 try:
                     d = idx.date() if isinstance(idx, datetime) else idx.date()
-                except Exception:
+                except Exception:  # noqa: BLE001
                     d = date.fromisoformat(str(idx))
                 close = row.get("Close")
                 if close is None:
@@ -925,7 +924,7 @@ class PriceService:
                 except (TypeError, ValueError):
                     continue
             return prices
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
 
 

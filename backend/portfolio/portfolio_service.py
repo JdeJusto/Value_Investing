@@ -140,7 +140,7 @@ class PortfolioService:
             }
         try:
             result = self._analyzer(position.ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001 — stale prices must not break the view
             result = None
         if not result:
             return {

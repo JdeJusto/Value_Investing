@@ -166,7 +166,7 @@ class RunState:
             return cls(path, payload)
         except FileNotFoundError:
             return None
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — a corrupt state must not block
             logger.warning("ignoring unreadable run state %s: %s", path, exc)
             return None
 

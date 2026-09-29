@@ -18,6 +18,7 @@ from backend.methodologies.base import (
 )
 from backend.methodologies.registry import MethodologyRegistry, discover, registry
 
+
 # ----------------------------------------------------------------------
 # enums
 # ----------------------------------------------------------------------

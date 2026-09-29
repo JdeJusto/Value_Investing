@@ -308,7 +308,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             return weight_equity * cost_equity + weight_debt * cost_debt * (
                 1 - tax_rate
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             return 0.08
 
     def get_financials(self, ticker: str, year_index: int = 0) -> object | None:

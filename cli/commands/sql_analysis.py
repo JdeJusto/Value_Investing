@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
+from typing import Optional
 
-from backend.services.sql_analysis_service import SCRIPT_ALIASES, SqlAnalysisService
 from cli.formatters import (
+    bold,
+    dim,
     green,
     print_header,
+    print_key_value,
     red,
     yellow,
 )
+from backend.app.cli import get_tickers
+from backend.services.sql_analysis_service import SCRIPT_ALIASES, SqlAnalysisService
 
 
 def register(subparsers):

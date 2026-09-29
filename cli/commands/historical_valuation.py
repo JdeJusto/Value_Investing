@@ -2,21 +2,24 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 
+from cli.formatters import (
+    bold,
+    dim,
+    green,
+    print_header,
+    print_key_value,
+    red,
+    yellow,
+)
 from backend.app.cli import (
     add_refresh_arguments,
     build_financial_repository,
     refresh_analysis_inputs,
 )
 from backend.services.historical_valuation_service import HistoricalValuationService
-from cli.formatters import (
-    dim,
-    print_header,
-    print_key_value,
-    red,
-    yellow,
-)
 
 
 def register(subparsers):

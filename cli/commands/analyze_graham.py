@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from cli.formatters import (
+    bold,
     dim,
     green,
     print_header,

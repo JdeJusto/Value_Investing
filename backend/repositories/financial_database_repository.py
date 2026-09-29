@@ -297,8 +297,8 @@ BALANCE_SHEET_CONCEPTS = {
     "LongTermDebt": "total_debt",
     "LongTermDebtNoncurrent": "total_debt",
     # Cash and Equivalents
-    "CashAndCashEquivalentsAtCarryingValue": "cash_and_equivalents",
-    "CashAndCashEquivalents": "cash_and_equivalents",
+    "CashAndCashEquivalentsAtCarryingValue": "cash_and_equivalents",  # noqa: F601 — XBRL alias of the pair above
+    "CashAndCashEquivalents": "cash_and_equivalents",  # noqa: F601 — XBRL alias of the pair above
     # Asset managers/others that report only the restricted-inclusive total
     # (e.g. BEN: CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents)
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": "cash_and_equivalents",
@@ -467,7 +467,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             try:
                 if not conn.closed:
                     conn.close()
-            except Exception:
+            except Exception:  # noqa: BLE001, S110 — best-effort teardown
                 pass
         self._local.connection = None
 
@@ -478,7 +478,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
                 return True
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure answers as "not available"
             return False
 
     def fundamentals_fingerprint(self, ticker: str) -> str | None:
@@ -522,7 +522,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     (str(ticker).upper(),),
                 )
                 row = cur.fetchone()
-        except Exception:
+        except Exception:  # noqa: BLE001 — a fingerprint failure is a cache miss
             return None
         if not row or int(row.get("filing_count") or 0) == 0:
             return None
@@ -558,7 +558,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 )
                 row = cur.fetchone()
                 return row["legal_name"] if row else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def has_active_listing(self, ticker: str) -> bool | None:
@@ -594,7 +594,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     (str(ticker).upper(),),
                 )
                 return cur.fetchone() is not None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def get_cik(self, ticker: str) -> str | None:
@@ -621,7 +621,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 )
                 row = cur.fetchone()
                 return row["cik"] if row else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def _get_company_id_by_cik(self, cik: str) -> str | None:
@@ -650,7 +650,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 )
                 result = cur.fetchone()
                 return str(result["id"]) if result else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def _get_company_id_by_ticker(self, ticker: str) -> str | None:
@@ -677,7 +677,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 )
                 result = cur.fetchone()
                 return str(result["id"]) if result else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def _get_company_sector(self, ticker: str) -> str | None:
@@ -702,7 +702,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 )
                 result = cur.fetchone()
                 return result["sector"] if result else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def _get_listing_id_by_cik(self, cik: str) -> str | None:
@@ -735,7 +735,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 )
                 result = cur.fetchone()
                 return str(result["id"]) if result else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def _normalize_financial_facts(
@@ -1225,7 +1225,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     sector=self._get_company_sector(ticker),
                 )
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a failure degrades to None so the caller falls back
             # In case of any error, return None to let fallback handle it
             return None
 
@@ -1258,7 +1258,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     for row in cur.fetchall()
                     if row is not None
                 ]
-        except Exception:
+        except Exception:  # noqa: BLE001 — degrade to 1.0 (as-reported shares)
             # instead of failing the ticker.
             return []
 
@@ -1371,11 +1371,11 @@ class FinancialDatabaseRepository(FinancialRepository):
                     )
                     if financials is not None:
                         results.append(financials)
-                except Exception:
+                except Exception:  # noqa: BLE001, S112 — one bad year must not drop the rest
                     continue
             return results
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a broken listing degrades to an empty history
             return []
 
     def list_all(self, ticker: str) -> list[NormalizedFinancials]:
@@ -1461,7 +1461,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 result = cur.fetchone()
                 return result["count"] > 0 if result else False
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure answers as "not available"
             return False
 
     def delete_ticker(self, ticker: str) -> None:
@@ -1719,7 +1719,7 @@ class FinancialDatabaseRepository(FinancialRepository):
 
             return candidate
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def get_available_to_common_diluted_net_income(
@@ -1783,7 +1783,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     return float(result["value"])
                 return None
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def get_fiscal_year_end_date(self, ticker: str, fiscal_year: int) -> date | None:
@@ -1890,7 +1890,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     return date.fromisoformat(str(period_end)[:10])
                 return None
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def get_latest_completed_fiscal_year(self, ticker: str) -> int | None:
@@ -1944,7 +1944,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                     return int(result["fiscal_year"])
                 return None
 
-        except Exception:
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
     def __del__(self):

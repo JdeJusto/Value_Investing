@@ -67,7 +67,7 @@ class SnapshotMarketProvider(MarketDataProvider):
         if self._fallback is not None:
             try:
                 return getattr(self._fallback, getter_name)(ticker)
-            except Exception:
+            except Exception:  # noqa: BLE001 — a failing quote must not break analysis
                 return None
         return None
 

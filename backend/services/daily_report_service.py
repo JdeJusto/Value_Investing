@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date
-from typing import Any
+from typing import Any, Optional
 
 from backend.alerts.alert_engine import Alert
 

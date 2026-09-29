@@ -179,7 +179,7 @@ class TestInvestmentScreenerPriceScope:
             "BRK-B": _analysis("BRK-B", net_income=30_000_000_000),
             "XOM": _analysis("XOM", net_income=40_000_000_000),
         }
-        analyzer = lambda ticker: dict(by_ticker[ticker])
+        analyzer = lambda ticker: dict(by_ticker[ticker])  # noqa: E731
         service = ScreenerService(
             analyzer=analyzer,
             universe=["BRK-B", "XOM"],
@@ -201,7 +201,7 @@ class TestInvestmentScreenerPriceScope:
 
         prices = Mock()
         prices.get_current_price.side_effect = AssertionError("must not be called")
-        analyzer = lambda ticker: _analysis(ticker)
+        analyzer = lambda ticker: _analysis(ticker)  # noqa: E731
         service = ScreenerService(
             analyzer=analyzer,
             universe=["AAPL"],
@@ -220,7 +220,7 @@ class TestInvestmentScreenerPriceScope:
 
         prices = Mock()
         prices.get_current_price.side_effect = Exception("rate limited")
-        analyzer = lambda ticker: _analysis(ticker, score=0.95)
+        analyzer = lambda ticker: _analysis(ticker, score=0.95)  # noqa: E731
         service = ScreenerService(
             analyzer=analyzer,
             universe=["KO"],

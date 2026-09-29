@@ -437,7 +437,7 @@ class GrahamDoddMethodology(Methodology):
             return None
         try:
             return getter(ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001 — no price is not an error
             return None
 
     # ------------------------------------------------------------------

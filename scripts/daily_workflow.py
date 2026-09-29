@@ -44,8 +44,8 @@ import logging
 import os
 import signal
 import sys
-import threading
 import time
+import threading
 from datetime import date, datetime
 from pathlib import Path
 
@@ -576,7 +576,7 @@ def _run(args) -> None:
             prefetch_result["failures"] = _classify_price_failures(
                 unavailable, price_service, fdb_repo
             )
-        except BaseException as exc:
+        except BaseException as exc:  # noqa: BLE001 — re-raised on join
             prefetch_result["exc"] = exc
         finally:
             prefetch_result["elapsed"] = time.time() - t0
@@ -726,7 +726,7 @@ def _run(args) -> None:
         if ticker not in cache:
             try:
                 result = analysis_service.analyze(ticker)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("analyze failed for %s: %s", ticker, e)
                 result = None
                 if run_state is not None:
@@ -828,7 +828,7 @@ def _run(args) -> None:
             return None
         try:
             return getter(ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001 — name must never break the report
             return None
 
     rows = [_row_of(item, name_resolver) for item in screened[: args.top]]
@@ -1145,7 +1145,7 @@ def _dcf_rows_for_report(rows, args, fdb_repo, price_service) -> list[dict]:
         try:
             fundamentals = fdb_repo.get_best_available(ticker)
             result_rows.append(_dcf_dict(dcf.evaluate(ticker, fundamentals, price_service)))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — the DCF must never break the daily run
             result_rows.append(
                 {"ticker": ticker, "verdict": "ERROR", "reason": f"DCF failed: {e}"}
             )
@@ -1162,7 +1162,7 @@ def ordered_name_of(item):
         company = CompanyRepository().find_by_ticker(item.ticker)
         if company and company.name:
             return company.name
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     return None
 

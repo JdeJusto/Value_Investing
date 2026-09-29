@@ -144,7 +144,7 @@ class DividendService:
 
         try:
             raw = self._yf_ticker(ticker).dividends
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — a failed fetch is empty
             logger.warning("dividend fetch failed for %s: %s", ticker, exc)
             return []
 

@@ -1,9 +1,5 @@
 from backend.analytics.interpretation import print_analysis as _print_analysis
-from backend.app.cli import (
-    add_refresh_arguments,
-    build_analysis_service,
-    refresh_analysis_inputs,
-)
+from backend.app.cli import add_refresh_arguments, build_analysis_service, refresh_analysis_inputs
 from cli.formatters import print_header, red
 
 

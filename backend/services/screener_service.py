@@ -60,7 +60,7 @@ class StockScreenerService:
                     self._analysis = CompanyAnalysisService(
                         self._repository, self._market, loader=self._loader
                     )
-            except Exception:
+            except Exception:  # noqa: BLE001 - fall back to the live provider
                 pass
 
         results: list[ScreenerRow] = []
@@ -104,7 +104,7 @@ class StockScreenerService:
                 snapshots = self._price_service.get_market_snapshots(
                     tickers, batch_size=25, delay=0.1, workers=6
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001 - fall back to per-ticker lookups
                 snapshots = {}
         for t in tickers:
             if len(matches) >= 20:
@@ -115,7 +115,7 @@ class StockScreenerService:
             if repo_name is not None:
                 try:
                     name = repo_name(t)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     name = None
             else:
                 snap = snapshots.get(t) or {}
@@ -123,7 +123,7 @@ class StockScreenerService:
                 if not name and not snapshots:
                     try:
                         name = self._market.get_company_name(t)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         name = None
             if name and query.lower() in name.lower():
                 matches.append(t)
@@ -143,13 +143,13 @@ class StockScreenerService:
         if not no_prices:
             try:
                 price = self._price_service.get_current_price(ticker)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 price = None
 
         name = None
         try:
             name = self._market.get_company_name(ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001
             name = None
 
         # If the market provider failed to produce price-derived metrics, try
@@ -198,7 +198,7 @@ class StockScreenerService:
             if not shares:
                 try:
                     shares = self._price_service.get_shares_outstanding(ticker)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     shares = None
             if shares is None or shares == 0:
                 return d
@@ -222,7 +222,7 @@ class StockScreenerService:
                 if ebit and ebit != 0:
                     ev = market_cap + (debt or 0) - (cash or 0)
                     d["ev_ebit"] = ev / ebit
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         return d

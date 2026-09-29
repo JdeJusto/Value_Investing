@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.universe_common import (
+from scripts.universe_common import (  # noqa: E402
     normalize_ticker,
     sec_company_tickers,
     ticker_to_sec,

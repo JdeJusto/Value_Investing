@@ -231,18 +231,18 @@ def _probe_via_yfinance() -> YahooHealth | None:
     """One ``fast_info`` call. None when yfinance is not importable here."""
     try:
         import yfinance as yf
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — optional at probe time
         logger.debug("yahoo preflight: yfinance not importable (%s)", exc)
         return None
 
     ticker = yf.Ticker("AAPL")
     try:
         info = ticker.fast_info
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — any failure is a verdict
         return _verdict_from_exception(exc, stage=STAGE_YFINANCE)
     try:
         price = float(info["lastPrice"]) if info is not None else 0.0
-    except Exception:
+    except Exception:  # noqa: BLE001 — shape changed, treat as unusable
         price = 0.0
     if price > 0:
         return YahooHealth(
@@ -321,7 +321,7 @@ def _probe_via_http(timeout: float) -> YahooHealth:
     except urllib.error.HTTPError as exc:
         cookie_ok = False
         logger.debug("yahoo preflight: cookie step returned HTTP %s", exc.code)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — fc.yahoo.com is best-effort
         cookie_ok = False
         logger.debug("yahoo preflight: cookie step failed: %s", exc)
 
@@ -332,7 +332,7 @@ def _probe_via_http(timeout: float) -> YahooHealth:
         _status, crumb_text = _fetch(YAHOO_CRUMB_URL, timeout, opener.open, STAGE_CRUMB)
     except urllib.error.HTTPError as exc:
         return _http_error_health(exc, STAGE_CRUMB)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — any failure means unavailable
         return YahooHealth(
             False, f"Yahoo unreachable at the crumb step: {exc}", None, now,
             stage=STAGE_CRUMB,
@@ -374,7 +374,7 @@ def _probe_via_http(timeout: float) -> YahooHealth:
             response.read(64)
     except urllib.error.HTTPError as exc:
         return _http_error_health(exc, STAGE_QUOTE)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — any failure means unavailable
         return YahooHealth(
             False, f"Yahoo unreachable at the quote step: {exc}", None, time.time(),
             stage=STAGE_QUOTE,
@@ -444,7 +444,7 @@ def check_yahoo_availability(
                 health = probe_fn(timeout)
             except TypeError:
                 health = probe_fn(YAHOO_CHART_URL, timeout)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — a broken probe = unavailable
             health = YahooHealth(
                 False, f"Yahoo preflight error: {exc}", None, time.time(),
                 stage=STAGE_UNKNOWN,

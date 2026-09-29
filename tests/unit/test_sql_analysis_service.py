@@ -2,11 +2,9 @@
 Unit tests for SqlAnalysisService.
 """
 
-from unittest.mock import MagicMock, Mock, patch
-
 import pytest
-
-from backend.services.sql_analysis_service import SqlAnalysisService
+from unittest.mock import MagicMock, Mock, patch
+from backend.services.sql_analysis_service import SqlAnalysisService, SqlScriptResult
 
 
 class TestSqlAnalysisService:

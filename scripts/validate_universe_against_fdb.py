@@ -22,6 +22,7 @@ import argparse
 import csv
 import sys
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -68,7 +69,7 @@ def validate_universe(
         cik = None
         try:
             cik = repo.get_cik(row["ticker"])
-        except Exception:
+        except Exception:  # noqa: BLE001 — never fail the whole check
             cik = None
         (resolved if cik else unresolved).append(row)
 

@@ -209,7 +209,7 @@ class GrahamMethodology(Methodology):
             return None
         try:
             value = getter(ticker)
-        except Exception:
+        except Exception:  # noqa: BLE001 — no price is not an error
             return None
         try:
             return float(value) if value is not None else None

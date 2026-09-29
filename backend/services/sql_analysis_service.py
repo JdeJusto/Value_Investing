@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
+import time
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
 
+import sqlparse
 import psycopg2
 import psycopg2.extensions
-import sqlparse
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from backend.repositories.financial_database_repository import (
-    FinancialDatabaseRepository,
-)
+from backend.repositories.financial_database_repository import FinancialDatabaseRepository
+from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 
 
 @dataclass
