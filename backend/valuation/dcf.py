@@ -41,6 +41,12 @@ _MOS_CAP = 10.0
 _FCF_BASE_YEARS = 3
 #: Revenue CAGR look-back window (in rows) for the 5-year growth estimate.
 _CAGR_LOOKBACK_ROWS = 6
+#: Dividend history window (fiscal years) for the DDM's growth estimate.
+_DDM_WINDOW_YEARS = 5
+#: Two-stage DDM: years of high dividend growth before the terminal stage.
+_DDM_STAGE1_YEARS = 10
+#: Two-stage DDM: cap on stage-1 dividend growth.
+_DDM_G1_CAP = 0.12
 #: Two-stage projection horizon (years 1-5 fast, 6-10 half-speed).
 _PROJECTION_YEARS = 10
 #: Sensitivity grid step (±2% around WACC and growth).
@@ -367,14 +373,22 @@ class DCFValuation:
         return result
 
     def _evaluate_financial(self, ticker: str, rows, price_service) -> DCFResult:
-        """Financial companies (banks/insurers): a Gordon dividend discount
-        model (variant ``ddm_financial``).
+        """Financial companies (banks/insurers): a two-stage dividend discount
+        model (variant ``ddm_financial_two_stage``), with the single-stage
+        Gordon model (variant ``ddm_financial``) as fallback.
 
         A financial company has no free cash flow in the DCF sense — its cash
         flow is dominated by operating asset/liability flows — so the only
-        honest cash a shareholder can expect is the dividend stream. No
-        dividends in the data reads INSUFFICIENT_DATA; the value is never
-        fabricated.
+        honest cash a shareholder can expect is the dividend stream. Stage 1
+        grows the dividend at the historical CAGR (capped at 12%) for ten
+        years; stage 2 grows it at the documented terminal rate. The two-stage
+        model stays defined when the historical growth exceeds the cost of
+        equity, which is exactly where the single-stage Gordon formula breaks
+        down (JPM/WFC).
+
+        Nothing is fabricated: no dividends in the window, fewer than three
+        dividend years (no CAGR), or a cost of equity at/below the terminal
+        rate all read INSUFFICIENT_DATA with the missing input named.
         """
         result = self._base_result(ticker)
         result.variant = "ddm_financial"
@@ -398,14 +412,14 @@ class DCFValuation:
                 ["shares outstanding"],
             )
 
-        # Split-restated dividend per share over the usable window.
-        dps_stream = []
-        for row in rows[:_FCF_BASE_YEARS]:
+        # Split-restated dividend per share, newest-first (fiscal_year, dps).
+        dps_stream: list[tuple[int, float]] = []
+        for row in rows[:_DDM_WINDOW_YEARS]:
             if row.dividends_paid is not None and row.shares_outstanding:
                 s = row.shares_outstanding * (row.split_adjustment_factor or 1.0)
                 if s > 0:
-                    dps_stream.append(float(row.dividends_paid) / s)
-        if not dps_stream or dps_stream[0] <= 0:
+                    dps_stream.append((row.fiscal_year, float(row.dividends_paid) / s))
+        if not dps_stream or dps_stream[0][1] <= 0:
             return self._insufficient(
                 result,
                 [
@@ -414,30 +428,16 @@ class DCFValuation:
                         "does not apply, so a dividend discount model is used "
                         "instead."
                     ),
-                    "No dividends paid in the latest year; the DDM requires a dividend stream.",
+                    (
+                        f"No dividends paid in the last {_DDM_WINDOW_YEARS} "
+                        "fiscal years; the DDM requires a dividend stream."
+                    ),
                 ],
                 ["dividends per share"],
             )
-        dps = dps_stream[0]
+        dps = dps_stream[0][1]
         result.fcf_base = dps  # rendered as "Dividend per share" by the CLI
         result.fcf_years = len(dps_stream)
-
-        # Dividend growth: average year-over-year DPS growth across the stream,
-        # newest-first (newer / older - 1); 0% when there is not enough history
-        # to measure it. Allowed to be negative when a bank actually cut its
-        # dividend.
-        g = 0.0
-        if len(dps_stream) >= 2:
-            deltas = [
-                a / b - 1.0
-                for a, b in pairwise(dps_stream)
-                if a and a > 0 and b and b > 0
-            ]
-            if deltas:
-                g = statistics.fmean(deltas)
-        g = min(g, self.assumptions.max_growth_years_1_5)
-        result.growth_1_5 = g
-        result.growth_6_10 = min(g / 2.0, self.assumptions.max_growth_years_6_10)
 
         beta = price_service.get_beta(ticker)
         if beta is None or beta <= 0:
@@ -447,28 +447,126 @@ class DCFValuation:
             + beta * self.assumptions.equity_risk_premium
         )
         result.wacc = coe  # discount rate: the cost of equity, not WACC
+        g_terminal = self.assumptions.terminal_growth
 
-        if coe <= g:
+        if coe <= g_terminal:
             return self._insufficient(
                 result,
                 [
                     ("Financial company (banks/insurers): dividend discount model."),
                     (
-                        f"Cost of equity ({coe:.2%}) <= dividend growth "
-                        f"({g:.2%}); Gordon growth is not defined."
+                        f"Cost of equity ({coe:.2%}) <= terminal growth "
+                        f"({g_terminal:.2%}); terminal value is not defined."
                     ),
                 ],
-                ["cost of equity > dividend growth"],
+                ["cost of equity > terminal growth"],
             )
 
-        value = dps * (1.0 + g) / (coe - g)
-        if value is None or value <= 0:
+        if len(dps_stream) < 3:
             return self._insufficient(
                 result,
                 [
-                    "Financial company (banks/insurers): dividend discount model.",
-                    "Intrinsic value not computable.",
+                    ("Financial company (banks/insurers): dividend discount model."),
+                    (
+                        "Not enough dividend history for a CAGR: "
+                        f"{len(dps_stream)} year(s) found, 3 required."
+                    ),
                 ],
+                ["dividend history (>= 3 years)"],
+            )
+
+        g1 = self._dps_cagr(dps_stream)
+        if g1 is not None and g1 > g_terminal:
+            # Preferred path: two-stage (stays defined even when g1 > coe).
+            g1 = min(g1, _DDM_G1_CAP)
+            value = self._ddm_two_stage_value(dps, coe, g1, g_terminal)
+            result.variant = "ddm_financial_two_stage"
+            result.growth_1_5 = g1
+            # Stage 1 runs _DDM_STAGE1_YEARS years, so years 6-10 grow at g1.
+            result.growth_6_10 = g1
+            result.reasons = [
+                (
+                    "Financial company (banks/insurers): free cash flow does "
+                    "not apply; valued with a two-stage dividend discount "
+                    "model (single-stage Gordon is undefined when dividend "
+                    "growth exceeds the cost of equity)."
+                ),
+                (
+                    f"Dividend {dps:.2f}/share (split-restated) from "
+                    f"{len(dps_stream)} year(s) of dividend data."
+                ),
+                (
+                    f"Stage 1: {g1:.1%} growth for {_DDM_STAGE1_YEARS} years "
+                    f"(capped at {_DDM_G1_CAP:.0%}); terminal growth "
+                    f"{g_terminal:.2%} thereafter."
+                ),
+                (
+                    f"Cost of equity {coe:.2%} (risk-free "
+                    f"{self.assumptions.risk_free_rate:.0%} + beta "
+                    f"{beta:.2f} x ERP "
+                    f"{self.assumptions.equity_risk_premium:.0%})."
+                ),
+            ]
+        else:
+            # Fallback: the two-stage cannot be computed (no valid CAGR) or
+            # growth is already at/below the stable rate, so a single-stage
+            # Gordon model is the honest choice.
+            if g1 is None:
+                g = min(
+                    self._dps_mean_growth(dps_stream),
+                    self.assumptions.max_growth_years_1_5,
+                )
+                why = (
+                    "dividend CAGR not computable (a non-positive dividend "
+                    "year in the window)"
+                )
+            else:
+                g = g1
+                why = (
+                    f"dividend growth {g1:.2%} <= terminal growth "
+                    f"{g_terminal:.2%} (no high-growth stage to model)"
+                )
+            result.growth_1_5 = g
+            result.growth_6_10 = min(g / 2.0, self.assumptions.max_growth_years_6_10)
+            if coe <= g:
+                return self._insufficient(
+                    result,
+                    [
+                        (
+                            "Financial company (banks/insurers): dividend discount model."
+                        ),
+                        (
+                            f"Cost of equity ({coe:.2%}) <= dividend growth "
+                            f"({g:.2%}); Gordon growth is not defined."
+                        ),
+                    ],
+                    ["cost of equity > dividend growth"],
+                )
+            value = dps * (1.0 + g) / (coe - g)
+            result.reasons = [
+                (
+                    "Financial company (banks/insurers): free cash flow does "
+                    "not apply; valued with a single-stage Gordon dividend "
+                    "discount model."
+                ),
+                (
+                    f"Dividend {dps:.2f}/share (split-restated) from "
+                    f"{len(dps_stream)} year(s) of dividend data."
+                ),
+                f"Single-stage chosen: {why}.",
+                (
+                    f"Dividend growth {g:.1%}; cost of equity {coe:.2%} "
+                    f"(risk-free {self.assumptions.risk_free_rate:.0%} + beta "
+                    f"{beta:.2f} x ERP "
+                    f"{self.assumptions.equity_risk_premium:.0%})."
+                ),
+                "Single-stage Gordon growth: no WACC/growth sensitivity grid.",
+            ]
+
+        if value is None or value <= 0:
+            return self._insufficient(
+                result,
+                result.reasons + ["Intrinsic value not computable."],
                 ["intrinsic value"],
             )
 
@@ -477,10 +575,7 @@ class DCFValuation:
         if price is None or price <= 0:
             return self._insufficient(
                 result,
-                [
-                    "Financial company (banks/insurers): dividend discount model.",
-                    "Current price unavailable.",
-                ],
+                result.reasons + ["Current price unavailable."],
                 ["current price"],
             )
 
@@ -488,23 +583,51 @@ class DCFValuation:
         raw_mos = (value - price) / value
         result.margin_of_safety = max(-_MOS_CAP, min(_MOS_CAP, raw_mos))
         result.verdict = self._verdict(result.margin_of_safety)
-        result.reasons = [
-            (
-                "Financial company (banks/insurers): free cash flow does not "
-                "apply; valued with a Gordon dividend discount model."
-            ),
-            (
-                f"Dividend {dps:.2f}/share (split-restated) from "
-                f"{len(dps_stream)} year(s) of dividend data."
-            ),
-            (
-                f"Dividend growth {g:.1%}; cost of equity {coe:.2%} "
-                f"(risk-free {self.assumptions.risk_free_rate:.0%} + beta "
-                f"{beta:.2f} x ERP {self.assumptions.equity_risk_premium:.0%})."
-            ),
-            "Single-stage Gordon growth: no WACC/growth sensitivity grid.",
-        ]
         return result
+
+    @staticmethod
+    def _dps_cagr(dps_stream: list[tuple[int, float]]) -> float | None:
+        """CAGR of the split-restated DPS across the window, or None.
+
+        ``dps_stream`` is newest-first ``(fiscal_year, dps)``. Requires
+        positive endpoints and a positive year span; anything else is not a
+        CAGR and the caller falls back to the single-stage model.
+        """
+        newest_year, newest = dps_stream[0]
+        oldest_year, oldest = dps_stream[-1]
+        span = int(newest_year or 0) - int(oldest_year or 0)
+        if span <= 0 or newest <= 0 or oldest <= 0:
+            return None
+        return (newest / oldest) ** (1.0 / span) - 1.0
+
+    @staticmethod
+    def _dps_mean_growth(dps_stream: list[tuple[int, float]]) -> float:
+        """Mean year-over-year DPS growth (newer/older - 1); 0% when unknown."""
+        deltas = [
+            a / b - 1.0
+            for (_, a), (_, b) in pairwise(dps_stream)
+            if a and a > 0 and b and b > 0
+        ]
+        return statistics.fmean(deltas) if deltas else 0.0
+
+    @staticmethod
+    def _ddm_two_stage_value(
+        dps: float, coe: float, g1: float, g_terminal: float
+    ) -> float:
+        """Two-stage DDM value per share.
+
+        Stage 1: ``_DDM_STAGE1_YEARS`` years of dividends growing at ``g1``.
+        Stage 2: a Gordon terminal value off the final stage-1 dividend,
+        discounted back. The caller guarantees ``coe > g_terminal``.
+        """
+        pv = 0.0
+        dividend = float(dps)
+        for year in range(1, _DDM_STAGE1_YEARS + 1):
+            dividend *= 1.0 + g1
+            pv += dividend / (1.0 + coe) ** year
+        terminal = dividend * (1.0 + g_terminal) / (coe - g_terminal)
+        pv += terminal / (1.0 + coe) ** _DDM_STAGE1_YEARS
+        return pv
 
     def _evaluate_hyper_growth(self, ticker: str, rows, price_service) -> DCFResult:
         """Hyper-growth DCF on observed positive FCF (variant

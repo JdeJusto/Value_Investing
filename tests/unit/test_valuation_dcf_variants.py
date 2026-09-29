@@ -8,7 +8,10 @@ No network, no database, no prices persisted.
 
 from __future__ import annotations
 
+import pytest
+
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.valuation.base import DCFAssumptions
 from backend.valuation.dcf import INSUFFICIENT_DATA, DCFValuation
 
 
@@ -121,9 +124,9 @@ def test_reit_insufficient_with_negative_ffo():
 
 
 # ---------------------------------------------------------------------------
-# Financial — dividend discount model (sector hint route)
+# Financial — two-stage dividend discount model (sector hint route)
 # ---------------------------------------------------------------------------
-def test_financial_sector_hint_routes_to_ddm():
+def test_financial_sector_hint_routes_to_two_stage_ddm():
     rows = [
         _row(
             2025,
@@ -145,16 +148,34 @@ def test_financial_sector_hint_routes_to_ddm():
             dividends_paid=11.6e9,
             sector="Financial Services",
         ),
+        _row(
+            2023,
+            revenue=155e9,
+            net_income=48e9,
+            operating_cash_flow=75e9,
+            capital_expenditure=1e9,
+            shares_outstanding=2.95e9,
+            dividends_paid=11.2e9,
+            sector="Financial Services",
+        ),
     ]
     result, _ = _evaluate(rows, beta=1.0)
-    assert result.variant == "ddm_financial"
+    assert result.variant == "ddm_financial_two_stage"
     assert result.verdict != INSUFFICIENT_DATA
-    # dps 2025 = 12e9 / 2.78e9; dps 2024 = 11.6e9 / 2.9e9 = 4.0.
-    dps = 12e9 / 2.78e9
-    g = dps / 4.0 - 1.0
-    assert result.growth_1_5 == g
+    # dps 2025 = 12e9/2.78e9; dps 2023 = 11.2e9/2.95e9; CAGR over 2 years.
+    dps_2025 = 12e9 / 2.78e9
+    dps_2023 = 11.2e9 / 2.95e9
+    g1 = (dps_2025 / dps_2023) ** 0.5 - 1.0
+    assert result.growth_1_5 == pytest.approx(g1)
     assert result.wacc == 0.09
-    assert result.intrinsic_value_per_share == dps * (1 + g) / (0.09 - g)
+    coe = 0.09
+    pv = 0.0
+    dividend = dps_2025
+    for year in range(1, 11):
+        dividend *= 1.0 + g1
+        pv += dividend / (1.0 + coe) ** year
+    pv += (dividend * 1.025 / (coe - 0.025)) / (1.0 + coe) ** 10
+    assert result.intrinsic_value_per_share == pytest.approx(pv)
 
 
 def test_financial_sector_hint_without_dividends_insufficient():
@@ -174,6 +195,102 @@ def test_financial_sector_hint_without_dividends_insufficient():
     joined = " ".join(result.reasons)
     assert "Financial company" in joined
     assert "banks/insurers" in joined
+
+
+# ---------------------------------------------------------------------------
+# Two-stage DDM — high-growth banks (the JPM/WFC failure mode)
+# ---------------------------------------------------------------------------
+def _bank_rows(dps_years, shares=2_000_000_000, sector="Financial Services"):
+    """Newest-first bank rows producing the given DPS sequence."""
+    rows = []
+    for i, dps in enumerate(dps_years):
+        year = 2025 - i
+        rows.append(
+            _row(
+                year,
+                revenue=100e9,
+                net_income=30e9,
+                shares_outstanding=shares,
+                dividends_paid=dps * shares,
+                sector=sector,
+            )
+        )
+    return rows
+
+
+def test_two_stage_ddm_high_growth_produces_sane_value():
+    # DPS 1.00 -> 1.20 -> 1.44 is a 20% CAGR, capped at the documented 12%.
+    rows = _bank_rows([1.44, 1.20, 1.00])
+    result, _ = _evaluate(rows, beta=1.0)
+    assert result.variant == "ddm_financial_two_stage"
+    assert result.growth_1_5 == pytest.approx(0.12)
+    assert result.verdict != INSUFFICIENT_DATA
+    coe = 0.09
+    pv = 0.0
+    dividend = 1.44
+    for year in range(1, 11):
+        dividend *= 1.12
+        pv += dividend / (1.0 + coe) ** year
+    pv += (dividend * 1.025 / (coe - 0.025)) / (1.0 + coe) ** 10
+    assert result.intrinsic_value_per_share == pytest.approx(pv)
+    joined = " ".join(result.reasons)
+    assert "two-stage" in joined
+
+
+def test_two_stage_ddm_low_growth_falls_back_to_single_stage():
+    # 1% DPS CAGR is below the 2.5% terminal rate: no high-growth stage to
+    # model, so the single-stage Gordon model is used.
+    rows = _bank_rows([1.0201, 1.01, 1.00])
+    result, _ = _evaluate(rows, beta=1.0)
+    assert result.variant == "ddm_financial"
+    assert result.growth_1_5 == pytest.approx(0.01)
+    expected = 1.0201 * 1.01 / (0.09 - 0.01)
+    assert result.intrinsic_value_per_share == pytest.approx(expected)
+    joined = " ".join(result.reasons)
+    assert "Single-stage chosen" in joined
+
+
+def test_two_stage_ddm_cagr_not_computable_falls_back():
+    # 2023 paid zero dividends: no CAGR, but D_0 exists, so the fallback
+    # uses the mean year-over-year growth of the valid pairs (5.26%).
+    rows = _bank_rows([1.00, 0.95, 0.0])
+    result, _ = _evaluate(rows, beta=1.0)
+    assert result.variant == "ddm_financial"
+    g = 1.00 / 0.95 - 1.0
+    assert result.growth_1_5 == pytest.approx(g)
+    expected = 1.00 * (1.0 + g) / (0.09 - g)
+    assert result.intrinsic_value_per_share == pytest.approx(expected)
+
+
+def test_two_stage_ddm_insufficient_history_insufficient():
+    # Two dividend years cannot produce a CAGR; the model refuses to guess.
+    rows = _bank_rows([1.10, 1.00])
+    result, _ = _evaluate(rows, beta=1.0)
+    assert result.verdict == INSUFFICIENT_DATA
+    assert result.missing_inputs == ["dividend history (>= 3 years)"]
+    joined = " ".join(result.reasons)
+    assert "3 required" in joined
+
+
+def test_two_stage_ddm_terminal_growth_ge_cost_of_equity_insufficient():
+    # terminal growth 10% >= cost of equity 9%: the terminal denominator is
+    # undefined, so the model reads INSUFFICIENT_DATA.
+    rows = _bank_rows([1.44, 1.20, 1.00])
+    stub = _Prices(price=20.0, market_cap=30_000_000_000.0, beta=1.0)
+    valuation = DCFValuation(DCFAssumptions(terminal_growth=0.10))
+    result = valuation.evaluate("TEST", rows, stub)
+    assert result.verdict == INSUFFICIENT_DATA
+    assert result.missing_inputs == ["cost of equity > terminal growth"]
+    assert result.intrinsic_value_per_share is None
+
+
+def test_two_stage_ddm_deterministic_across_runs():
+    rows = _bank_rows([1.44, 1.20, 1.00])
+    first, _ = _evaluate(rows, beta=1.0)
+    second, _ = _evaluate(rows, beta=1.0)
+    assert first.variant == second.variant
+    assert first.intrinsic_value_per_share == second.intrinsic_value_per_share
+    assert first.verdict == second.verdict
 
 
 # ---------------------------------------------------------------------------
@@ -266,13 +383,6 @@ def test_standard_sensitivity_grid_only_for_multiyear_variants():
     rows = _standard_rows([6e9, 5e9, 4e9])
     result, _ = _evaluate(rows, price=10.0)
     assert result.sensitivity  # non-empty
-    fin = _row(
-        2025,
-        revenue=80e9,
-        net_income=12e9,
-        shares_outstanding=2e9,
-        dividends_paid=6e9,
-        sector="Financial Services",
-    )
-    ddm, _ = _evaluate([fin], beta=1.0)
+    ddm, _ = _evaluate(_bank_rows([1.44, 1.20, 1.00]), beta=1.0)
+    assert ddm.variant == "ddm_financial_two_stage"
     assert ddm.sensitivity == {}

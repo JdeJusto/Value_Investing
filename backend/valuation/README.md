@@ -100,7 +100,8 @@ variant is recorded on `DCFResult.variant` and rendered by the CLI.
 |---|---|---|---|
 | `standard` | everything not typed below; also utilities | `FCF = OCF - capex` | the historical two-stage pipeline (Formulas above) |
 | `reit` | sector hint `real estate` / `reit` | **Funds from operations** ≈ `net income + depreciation & amortization` | heavy depreciation makes FCF negative for healthy landlords; property-sale gains are not in the normalized VO, so they are omitted rather than guessed |
-| `ddm_financial` | sector hint financial/bank/insurance *or* financial fingerprint | **dividends per share** (Gordon growth) | banks/insurers have no FCF in the DCF sense; `coe = risk-free + beta × ERP` is the discount rate. **No dividend stream ⇒ `INSUFFICIENT_DATA`** |
+| `ddm_financial_two_stage` | sector hint financial/bank/insurance *or* financial fingerprint | **dividends per share**: stage 1 at the 5-year DPS CAGR (capped at 12%, 10 years), then terminal 2.5% | preferred for banks — stays defined when dividend growth exceeds the cost of equity (the JPM/WFC single-stage failure mode). Needs ≥3 dividend years; `coe = risk-free + beta × ERP` is the discount rate |
+| `ddm_financial` | same route | **dividends per share** (single-stage Gordon) | fallback when the two-stage cannot be computed (no valid CAGR from the window) or growth is already ≤ terminal. **No dividend stream or fewer than 3 dividend years ⇒ `INSUFFICIENT_DATA`** |
 | `hyper_growth` | 5y revenue CAGR > 25% **and** latest FCF negative | average of the **observed positive** FCF years in the 3-year window | cash-burning compounders; only real figures are averaged — still FCF-negative in every recent year ⇒ `INSUFFICIENT_DATA` |
 
 Rules of the dispatcher:

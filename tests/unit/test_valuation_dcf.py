@@ -432,9 +432,11 @@ def test_financial_bank_without_interest_signal_insufficient():
     assert result.intrinsic_value_per_share is None
 
 
-def test_financial_with_dividends_uses_ddm():
-    # Same JPM-like shape, but a real dividend stream: the DDM runs and
-    # produces a priced verdict (Gordon growth) instead of bailing.
+def test_financial_with_dividends_uses_two_stage_ddm():
+    # Same JPM-like shape, but a real dividend stream: the two-stage DDM runs
+    # and produces a priced verdict instead of bailing. A single-stage Gordon
+    # would be undefined whenever dividend growth exceeds the cost of equity;
+    # the two-stage model stays defined.
     rows = [
         _row(
             2025,
@@ -452,17 +454,32 @@ def test_financial_with_dividends_uses_ddm():
             shares_outstanding=2.9e9,
             dividends_paid=11.6e9,
         ),
+        _row(
+            2023,
+            revenue=155e9,
+            net_income=48e9,
+            operating_cash_flow=-80e9,
+            shares_outstanding=2.95e9,
+            dividends_paid=11.2e9,
+        ),
     ]
     result, _ = _evaluate(rows, beta=1.0)
     assert result.verdict != INSUFFICIENT_DATA
-    assert result.variant == "ddm_financial"
+    assert result.variant == "ddm_financial_two_stage"
     assert result.intrinsic_value_per_share is not None
-    # dps 2025 = 12e9 / 2.78e9; dps 2024 = 11.6e9 / 2.9e9 = 4.0;
-    # growth = dps ratio - 1; coe = 4% + 1.0 * 5% = 9%;
-    # Gordon value = dps * (1 + g) / (coe - g).
+    # dps 2025 = 12e9/2.78e9; dps 2023 = 11.2e9/2.95e9; CAGR over 2 years.
     dps_2025 = 12e9 / 2.78e9
-    assert result.growth_1_5 == pytest.approx(dps_2025 / 4.0 - 1.0)
+    dps_2023 = 11.2e9 / 2.95e9
+    g1 = (dps_2025 / dps_2023) ** 0.5 - 1.0
+    assert result.growth_1_5 == pytest.approx(g1)
     assert result.wacc == pytest.approx(0.09)
-    expected = dps_2025 * (1 + result.growth_1_5) / (0.09 - result.growth_1_5)
-    assert result.intrinsic_value_per_share == pytest.approx(expected)
+    # Two-stage: 10 years at g1, then a Gordon terminal at 2.5%.
+    coe = 0.09
+    pv = 0.0
+    dividend = dps_2025
+    for year in range(1, 11):
+        dividend *= 1.0 + g1
+        pv += dividend / (1.0 + coe) ** year
+    pv += (dividend * 1.025 / (coe - 0.025)) / (1.0 + coe) ** 10
+    assert result.intrinsic_value_per_share == pytest.approx(pv)
     assert result.sensitivity == {}

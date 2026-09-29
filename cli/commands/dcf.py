@@ -34,6 +34,7 @@ _VARIANT_NAMES = {
     "standard": "standard DCF (free cash flow)",
     "reit": "REIT — funds from operations",
     "ddm_financial": "financial — dividend discount model",
+    "ddm_financial_two_stage": "financial — two-stage dividend discount model",
     "hyper_growth": "hyper-growth — observed positive FCF",
 }
 
@@ -41,6 +42,7 @@ _BASE_LABELS = {
     "standard": "FCF base",
     "reit": "FFO base",
     "ddm_financial": "Dividend per share",
+    "ddm_financial_two_stage": "Dividend per share",
     "hyper_growth": "Normalized FCF base",
 }
 
@@ -121,12 +123,15 @@ def _render(result):
     print_key_value("Variant", _VARIANT_NAMES.get(result.variant, result.variant))
 
     print_section("Assumptions")
-    discount_label = "Cost of equity" if result.variant == "ddm_financial" else "WACC"
+    is_ddm = result.variant.startswith("ddm_financial")
+    discount_label = "Cost of equity" if is_ddm else "WACC"
     disc_value = result.wacc
     wacc_label = f"{disc_value:.2%}" if disc_value is not None else "N/A"
     print_key_value(discount_label, wacc_label)
     base_label = _BASE_LABELS.get(result.variant, "FCF base")
-    if result.fcf_years is None:
+    if is_ddm:
+        base_text = base_label  # a per-share value, not an average base
+    elif result.fcf_years is None:
         base_text = base_label
     elif (result.fcf_years or 0) >= 3:
         base_text = f"{base_label} (3y avg)"
