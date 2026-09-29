@@ -23,7 +23,7 @@ Known limitations (see ``README.md``):
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import (
@@ -69,8 +69,8 @@ class RuleOutcome:
 
     rule_id: str
     outcome: str
-    value: Optional[float] = None
-    threshold: Optional[float] = None
+    value: float | None = None
+    threshold: float | None = None
     detail: str = ""
 
 
@@ -131,17 +131,27 @@ class LynchGARPMethodology(Methodology):
             "family": self.family,
             "source": ("One Up on Wall Street (1989); Beating the Street (1993)"),
             "known_limitations": [
-                "does not apply to financials (no inventory line; different "
-                "debt model)",
-                "growth-rate estimation depends on the source and span of the "
-                "earnings CAGR",
-                "Lynch expects the investor to categorize companies (fast "
-                "grower, stalwart, slow grower, cyclical, turnaround, asset "
-                "play); this implementation treats all companies the same",
-                "rule 3 prefers long_term_debt, falling back to total_debt "
-                "(stricter than the book's long-term-debt-only comparison)",
-                "rule 4 reads the optional inventory field; companies that "
-                "report no inventory get a WATCH with a note",
+                (
+                    "does not apply to financials (no inventory line; different "
+                    "debt model)"
+                ),
+                (
+                    "growth-rate estimation depends on the source and span of the "
+                    "earnings CAGR"
+                ),
+                (
+                    "Lynch expects the investor to categorize companies (fast "
+                    "grower, stalwart, slow grower, cyclical, turnaround, asset "
+                    "play); this implementation treats all companies the same"
+                ),
+                (
+                    "rule 3 prefers long_term_debt, falling back to total_debt "
+                    "(stricter than the book's long-term-debt-only comparison)"
+                ),
+                (
+                    "rule 4 reads the optional inventory field; companies that "
+                    "report no inventory get a WATCH with a note"
+                ),
             ],
         }
 
@@ -155,7 +165,7 @@ class LynchGARPMethodology(Methodology):
         return rows
 
     @staticmethod
-    def _current_price(ticker: str, prices: Any) -> Optional[float]:
+    def _current_price(ticker: str, prices: Any) -> float | None:
         getter = getattr(prices, "get_current_price", None)
         if not callable(getter):
             return None
@@ -169,7 +179,7 @@ class LynchGARPMethodology(Methodology):
             return None
 
     @staticmethod
-    def _earnings_cagr(rows: list[NormalizedFinancials]) -> Optional[float]:
+    def _earnings_cagr(rows: list[NormalizedFinancials]) -> float | None:
         """Geometric CAGR of net income over the available profitable years."""
         profit = sorted(
             [r for r in rows if r.net_income is not None and r.net_income > 0],
@@ -185,7 +195,7 @@ class LynchGARPMethodology(Methodology):
         return (end / start) ** (1.0 / years) - 1.0
 
     @staticmethod
-    def _eps(row: NormalizedFinancials) -> Optional[float]:
+    def _eps(row: NormalizedFinancials) -> float | None:
         if row is None or row.net_income is None or (row.shares_outstanding or 0) <= 0:
             return None
         return row.net_income / row.shares_outstanding
@@ -193,7 +203,7 @@ class LynchGARPMethodology(Methodology):
     # ------------------------------------------------------------------
     # the five rules
     # ------------------------------------------------------------------
-    def _rule_1_peg(self, rows, price: Optional[float]) -> RuleOutcome:
+    def _rule_1_peg(self, rows, price: float | None) -> RuleOutcome:
         if price is None:
             return RuleOutcome(
                 "lynch_garp.rule_1_peg",
@@ -402,9 +412,7 @@ class LynchGARPMethodology(Methodology):
             detail,
         )
 
-    def _rule_5_dividend_adjusted_peg(
-        self, rows, price: Optional[float]
-    ) -> RuleOutcome:
+    def _rule_5_dividend_adjusted_peg(self, rows, price: float | None) -> RuleOutcome:
         latest = rows[0] if rows else None
         dividends = (latest.dividends_paid or 0) if latest else 0
         if dividends <= 0:
@@ -453,7 +461,7 @@ class LynchGARPMethodology(Methodology):
     # verdict, score, confidence, flags
     # ------------------------------------------------------------------
     @staticmethod
-    def _verdict(outcomes) -> tuple[Verdict, Optional[float], Confidence]:
+    def _verdict(outcomes) -> tuple[Verdict, float | None, Confidence]:
         core_ids = {r.id for r in VERDICT_RULES}
         core = [o for o in outcomes if o.rule_id in core_ids]
         insufficient = [o for o in core if o.outcome == _INSUFFICIENT]
@@ -474,7 +482,7 @@ class LynchGARPMethodology(Methodology):
         return Verdict.AVOID, score, confidence
 
     @staticmethod
-    def _score(outcomes) -> Optional[float]:
+    def _score(outcomes) -> float | None:
         evaluable = [o for o in outcomes if o.outcome != _INSUFFICIENT]
         if len(evaluable) < 2:
             return None
@@ -513,7 +521,7 @@ class LynchGARPMethodology(Methodology):
         return parts
 
     @staticmethod
-    def _metrics(outcomes, price: Optional[float], rows) -> dict[str, Any]:
+    def _metrics(outcomes, price: float | None, rows) -> dict[str, Any]:
         metrics: dict[str, Any] = {
             o.rule_id.replace("lynch_garp.", ""): o.value for o in outcomes
         }
