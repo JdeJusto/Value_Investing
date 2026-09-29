@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import bcrypt
 from jwt import InvalidTokenError, jwt

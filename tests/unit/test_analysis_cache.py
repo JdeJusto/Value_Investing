@@ -12,14 +12,12 @@ import json
 import threading
 from datetime import datetime, timezone
 
-import pytest
-
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
     ProviderName,
 )
-from backend.services.analysis_cache import AnalysisCache, ANALYSIS_VERSION
+from backend.services.analysis_cache import ANALYSIS_VERSION, AnalysisCache
 
 
 def _row(year: int, revenue: float | None = 100.0) -> NormalizedFinancials:

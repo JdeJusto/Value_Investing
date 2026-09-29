@@ -4,15 +4,15 @@ Tests data consistency and validates that Financial-DataBase can serve as a drop
 """
 import os
 from datetime import date
-from typing import Any
 
 import pytest
 
-from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
-from backend.domain.value_objects.financials_normalized import NormalizedFinancials
-from backend.repositories.financial_database_repository import FinancialDatabaseRepository
-from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.domain.interfaces.financial_repository import FinancialRepository
+from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.repositories.financial_database_repository import (
+    FinancialDatabaseRepository,
+)
+from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 
 
 @pytest.mark.integration

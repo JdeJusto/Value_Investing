@@ -33,7 +33,6 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger("backend.dividend_service")
 

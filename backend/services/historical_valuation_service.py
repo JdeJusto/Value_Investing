@@ -7,10 +7,12 @@ they are retrieved on demand from Yahoo Finance (with a short in-memory cache).
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from backend.domain.interfaces.financial_repository import FinancialRepository
-from backend.repositories.financial_database_repository import FinancialDatabaseRepository
+from backend.repositories.financial_database_repository import (
+    FinancialDatabaseRepository,
+)
 from backend.services.price_service import PriceService
 
 

@@ -5,7 +5,6 @@ combined with fixed weights. Every pillar answer can be traced back to a
 single rule, so the filter stays transparent and explainable.
 """
 
-from typing import Optional
 
 # Pillar weights, summing to 1.0
 PROFITABILITY_WEIGHT = 0.35

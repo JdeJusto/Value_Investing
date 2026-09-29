@@ -29,7 +29,7 @@ import time
 import urllib.request
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))

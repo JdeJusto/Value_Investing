@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import time
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -16,8 +15,10 @@ from backend.domain.interfaces.provider import MarketDataProvider
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.domain.value_objects.financials_normalized import ProviderName
 from backend.providers.tickers import TICKERS
+from backend.repositories.financial_database_repository import (
+    FinancialDatabaseRepository,
+)
 from backend.repositories.json_financial_repository import JsonFinancialRepository
-from backend.repositories.financial_database_repository import FinancialDatabaseRepository
 from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.price_service import get_price_service

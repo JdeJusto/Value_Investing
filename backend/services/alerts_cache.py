@@ -41,11 +41,11 @@ import json
 import logging
 import os
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date as date_cls
 from pathlib import Path
-from typing import Any, Optional
-from collections.abc import Iterable
+from typing import Any
 
 logger = logging.getLogger("backend.alerts_cache")
 

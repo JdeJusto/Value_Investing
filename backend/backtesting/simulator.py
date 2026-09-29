@@ -6,7 +6,6 @@ rebalanced every ``rebalance_every`` snapshots into an equal-weighted
 selection, and returns compound into an equity curve.
 """
 
-from typing import Optional
 
 from backend.backtesting.strategy import Strategy
 

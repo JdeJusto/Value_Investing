@@ -4,9 +4,8 @@ The analyzer is the analytics-layer entry point; the service never
 touches providers directly. Exports are plain CSV-ready dicts.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
 from collections.abc import Callable
+from datetime import datetime, timezone
 
 from backend.screener.opportunity_engine import best_opportunity
 from backend.screener.ranking_engine import rank_score

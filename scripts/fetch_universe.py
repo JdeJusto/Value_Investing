@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import csv
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -89,6 +88,7 @@ def _wiki_nasdaq100() -> list[str]:
             html = response.read().decode("utf-8")
 
         import io
+
         import pandas as pd
 
         frames = pd.read_html(io.StringIO(html))

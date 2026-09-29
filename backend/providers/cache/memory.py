@@ -1,5 +1,5 @@
 import time
-from typing import Any, Optional
+from typing import Any
 
 from backend.domain.interfaces.cache import CacheProvider
 

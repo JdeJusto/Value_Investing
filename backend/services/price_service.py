@@ -11,14 +11,14 @@ prices live here, in real time.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
-import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-from collections.abc import Callable
+
 
 class _LazyModuleProxy:
     """Lazy module attribute proxy.

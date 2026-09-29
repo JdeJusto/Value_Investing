@@ -10,7 +10,6 @@ Every component is z-normalized against the snapshot universe (when
 at least two companies are available) so scores are comparable.
 """
 
-from typing import Optional
 from collections.abc import Callable
 
 from backend.screener.ranking_engine import rank_score

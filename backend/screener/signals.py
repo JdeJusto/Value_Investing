@@ -5,7 +5,6 @@ Confidence always carries the data confidence so a signal is never
 stronger than the data it rests on.
 """
 
-from typing import Optional
 
 BUY_MIN_RANK = 75.0
 BUY_MIN_TOTAL = 70.0

@@ -17,8 +17,6 @@ valuation fields (never the analysis) gracefully.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from backend.domain.interfaces.provider import MarketDataProvider
 from backend.services.price_service import _snapshot_price
 

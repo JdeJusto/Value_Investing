@@ -11,7 +11,6 @@ normalized, persisted records.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import backend.core.config as _config
 from backend.analytics.ratios.debt_to_equity import DebtToEquityCalculator

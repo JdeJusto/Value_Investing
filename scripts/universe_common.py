@@ -16,8 +16,7 @@ from __future__ import annotations
 import json
 import re
 import urllib.request
-from difflib import SequenceMatcher
-from typing import Any, Optional
+from typing import Any
 
 SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 

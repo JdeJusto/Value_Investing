@@ -5,7 +5,6 @@ deterministic, published conditions. A company can trigger several
 types; the strongest match is reported first.
 """
 
-from typing import Optional
 
 # --- Undervalued quality ---
 UNDERVALUED_MIN_BUFFETT = 70.0

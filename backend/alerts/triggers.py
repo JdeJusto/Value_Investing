@@ -1,6 +1,5 @@
 """Alert rules: human triggers, sell warnings and score helpers."""
 
-from typing import Optional
 
 # SELL_WARNING: score drop thresholds, in points of total_score (0-100)
 SELL_WARNING_MIN_DROP = 10.0

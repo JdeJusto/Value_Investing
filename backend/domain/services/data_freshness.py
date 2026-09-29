@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 

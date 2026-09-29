@@ -9,10 +9,9 @@ the repository only knows how to store canonical data.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
-from collections.abc import Callable
 
 from backend.domain.interfaces.data_loader import DataLoader
 from backend.domain.interfaces.financial_repository import FinancialRepository

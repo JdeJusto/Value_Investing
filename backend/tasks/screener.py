@@ -1,5 +1,4 @@
 from dataclasses import asdict
-from typing import Optional
 
 from backend.domain.value_objects.filter_criteria import FilterCriteria, FilterOperator
 from backend.domain.value_objects.screener_result import ScreenerRow

@@ -6,7 +6,6 @@ metrics. It depends only on :class:`NormalizedFinancials` and never
 touches providers.
 """
 
-from typing import Optional
 
 from backend.analytics.ratios.roic import RoicCalculator
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials

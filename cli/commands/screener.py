@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 import time
-from typing import Optional
 
 import pandas as pd
 

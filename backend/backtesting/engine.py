@@ -1,6 +1,5 @@
 """Backtesting engine: turns historical analyses into performance metrics."""
 
-from typing import Optional
 from collections.abc import Callable
 
 from backend.backtesting.simulator import simulate

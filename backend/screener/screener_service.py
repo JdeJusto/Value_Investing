@@ -5,9 +5,8 @@ Consumes only analytics/intelligence outputs (dicts produced by
 The same service can back the CLI, an API or a UI later.
 """
 
-from dataclasses import dataclass
-from typing import Optional
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 
 from backend.screener.filters import ScreenCriteria, from_kwargs, matches
 from backend.screener.opportunity_engine import best_opportunity, detect_opportunities

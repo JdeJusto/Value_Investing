@@ -7,7 +7,6 @@ source, upserted individually. Source selection is delegated to
 
 from __future__ import annotations
 
-from typing import Optional
 from collections.abc import Callable
 
 import sqlalchemy as sa

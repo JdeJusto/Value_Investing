@@ -1,4 +1,3 @@
-from typing import Optional
 
 from backend.analytics.calculator import MetricCalculator
 

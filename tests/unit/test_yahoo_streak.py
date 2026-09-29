@@ -9,11 +9,8 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from backend.services.yahoo_streak import (
     DEFAULT_THRESHOLD,
-    StreakUpdate,
     YahooStreakTracker,
     load_alerts_config,
 )
@@ -274,7 +271,6 @@ def test_report_omits_the_section_when_healthy():
 
 def test_is_rate_limit_distinguishes_causes():
     from backend.services.yahoo_health import YahooHealth
-
     from backend.services.yahoo_streak import is_rate_limit
 
     assert is_rate_limit(YahooHealth(False, "Yahoo returned HTTP 429 (rate limited)", 429, 0.0))

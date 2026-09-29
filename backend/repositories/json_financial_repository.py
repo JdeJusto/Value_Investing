@@ -12,7 +12,6 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials

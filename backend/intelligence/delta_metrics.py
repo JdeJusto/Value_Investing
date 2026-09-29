@@ -7,7 +7,6 @@ inflection detection and signal triggers. Depends only on normalized
 financials.
 """
 
-from typing import Optional
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.intelligence.quality_metrics import (

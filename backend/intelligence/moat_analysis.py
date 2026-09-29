@@ -5,7 +5,6 @@ high ROIC, stable or improving gross margins, low capital intensity and
 predictable revenue. All signals are deterministic and interpretable.
 """
 
-from typing import Optional
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 

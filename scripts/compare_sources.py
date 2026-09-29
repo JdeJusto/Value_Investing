@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Add the project root to the Python path so we can import backend modules
 project_root = Path(__file__).parent.parent
@@ -14,11 +13,10 @@ sys.path.insert(0, str(project_root))
 
 import os
 
-from backend.app.cli import build_financial_repository, get_tickers
+from backend.app.cli import build_financial_repository
 from backend.config.settings import get_sec_email
 from backend.providers.edgar import EdgarProvider
 from backend.providers.yahoo import YahooFinanceProvider
-from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 
 
 class _ProviderFinancials:

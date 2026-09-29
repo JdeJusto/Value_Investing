@@ -5,7 +5,6 @@ list of human-readable insights so every result can be questioned and
 understood.
 """
 
-from typing import Optional
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.intelligence.anomaly_detection import detect_anomalies

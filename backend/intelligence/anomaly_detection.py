@@ -5,7 +5,6 @@ distribution (z-score vs the mean/std of the years *before* it) or
 jumps abnormally year over year. Deterministic, no ML, no providers.
 """
 
-from typing import Optional
 from collections.abc import Callable
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials

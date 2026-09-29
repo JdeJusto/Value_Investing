@@ -4,9 +4,8 @@ The analyzer is the analytics-layer entry point (it may refresh prices
 and scores); the service itself never touches providers directly.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
 from collections.abc import Callable
+from datetime import datetime, timezone
 
 from backend.portfolio.allocation import (
     overconcentration,

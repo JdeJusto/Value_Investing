@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from backend.domain.entities.financials import (
     BalanceSheet,
     CashFlowStatement,

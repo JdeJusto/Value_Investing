@@ -31,9 +31,8 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, replace
-from typing import Optional
 from collections.abc import Callable
+from dataclasses import dataclass, replace
 
 logger = logging.getLogger("backend.sec_health")
 

@@ -31,9 +31,8 @@ import logging
 import os
 import subprocess
 import time
-from dataclasses import dataclass, field
-from typing import Optional
 from collections.abc import Callable
+from dataclasses import dataclass, field
 
 from backend.services.price_service import PriceService
 from backend.services.sec_health import SecHealth, check_sec_availability

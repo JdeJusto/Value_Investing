@@ -27,7 +27,6 @@ and no price is ever persisted.
 from __future__ import annotations
 
 import threading
-from typing import Optional
 
 SERVICE_SEC = "sec"
 SERVICE_YAHOO = "yahoo"

@@ -25,7 +25,6 @@ from scripts.universe_common import (
     ticker_to_sec,
 )
 
-
 # ---------------------------------------------------------------------------
 # universe_common — normalization + SEC matching
 # ---------------------------------------------------------------------------

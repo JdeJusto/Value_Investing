@@ -35,7 +35,7 @@ import secrets
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("backend.run_state")
 

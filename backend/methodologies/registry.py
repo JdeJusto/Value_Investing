@@ -14,7 +14,6 @@ from __future__ import annotations
 import importlib
 import logging
 import pkgutil
-from typing import Optional
 
 from backend.methodologies.base import Methodology
 

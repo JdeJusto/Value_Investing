@@ -6,7 +6,7 @@ statuses: MONITORING -> BOUGHT (moved to the portfolio) or DISCARDED.
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 MONITORING = "MONITORING"
 BOUGHT = "BOUGHT"

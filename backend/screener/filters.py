@@ -6,7 +6,6 @@ industry by the caller). Filters never touch providers.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 MOAT_TYPES = ("STRONG", "MODERATE", "WEAK", "NONE")
 

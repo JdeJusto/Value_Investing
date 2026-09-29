@@ -6,7 +6,7 @@ the portfolio answers "what do I hold and why do I hold it".
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass(slots=True)

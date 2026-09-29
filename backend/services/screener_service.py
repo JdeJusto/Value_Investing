@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.interfaces.data_loader import DataLoader

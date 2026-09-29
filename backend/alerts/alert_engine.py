@@ -8,7 +8,6 @@ Each company can emit at most one alert per type per evaluation:
 """
 
 from dataclasses import asdict, dataclass
-from typing import Optional
 
 from backend.alerts.triggers import (
     BUY_SIGNAL,

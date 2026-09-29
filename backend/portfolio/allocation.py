@@ -1,7 +1,6 @@
 """Allocation analysis: concentration and sector exposure warnings."""
 
 from collections import Counter
-from typing import Optional
 
 from backend.portfolio.models import Portfolio
 from backend.portfolio.performance import position_weight

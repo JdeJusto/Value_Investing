@@ -44,8 +44,8 @@ import logging
 import os
 import signal
 import sys
-import time
 import threading
+import time
 from datetime import date, datetime
 from pathlib import Path
 

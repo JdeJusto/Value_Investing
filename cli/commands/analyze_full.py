@@ -17,7 +17,6 @@ ticker never stops the rest of the batch. The supplementary DCF block is
 deliberately NOT part of any book methodology and never affects scoring.
 """
 
-import sys
 
 from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.app.cli import (
@@ -35,7 +34,6 @@ from cli.formatters import (
     green,
     print_header,
     print_key_value,
-    print_table,
     red,
     yellow,
 )
