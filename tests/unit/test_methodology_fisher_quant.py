@@ -50,6 +50,7 @@ def _row(
     research_development=None,
     shares_outstanding=None,
     split_adjustment_factor=None,
+    sector=None,
 ):
     data = {
         "ticker": "TEST",
@@ -71,6 +72,8 @@ def _row(
         data["shares_outstanding"] = shares_outstanding
     if split_adjustment_factor is not None:
         data["split_adjustment_factor"] = split_adjustment_factor
+    if sector is not None:
+        data["sector"] = sector
     return NormalizedFinancials.from_dict(data)
 
 
@@ -196,6 +199,140 @@ def test_rule_1_rnd_fail():
 def test_rule_1_rnd_insufficient():
     res = _evaluate([_row(2024, 100_000_000_000)])
     assert _status(res, R1) == "INSUFFICIENT_DATA"
+
+
+def test_rule_1_tech_5pct_watch():
+    # 5% sits in the innovation-led WATCH band (4-8%): a software company
+    # spent materially, but the sector bar still demands ~8% for a PASS.
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=5_000_000_000,
+                sector="Technology",
+            )
+        ]
+    )
+    assert _status(res, R1) == "WATCH"
+
+
+def test_rule_1_tech_9pct_pass():
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=9_000_000_000,
+                sector="Information Technology",
+            )
+        ]
+    )
+    assert _status(res, R1) == "PASS"
+
+
+def test_rule_1_tech_3pct_fail():
+    # Healthcare is in the strict tier too: 3% is below its 4% floor.
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=3_000_000_000,
+                sector="Healthcare",
+            )
+        ]
+    )
+    assert _status(res, R1) == "FAIL"
+
+
+def test_rule_1_staples_1pct_watch():
+    # 1% is inside the low-tier WATCH band (0.5-2%): staples do not need a
+    # large R&D line, but a token spend still reads WATCH, not AVOID.
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=1_000_000_000,
+                sector="Consumer Defensive",
+            )
+        ]
+    )
+    assert _status(res, R1) == "WATCH"
+
+
+def test_rule_1_staples_2pct_pass():
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=2_000_000_000,
+                sector="Consumer Defensive",
+            )
+        ]
+    )
+    assert _status(res, R1) == "PASS"
+
+
+def test_rule_1_utilities_0_3pct_fail():
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=300_000_000,
+                sector="Utilities",
+            )
+        ]
+    )
+    assert _status(res, R1) == "FAIL"
+
+
+def test_rule_1_energy_0_8pct_watch():
+    res = _evaluate(
+        [_row(2024, 100_000_000_000, research_development=800_000_000, sector="Energy")]
+    )
+    assert _status(res, R1) == "WATCH"
+
+
+def test_rule_1_industrials_3pct_watch():
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=3_000_000_000,
+                sector="Industrials",
+            )
+        ]
+    )
+    assert _status(res, R1) == "WATCH"
+
+
+def test_rule_1_unknown_sector_keeps_8pct_bar():
+    # No sector metadata: the historical 8%/2% large-cap bar still applies.
+    high = _evaluate([_row(2024, 100_000_000_000, research_development=8_500_000_000)])
+    mid = _evaluate([_row(2024, 100_000_000_000, research_development=5_000_000_000)])
+    low = _evaluate([_row(2024, 100_000_000_000, research_development=1_000_000_000)])
+    assert _status(high, R1) == "PASS"
+    assert _status(mid, R1) == "WATCH"
+    assert _status(low, R1) == "FAIL"
+
+
+def test_rule_1_metrics_report_applied_tier():
+    res = _evaluate(
+        [
+            _row(
+                2024,
+                100_000_000_000,
+                research_development=9_000_000_000,
+                sector="Technology",
+            )
+        ]
+    )
+    assert res.metrics["rnd_thresholds"] == {"pass": 0.08, "watch": 0.04}
 
 
 # ---------------------------------------------------------------------------

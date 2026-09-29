@@ -25,15 +25,70 @@ from backend.methodologies.fisher_quantitative_subset.rules import (
     RULES_SOURCES,
 )
 
-# Point 3 — R&D intensity relative to size (single threshold; no sector info
-# is available, so the tech/pharma-specific bar is used for everyone).
-# Calibrated 2026-09: PASS raised to 8%. The subset has no scuttlebutt to
-# soften a quantitative near-miss, so the BUY gate must sit at the top of the
-# large-cap range. FAIL stays at 2% ("no meaningful R&D") so consumer staples
-# with a modest spend read WATCH, not AVOID.
-_RND_PASS = 0.08
-_RND_WATCH = 0.02
-_RND_FAIL = 0.02
+# Point 3 — R&D intensity relative to size, with a sector-aware bar. R&D
+# intensity is a *sector* property — 2% of revenue is generous for a consumer
+# staples firm but a warning for software — so one bar for everyone would
+# over-pass capital-goods firms and over-fail innovation-led ones. Tiers key
+# on the sector label (Yahoo/GICS vocabulary) matched case-insensitively as
+# substrings; an unrecognized or missing sector keeps the calibrated 2026-09
+# large-cap bar (PASS 8%, FAIL < 2%). The subset has no scuttlebutt to soften
+# a quantitative near-miss, so the top tier stays strict; the low tier's
+# 0.5% FAIL floor is deliberately low so a staples flyer with a token spend
+# reads WATCH, not AVOID.
+_RND_THRESHOLDS: tuple[tuple[tuple[str, ...], tuple[float, float]], ...] = (
+    # Innovation-led sectors: R&D is the moat, demand ~8% of revenue.
+    (("technology", "healthcare", "communication services"), (0.08, 0.04)),
+    # Capital-goods sectors: steady, moderate development spending.
+    (
+        (
+            "industrials",
+            "consumer cyclical",
+            "consumer discretionary",
+            "materials",
+            "basic materials",
+        ),
+        (0.04, 0.02),
+    ),
+    # Low-R&D sectors: a 2% spend already earns PASS; below 0.5% is "no R&D".
+    (
+        (
+            "consumer defensive",
+            "consumer staples",
+            "staples",
+            "utilities",
+            "utility",
+            "energy",
+            "real estate",
+            "financial",
+        ),
+        (0.02, 0.005),
+    ),
+)
+_RND_THRESHOLDS_UNKNOWN: tuple[float, float] = (0.08, 0.02)
+
+
+def _rnd_thresholds_for(sector: str | None) -> tuple[float, float]:
+    """(PASS, WATCH) R&D bars for a sector label, first match wins.
+
+    The tier whose keyword is a case-insensitive substring of the label
+    (Yahoo/GICS vocabulary) applies. An unknown or missing sector keeps the
+    calibrated large-cap bar, so missing metadata never silently relaxes the
+    screen; ``is_financial`` returns INSUFFICIENT_DATA before the R&D rule
+    runs, so the financial keyword here is purely documentary.
+    """
+    if sector:
+        label = sector.lower()
+        for keywords, thresholds in _RND_THRESHOLDS:
+            if any(keyword in label for keyword in keywords):
+                return thresholds
+    return _RND_THRESHOLDS_UNKNOWN
+
+
+def _pct(ratio: float) -> str:
+    """Compact percent text: ``0.08 -> '8%'``, ``0.005 -> '0.5%'``."""
+    text = f"{ratio:.1%}"
+    return text[:-3] + "%" if text.endswith(".0%") else text
+
 
 # Point 5 — worthwhile profit margin.
 _MARGIN_NET_PASS = 0.10
@@ -163,7 +218,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             score=score,
             metrics=self._metrics(status, rows),
             reasons=reasons,
-            red_flags=self._red_flags(status),
+            red_flags=self._red_flags(status, rows),
             confidence=self._confidence(insufficient),
             sources=RULES_SOURCES,
             failed_rules=[
@@ -197,8 +252,10 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             "known_limitations": [
                 "Subset only: the 11 scuttlebutt points are not implemented.",
                 (
-                    "Single 8% R&D PASS threshold applied to every sector (no "
-                    "industry data); FAIL stays at 2%."
+                    "R&D PASS/WATCH is sector-aware (Yahoo/GICS tier: "
+                    "innovation-led 8/4%, industrials 4/2%, low-R&D 2/0.5%) "
+                    "with an 8/2% fallback when the sector is unknown; FAIL "
+                    "is any spend below the tier's floor."
                 ),
                 (
                     "R&D falls back to the ExcludingAcquiredInProcessCost tag "
@@ -224,17 +281,22 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 "R&D is not reported for the latest fiscal year",
             )
         ratio = rnd / revenue
-        if ratio >= _RND_PASS:
+        rnd_pass, rnd_watch = _rnd_thresholds_for(latest.sector)
+        label = latest.sector or "an unknown sector"
+        if ratio >= rnd_pass:
             return (
                 "PASS",
-                f"R&D {ratio:.1%} of revenue (>= {_RND_PASS:.0%})",
+                f"R&D {ratio:.1%} of revenue (>= {_pct(rnd_pass)} for {label})",
             )
-        if ratio >= _RND_WATCH:
+        if ratio >= rnd_watch:
             return (
                 "WATCH",
-                f"R&D {ratio:.1%} of revenue (>= {_RND_WATCH:.0%})",
+                f"R&D {ratio:.1%} of revenue (>= {_pct(rnd_watch)} for {label})",
             )
-        return ("FAIL", f"R&D {ratio:.1%} of revenue (< {_RND_FAIL:.0%})")
+        return (
+            "FAIL",
+            f"R&D {ratio:.1%} of revenue (< {_pct(rnd_watch)} for {label})",
+        )
 
     def _rule_2(self, rows) -> tuple:
         latest = rows[0]
@@ -361,10 +423,11 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             return Confidence.MEDIUM
         return Confidence.LOW
 
-    def _red_flags(self, status) -> list:
+    def _red_flags(self, status, rows) -> list:
         flags = []
         if status["rule_1_rnd_intensity"][0] == "FAIL":
-            flags.append(f"R&D below {_RND_FAIL:.0%} of revenue without explanation")
+            _, rnd_watch = _rnd_thresholds_for(rows[0].sector)
+            flags.append(f"R&D below {_pct(rnd_watch)} of revenue without explanation")
         if status["rule_2_profit_margin_quality"][0] == "FAIL":
             flags.append("Net margin below 5%")
         if status["rule_3_cost_control_stability"][0] == "FAIL":
@@ -391,6 +454,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             if revenue and latest.research_development is not None
             else None
         )
+        rnd_thresholds = _rnd_thresholds_for(latest.sector)
         gm_values = [
             row.gross_profit / row.revenue
             for row in rows
@@ -415,6 +479,10 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             share_change = (float(current) - past_adjusted) / past_adjusted
         return {
             "rnd_ratio": rnd_ratio,
+            "rnd_thresholds": {
+                "pass": rnd_thresholds[0],
+                "watch": rnd_thresholds[1],
+            },
             "net_margin": net_margin,
             "operating_margin": op_margin,
             "gross_margin_sd_5y": gm_sd,

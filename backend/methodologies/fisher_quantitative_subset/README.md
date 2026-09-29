@@ -10,7 +10,7 @@ docs/methodology_decisions.md decision 1.**
 
 | # | Rule | Book page | Data used | Threshold |
 |---|------|-----------|-----------|-----------|
-| 3 | R&D intensity relative to size | 54–55 | `research_development` / revenue | PASS ≥ 8%, WATCH 2–8%, FAIL < 2% |
+| 3 | R&D intensity relative to size | 54–55 | `research_development` / revenue | PASS ≥ sector bar (tech 8%, industrials 4%, staples 2%; fallback 8%), FAIL < 0.5–2% floor |
 | 5 | Worthwhile profit margin | 63–64 | net + operating margin | PASS net ≥ 10% AND op ≥ 15%; FAIL net < 5% |
 | 10 | Cost analysis & accounting controls | 69 | gross-margin stdev (5y) | PASS < 0.03, WATCH < 0.05, FAIL ≥ 0.05 |
 | 13 | Growth without equity financing | 75 | shares now vs 10y ago (split-adjusted) | PASS no increase; WATCH ≤ 10%; FAIL > 10% |
@@ -20,8 +20,9 @@ statements the system already has (revenue, margins, R&D spend, share
 counts). Fisher himself calls the R&D ratio a "crude yardstick" (p. 55)
 and insists margins be read over a series of years. Because the 11
 scuttlebutt points are missing, the quantitative gates are deliberately
-stricter than the book: the R&D PASS bar sits at the top of the large-cap
-range (8%) and BUY requires full data coverage (see Calibration history).
+stricter than the book: the innovation-led R&D PASS bar sits at the top of
+the large-cap range (8%) and BUY requires full data coverage (see
+Calibration history).
 
 ## The 11 points NOT implemented (and why)
 
@@ -60,7 +61,7 @@ HIGH when all 4 rules evaluated, MEDIUM with 1 INSUFFICIENT_DATA, LOW otherwise.
 
 ## Red flags
 
-- R&D below 2% of revenue without explanation
+- R&D below the sector's FAIL floor (0.5–2% of revenue) without explanation
 - Net margin below 5%
 - Gross-margin standard deviation above 5% over 5 years
 - Share count increased more than 10% over 10 years
@@ -69,11 +70,16 @@ HIGH when all 4 rules evaluated, MEDIUM with 1 INSUFFICIENT_DATA, LOW otherwise.
 
 - This is a **quality screen, not a valuation** — price is never consulted,
   so a BUY here can coexist with a Graham AVOID. That is intentional.
-- The R&D PASS bar (8%) applies to every company because the system has
-  no sector information: consumer staples will usually read WATCH (their
-  spend sits in the 2–8% band) or FAIL when "R&D" happens in-process, and
-  the rule degrades to INSUFFICIENT_DATA when R&D is not reported at all
-  (KO). When a filer keeps its substantive R&D under
+- The R&D bar is **sector-aware**, keyed on the Yahoo/GICS sector label the
+  repository attaches from Financial-DataBase metadata: innovation-led
+  sectors (Technology/Healthcare/Communication Services) require 8% of
+  revenue, capital-goods sectors 4%, and low-R&D sectors (staples, utilities,
+  energy, real estate) only 2%, with a 0.5% "no meaningful R&D" floor. An
+  unknown or missing sector keeps the calibrated 8%/2% bar, so missing
+  metadata never silently relaxes the screen. Consumer staples therefore no
+  longer read near-AVOID for a 2% spend, and the rule still degrades to
+  INSUFFICIENT_DATA when R&D is not reported at all (KO). When a filer keeps
+  its substantive R&D under
   `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` (JNJ), the
   reconstruction prefers that tag over a residual plain tag.
 - Cost control is proxied by gross-margin stability; a real audit of

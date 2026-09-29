@@ -33,9 +33,11 @@ RULES: list[Rule] = [
         name="R&D intensity relative to size (point 3)",
         description=(
             "R&D spend as a share of sales; Fisher calls the ratio a "
-            "'crude yardstick'. Calibrated 2026-09: PASS requires 8% (top of "
-            "the large-cap range) because this subset has no scuttlebutt to "
-            "soften a quantitative near-miss."
+            "'crude yardstick'. The bar is sector-aware: PASS requires 8% for "
+            "innovation-led sectors, 4% for industrials and 2% for low-R&D "
+            "sectors, with an 8% fallback when the sector is unknown. The "
+            "top tier sits at the top of the large-cap range because this "
+            "subset has no scuttlebutt to soften a quantitative near-miss."
         ),
         kind="EXPLICIT",
         source=_source("54-55"),
