@@ -194,6 +194,52 @@ class TestHistoricalValuationService:
 
         assert 'No valuation data available for AAPL' in table_output
 
+    def test_skips_all_empty_latest_year(self, service, mock_repo, mock_prices):
+        """A stray fiscal-year bucket (no data) must not appear as latest.
+
+        Regression: an in-progress/stray FY2026 bucket carrying only fee/8-K
+        facts used to be served as the newest valuation row, so the CLI's
+        "latest year" read displayed FY2026 instead of the real FY2025.
+        """
+        empty = Mock()
+        empty.fiscal_year = 2026
+        empty.revenue = None
+        empty.net_income = None
+        empty.total_assets = None
+        empty.shares_outstanding = None
+
+        mock_repo.list_years.return_value = [
+            empty,
+            _financials(2025, 100_000_000_000, 25_000_000_000),
+        ]
+        mock_repo.get_shares_outstanding.return_value = 10_000_000_000
+        mock_prices.get_price_at_fiscal_year_end.return_value = 200.0
+
+        with (
+            patch.object(service, '_repository', mock_repo),
+            patch.object(service, '_price_service', mock_prices),
+        ):
+            result = service.get_historical_valuation_summary('AAPL')
+
+        assert [r['fiscal_year'] for r in result] == [2025]
+        assert result[0]['price'] == 200.0
+
+    def test_row_is_empty(self, service):
+        """The empty-row predicate mirrors the repository's core-field rule."""
+        empty = Mock()
+        empty.revenue = None
+        empty.net_income = None
+        empty.total_assets = None
+        empty.shares_outstanding = None
+        assert service._row_is_empty(empty)
+
+        partial = Mock()
+        partial.revenue = 100.0  # one core field populated → usable
+        partial.net_income = None
+        partial.total_assets = None
+        partial.shares_outstanding = None
+        assert not service._row_is_empty(partial)
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

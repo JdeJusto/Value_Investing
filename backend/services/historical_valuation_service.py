@@ -17,6 +17,19 @@ from backend.services.price_service import PriceService
 class HistoricalValuationService:
     """Service for calculating historical valuation ratios."""
 
+    # Core fields any usable fiscal year must populate. A fiscal-year bucket
+    # that only picked up stray non-income facts (e.g. an in-progress year fed
+    # by an 8-K — NetFeeAmt/TtlFeeAmt/...) has none of them and must not
+    # produce a phantom "latest year" row in the valuation table. Mirrors
+    # FinancialDatabaseRepository._row_is_empty so the two layers agree.
+    _CORE_FIELDS = ("revenue", "net_income", "total_assets", "shares_outstanding")
+
+    @staticmethod
+    def _row_is_empty(row) -> bool:
+        return all(
+            getattr(row, field) is None for field in HistoricalValuationService._CORE_FIELDS
+        )
+
     def __init__(
         self,
         repository: Optional[FinancialRepository] = None,
@@ -99,8 +112,13 @@ class HistoricalValuationService:
             sorted by fiscal year descending
         """
         try:
+            # Skip all-empty rows (a stray/in-progress fiscal-year bucket with
+            # no revenue, income, assets or shares): it is not a year the
+            # valuation can use and must not surface as the "latest year".
             financials_by_year = {
-                row.fiscal_year: row for row in self._repository.list_years(ticker)
+                row.fiscal_year: row
+                for row in self._repository.list_years(ticker)
+                if not self._row_is_empty(row)
             }
         except Exception:  # noqa: BLE001
             return []
