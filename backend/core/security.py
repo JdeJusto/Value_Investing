@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import bcrypt
-from jose import JWTError, jwt
+from jwt import InvalidTokenError, jwt
 
 from backend.core.config import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -43,5 +43,5 @@ def decode_token(token: str) -> Optional[dict[str, Any]]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except InvalidTokenError:
         return None

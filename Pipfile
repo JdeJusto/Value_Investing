@@ -21,7 +21,7 @@ fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 celery = {extras = ["redis"], version = "*"}
 passlib = {extras = ["bcrypt"], version = "*"}
-python-jose = {extras = ["cryptography"], version = "*"}
+pyjwt = {extras = ["crypto"], version = ">=2.8"}
 pydantic = {extras = ["email"], version = "*"}
 pydantic-settings = "*"
 httpx = "*"
