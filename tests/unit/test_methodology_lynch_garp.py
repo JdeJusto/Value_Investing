@@ -113,6 +113,59 @@ def _load(name):
     ]
 
 
+def _bank_like(rows, latest_debt=10_000_000_000.0, assets=11_000_000_000.0,
+               liabilities=10_000_000_000.0):
+    """Rebuild rows so the latest year looks like a bank: no inventory,
+    leverage > 5x net income, liabilities/assets ~0.91."""
+    ordered = sorted(rows, key=lambda r: r.fiscal_year, reverse=True)
+    bank = replace(
+        ordered[0],
+        inventory=None,
+        long_term_debt=latest_debt,
+        total_assets=assets,
+        total_liabilities=liabilities,
+    )
+    return [bank] + ordered[1:]
+
+
+# ---------------------------------------------------------------------------
+# Financial-company detection (banks/insurers are out of scope for GARP)
+# ---------------------------------------------------------------------------
+def test_financial_company_detected_bank_like_balance_sheet():
+    mgmt = LynchGARPMethodology()
+    rows = _bank_like(_backbone())
+    assert mgmt._is_financial_company(rows[0]) is True
+
+
+def test_financial_company_evaluate_returns_insufficient_with_reason():
+    mgmt = LynchGARPMethodology()
+    rows = _bank_like(_backbone())
+    res = mgmt.evaluate("T", rows, _Price(None))
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
+    assert res.confidence == Confidence.HIGH
+    assert res.failed_rules == []
+    assert res.metrics["financial_company"] is True
+    assert any("financial" in r.lower() for r in res.reasons)
+
+
+def test_non_financial_company_not_detected():
+    mgmt = LynchGARPMethodology()
+    rows = _backbone()  # no inventory, but debt/NI ~0.54 and no balance sheet
+    assert mgmt._is_financial_company(rows[0]) is False
+
+
+def test_no_inventory_low_debt_not_financial():
+    mgmt = LynchGARPMethodology()
+    ordered = sorted(_backbone(), key=lambda r: r.fiscal_year, reverse=True)
+    rows = [
+        replace(ordered[0], inventory=None, long_term_debt=100_000_000.0)
+    ] + ordered[1:]
+    assert mgmt._is_financial_company(rows[0]) is False
+    res = mgmt.evaluate("T", rows, _Price(None))
+    assert res.verdict != Verdict.INSUFFICIENT_DATA
+
+
 # ---------------------------------------------------------------------------
 # Rule 1 — PEG
 # ---------------------------------------------------------------------------
@@ -202,7 +255,9 @@ def test_rule3_watch():
 
 
 def test_rule3_fail():
-    rows = _backbone(debt=4_000_000_000.0)  # ratio ~5.4
+    # A product company (inventory reported) so the financial-company
+    # detector does not short-circuit; ratio ~5.4 still fails rule 3.
+    rows = _with_inventory(_backbone(debt=4_000_000_000.0), 120.0, 100.0)
     assert _outcome(rows, None, R3) == "FAIL"
 
 
@@ -365,7 +420,7 @@ def test_red_flag_earnings_declined_4plus():
 
 
 def test_red_flag_debt_above_4x():
-    rows = _backbone(debt=4_000_000_000.0)
+    rows = _with_inventory(_backbone(debt=4_000_000_000.0), 120.0, 100.0)
     flags = _evaluate(rows, _price_for(rows, 20.0)).red_flags
     assert any("Long-term debt above 4x net income" in f for f in flags)
 

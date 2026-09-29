@@ -82,6 +82,48 @@ class LynchGARPMethodology(Methodology):
     family = "GARP"
 
     # ------------------------------------------------------------------
+    # financial-company detection
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _is_financial_company(row: NormalizedFinancials | None) -> bool:
+        """True for banks/insurers where the GARP debt and inventory rules
+        do not apply (structurally high leverage, no inventory line).
+
+        Signals (any one is enough):
+        1. ``sector`` field (when present) is a financial industry;
+        2. no inventory AND (long-term) debt is more than 5x net income;
+        3. bank-like balance sheet: total_liabilities / total_assets > 0.85.
+        """
+        if row is None:
+            return False
+        sector = getattr(row, "sector", None)
+        if sector and "financial" in str(sector).lower():
+            return True
+        inventory = getattr(row, "inventory", None)
+        net_income = row.net_income
+        debt = row.long_term_debt
+        if debt is None:
+            debt = row.total_debt
+        if (
+            inventory is None
+            and debt is not None
+            and net_income is not None
+            and net_income > 0
+            and debt / net_income > 5.0
+        ):
+            return True
+        total_assets = row.total_assets
+        total_liabilities = row.total_liabilities
+        if (
+            total_assets
+            and total_liabilities
+            and total_assets > 0
+            and total_liabilities / total_assets > 0.85
+        ):
+            return True
+        return False
+
+    # ------------------------------------------------------------------
     # Methodology ABC
     # ------------------------------------------------------------------
     def evaluate(
@@ -92,6 +134,36 @@ class LynchGARPMethodology(Methodology):
     ) -> MethodologyResult:
         rows = self._clean_rows(fundamentals)
         price = self._current_price(ticker, prices)
+
+        latest = rows[0] if rows else None
+        if self._is_financial_company(latest):
+            financial_reason = (
+                "Lynch GARP rules do not apply to financial companies "
+                "(banks, insurers). Debt and inventory rules are "
+                "structurally different. See README for details."
+            )
+            return MethodologyResult(
+                methodology=self.name,
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.INSUFFICIENT_DATA,
+                score=None,
+                metrics={
+                    "financial_company": True,
+                    "rule_outcomes": {},
+                    "current_price": price,
+                    "fiscal_years_analyzed": len(rows),
+                },
+                reasons=[
+                    financial_reason,
+                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=[rule.source for rule in ALL_RULES],
+                passed_rules=[],
+                failed_rules=[],
+            )
 
         outcomes = [
             self._rule_1_peg(rows, price),

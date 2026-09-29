@@ -67,6 +67,24 @@ INSUFFICIENT_DATA, **LOW** with 3 or more.
   with a note.
 - Prices come in through the price adapter and are never persisted.
 
+## Financial companies
+
+Lynch's rules assume a product company: growth is measured on earnings, debt
+is compared against the earnings a shareholder can actually see, and
+inventory is part of the story. Banks, insurers and other financials have a
+structurally different balance sheet — high leverage, no inventory — so
+`lynch_garp` detects them and returns **INSUFFICIENT_DATA** with confidence
+HIGH instead of forcing a verdict.
+
+Detection (`LynchGARPMethodology._is_financial_company`, any signal suffices):
+
+1. `sector` field (when present) is a financial industry.
+2. No inventory reported **and** (long-term) debt is more than 5x net income.
+3. Bank-like balance sheet: `total_liabilities / total_assets > 0.85`.
+
+For a company that trips the detector the score is `None`, no rules are
+evaluated, and the reason explains that the GARP rules do not apply.
+
 ## Known limitations
 
 1. **Does not apply to financials** — no inventory line, and the debt model
