@@ -333,7 +333,7 @@ class PriceService:
                 shares = int(shares)
                 self._set_cached(key, shares)
                 return shares
-        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
             pass
         return None
 
@@ -354,7 +354,7 @@ class PriceService:
                 market_cap = float(market_cap)
                 self._set_cached(key, market_cap)
                 return market_cap
-        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
             pass
         return None
 
@@ -372,7 +372,7 @@ class PriceService:
                 ev = float(ev)
                 self._set_cached(key, ev)
                 return ev
-        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
             pass
         return None
 
@@ -393,7 +393,7 @@ class PriceService:
                     return beta
                 except (TypeError, ValueError):
                     pass
-        except Exception:  # noqa: BLE001 — provider failure must not break analysis
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
             pass
         return None
 
@@ -522,7 +522,7 @@ class PriceService:
             self._metrics.record(
                 "yahoo", latency_ms=latency_ms, retries=retries, reason=reason
             )
-        except Exception:  # noqa: BLE001 — telemetry must never break a fetch
+        except Exception:  # noqa: BLE001, S110 — telemetry must never break a fetch
             pass
 
     def yahoo_available(self, *, force: bool = False):
@@ -554,7 +554,7 @@ class PriceService:
             return
         try:
             note(category, count)
-        except Exception:  # noqa: BLE001 — telemetry must never break a run
+        except Exception:  # noqa: BLE001, S110 — telemetry must never break a run
             pass
 
     def _yahoo_is_known_down(self) -> str | None:
@@ -784,7 +784,7 @@ class PriceService:
                 info = yf.Ticker(ticker).info
                 if isinstance(info, dict) and info.get("quoteType") is not None:
                     return True
-            except Exception:  # noqa: BLE001 — probe must never raise
+            except Exception:  # noqa: BLE001, S110 — probe must never raise
                 pass
             if attempt == 1:
                 time.sleep(0.75)
@@ -792,7 +792,7 @@ class PriceService:
             hist = yf.Ticker(ticker).history(period="1d")
             if hist is not None and not hist.empty:
                 return True
-        except Exception:  # noqa: BLE001 — probe must never raise
+        except Exception:  # noqa: BLE001, S110 — probe must never raise
             pass
         return False
 

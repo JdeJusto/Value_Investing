@@ -366,7 +366,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 entries = self.get_fiscal_year_end_dates(ticker)
                 if entries and year_index < len(entries):
                     fin.fiscal_year = int(entries[year_index]["year"])
-            except Exception:  # noqa: S110 — intentional try/except/pass (best-effort cleanup)
+            except Exception:  # noqa: S110, BLE001 — intentional try/except/pass (best-effort cleanup)
                 pass
             return fin
         except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)

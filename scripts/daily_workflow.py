@@ -1162,7 +1162,7 @@ def ordered_name_of(item):
         company = CompanyRepository().find_by_ticker(item.ticker)
         if company and company.name:
             return company.name
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001, S110
         pass
     return None
 

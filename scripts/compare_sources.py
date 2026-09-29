@@ -69,7 +69,7 @@ def _extract_financials_from_yahoo(ticker: str) -> _ProviderFinancials | None:
             years = yahoo.get_fiscal_years(ticker)
             if years:
                 fin.fiscal_year = int(years[0])
-        except Exception:  # noqa: S110 — intentional try/except/pass (best-effort cleanup)
+        except Exception:  # noqa: S110, BLE001 — intentional try/except/pass (best-effort cleanup)
             pass
         return fin
     except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)

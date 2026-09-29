@@ -261,7 +261,7 @@ def _section_risks(row_input):
         trigger = trigger_label(detect_trigger(row_input))
         if trigger:
             triggers.append(trigger)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001, S110
         pass
     if triggers:
         print(f"     {yellow('Trigger:')} {', '.join(triggers)}")

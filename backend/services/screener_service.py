@@ -59,7 +59,7 @@ class StockScreenerService:
                     self._analysis = CompanyAnalysisService(
                         self._repository, self._market, loader=self._loader
                     )
-            except Exception:  # noqa: BLE001 - fall back to the live provider
+            except Exception:  # noqa: BLE001, S110 - fall back to the live provider
                 pass
 
         results: list[ScreenerRow] = []
@@ -221,7 +221,7 @@ class StockScreenerService:
                 if ebit and ebit != 0:
                     ev = market_cap + (debt or 0) - (cash or 0)
                     d["ev_ebit"] = ev / ebit
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110
             pass
 
         return d

@@ -801,7 +801,7 @@ class RefreshService:
         if bulk is not None:
             try:
                 return bulk(dedup)
-            except Exception:  # noqa: BLE001 — fall back to per-ticker reads
+            except Exception:  # noqa: BLE001, S110 — fall back to per-ticker reads
                 pass
         meta: dict[
             str, tuple[str | None, str | None, _dt.datetime | None]
@@ -882,7 +882,7 @@ class RefreshService:
                     self._metrics.record_failure(
                         "sec", str(status), latency_ms=latency_ms
                     )
-            except Exception:  # noqa: BLE001 — telemetry must not break a sync
+            except Exception:  # noqa: BLE001, S110 — telemetry must not break a sync
                 pass
         return status
 
