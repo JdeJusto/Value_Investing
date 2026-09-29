@@ -219,10 +219,14 @@ CASH_FLOW_FIELD_PRIORITY = {
         "CostOfGoodsSoldDepreciationDepletionAndAmortization",
     ],
     "dividends_paid": [
-        # Common-stock-specific tag (USB, WFC and recent BAC filings); the
-        # broader PaymentsOfDividends (JPM) is the fallback when only it exists.
+        # Common-stock-specific tags first: USB/WFC file
+        # PaymentsOfDividendsCommonStock, BAC files DividendsCommonStockCash;
+        # the broader total-dividend tags (JPM's PaymentsOfDividends, the
+        # ordinary-dividend variant) are fallbacks.
         "PaymentsOfDividendsCommonStock",
+        "DividendsCommonStockCash",
         "PaymentsOfDividends",
+        "PaymentsOfOrdinaryDividends",
         "DividendsPaid",
     ],
 }
@@ -336,7 +340,9 @@ CASH_FLOW_CONCEPTS = {
     "CostOfGoodsSoldDepreciationDepletionAndAmortization": "depreciation_amortization",
     # Dividends Paid
     "PaymentsOfDividendsCommonStock": "dividends_paid",
+    "DividendsCommonStockCash": "dividends_paid",
     "PaymentsOfDividends": "dividends_paid",
+    "PaymentsOfOrdinaryDividends": "dividends_paid",
     "DividendsPaid": "dividends_paid",
     # Repurchase of Stock
     "PaymentsForRepurchaseOfEquity": "repurchase_of_stock",
