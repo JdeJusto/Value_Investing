@@ -76,15 +76,23 @@ def _run(args):
         for row in build_financial_repository().get_best_available(ticker)
         if row is not None
     ]
-    price = get_price_service().get_current_price(ticker)
+    service = get_price_service()
+    price = service.get_current_price(ticker)
+    try:
+        market_cap = service.get_market_cap(ticker)
+    except Exception:  # noqa: BLE001 — no market cap is not an error
+        market_cap = None
 
-    result = methodology.evaluate(ticker, rows, _Prices(price))
+    result = methodology.evaluate(ticker, rows, _Prices(price, market_cap))
 
     print_header(f"Lynch GARP analysis — {ticker}")
     print_key_value("Verdict", _verdict_color(result.verdict.value))
     score = "—" if result.score is None else f"{result.score:.2f}"
     print_key_value("Score", score)
     print_key_value("Confidence", _confidence_color(result.confidence.value))
+    category = (result.metrics or {}).get("lynch_category_label")
+    if category:
+        print_key_value("Category", category)
     print()
 
     print_section("Rules")
@@ -102,7 +110,7 @@ def _run(args):
 
     print_section("Metrics")
     for key, value in result.metrics.items():
-        if key == "rule_outcomes":
+        if key in ("rule_outcomes", "lynch_category", "lynch_category_label"):
             continue
         if value is None:
             formatted = dim("—")
@@ -127,8 +135,12 @@ def _run(args):
 class _Prices:
     """Adapter so the methodology can ask for a price without knowing PriceService."""
 
-    def __init__(self, price):
+    def __init__(self, price, market_cap=None):
         self._price = price
+        self._market_cap = market_cap
 
     def get_current_price(self, ticker):
         return self._price
+
+    def get_market_cap(self, ticker):
+        return self._market_cap

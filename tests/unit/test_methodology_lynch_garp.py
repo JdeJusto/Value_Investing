@@ -479,7 +479,7 @@ def test_metadata_documents_limitations():
     text = " ".join(meta["known_limitations"]).lower()
     assert "financials" in text
     assert "growth-rate" in text
-    assert "treats all companies the same" in text
+    assert "categoriz" in text
 
 
 def test_registry_discovers_lynch_garp():
@@ -507,3 +507,225 @@ def test_fixtures_load_and_evaluate(name, price):
     assert isinstance(res.verdict, Verdict)
     assert len(res.sources) == 5
     assert len(res.metrics["rule_outcomes"]) == 5
+
+
+# ---------------------------------------------------------------------------
+# Lynch categories (One Up on Wall Street, ch. 6)
+# ---------------------------------------------------------------------------
+class _CapPrice:
+    """Price stub that also exposes a market cap (categorization input)."""
+
+    def __init__(self, price, market_cap):
+        self._price = price
+        self._market_cap = market_cap
+
+    def get_current_price(self, ticker):
+        return self._price
+
+    def get_market_cap(self, ticker):
+        return self._market_cap
+
+
+def _cat_row(
+    year,
+    net_income,
+    revenue,
+    shares=SHARES,
+    dividends=None,
+    sector=None,
+    equity=None,
+    debt=None,
+):
+    return NormalizedFinancials(
+        ticker="T",
+        fiscal_year=year,
+        period="FY",
+        revenue=revenue,
+        net_income=net_income,
+        shares_outstanding=shares,
+        total_debt=debt,
+        dividends_paid=dividends,
+        sector=sector,
+        stockholders_equity=equity,
+    )
+
+
+def _growth_rows(
+    cagr,
+    years=10,
+    dividends=None,
+    sector=None,
+    equity=None,
+    debt=None,
+    margin=0.2,
+):
+    """Oldest-first rows whose revenue compounds at ``cagr``."""
+    rows = []
+    for i in range(years):
+        year = 2015 + i
+        revenue = 1_000_000_000.0 * (1.0 + cagr) ** i
+        rows.append(
+            _cat_row(
+                year,
+                net_income=revenue * margin,
+                revenue=revenue,
+                dividends=dividends,
+                sector=sector,
+                equity=equity,
+                debt=debt,
+            )
+        )
+    return rows
+
+
+def _category(rows, price=None, market_cap=None):
+    res = LynchGARPMethodology().evaluate("T", rows, _CapPrice(price, market_cap))
+    return res.metrics["lynch_category"]
+
+
+def _evaluate_cap(rows, price, market_cap):
+    return LynchGARPMethodology().evaluate("T", rows, _CapPrice(price, market_cap))
+
+
+def test_categorize_fast_grower():
+    rows = _growth_rows(0.25)
+    assert _category(rows, market_cap=5_000_000_000.0) == "FAST_GROWER"
+
+
+def test_categorize_stalwart():
+    rows = _growth_rows(0.12)
+    assert _category(rows, market_cap=50_000_000_000.0) == "STALWART"
+
+
+def test_categorize_slow_grower():
+    rows = _growth_rows(0.03, dividends=20_000_000.0)
+    assert _category(rows, market_cap=50_000_000_000.0) == "SLOW_GROWER"
+
+
+def test_categorize_cyclical_energy_volatility():
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=float(v) * 5e6,
+            sector="Energy",
+        )
+        for i, v in enumerate(values)
+    ]
+    assert _category(rows, market_cap=20_000_000_000.0) == "CYCLICAL"
+
+
+def test_categorize_turnaround():
+    values = [-10, -20, -5, 10, 15]  # oldest -> newest, 3 of 5 negative
+    rows = [
+        _cat_row(
+            2020 + i,
+            net_income=float(v) * 1e6,
+            revenue=abs(float(v)) * 5e6,
+        )
+        for i, v in enumerate(values)
+    ]
+    assert _category(rows) == "TURNAROUND"
+
+
+def test_categorize_asset_play():
+    rows = _growth_rows(0.0, equity=1_000_000_000.0)
+    assert _category(rows, market_cap=500_000_000.0) == "ASSET_PLAY"
+
+
+def test_categorize_unknown():
+    rows = _growth_rows(0.0, years=5)
+    assert _category(rows, market_cap=1_000_000_000.0) == "UNKNOWN"
+
+
+# ---------------------------------------------------------------------------
+# Verdict logic per category
+# ---------------------------------------------------------------------------
+def test_slow_grower_stable_dividends_not_avoid():
+    rows = _growth_rows(0.03, dividends=20_000_000.0, debt=100_000_000.0)
+    res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
+    assert res.metrics["lynch_category"] == "SLOW_GROWER"
+    assert res.verdict in (Verdict.BUY, Verdict.WATCH)
+
+
+def test_stalwart_reasonable_peg_buys():
+    rows = _growth_rows(0.12, debt=100_000_000.0)
+    latest = max(rows, key=lambda r: r.fiscal_year)
+    eps = latest.net_income / latest.shares_outstanding
+    res = _evaluate_cap(rows, price=12.0 * eps, market_cap=50_000_000_000.0)
+    assert res.metrics["lynch_category"] == "STALWART"
+    assert res.verdict == Verdict.BUY
+
+
+def test_fast_grower_thirty_percent_still_buys():
+    rows = _growth_rows(0.30, debt=100_000_000.0)
+    latest = max(rows, key=lambda r: r.fiscal_year)
+    eps = latest.net_income / latest.shares_outstanding
+    res = _evaluate_cap(rows, price=30.0 * eps, market_cap=5_000_000_000.0)
+    assert res.metrics["lynch_category"] == "FAST_GROWER"
+    assert res.verdict == Verdict.BUY
+
+
+def test_cyclical_adds_cycle_warning():
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=float(v) * 5e6,
+            sector="Energy",
+        )
+        for i, v in enumerate(values)
+    ]
+    res = _evaluate_cap(rows, price=None, market_cap=20_000_000_000.0)
+    assert res.metrics["lynch_category"] == "CYCLICAL"
+    assert any("check position in the cycle" in r for r in res.reasons)
+
+
+# ---------------------------------------------------------------------------
+# Rule 1 substitution
+# ---------------------------------------------------------------------------
+def test_slow_grower_uses_dividend_stability_rule():
+    rows = _growth_rows(0.03, dividends=20_000_000.0)
+    res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
+    assert res.metrics["rule_1_criterion"] == "dividend_stability"
+    assert res.metrics["rule_outcomes"][R1] == "PASS"
+    assert any("dividend paid in 10 of 10 years" in r for r in res.reasons)
+
+
+def test_asset_play_uses_price_to_book_rule():
+    rows = _growth_rows(0.0, equity=1_000_000_000.0)
+    res = _evaluate_cap(rows, price=5.0, market_cap=500_000_000.0)
+    assert res.metrics["rule_1_criterion"] == "price_to_book"
+    assert res.metrics["rule_outcomes"][R1] == "PASS"
+    assert any("P/BV" in r for r in res.reasons)
+
+
+def test_other_categories_keep_peg_rule():
+    rows = _growth_rows(0.12, debt=100_000_000.0)
+    res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
+    assert res.metrics["lynch_category"] == "STALWART"
+    assert res.metrics["rule_1_criterion"] == "peg"
+
+
+def test_fast_grower_hyper_growth_premium_applies():
+    rows = _growth_rows(0.35, debt=100_000_000.0)
+    latest = max(rows, key=lambda r: r.fiscal_year)
+    eps = latest.net_income / latest.shares_outstanding
+    # PEG ~1.09: PASS only because the >30% grower gets the +0.2 premium.
+    res = _evaluate_cap(rows, price=38.0 * eps, market_cap=5_000_000_000.0)
+    assert res.metrics["lynch_category"] == "FAST_GROWER"
+    assert res.metrics["rule_outcomes"][R1] == "PASS"
+    assert any("fast-grower premium" in r for r in res.reasons)
+
+
+def test_turnaround_peg_failure_is_insufficient_not_fail():
+    values = [-10, -20, -5, 10, 15]
+    rows = [
+        _cat_row(2020 + i, net_income=float(v) * 1e6, revenue=abs(float(v)) * 5e6)
+        for i, v in enumerate(values)
+    ]
+    res = _evaluate_cap(rows, price=10.0, market_cap=1_000_000_000.0)
+    assert res.metrics["lynch_category"] == "TURNAROUND"
+    assert res.metrics["rule_1_criterion"] == "turnaround_peg"
