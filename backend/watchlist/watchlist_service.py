@@ -5,7 +5,7 @@ touches providers directly. Exports are plain CSV-ready dicts.
 """
 
 from collections.abc import Callable
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 from backend.screener.opportunity_engine import best_opportunity
 from backend.screener.ranking_engine import rank_score

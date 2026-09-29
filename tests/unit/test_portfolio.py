@@ -3,7 +3,7 @@
 No providers, no network — prices and analytics are mocked.
 """
 
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 import pytest
 

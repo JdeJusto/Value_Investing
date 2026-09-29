@@ -1,6 +1,6 @@
 """Unit tests for data freshness, completeness and quality scoring."""
 
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime, timedelta
 
 import pytest
 

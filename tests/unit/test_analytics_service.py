@@ -1,5 +1,7 @@
 """Unit tests: analytics consume only normalized repository data."""
 
+from datetime import UTC
+
 import pytest
 
 from backend.analytics.ratios.leverage import NetDebtToEbitdaCalculator
@@ -10,7 +12,6 @@ from backend.domain.value_objects.financials_normalized import (
     ProviderName,
 )
 from backend.repositories.json_financial_repository import JsonFinancialRepository
-from datetime import UTC
 
 
 class MockMarketProvider(MarketDataProvider):
@@ -283,7 +284,7 @@ def test_analyze_prefers_complete_source_over_sparse(repo, market, service):
 
 
 def test_analyze_refreshes_when_data_stale(repo, market):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     def fresh_record():
         record = _quality_record(2024)

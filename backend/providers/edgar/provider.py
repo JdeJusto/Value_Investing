@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from backend.domain.entities.financials import (
     BalanceSheet,
     CashFlowStatement,
     IncomeStatement,
 )
 from backend.domain.interfaces.provider import FinancialDataProvider
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # edgartools is imported lazily at first use (heavy); the annotations

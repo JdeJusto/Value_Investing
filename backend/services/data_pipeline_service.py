@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 from backend.domain.interfaces.data_loader import DataLoader
 from backend.domain.interfaces.financial_repository import FinancialRepository

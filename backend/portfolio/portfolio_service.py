@@ -5,7 +5,7 @@ and scores); the service itself never touches providers directly.
 """
 
 from collections.abc import Callable
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 from backend.portfolio.allocation import (
     overconcentration,

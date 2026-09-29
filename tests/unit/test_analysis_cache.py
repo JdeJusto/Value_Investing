@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.value_objects.financials_normalized import (

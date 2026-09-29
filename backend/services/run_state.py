@@ -33,7 +33,7 @@ import logging
 import os
 import secrets
 import threading
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

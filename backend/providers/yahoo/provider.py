@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from backend.domain.entities.financials import (
     BalanceSheet,
     CashFlowStatement,
     IncomeStatement,
 )
 from backend.domain.interfaces.provider import FinancialDataProvider, MarketDataProvider
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Both libraries are imported lazily inside the methods (heavy imports);

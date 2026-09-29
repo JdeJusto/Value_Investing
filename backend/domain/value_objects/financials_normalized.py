@@ -11,7 +11,7 @@ This is a pure domain module: no pandas, no network, no database.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, fields
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 

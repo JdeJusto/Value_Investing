@@ -9,7 +9,7 @@ working unchanged.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 import streamlit as st
 

@@ -6,7 +6,7 @@ no database, and no writes (the adapter is read-only by design).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
