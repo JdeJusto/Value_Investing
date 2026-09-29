@@ -225,7 +225,7 @@ def _output_table(result):
         # Print rows
         for row in result.rows:
             row_str = " | ".join(
-                f"{str(row.get(col, '')):<{col_widths[col]}}" for col in columns
+                f"{row.get(col, '')!s:<{col_widths[col]}}" for col in columns
             )
             print(row_str)
 
@@ -233,7 +233,7 @@ def _output_table(result):
 def _output_csv(result):
     """Output results as CSV."""
     if not result.rows:
-        print("")
+        print()
         return
 
     # Get column names from first row

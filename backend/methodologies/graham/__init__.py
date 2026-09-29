@@ -10,4 +10,4 @@ from backend.methodologies.graham.methodology import GrahamMethodology
 
 METHODOLOGY = GrahamMethodology()
 
-__all__ = ["GrahamMethodology", "METHODOLOGY"]
+__all__ = ["METHODOLOGY", "GrahamMethodology"]

@@ -296,7 +296,7 @@ def main():
             print(f"ERROR processing {ticker}: {e}", file=sys.stderr)
             continue
 
-    print(f"\nComparison complete.")
+    print("\nComparison complete.")
 
 
 if __name__ == "__main__":

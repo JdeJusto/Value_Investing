@@ -7,7 +7,7 @@ The concrete repositories are exposed here but imported *lazily* via module
 Attribute access keeps working exactly as before.
 """
 
-__all__ = ["SqlAlchemyFinancialRepository", "JsonFinancialRepository", "FinancialDatabaseRepository"]
+__all__ = ["FinancialDatabaseRepository", "JsonFinancialRepository", "SqlAlchemyFinancialRepository"]
 
 
 def __getattr__(name):

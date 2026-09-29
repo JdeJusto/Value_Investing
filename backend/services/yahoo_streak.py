@@ -106,7 +106,7 @@ def load_alerts_config(path: str | None = None) -> int:
                         return max(1, int(value.strip()))
                     except ValueError:
                         return DEFAULT_THRESHOLD
-    except OSError as exc:  # noqa: BLE001 — a bad config must not break a run
+    except OSError as exc:
         logger.warning("yahoo streak: could not read %s: %s", path, exc)
     return DEFAULT_THRESHOLD
 

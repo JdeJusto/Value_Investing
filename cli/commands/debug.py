@@ -49,16 +49,16 @@ def _run(args):
 
 
 def _test_imports():
-    import backend.analytics.ratios.debt_to_equity  # noqa: F401
-    import backend.analytics.ratios.per  # noqa: F401
-    import backend.analytics.ratios.revenue_growth  # noqa: F401
-    import backend.analytics.service  # noqa: F401
-    import backend.app.cli  # noqa: F401
-    import backend.domain.interfaces.provider  # noqa: F401
-    import backend.domain.value_objects.filter_criteria  # noqa: F401
-    import backend.domain.value_objects.screener_result  # noqa: F401
-    import backend.providers.tickers  # noqa: F401
-    import backend.providers.yahoo.provider  # noqa: F401
+    import backend.analytics.ratios.debt_to_equity
+    import backend.analytics.ratios.per
+    import backend.analytics.ratios.revenue_growth
+    import backend.analytics.service
+    import backend.app.cli
+    import backend.domain.interfaces.provider
+    import backend.domain.value_objects.filter_criteria
+    import backend.domain.value_objects.screener_result
+    import backend.providers.tickers
+    import backend.providers.yahoo.provider
     import backend.services.screener_service  # noqa: F401
 
 

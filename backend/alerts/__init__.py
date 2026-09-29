@@ -1,18 +1,18 @@
 """Alerts package: alert engine, trigger rules and notifiers."""
 
-from backend.alerts.alert_engine import (  # noqa: F401
+from backend.alerts.alert_engine import (
     Alert,
     dedupe,
     evaluate_company,
     run,
     to_dicts,
 )
-from backend.alerts.notifier import (  # noqa: F401
+from backend.alerts.notifier import (
     ConsoleNotifier,
     Notifier,
     notify_all,
 )
-from backend.alerts.triggers import (  # noqa: F401
+from backend.alerts.triggers import (
     BUY_SIGNAL,
     SELL_WARNING,
     TRIGGER_EVENT,
@@ -21,12 +21,12 @@ from backend.alerts.triggers import (  # noqa: F401
 )
 
 __all__ = [
-    "Alert",
     "BUY_SIGNAL",
-    "ConsoleNotifier",
-    "Notifier",
     "SELL_WARNING",
     "TRIGGER_EVENT",
+    "Alert",
+    "ConsoleNotifier",
+    "Notifier",
     "dedupe",
     "evaluate_company",
     "notify_all",

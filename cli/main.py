@@ -7,7 +7,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 
 def main():
     print("DEBUG: main() called", file=sys.stderr)
-    print("DEBUG: sys.argv = {}".format(sys.argv), file=sys.stderr)
+    print(f"DEBUG: sys.argv = {sys.argv}", file=sys.stderr)
     print("DEBUG: About to create parser", file=sys.stderr)
     parser = argparse.ArgumentParser(
         prog="main.py",

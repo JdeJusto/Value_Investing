@@ -11,4 +11,4 @@ from .methodology import GrahamDoddMethodology
 
 METHODOLOGY = GrahamDoddMethodology()
 
-__all__ = ["GrahamDoddMethodology", "METHODOLOGY"]
+__all__ = ["METHODOLOGY", "GrahamDoddMethodology"]

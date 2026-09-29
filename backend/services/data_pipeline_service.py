@@ -159,7 +159,7 @@ class DataPipelineService(DataLoader):
                     best = (normalized, type(provider))
                 if _usable_count(normalized) >= history_years:
                     break
-            except Exception as exc:  # noqa: BLE001 — provider failures are expected
+            except Exception as exc:
                 last_error = f"{type(provider).__name__}: {exc}"
                 logger.exception(
                     "pipeline: %s failed via %s", ticker, type(provider).__name__

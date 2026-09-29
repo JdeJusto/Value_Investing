@@ -19,9 +19,9 @@ from backend.portfolio.portfolio_service import PortfolioService
 __all__ = [
     "JsonPortfolioRepository",
     "Portfolio",
-    "Position",
     "PortfolioRepository",
     "PortfolioService",
+    "Position",
     "overconcentration",
     "portfolio_performance",
     "risk_concentration",

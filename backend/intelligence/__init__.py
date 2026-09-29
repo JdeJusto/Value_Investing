@@ -11,10 +11,10 @@ from backend.intelligence.quality_metrics import compute_quality_metrics
 from backend.intelligence.scoring_model import assess_investment, composite_score
 
 __all__ = [
+    "analyze_moat",
     "assess_investment",
     "buffett_filter",
-    "analyze_moat",
     "classify_moat",
-    "compute_quality_metrics",
     "composite_score",
+    "compute_quality_metrics",
 ]
