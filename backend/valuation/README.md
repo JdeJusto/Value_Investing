@@ -146,6 +146,35 @@ growth) render as `—`.
 * **Not a substitute for the canon** — it never competes with the
   book-derived verdicts; run `compare-methodologies` for those.
 
+### DDM preferred dividend contamination
+
+For financial companies that report only `PaymentsOfDividends` (total,
+including preferred) and not `PaymentsOfDividendsCommonStock` or
+`DividendsCommonStockCash`, the DDM uses the total as the common dividend
+base. This can overestimate the intrinsic value by roughly 5-10% for banks
+with significant preferred issuances (e.g. JPM's preferred dividends run
+~$1.6B/yr against ~$16.6B total paid, ≈10%).
+
+Affected financial companies (verified 2026-09-29 against
+Financial-DataBase; 27 in total), largest preferred programs first:
+
+- **JPM** — preferred ≈ $1.6B/yr
+- **C** (Citigroup) — preferred ≈ $1.2B/yr
+- **GS** (Goldman Sachs) — preferred ≈ $0.88B/yr
+- **MS** (Morgan Stanley) — preferred ≈ $0.61B/yr
+- GLOBE LIFE (GL), ARES MANAGEMENT (ARES), BLACKROCK TCP CAPITAL (TCPC),
+  CAPITAL SOUTHWEST (CSWC), MBIA (MBI), BROADWAY FINANCIAL (BYFC) and
+  ~17 other financials with the same total-only tag pattern.
+
+Verified **not** affected: WFC files `PaymentsOfDividendsCommonStock` and
+BAC files `DividendsCommonStockCash`; the repository prefers those
+common-only tags, so their DDM base is already common dividends.
+
+Mitigation: none at this time. The limitation is documented so users can
+adjust their interpretation. A future improvement could extract the
+common-only dividend from earnings releases (8-K filings) or cross-check
+with the preferred dividend expense line.
+
 ---
 
 ## CLI
