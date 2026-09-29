@@ -49,7 +49,10 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # dotenv is optional; env vars may be set externally
+    load_dotenv = None
 
 from backend.services.price_service import (
     PRICE_FAILURE_DELISTED,
@@ -64,7 +67,8 @@ from backend.services.run_state import (
     options_fingerprint,
 )
 
-load_dotenv()
+if load_dotenv is not None:
+    load_dotenv()
 
 logger = logging.getLogger("daily_workflow")
 
