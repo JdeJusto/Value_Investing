@@ -114,14 +114,12 @@ class LynchGARPMethodology(Methodology):
             return True
         total_assets = row.total_assets
         total_liabilities = row.total_liabilities
-        if (
+        return bool(
             total_assets
             and total_liabilities
             and total_assets > 0
             and total_liabilities / total_assets > 0.85
-        ):
-            return True
-        return False
+        )
 
     # ------------------------------------------------------------------
     # Methodology ABC

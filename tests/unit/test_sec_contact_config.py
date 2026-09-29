@@ -10,11 +10,12 @@ happens to build the pipeline (fundamentals come from Financial-DataBase).
 from __future__ import annotations
 
 import logging
+import os
 
 import pytest
 
-from backend.config.settings import get_sec_email
 from backend.app import cli as app_cli
+from backend.config.settings import get_sec_email
 
 
 @pytest.fixture
@@ -45,7 +46,10 @@ def test_module_level_contact_comes_only_from_the_environment(monkeypatch):
 
     reloaded = importlib.reload(app_cli)
     try:
-        assert reloaded.sec_email == ""
+        # After a reload, load_dotenv() re-sources the git-ignored .env, so the
+        # module value must always mirror the *environment* — never a string
+        # hardcoded inside cli.py.
+        assert reloaded.sec_email == os.environ.get("SEC_EMAIL", "")
         assert reloaded.sec_name  # a non-empty default name, never a person
     finally:
         monkeypatch.setenv("SEC_EMAIL", "someone@example.com")
