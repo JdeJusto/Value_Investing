@@ -23,7 +23,7 @@ from backend.screener.ranking_engine import rank_score
 
 
 def _row(year: int, **kwargs) -> NormalizedFinancials:
-    defaults = dict(
+    defaults = dict(  # noqa: C408 — kwargs form mirrors the financial fields
         ticker="TEST",
         fiscal_year=year,
         source=ProviderName.EDGAR,
@@ -78,7 +78,11 @@ def _service() -> CompanyAnalysisService:
 
 def test_current_ratio_is_computed():
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     result = svc.analyze("TEST", no_prices=True)
     # The service computes debt_to_equity and net_debt_to_ebitda
     # which are the liquidity proxies used in scoring
@@ -87,7 +91,11 @@ def test_current_ratio_is_computed():
 
 def test_quick_ratio_is_computed():
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     result = svc.analyze("TEST", no_prices=True)
     # net_debt_to_ebitda is computed from the balance sheet
     assert result["net_debt_to_ebitda"] is not None
@@ -95,7 +103,11 @@ def test_quick_ratio_is_computed():
 
 def test_liquidity_criteria_in_quality_score():
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     result = svc.analyze("TEST", no_prices=True)
     # Quality metrics should be present
     assert "quality_metrics" in result
@@ -109,7 +121,11 @@ def test_liquidity_criteria_in_quality_score():
 
 def test_margin_of_safety_is_computed():
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     result = svc.analyze("TEST", no_prices=False)
     assert "dcf_margin_of_safety" in result
     assert isinstance(result["dcf_margin_of_safety"], float)
@@ -120,7 +136,11 @@ def test_margin_of_safety_gate_in_signal():
     from backend.screener.signals import generate_signal
 
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     analysis = svc.analyze("TEST", no_prices=False)
     # With a market provider, margin_of_safety should be computed
     # and the signal should respect the gate
@@ -135,7 +155,11 @@ def test_margin_of_safety_gate_in_signal():
 
 def test_rank_score_returns_float():
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     result = svc.analyze("TEST", no_prices=False)
     score = rank_score(result)
     assert isinstance(score, float)
@@ -149,7 +173,11 @@ def test_rank_score_returns_float():
 
 def test_composite_score_always_present():
     svc = _service()
-    svc._repository.get_best_available.return_value = [_row(2024), _row(2023), _row(2022)]
+    svc._repository.get_best_available.return_value = [
+        _row(2024),
+        _row(2023),
+        _row(2022),
+    ]
     result = svc.analyze("TEST", no_prices=False)
     assert "composite_score" in result
     assert "total_score" in result["composite_score"]

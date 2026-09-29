@@ -49,7 +49,9 @@ class TestStatePersistence:
     def test_save_and_load_roundtrip(self, tmp_path):
         path = tmp_path / "state.json"
         save_state(str(path), {"AAPL": {"composite_score": {"total_score": 78.0}}})
-        assert load_state(str(path)) == {"AAPL": {"composite_score": {"total_score": 78.0}}}
+        assert load_state(str(path)) == {
+            "AAPL": {"composite_score": {"total_score": 78.0}}
+        }
 
     def test_trim_state_keeps_only_composite(self):
         analyses = {
@@ -105,7 +107,10 @@ class TestMarkdown:
         assert "# Daily report — 2026-09-13" in md
         assert "SEC update: ok" in md
         assert "| # | Ticker |" in md
-        assert "| 1 | AAPL | Apple Inc. | B | 78.0 | 72.5 | 200.0 | 15.0 | 8.0% | 12.0 | BUY |" in md
+        assert (
+            "| 1 | AAPL | Apple Inc. | B | 78.0 | 72.5 | 200.0 | 15.0 | 8.0% | 12.0 | BUY |"
+            in md
+        )
         assert "coverage: **50%**" in md
         assert "Runtime: **12s**" in md
         assert "no price is ever persisted" in md
@@ -176,6 +181,8 @@ class TestWorkflowHelpers:
             daily_workflow._load_universe(str(f))
 
     def test_row_of_includes_metrics(self):
+        from typing import ClassVar
+
         from scripts import daily_workflow
 
         class Item:
@@ -185,7 +192,12 @@ class TestWorkflowHelpers:
             total_score = 70.0
             rank_score = 68.5
             signal = "BUY"
-            metrics = {"price": 55.0, "per": 18.0, "fcf_yield": 0.05, "ev_ebit": 20.0}
+            metrics: ClassVar[dict[str, float]] = {
+                "price": 55.0,
+                "per": 18.0,
+                "fcf_yield": 0.05,
+                "ev_ebit": 20.0,
+            }
 
         row = daily_workflow._row_of(Item())
         assert row["price"] == 55.0

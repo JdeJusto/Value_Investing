@@ -118,7 +118,7 @@ def test_filter_by_moat_accepts_equal_or_better():
 
 
 def test_filter_by_scores_and_ratios():
-    base = dict(min_buffett_score=75, min_roic=0.15, max_debt_ratio=1.0)
+    base = {"min_buffett_score": 75, "min_roic": 0.15, "max_debt_ratio": 1.0}
     criteria = from_kwargs(**base)
     assert matches(_analysis("GOOD"), criteria)
     assert not matches(_analysis("LOW_ROIC", roic=0.08), criteria)
@@ -386,9 +386,21 @@ def test_rank_score_neutral_momentum_without_deltas():
 # Calibrated ranking (cross-sectional)
 # ----------------------------------------------------------------------
 
-def _rank_dict(ticker, buffett=80, total=80, margin=0.3, moat_type="STRONG", moat_score=78,
-               delta=None, fcf=10e9, debt_to_equity=0.4, interest_coverage=12.0,
-               roic=0.15, cagr=0.10):
+
+def _rank_dict(
+    ticker,
+    buffett=80,
+    total=80,
+    margin=0.3,
+    moat_type="STRONG",
+    moat_score=78,
+    delta=None,
+    fcf=10e9,
+    debt_to_equity=0.4,
+    interest_coverage=12.0,
+    roic=0.15,
+    cagr=0.10,
+):
     """Build an analysis dict suitable for calibrated_rank."""
     d = _analysis(
         ticker,
@@ -445,7 +457,7 @@ def test_calibrated_rank_quality_leads_over_cheapness():
     """A high-quality (low margin) company outranks a cheaper one (low quality)."""
     from backend.screener.ranking_engine import calibrated_rank
 
-    quality = _rank_dict("QUAL", buffett=85, total=90, margin=0.0)   # no MOS
+    quality = _rank_dict("QUAL", buffett=85, total=90, margin=0.0)  # no MOS
     cheap = _rank_dict("CHEAP", buffett=40, total=40, margin=0.30)  # high MOS
     items = [quality, cheap]
     assert calibrated_rank(quality, items) > calibrated_rank(cheap, items)
@@ -508,9 +520,7 @@ def test_health_cap_applies_most_restrictive_of_ALL_matching_caps():
     )
 
     # Negative FCF + high leverage + weak coverage all at once → coverage cap.
-    worst = _rank_dict(
-        "WORST", fcf=-2e9, debt_to_equity=2.0, interest_coverage=2.0
-    )
+    worst = _rank_dict("WORST", fcf=-2e9, debt_to_equity=2.0, interest_coverage=2.0)
     assert health_cap(worst) == LEVERAGED_COVERAGE_CAP
     assert health_cap(worst) < LEVERAGED_DEBT_CAP < LEVERAGED_RANK_CAP
 

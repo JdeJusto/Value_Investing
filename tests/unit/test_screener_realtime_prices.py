@@ -39,7 +39,6 @@ class TestStockScreenerRealtimePrices:
             "ev_ebit": None,
             "debt_to_equity": 0.5,
             "revenue_growth": 0.05,
-            "fcf": 90_000_000_000,
             "score": 0.8,
         }
 
@@ -118,7 +117,7 @@ class TestStockScreenerRealtimePrices:
 
         assert isinstance(row, ScreenerRow)
         assert row.price is None
-        assert row.per is None          # price-dependent -> skipped
+        assert row.per is None  # price-dependent -> skipped
         assert row.operating_margin == 0.3  # fundamentals intact
         assert row.net_margin == 0.25
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import date
 
 import pytest
@@ -57,8 +58,9 @@ def test_consecutive_years_counts_the_current_unbroken_run():
         + [date(2000, 6, 15), date(1999, 6, 15)],
         [0.5, 0.4, 0.3, 0.1, 0.1],
     )
-    service = DividendService(yf_ticker=lambda t: type("T", (), {"dividends": raw})(),
-                              health_fn=lambda: True)
+    service = DividendService(
+        yf_ticker=lambda t: type("T", (), {"dividends": raw})(), health_fn=lambda: True
+    )
 
     assert service.consecutive_years("AAPL") == 3
 
@@ -77,8 +79,9 @@ def test_consecutive_years_returns_zero_without_dividends():
 
 def test_has_dividend_history_uses_the_threshold():
     raw = _series([date(2024, 6, 15), date(2023, 6, 15)], [0.5, 0.4])
-    service = DividendService(yf_ticker=lambda t: type("T", (), {"dividends": raw})(),
-                              health_fn=lambda: True)
+    service = DividendService(
+        yf_ticker=lambda t: type("T", (), {"dividends": raw})(), health_fn=lambda: True
+    )
 
     assert service.has_dividend_history("AAPL", min_years=2) is True
     assert service.has_dividend_history("AAPL", min_years=3) is False
@@ -112,5 +115,5 @@ def test_cache_avoids_a_second_fetch(monkeypatch):
 
 def test_records_are_immutable():
     record = DividendRecord(ex_date=date(2024, 6, 15), amount=0.5)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         record.amount = 1.0  # type: ignore[misc]

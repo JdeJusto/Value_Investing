@@ -29,7 +29,7 @@ from backend.intelligence.scoring_model import (
 def _make(year: int, **overrides) -> NormalizedFinancials:
     """Quality company profile: 20% ROE, 15%+ ROIC, stable margins, low debt."""
     revenue = 1_000_000 + (year - 2020) * 150_000
-    base = dict(
+    base = dict(  # noqa: C408 — kwargs form mirrors the financial fields
         ticker="KO",
         fiscal_year=year,
         revenue=revenue,

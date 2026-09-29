@@ -6,6 +6,8 @@ with a dummy methodology, which is also what proves the ABC is implementable.
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from backend.methodologies.base import (
@@ -56,7 +58,7 @@ def test_source_ref_is_frozen():
         page="p. 112",
         era="1973",
     )
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         ref.book = "other"  # type: ignore[misc]
 
 
@@ -173,8 +175,15 @@ class DummyMethodology(Methodology):
 
     def rules(self):
         ref = SourceRef(book="Dummy", edition="1st", year=2020, page="p. 1", era="2020")
-        return [Rule(id="dummy.rule", name="Dummy rule", description="x",
-                     kind="EXPLICIT", source=ref)]
+        return [
+            Rule(
+                id="dummy.rule",
+                name="Dummy rule",
+                description="x",
+                kind="EXPLICIT",
+                source=ref,
+            )
+        ]
 
     def metadata(self):
         return {"name": self.name, "version": self.version, "family": self.family}

@@ -9,6 +9,7 @@ discovered by it:
 - EPS must use an as-reported diluted share basis (not the current share
   count) on both the repository and Yahoo sides.
 """
+
 import os
 import sys
 from datetime import date
@@ -77,8 +78,12 @@ class TestNormalizeFiscalYearDedup:
         facts = [
             _fact("Assets", 300e9, date(2024, 9, 28)),
             _fact("Assets", 340e9, date(2025, 9, 27)),
-            _fact("NetCashProvidedByUsedInOperatingActivities", 90e9, date(2024, 9, 28)),
-            _fact("NetCashProvidedByUsedInOperatingActivities", 100e9, date(2025, 9, 27)),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivities", 90e9, date(2024, 9, 28)
+            ),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivities", 100e9, date(2025, 9, 27)
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["balance"]["total_assets"] == 340e9
@@ -95,8 +100,9 @@ class TestNormalizeFiscalYearDedup:
                 date(2025, 12, 31),
                 period_start=date(2025, 10, 1),
             ),
-            _fact("Revenues", 80.269e9, date(2025, 12, 31),
-                  period_start=date(2025, 1, 1)),
+            _fact(
+                "Revenues", 80.269e9, date(2025, 12, 31), period_start=date(2025, 1, 1)
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["income"]["revenue"] == 80.269e9
@@ -128,10 +134,18 @@ class TestNormalizeFiscalYearDedup:
         # Two rows of the same concept with the same period_end: the one with
         # the earliest period_start (annual) must win over the quarterly one.
         facts = [
-            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
-                  1.693e9, date(2025, 12, 31), period_start=date(2025, 10, 1)),
-            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
-                  6.849e9, date(2025, 12, 31), period_start=date(2025, 1, 1)),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                1.693e9,
+                date(2025, 12, 31),
+                period_start=date(2025, 10, 1),
+            ),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                6.849e9,
+                date(2025, 12, 31),
+                period_start=date(2025, 1, 1),
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["income"]["revenue"] == 6.849e9
@@ -144,12 +158,24 @@ class TestNormalizeFiscalYearDedup:
         # (2013-01-31). The ANNUAL period span must win the dedup instead of
         # the newest period_end.
         facts = [
-            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
-                  0.853e9, date(2013, 4, 30), period_start=date(2013, 2, 1)),
-            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
-                  2.925e9, date(2013, 10, 31), period_start=date(2013, 2, 1)),
-            _fact("RevenueFromContractWithCustomerExcludingAssessedTax",
-                  3.050195e9, date(2013, 1, 31), period_start=date(2012, 2, 1)),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                0.853e9,
+                date(2013, 4, 30),
+                period_start=date(2013, 2, 1),
+            ),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                2.925e9,
+                date(2013, 10, 31),
+                period_start=date(2013, 2, 1),
+            ),
+            _fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                3.050195e9,
+                date(2013, 1, 31),
+                period_start=date(2012, 2, 1),
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["income"]["revenue"] == 3.050195e9
@@ -250,7 +276,9 @@ class TestNormalizeFiscalYearDedup:
         # only the preferred one, plus its short-term borrowings.
         facts = [
             _fact("LongTermDebt", 46.33e9, date(2025, 12, 31)),
-            _fact("LongTermDebtAndCapitalLeaseObligations", 44.08e9, date(2025, 12, 31)),
+            _fact(
+                "LongTermDebtAndCapitalLeaseObligations", 44.08e9, date(2025, 12, 31)
+            ),
             _fact("ShortTermBorrowings", 2.46e9, date(2025, 12, 31)),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
@@ -291,7 +319,9 @@ class TestNormalizeFiscalYearDedup:
                 0.4e9,
                 date(2025, 12, 31),
             ),
-            _fact("NetCashProvidedByUsedInOperatingActivities", 2e9, date(2025, 12, 31)),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivities", 2e9, date(2025, 12, 31)
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["cash_flow"]["depreciation_amortization"] == 1.5e9
@@ -300,8 +330,12 @@ class TestNormalizeFiscalYearDedup:
         # AEE files D&A only as DepreciationAmortizationAndAccretionNet; it
         # must still populate the field.
         facts = [
-            _fact("DepreciationAmortizationAndAccretionNet", 1.524e9, date(2025, 12, 31)),
-            _fact("NetCashProvidedByUsedInOperatingActivities", 2.2e9, date(2025, 12, 31)),
+            _fact(
+                "DepreciationAmortizationAndAccretionNet", 1.524e9, date(2025, 12, 31)
+            ),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivities", 2.2e9, date(2025, 12, 31)
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["cash_flow"]["depreciation_amortization"] == 1.524e9
@@ -310,7 +344,9 @@ class TestNormalizeFiscalYearDedup:
         # PWR files D&A only as Depreciation (capital-intensive contractor).
         facts = [
             _fact("Depreciation", 359.363e6, date(2025, 12, 31)),
-            _fact("NetCashProvidedByUsedInOperatingActivities", 1e9, date(2025, 12, 31)),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivities", 1e9, date(2025, 12, 31)
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["cash_flow"]["depreciation_amortization"] == 359.363e6
@@ -322,11 +358,13 @@ class TestNormalizeFiscalYearDedup:
         facts = [
             _fact(
                 "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
-                2.554e9, date(2025, 12, 31),
+                2.554e9,
+                date(2025, 12, 31),
             ),
             _fact(
                 "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
-                -1.155e9, date(2025, 12, 31),
+                -1.155e9,
+                date(2025, 12, 31),
             ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
@@ -336,10 +374,13 @@ class TestNormalizeFiscalYearDedup:
         # A filer with both tags (plain total + continuing-only variant) keeps
         # the plain figure; the variant is only a fallback.
         facts = [
-            _fact("NetCashProvidedByUsedInOperatingActivities", 12e9, date(2025, 12, 31)),
+            _fact(
+                "NetCashProvidedByUsedInOperatingActivities", 12e9, date(2025, 12, 31)
+            ),
             _fact(
                 "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
-                10e9, date(2025, 12, 31),
+                10e9,
+                date(2025, 12, 31),
             ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
@@ -430,15 +471,14 @@ class TestFiscalYearEndMode:
                 fiscal_year = int(par[1])
                 # Simulate the SQL ranking: calendar-year match first, then
                 # period span, then period_end.
-                self._result = sorted(
+                self._result = max(
                     rows,
                     key=lambda r: (
                         r["period_end"].year == fiscal_year,
                         r["span"],
                         r["period_end"],
                     ),
-                    reverse=True,
-                )[0]
+                )
 
             def fetchone(self):
                 return self._result
@@ -522,20 +562,26 @@ class TestSharesOutstandingPreference:
         return {"value": value, "period_end": period_end, "filing_date": filing_date}
 
     def test_prefer_diluted_queries_weighted_average_concept(self, monkeypatch):
-        repo, _executed, params = self._make_repo(monkeypatch, [
-            [self._row("466733000")],   # diluted weighted-average
-            [self._row("469000000")],   # cover-page anchor
-        ])
+        repo, _executed, params = self._make_repo(
+            monkeypatch,
+            [
+                [self._row("466733000")],  # diluted weighted-average
+                [self._row("469000000")],  # cover-page anchor
+            ],
+        )
         result = repo.get_shares_outstanding("BF-B", 2026, prefer_diluted=True)
         assert result == 466733000.0
         # The diluted weighted-average concept must be tried first.
         assert params and "WeightedAverageNumber" in params[0][2]
 
     def test_default_preference_starts_with_end_of_period(self, monkeypatch):
-        repo, _executed, params = self._make_repo(monkeypatch, [
-            [self._row("466335000")],   # CommonStockSharesOutstanding
-            [self._row("470000000")],   # cover-page anchor
-        ])
+        repo, _executed, params = self._make_repo(
+            monkeypatch,
+            [
+                [self._row("466335000")],  # CommonStockSharesOutstanding
+                [self._row("470000000")],  # cover-page anchor
+            ],
+        )
         repo.get_shares_outstanding("BF-B", 2026)
         assert params and params[0][2] == "CommonStockSharesOutstanding"
 
@@ -544,14 +590,17 @@ class TestSharesOutstandingPreference:
         # FY2009 10-K) and the correct (187,572,000, filed a year later) rows
         # for the same period_end. The ratio (1000x) identifies the scale
         # duplicate and the larger, correct value must win deterministically.
-        repo, executed, _ = self._make_repo(monkeypatch, [
-            [],  # CommonStockSharesOutstanding: not filed
+        repo, executed, _ = self._make_repo(
+            monkeypatch,
             [
-                self._row("187572", date(2009, 12, 31), date(2010, 2, 2)),
-                self._row("187572000", date(2009, 12, 31), date(2011, 2, 1)),
+                [],  # CommonStockSharesOutstanding: not filed
+                [
+                    self._row("187572", date(2009, 12, 31), date(2010, 2, 2)),
+                    self._row("187572000", date(2009, 12, 31), date(2011, 2, 1)),
+                ],
+                [],  # EntityCommonStockSharesOutstanding anchor: absent
             ],
-            [],  # EntityCommonStockSharesOutstanding anchor: absent
-        ])
+        )
         result = repo.get_shares_outstanding("BALL", 2009)
         assert result == 187572000.0
         # The candidate query must fetch up to two rows per period_end,
@@ -563,14 +612,17 @@ class TestSharesOutstandingPreference:
         # small-ratio duplicate must NOT win: PriceService already applies the
         # 2:1 split adjustment to the as-reported count, so picking the
         # restated value would double-count the split and halve EPS.
-        repo, _executed, _ = self._make_repo(monkeypatch, [
-            [],  # CommonStockSharesOutstanding: not filed
+        repo, _executed, _ = self._make_repo(
+            monkeypatch,
             [
-                self._row("137300000", date(2015, 12, 31), date(2016, 2, 16)),
-                self._row("274600000", date(2015, 12, 31), date(2018, 3, 1)),
+                [],  # CommonStockSharesOutstanding: not filed
+                [
+                    self._row("137300000", date(2015, 12, 31), date(2016, 2, 16)),
+                    self._row("274600000", date(2015, 12, 31), date(2018, 3, 1)),
+                ],
+                [],  # EntityCommonStockSharesOutstanding anchor: absent
             ],
-            [],  # EntityCommonStockSharesOutstanding anchor: absent
-        ])
+        )
         result = repo.get_shares_outstanding("BALL", 2015)
         assert result == 137300000.0
 
@@ -578,23 +630,29 @@ class TestSharesOutstandingPreference:
         # Ball 2010: the weighted-average basic share count was filed in
         # thousands (180,746). The 1000x duplicate and the cover-page anchor
         # (169,198,602) both resolve to the correct 180,746,000.
-        repo, _, _ = self._make_repo(monkeypatch, [
-            [],  # CommonStockSharesOutstanding: not filed
+        repo, _, _ = self._make_repo(
+            monkeypatch,
             [
-                self._row("180746", date(2010, 12, 31), date(2011, 2, 1)),
-                self._row("180746000", date(2010, 12, 31), date(2012, 2, 1)),
+                [],  # CommonStockSharesOutstanding: not filed
+                [
+                    self._row("180746", date(2010, 12, 31), date(2011, 2, 1)),
+                    self._row("180746000", date(2010, 12, 31), date(2012, 2, 1)),
+                ],
+                [self._row("169198602", date(2010, 12, 31), date(2011, 2, 1))],
             ],
-            [self._row("169198602", date(2010, 12, 31), date(2011, 2, 1))],
-        ])
+        )
         result = repo.get_shares_outstanding("BALL", 2010)
         assert result == 180746000.0
 
     def test_no_rescale_when_counts_are_close(self, monkeypatch):
         # A legitimate weighted-average / outstanding pair must be untouched.
-        repo, _, _ = self._make_repo(monkeypatch, [
-            [self._row("466733000")],   # diluted weighted-average
-            [self._row("469000000")],   # cover-page anchor
-        ])
+        repo, _, _ = self._make_repo(
+            monkeypatch,
+            [
+                [self._row("466733000")],  # diluted weighted-average
+                [self._row("469000000")],  # cover-page anchor
+            ],
+        )
         result = repo.get_shares_outstanding("CRM", 2026, prefer_diluted=True)
         assert result == 466733000.0
 
@@ -603,11 +661,14 @@ class TestSharesOutstandingPreference:
         # there is no cover-page anchor to repair against. A sub-1M share
         # count is unusable for per-share metrics, so None must be returned
         # instead of a ~1000x-inflated EPS.
-        repo, _, _ = self._make_repo(monkeypatch, [
-            [],  # CommonStockSharesOutstanding: not filed
-            [self._row("191714", date(2008, 12, 31), date(2009, 2, 2))],
-            [],  # EntityCommonStockSharesOutstanding anchor: absent
-        ])
+        repo, _, _ = self._make_repo(
+            monkeypatch,
+            [
+                [],  # CommonStockSharesOutstanding: not filed
+                [self._row("191714", date(2008, 12, 31), date(2009, 2, 2))],
+                [],  # EntityCommonStockSharesOutstanding anchor: absent
+            ],
+        )
         result = repo.get_shares_outstanding("BALL", 2008)
         assert result is None
 
@@ -691,12 +752,14 @@ class TestComparisonThresholds:
         ]
         # A clearly larger external value must not trigger us (we compare
         # |vi - ext| when VI is the numerator); force VI to exceed ext instead.
-        flagged = compare_rows(_row({metric: 100.0 * (1 + threshold / 100) + 0.01}),
-                               _row({metric: 100.0}))
+        flagged = compare_rows(
+            _row({metric: 100.0 * (1 + threshold / 100) + 0.01}), _row({metric: 100.0})
+        )
         assert any(d["metric"] == metric for d in flagged)
         # And a small difference stays under the radar.
-        small = compare_rows(_row({metric: 100.0 * (1 + threshold / 200)}),
-                             _row({metric: 100.0}))
+        small = compare_rows(
+            _row({metric: 100.0 * (1 + threshold / 200)}), _row({metric: 100.0})
+        )
         assert not any(d["metric"] == metric for d in small)
 
     @pytest.mark.parametrize(
@@ -709,23 +772,17 @@ class TestComparisonThresholds:
             _row({metric: 0.04 + (threshold_pp + 0.5) / 100}), _row({metric: 0.04})
         )
         assert any(d["metric"] == metric for d in flagged)
-        small = compare_rows(
-            _row({metric: 0.041}), _row({metric: 0.04})
-        )
+        small = compare_rows(_row({metric: 0.041}), _row({metric: 0.04}))
         assert not any(d["metric"] == metric for d in small)
 
     def test_pp_uses_threshold_in_percentage_points(self):
         # fcf_yield differs by 0.4pp -> below the 0.5pp threshold (values here
         # are 0.016 vs 0.012 = 0.4pp).
-        flagged = compare_rows(
-            _row({"fcf_yield": 0.016}), _row({"fcf_yield": 0.012})
-        )
+        flagged = compare_rows(_row({"fcf_yield": 0.016}), _row({"fcf_yield": 0.012}))
         assert not any(d["metric"] == "fcf_yield" for d in flagged)
 
     def test_fiscal_year_mismatch_flagged(self):
-        flagged = compare_rows(
-            _row({}, fiscal_year=2026), _row({}, fiscal_year=2025)
-        )
+        flagged = compare_rows(_row({}, fiscal_year=2026), _row({}, fiscal_year=2025))
         # Same fiscal period-end -> labeling difference only, NOT a
         # discrepancy (Yahoo labels by calendar-end year, DB by report year).
         assert not any(d["metric"] == "fiscal_year" for d in flagged)
@@ -735,8 +792,9 @@ class TestComparisonThresholds:
         a["fiscal_year_end"] = "2026-02-01"
         b["fiscal_year_end"] = "2025-02-01"
         flagged = compare_rows(a, b)
-        assert any(d["metric"] == "fiscal_year" and d["severity"] == "HIGH"
-                   for d in flagged)
+        assert any(
+            d["metric"] == "fiscal_year" and d["severity"] == "HIGH" for d in flagged
+        )
 
     def test_fiscal_year_small_calendar_shift_not_flagged(self):
         # 52/53-week fiscal calendars produce 1-3 day period-end differences
@@ -834,7 +892,8 @@ class TestBankRevenueOverride:
             _fact("NoninterestIncome", 2.742e9, date(2025, 12, 31)),
             _fact(
                 "RevenueFromContractWithCustomerExcludingAssessedTax",
-                2.2e9, date(2025, 12, 31),
+                2.2e9,
+                date(2025, 12, 31),
                 period_start=date(2025, 1, 1),
             ),
         ]
@@ -857,8 +916,12 @@ class TestCapexFieldPriority:
 
     def test_payments_to_acquire_ppe_preferred_over_segment(self):
         facts = [
-            _fact("PaymentsToAcquirePropertyPlantAndEquipment", 5e9, date(2025, 12, 31)),
-            _fact("SegmentExpenditureAdditionToLongLivedAssets", 3e9, date(2025, 12, 31)),
+            _fact(
+                "PaymentsToAcquirePropertyPlantAndEquipment", 5e9, date(2025, 12, 31)
+            ),
+            _fact(
+                "SegmentExpenditureAdditionToLongLivedAssets", 3e9, date(2025, 12, 31)
+            ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
         assert normalized["cash_flow"]["capital_expenditure"] == 5e9
@@ -870,7 +933,8 @@ class TestCapexFieldPriority:
             _fact("PaymentsToAcquireProductiveAssets", 2.924e9, date(2025, 12, 31)),
             _fact(
                 "SegmentExpenditureAdditionToLongLivedAssets",
-                11.906e9, date(2025, 12, 31),
+                11.906e9,
+                date(2025, 12, 31),
             ),
         ]
         normalized = self._repo._normalize_financial_facts(facts)
@@ -889,11 +953,13 @@ class TestDilutedNetIncomeFYEAnchoring:
         repo = FinancialDatabaseRepository()
         executed: list[str] = []
 
-        q = iter([
-            # anchor subquery -> FYE for "APA"
-            {"period_end": "2025-12-31"},
-            # the outer query finds nothing for 2025-12-31 diluted NI
-        ])
+        q = iter(
+            [
+                # anchor subquery -> FYE for "APA"
+                {"period_end": "2025-12-31"},
+                # the outer query finds nothing for 2025-12-31 diluted NI
+            ]
+        )
 
         class FakeCursor:
             def execute(self, sql, par):
@@ -949,20 +1015,17 @@ class TestExclusionLoaderAndMatcher:
     def test_loads_rules_and_strips_comments(self, tmp_path):
         p = self._yaml(
             tmp_path,
-            "\n".join(
-                [
-                    "# header comment",
-                    "validation_exclusions:",
-                    "  - ticker: ABNB",
-                    "    metric: eps",
-                    "    classification: EXTERNAL_SOURCE_ERROR",
-                    "    reason: \"foo\"",
-                    "  - ticker: HAS",
-                    "    metric: revenue",
-                    "    classification: EXPECTED_DIFFERENCE",
-                    "    reason: gross vs net",
-                    "",
-                ]
+            (
+                "# header comment\n"
+                "validation_exclusions:\n"
+                "  - ticker: ABNB\n"
+                "    metric: eps\n"
+                "    classification: EXTERNAL_SOURCE_ERROR\n"
+                '    reason: "foo"\n'
+                "  - ticker: HAS\n"
+                "    metric: revenue\n"
+                "    classification: EXPECTED_DIFFERENCE\n"
+                "    reason: gross vs net\n"
             ),
         )
         rules = _load_exclusions(p)
@@ -994,6 +1057,8 @@ class TestExclusionLoaderAndMatcher:
     def test_real_exclusions_file_parses(self):
         rules = _load_exclusions(Path("config") / "validation_exclusions.yaml")
         assert len(rules) == 22
-        assert all(r.get("ticker") and r.get("metric") and r.get("classification")
-                   for r in rules)
+        assert all(
+            r.get("ticker") and r.get("metric") and r.get("classification")
+            for r in rules
+        )
         assert _match_exclusion({"ticker": "LNT", "metric": "fcf_yield"}, rules)

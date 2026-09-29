@@ -112,9 +112,13 @@ def make_service(
 
 
 def test_load_config_defaults(monkeypatch):
-    for var in ("REFRESH_AUTO", "FRESHNESS_MAX_AGE_HOURS",
-                "REFRESH_TIMEOUT_SECONDS", "REFRESH_SKIP_FLAG",
-                "REFRESH_WORKERS"):
+    for var in (
+        "REFRESH_AUTO",
+        "FRESHNESS_MAX_AGE_HOURS",
+        "REFRESH_TIMEOUT_SECONDS",
+        "REFRESH_SKIP_FLAG",
+        "REFRESH_WORKERS",
+    ):
         monkeypatch.delenv(var, raising=False)
     cfg = load_refresh_config("/nonexistent/refresh.yaml")
     assert cfg.auto_refresh is True
@@ -125,9 +129,13 @@ def test_load_config_defaults(monkeypatch):
 
 
 def test_load_config_from_file(tmp_path, monkeypatch):
-    for var in ("REFRESH_AUTO", "FRESHNESS_MAX_AGE_HOURS",
-                "REFRESH_TIMEOUT_SECONDS", "REFRESH_SKIP_FLAG",
-                "REFRESH_WORKERS"):
+    for var in (
+        "REFRESH_AUTO",
+        "FRESHNESS_MAX_AGE_HOURS",
+        "REFRESH_TIMEOUT_SECONDS",
+        "REFRESH_SKIP_FLAG",
+        "REFRESH_WORKERS",
+    ):
         monkeypatch.delenv(var, raising=False)
     path = tmp_path / "refresh.yaml"
     path.write_text(
@@ -178,7 +186,9 @@ def test_stale_company_triggers_targeted_sync():
         last_synced={"c1": STALE},
     )
     runner_ciks = []
-    service = make_service(gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True)
+    service = make_service(
+        gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True
+    )
 
     result = service.ensure_fresh_and_prices(["AAPL"], fetch_prices=False)
 
@@ -193,7 +203,9 @@ def test_fresh_company_is_skipped():
         last_synced={"c1": FRESH},
     )
     runner_ciks = []
-    service = make_service(gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True)
+    service = make_service(
+        gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True
+    )
 
     result = service.ensure_fresh_and_prices(["AAPL"], fetch_prices=False)
 
@@ -205,7 +217,9 @@ def test_fresh_company_is_skipped():
 def test_never_synced_company_is_refreshed():
     gateway = FakeGateway(companies={"AAPL": ("c1", "0000320193")}, last_synced={})
     runner_ciks = []
-    service = make_service(gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True)
+    service = make_service(
+        gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True
+    )
 
     result = service.ensure_fresh_and_prices(["AAPL"], fetch_prices=False)
 
@@ -218,7 +232,9 @@ def test_force_refreshes_regardless_of_age():
         last_synced={"c1": FRESH},
     )
     runner_ciks = []
-    service = make_service(gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True)
+    service = make_service(
+        gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True
+    )
 
     result = service.ensure_fresh_and_prices(["AAPL"], force=True, fetch_prices=False)
 
@@ -233,7 +249,9 @@ def test_freshness_hours_override():
         last_synced={"c1": FRESH},
     )
     runner_ciks = []
-    service = make_service(gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True)
+    service = make_service(
+        gateway=gateway, runner=lambda cik: runner_ciks.append(cik) or True
+    )
 
     result = service.ensure_fresh_and_prices(
         ["AAPL"], max_age_hours=1, fetch_prices=False
@@ -260,7 +278,9 @@ def test_parallel_sync_preserves_order_and_results():
         runner=lambda cik: runner_ciks.append(cik) or True,
     )
 
-    result = service.ensure_fresh_and_prices(["MSFT", "AAPL", "ZZZ"], fetch_prices=False)
+    result = service.ensure_fresh_and_prices(
+        ["MSFT", "AAPL", "ZZZ"], fetch_prices=False
+    )
 
     assert result.refreshed == ["MSFT", "AAPL", "ZZZ"]  # original order
     assert result.failed == []
@@ -278,7 +298,7 @@ def test_parallel_sync_reports_failures_in_order():
     service = make_service(
         gateway=gateway,
         config=RefreshConfig(refresh_workers=2),
-        runner=lambda cik: False if cik == "0000789019" else True,
+        runner=lambda cik: cik != "0000789019",
     )
 
     result = service.ensure_fresh_and_prices(["MSFT", "AAPL"], fetch_prices=False)
@@ -382,9 +402,7 @@ def test_unrunnable_fdb_cli_degrades_gracefully(monkeypatch):
         companies={"AAPL": ("c1", "0000320193")},
         last_synced={"c1": STALE},
     )
-    service = make_service(
-        gateway=gateway, fdb_repo_path="/nonexistent/repo"
-    )
+    service = make_service(gateway=gateway, fdb_repo_path="/nonexistent/repo")
 
     result = service.ensure_fresh_and_prices(["AAPL"], fetch_prices=False)
 
@@ -420,7 +438,10 @@ def test_database_url_default_matches_repository():
     # FinancialDatabaseRepository so the two always talk to the same DB.
     repo = FdbGateway()
     assert "financial_database" in repo.database_url
-    assert os.environ.get("FINANCIAL_DATABASE_URL", "financial_database") in repo.database_url
+    assert (
+        os.environ.get("FINANCIAL_DATABASE_URL", "financial_database")
+        in repo.database_url
+    )
 
 
 # ----------------------------------------------------------------------
@@ -430,15 +451,16 @@ def test_database_url_default_matches_repository():
 
 def test_check_freshness_splits_stale_fresh_unknown():
     gateway = FakeGateway(
-        companies={"AAPL": ("c1", "0000320193"), "KO": ("c2", "0000021344"),
-                   "MSFT": ("c3", "0000789019")},
+        companies={
+            "AAPL": ("c1", "0000320193"),
+            "KO": ("c2", "0000021344"),
+            "MSFT": ("c3", "0000789019"),
+        },
         last_synced={"c1": STALE, "c2": FRESH, "c3": STALE},
     )
     service = make_service(gateway=gateway)
 
-    stale, fresh, unknown = service.check_freshness(
-        ["AAPL", "ko", "MSFT", "NOPE"]
-    )
+    stale, fresh, unknown = service.check_freshness(["AAPL", "ko", "MSFT", "NOPE"])
 
     assert stale == ["AAPL", "MSFT"]
     assert fresh == ["KO"]
@@ -469,9 +491,7 @@ def test_check_freshness_dedup_and_threshold_override():
     )
     service = make_service(gateway=gateway)
 
-    stale, fresh, _ = service.check_freshness(
-        ["AAPL", "MSFT", "AAPL"], max_age_hours=5
-    )
+    stale, fresh, _ = service.check_freshness(["AAPL", "MSFT", "AAPL"], max_age_hours=5)
 
     # With a 5h threshold, even the 10h-old data is stale.
     assert stale == ["AAPL", "MSFT"]
@@ -639,6 +659,7 @@ def test_progress_callback_failure_does_not_break_refresh():
     result = service.ensure_fresh_and_prices(["AAPL"], progress_cb=boom)
 
     assert result.refreshed == ["AAPL"]
+
 
 def test_progress_callback_fires_per_company_during_parallel_batch():
     """With >1 worker the hook must fire as each company finishes, not when
