@@ -346,6 +346,59 @@ def test_preferred_adjustment_not_applied_to_non_financials():
     assert result.preferred_dividend_adjusted is False
 
 
+def test_ddm_preferred_exceeding_total_is_insufficient():
+    # Preferred cannot exceed the total paid: the DDM must not floor it
+    # silently to zero.
+    rows = [
+        _row(
+            2025,
+            revenue=100e9,
+            net_income=30e9,
+            shares_outstanding=2_000_000_000,
+            dividends_paid=1_000_000_000,
+            preferred_dividends=2_000_000_000,
+            sector="Financial Services",
+        ),
+        _row(
+            2024,
+            revenue=95e9,
+            net_income=28e9,
+            shares_outstanding=2_000_000_000,
+            dividends_paid=900_000_000,
+            preferred_dividends=800_000_000,
+            sector="Financial Services",
+        ),
+        _row(
+            2023,
+            revenue=90e9,
+            net_income=26e9,
+            shares_outstanding=2_000_000_000,
+            dividends_paid=850_000_000,
+            preferred_dividends=750_000_000,
+            sector="Financial Services",
+        ),
+    ]
+    result, _ = _evaluate(rows, beta=1.0)
+    assert result.verdict == INSUFFICIENT_DATA
+    assert result.missing_inputs == ["consistent dividend data"]
+    joined = " ".join(result.reasons)
+    assert "exceed total dividends" in joined
+    assert "check source data" in joined
+
+
+def test_ddm_preferred_adjustment_documents_growth_effect():
+    adjusted, _ = _evaluate(_bank_rows_with_preferred([1.44, 1.20, 1.00]), beta=1.0)
+    assert any(
+        "true common-dividend trajectory" in reason for reason in adjusted.reasons
+    )
+
+
+def test_ddm_without_adjustment_has_no_preferred_reason():
+    baseline, _ = _evaluate(_bank_rows([1.64, 1.40, 1.20]), beta=1.0)
+    assert not any("Preferred dividends" in reason for reason in baseline.reasons)
+    assert baseline.preferred_dividend_adjusted is False
+
+
 # ---------------------------------------------------------------------------
 # Hyper-growth — observed positive FCF years only
 # ---------------------------------------------------------------------------

@@ -36,7 +36,7 @@ def _period_end_year(value) -> int | None:
         return value.year
     try:
         return date.fromisoformat(str(value)[:10]).year
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return None
 
 
@@ -46,7 +46,7 @@ def _as_date(value) -> date | None:
         return value
     try:
         return date.fromisoformat(str(value)[:10])
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return None
 
 
@@ -76,7 +76,7 @@ def _cumulative_split_multiplier(fy_end, split_rows: list) -> float:
             continue
         try:
             ratio_f = float(ratio)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if effective <= end or ratio_f <= 0:
             continue
@@ -362,6 +362,14 @@ CORE_STATEMENT_CONCEPTS = sorted(
     set(INCOME_STATEMENT_CONCEPTS)
     | set(BALANCE_SHEET_CONCEPTS)
     | set(CASH_FLOW_CONCEPTS)
+)
+
+
+#: Cash dividend tags that already exclude preferred dividends; when one of
+#: these wins for ``dividends_paid`` the income-statement preferred figure
+#: must not be subtracted again by the DDM.
+_COMMON_ONLY_DIVIDEND_CONCEPTS = frozenset(
+    {"PaymentsOfDividendsCommonStock", "DividendsCommonStockCash"}
 )
 
 
@@ -757,6 +765,7 @@ class FinancialDatabaseRepository(FinancialRepository):
         income_data = {}
         balance_data = {}
         cash_flow_data = {}
+        dividends_paid_concept: str | None = None
 
         # A fiscal-year bucket can hold facts from other years: the latest 10-K
         # embeds its comparatives, and a sync may tag the SAME filing under two
@@ -788,7 +797,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 return value.toordinal()
             try:
                 return date.fromisoformat(str(value)[:10]).toordinal()
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 return 0
 
         # Precompute each fact's sort key ONCE, before sorting. The previous
@@ -924,6 +933,8 @@ class FinancialDatabaseRepository(FinancialRepository):
                     or cash_flow_data[field_name] is None
                 ):
                     cash_flow_data[field_name] = value
+                    if field_name == "dividends_paid":
+                        dividends_paid_concept = concept
 
             # Track bank top-line components (not part of the standard mapping)
             elif concept == "InterestIncomeExpenseNet" and bank_interest is None:
@@ -1005,6 +1016,13 @@ class FinancialDatabaseRepository(FinancialRepository):
             or rnd_excluding > income_data["research_development"]
         ):
             income_data["research_development"] = rnd_excluding
+
+        # A common-only cash dividend tag already excludes preferred
+        # dividends; subtracting the income-statement preferred figure again
+        # would double-count it (WFC/USB file PaymentsOfDividendsCommonStock
+        # plus a preferred tag). Only keep it when the total tag won.
+        if dividends_paid_concept in _COMMON_ONLY_DIVIDEND_CONCEPTS:
+            income_data["preferred_dividends"] = None
 
         return {
             "income": income_data,

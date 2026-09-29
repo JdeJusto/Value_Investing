@@ -426,7 +426,26 @@ class DCFValuation:
                     # base is the common dividend (JPM, C, GS, MS...).
                     preferred = getattr(row, "preferred_dividends", None)
                     if preferred is not None and preferred > 0:
-                        dividend = max(0.0, dividend - float(preferred))
+                        if preferred > dividend:
+                            # Inconsistent data (preferred cannot exceed the
+                            # total paid): never floor it silently.
+                            return self._insufficient(
+                                result,
+                                [
+                                    (
+                                        "Financial company (banks/insurers): "
+                                        "dividend discount model."
+                                    ),
+                                    (
+                                        f"Preferred dividends ({preferred:,.0f}) "
+                                        f"exceed total dividends "
+                                        f"({dividend:,.0f}) in FY{row.fiscal_year}; "
+                                        "check source data."
+                                    ),
+                                ],
+                                ["consistent dividend data"],
+                            )
+                        dividend -= preferred
                         preferred_adjusted = True
                     dps_stream.append((row.fiscal_year, dividend / s))
         result.preferred_dividend_adjusted = preferred_adjusted
@@ -577,7 +596,10 @@ class DCFValuation:
         if preferred_adjusted:
             result.reasons.append(
                 "Preferred dividends subtracted from the total dividend base "
-                "(no common-only dividend tag filed)."
+                "(no common-only dividend tag filed); because the preferred "
+                "amount is roughly constant, the adjustment can raise the "
+                "reported common-DPS growth — the model reflects the true "
+                "common-dividend trajectory."
             )
 
         if value is None or value <= 0:

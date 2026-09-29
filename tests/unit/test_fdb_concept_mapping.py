@@ -118,3 +118,27 @@ def test_preferred_dividend_tag_maps_to_preferred_dividends():
 def test_preferred_dividend_alternative_tag_maps():
     income = _income(_fact("PreferredStockDividendsAndOtherAdjustments", 900_000_000))
     assert income["preferred_dividends"] == 900_000_000
+
+
+def test_common_only_dividend_tag_suppresses_preferred():
+    # WFC/USB file PaymentsOfDividendsCommonStock (already common-only) plus
+    # a preferred tag: the preferred figure must not be kept for subtraction.
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("PaymentsOfDividendsCommonStock", 5_000_000_000),
+            _fact("DividendsPreferredStockCash", 1_000_000_000),
+        ]
+    )
+    assert normalized["income"]["preferred_dividends"] is None
+    assert normalized["cash_flow"]["dividends_paid"] == 5_000_000_000
+
+
+def test_total_dividend_tag_keeps_preferred():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("PaymentsOfDividends", 16_000_000_000),
+            _fact("DividendsPreferredStock", 1_600_000_000),
+        ]
+    )
+    assert normalized["income"]["preferred_dividends"] == 1_600_000_000
+    assert normalized["cash_flow"]["dividends_paid"] == 16_000_000_000
