@@ -1,0 +1,42 @@
+[
+  {
+    "ticker": "JPMDCF",
+    "fiscal_year": 2024,
+    "revenue": 168800000000,
+    "interest_expense": 96200000000,
+    "operating_cash_flow": 85000000000,
+    "capital_expenditure": 1000000000,
+    "net_income": 54000000000,
+    "total_debt": 600000000000,
+    "stockholders_equity": 341000000000,
+    "shares_outstanding": 2850000000,
+    "period": "FY",
+    "currency": "USD",
+    "source": "sec_edgar",
+    "loaded_at": null,
+    "data_quality_score": 0.92,
+    "is_complete": true,
+    "data_source_priority": 1,
+    "derived_metrics": []
+  },
+  {
+    "ticker": "JPMDCF",
+    "fiscal_year": 2023,
+    "revenue": 161200000000,
+    "interest_expense": 93100000000,
+    "operating_cash_flow": 80000000000,
+    "capital_expenditure": 1000000000,
+    "net_income": 49600000000,
+    "total_debt": 590000000000,
+    "stockholders_equity": 327000000000,
+    "shares_outstanding": 2890000000,
+    "period": "FY",
+    "currency": "USD",
+    "source": "sec_edgar",
+    "loaded_at": null,
+    "data_quality_score": 0.92,
+    "is_complete": true,
+    "data_source_priority": 1,
+    "derived_metrics": []
+  }
+]

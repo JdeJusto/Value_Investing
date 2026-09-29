@@ -50,6 +50,7 @@ def main():
         buffett_analysis,
         company,
         data_status,
+        dcf,
         debug,
         historical_valuation,
         load_data,
@@ -70,6 +71,7 @@ def main():
     historical_valuation.register(sub)
     load_data.register(sub)
     data_status.register(sub)
+    dcf.register(sub)
     opportunities.register(sub)
     anomalies.register(sub)
     momentum.register(sub)
