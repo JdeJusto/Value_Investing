@@ -30,6 +30,20 @@ _VERDICT_COLORS = {
     "INSUFFICIENT_DATA": dim,
 }
 
+_VARIANT_NAMES = {
+    "standard": "standard DCF (free cash flow)",
+    "reit": "REIT — funds from operations",
+    "ddm_financial": "financial — dividend discount model",
+    "hyper_growth": "hyper-growth — observed positive FCF",
+}
+
+_BASE_LABELS = {
+    "standard": "FCF base",
+    "reit": "FFO base",
+    "ddm_financial": "Dividend per share",
+    "hyper_growth": "Normalized FCF base",
+}
+
 
 def register(subparsers):
     p = subparsers.add_parser(
@@ -104,16 +118,23 @@ def _render(result):
     print_key_value("Current price", fmt_dollar(result.current_price))
     print_key_value("Margin of safety", fmt_pct(result.margin_of_safety))
     print_key_value("Verdict", color(result.verdict))
+    print_key_value("Variant", _VARIANT_NAMES.get(result.variant, result.variant))
 
     print_section("Assumptions")
-    wacc_label = f"{result.wacc:.2%}" if result.wacc is not None else "N/A"
-    print_key_value("WACC", wacc_label)
-    print_key_value(
-        "FCF base (3y avg)"
-        if (result.fcf_years or 0) >= 3
-        else ("FCF base (2y avg)" if result.fcf_years == 2 else "FCF base (1y)"),
-        fmt_dollar(result.fcf_base),
-    )
+    discount_label = "Cost of equity" if result.variant == "ddm_financial" else "WACC"
+    disc_value = result.wacc
+    wacc_label = f"{disc_value:.2%}" if disc_value is not None else "N/A"
+    print_key_value(discount_label, wacc_label)
+    base_label = _BASE_LABELS.get(result.variant, "FCF base")
+    if result.fcf_years is None:
+        base_text = base_label
+    elif (result.fcf_years or 0) >= 3:
+        base_text = f"{base_label} (3y avg)"
+    elif result.fcf_years == 2:
+        base_text = f"{base_label} (2y avg)"
+    else:
+        base_text = f"{base_label} (1y)"
+    print_key_value(base_text, fmt_dollar(result.fcf_base))
     print_key_value("Growth years 1-5", fmt_pct(result.growth_1_5))
     print_key_value("Growth years 6-10", fmt_pct(result.growth_6_10))
     print_key_value("Terminal growth", fmt_pct(result.terminal_growth))

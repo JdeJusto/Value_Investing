@@ -51,6 +51,10 @@ replaced before calling `evaluate`; the CLI exposes `--wacc`, `--growth`,
 
 ## Formula (step by step)
 
+> The steps below describe the **`standard` variant** (free cash flow). The
+> company-type dispatcher routes REITs, financials and hyper-growth names to
+> their own variants; see [Variants](#variants).
+
 1. **FCF base** — average of the newest 3 usable fiscal years, where
    `FCF = operating_cash_flow - capex` (or the filed `free_cash_flow` tag
    when present, which wins). Falls back to the latest year when fewer rows
@@ -80,7 +84,34 @@ replaced before calling `evaluate`; the CLI exposes `--wacc`, `--growth`,
 | `UNDERVALUED` | `>= +25%` |
 | `FAIR` | between `-10%` and `+25%` |
 | `OVERVALUED` | `<= -10%` |
-| `INSUFFICIENT_DATA` | missing FCF / shares / price; negative FCF; financial company; WACC ≤ terminal growth |
+| `INSUFFICIENT_DATA` | missing FCF / shares / price; negative FCF; WACC ≤ terminal growth; a variant with nothing honest to discount (see Variants) |
+
+---
+
+## Variants
+
+`evaluate` dispatches on the **shared company-type detector**
+(`backend/methodologies/common/company_type.py` — the same classifier the
+Graham/Graham & Dodd/Buffett-Clark/Fisher/Lynch-GARP screens use, so the DCF
+never disagrees with the methodologies about what a company is). The chosen
+variant is recorded on `DCFResult.variant` and rendered by the CLI.
+
+| Variant | Route | Cash flow discounted | Notes |
+|---|---|---|---|
+| `standard` | everything not typed below; also utilities | `FCF = OCF - capex` | the historical two-stage pipeline (Formulas above) |
+| `reit` | sector hint `real estate` / `reit` | **Funds from operations** ≈ `net income + depreciation & amortization` | heavy depreciation makes FCF negative for healthy landlords; property-sale gains are not in the normalized VO, so they are omitted rather than guessed |
+| `ddm_financial` | sector hint financial/bank/insurance *or* financial fingerprint | **dividends per share** (Gordon growth) | banks/insurers have no FCF in the DCF sense; `coe = risk-free + beta × ERP` is the discount rate. **No dividend stream ⇒ `INSUFFICIENT_DATA`** |
+| `hyper_growth` | 5y revenue CAGR > 25% **and** latest FCF negative | average of the **observed positive** FCF years in the 3-year window | cash-burning compounders; only real figures are averaged — still FCF-negative in every recent year ⇒ `INSUFFICIENT_DATA` |
+
+Rules of the dispatcher:
+
+* Nothing is ever fabricated — a variant that cannot be computed from the
+  data (no FFO, no dividends, no positive FCF year) returns
+  `INSUFFICIENT_DATA` naming the missing input.
+* Non-variant logic is untouched: the standard body, `_project_value`,
+  `_sensitivity`, `_verdict` and all assumptions are shared or unchanged.
+* Prices are still fetched on demand through the price service and never
+  persisted; the DDM additionally calls `get_beta` for its cost of equity.
 
 ### Sensitivity
 
@@ -96,18 +127,18 @@ growth) render as `—`.
 * **Sensitive to WACC and growth assumptions** — the sensitivity grid exists
   precisely because a ±2% change in either can move the value materially.
 * **Not applicable to negative-FCF companies** — a company that burns cash
-  has no positive FCF stream to discount; the DCF returns `INSUFFICIENT_DATA`
-  rather than fabricating one.
-* **Not applicable to financials (banks, insurers)** — they book an
-  interest-based top line and their operating cash flow is not free cash
-  flow. The module treats a company as financial via two documented
-  heuristics (not a taxonomy) and returns `INSUFFICIENT_DATA` with that
-  reason:
-  - interest expense ≥ 30% of revenue, or
-  - positive net income with non-positive operating cash flow and no
-    reported capital expenditure (the JPM fingerprint — its interest
-    expense and capex are not reconstructed by the data layer).
-  Sector-aware variants are future work.
+  has no positive FCF stream to discount. The `standard` variant returns
+  `INSUFFICIENT_DATA` rather than fabricating one. (Cash-burning **hyper-growth**
+  names are the one exception: they route to the `hyper_growth` variant, which
+  only ever averages FCF years that were actually positive.)
+* **Financials, REITs and hyper-growth names use purpose-built variants, not
+  the FCF pipeline** — a bank's operating cash flow is not free cash flow, a
+  landlord's FCF is depressed by depreciation, and a compounder burns cash on
+  purpose. The dispatcher detects each through the shared classifier (sector
+  hint first, then the documented heuristics — *not a taxonomy*) and values
+  them via the DDM / FFO / observed-positive-FCF variants above. When even the
+  right variant has nothing real to discount, it returns `INSUFFICIENT_DATA`
+  with the missing input named.
 * **The beta is often unavailable or stale** — when unavailable it falls back
   to `1.0` (documented in the reasons); when stale it underprices recent
   model risk.

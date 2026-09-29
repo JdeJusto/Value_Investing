@@ -59,3 +59,8 @@ class DCFResult:
     reasons: list[str] = field(default_factory=list)
     missing_inputs: list[str] = field(default_factory=list)
     source: str = SOURCE
+    #: Which valuation variant produced this result. ``evaluate`` dispatches
+    #: on the shared company-type detector: ``standard`` (free cash flow),
+    #: ``reit`` (funds from operations), ``ddm_financial`` (dividend discount
+    #: model) and ``hyper_growth`` (observed positive FCF years).
+    variant: str = "standard"

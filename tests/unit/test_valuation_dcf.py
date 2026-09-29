@@ -385,22 +385,27 @@ def test_readme_carries_not_from_canon_disclaimer():
 
 
 # ---------------------------------------------------------------------------
-# financials
+# financials (now a dividend discount model variant)
 # ---------------------------------------------------------------------------
 def test_financial_company_insufficient():
+    # Banks/insurers have no free cash flow in the DCF sense, so they route
+    # to the ddm_financial variant; with no dividends paid the DDM cannot be
+    # computed and reads INSUFFICIENT_DATA rather than fabricating a value.
     result, _ = _evaluate(_fixture_rows("dcf_financial_company.json"))
     assert result.verdict == INSUFFICIENT_DATA
     joined = " ".join(result.reasons)
     assert "Financial company" in joined
     assert "banks/insurers" in joined
-    assert "non-financial company" in result.missing_inputs
+    assert result.missing_inputs == ["dividends per share"]
+    assert result.variant == "ddm_financial"
     assert result.intrinsic_value_per_share is None
 
 
 def test_financial_bank_without_interest_signal_insufficient():
     # JPM-like fingerprint: revenue + positive net income, but non-positive
     # operating cash flow and no capex (leaves no FCF to discount in any
-    # reading).
+    # reading). Routes to the DDM variant, which still needs a dividend
+    # stream the rows do not carry.
     rows = [
         _row(
             2025,
@@ -422,5 +427,42 @@ def test_financial_bank_without_interest_signal_insufficient():
     joined = " ".join(result.reasons)
     assert "Financial company" in joined
     assert "banks/insurers" in joined
-    assert "non-financial company" in result.missing_inputs
+    assert result.missing_inputs == ["dividends per share"]
+    assert result.variant == "ddm_financial"
     assert result.intrinsic_value_per_share is None
+
+
+def test_financial_with_dividends_uses_ddm():
+    # Same JPM-like shape, but a real dividend stream: the DDM runs and
+    # produces a priced verdict (Gordon growth) instead of bailing.
+    rows = [
+        _row(
+            2025,
+            revenue=182e9,
+            net_income=55.7e9,
+            operating_cash_flow=-147.8e9,
+            shares_outstanding=2.78e9,
+            dividends_paid=12e9,
+        ),
+        _row(
+            2024,
+            revenue=167e9,
+            net_income=50e9,
+            operating_cash_flow=-90e9,
+            shares_outstanding=2.9e9,
+            dividends_paid=11.6e9,
+        ),
+    ]
+    result, _ = _evaluate(rows, beta=1.0)
+    assert result.verdict != INSUFFICIENT_DATA
+    assert result.variant == "ddm_financial"
+    assert result.intrinsic_value_per_share is not None
+    # dps 2025 = 12e9 / 2.78e9; dps 2024 = 11.6e9 / 2.9e9 = 4.0;
+    # growth = dps ratio - 1; coe = 4% + 1.0 * 5% = 9%;
+    # Gordon value = dps * (1 + g) / (coe - g).
+    dps_2025 = 12e9 / 2.78e9
+    assert result.growth_1_5 == pytest.approx(dps_2025 / 4.0 - 1.0)
+    assert result.wacc == pytest.approx(0.09)
+    expected = dps_2025 * (1 + result.growth_1_5) / (0.09 - result.growth_1_5)
+    assert result.intrinsic_value_per_share == pytest.approx(expected)
+    assert result.sensitivity == {}
