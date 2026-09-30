@@ -10,6 +10,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from cli.main import main
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -244,6 +246,25 @@ def test_no_price_means_no_network_and_no_db(monkeypatch, capsys):
 # ----------------------------------------------------------------------
 # analyze-lynch-garp
 # ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "analyze-graham",
+        "analyze-graham-dodd",
+        "analyze-buffett-classic",
+        "analyze-buffett-clark",
+        "analyze-fisher-quant",
+        "analyze-lynch-garp",
+    ],
+)
+def test_methodology_commands_accept_no_refresh(command, monkeypatch, capsys):
+    # Regression: every analyze-* command must accept --no-refresh (the
+    # buffett-classic command used to exit 2 with "unrecognized arguments").
+    _run([command, "AAPL", "--no-refresh"], monkeypatch)
+    out = capsys.readouterr().out
+    assert out  # parsed and produced output instead of an argparse exit
 
 
 def test_analyze_lynch_garp_slow_grower_hides_score(monkeypatch, capsys):

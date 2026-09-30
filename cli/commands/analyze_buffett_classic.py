@@ -25,6 +25,11 @@ def register(subparsers):
         ),
     )
     p.add_argument("ticker", help="Ticker to evaluate (e.g. AAPL)")
+    p.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="Skip the on-demand SEC refresh before evaluating",
+    )
     p.set_defaults(func=_run)
 
 
