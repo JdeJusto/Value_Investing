@@ -71,6 +71,8 @@ class NormalizedFinancials:
     long_term_debt: float | None = None
     inventory: float | None = None
     cash_and_equivalents: float | None = None
+    #: Net property, plant and equipment (Greenblatt's ROC denominator).
+    net_ppe: float | None = None
     # current_assets / current_liabilities are the balance-sheet split the
     # Graham criteria need; working_capital stays a stored field for
     # backwards compatibility (criteria 2 and 3 derive it from the split

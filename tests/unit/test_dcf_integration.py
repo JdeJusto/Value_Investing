@@ -177,9 +177,7 @@ def _patch_analyze_full_deps(monkeypatch, row):
             return _Company()
 
     monkeypatch.setattr(analyze_full, "build_screener_service", lambda: _FakeService())
-    monkeypatch.setattr(
-        analyze_full, "HistoricalValuationService", lambda: _FakeHist()
-    )
+    monkeypatch.setattr(analyze_full, "HistoricalValuationService", lambda: _FakeHist())
     monkeypatch.setattr(analyze_full, "refresh_analysis_inputs", lambda *a, **k: None)
     monkeypatch.setattr(analyze_full, "CompanyRepository", lambda: _FakeCompanyRepo())
 
@@ -300,7 +298,11 @@ class TestAnalyzeFullDcf:
 
 class TestDcfConfig:
     def test_load_dcf_config_defaults_when_file_missing(self, tmp_path, monkeypatch):
-        for var in ("DCF_IN_ANALYZE_FULL", "DCF_IN_DAILY_REPORT", "DCF_DAILY_REPORT_TOP_N"):
+        for var in (
+            "DCF_IN_ANALYZE_FULL",
+            "DCF_IN_DAILY_REPORT",
+            "DCF_DAILY_REPORT_TOP_N",
+        ):
             monkeypatch.delenv(var, raising=False)
         cfg = load_dcf_config(str(tmp_path / "no_such.yaml"))
         assert cfg.in_analyze_full is True
@@ -308,7 +310,11 @@ class TestDcfConfig:
         assert cfg.daily_report_top_n == 10
 
     def test_load_dcf_config_reads_file_block(self, tmp_path, monkeypatch):
-        for var in ("DCF_IN_ANALYZE_FULL", "DCF_IN_DAILY_REPORT", "DCF_DAILY_REPORT_TOP_N"):
+        for var in (
+            "DCF_IN_ANALYZE_FULL",
+            "DCF_IN_DAILY_REPORT",
+            "DCF_DAILY_REPORT_TOP_N",
+        ):
             monkeypatch.delenv(var, raising=False)
         path = tmp_path / "refresh.yaml"
         path.write_text(
@@ -325,13 +331,15 @@ class TestDcfConfig:
         assert cfg.daily_report_top_n == 7
 
     def test_load_dcf_config_block_ends_at_sibling_key(self, tmp_path, monkeypatch):
-        for var in ("DCF_IN_ANALYZE_FULL", "DCF_IN_DAILY_REPORT", "DCF_DAILY_REPORT_TOP_N"):
+        for var in (
+            "DCF_IN_ANALYZE_FULL",
+            "DCF_IN_DAILY_REPORT",
+            "DCF_DAILY_REPORT_TOP_N",
+        ):
             monkeypatch.delenv(var, raising=False)
         path = tmp_path / "refresh.yaml"
         path.write_text(
-            "dcf:\n"
-            "  daily_report_top_n: 5\n"
-            "freshness_max_age_hours: 1\n",
+            "dcf:\n  daily_report_top_n: 5\nfreshness_max_age_hours: 1\n",
             encoding="utf-8",
         )
         cfg = load_dcf_config(str(path))
@@ -339,7 +347,9 @@ class TestDcfConfig:
 
     def test_load_dcf_config_env_overrides(self, tmp_path, monkeypatch):
         path = tmp_path / "refresh.yaml"
-        path.write_text("dcf:\n  in_daily_report: true\n  daily_report_top_n: 3\n", encoding="utf-8")
+        path.write_text(
+            "dcf:\n  in_daily_report: true\n  daily_report_top_n: 3\n", encoding="utf-8"
+        )
         monkeypatch.setenv("DCF_IN_DAILY_REPORT", "false")
         monkeypatch.setenv("DCF_DAILY_REPORT_TOP_N", "25")
         cfg = load_dcf_config(str(path))
@@ -375,7 +385,9 @@ def _daily_report(dcf_rows, rows=None, alerts=None):
         screened_count=len(rows or []),
         sec_update="refresh: skipped (dry run)",
         prices_mode="real-time",
-        rows=rows if rows is not None else [_screened_row_row(), _screened_row_row(2, "MSFT")],
+        rows=rows
+        if rows is not None
+        else [_screened_row_row(), _screened_row_row(2, "MSFT")],
         alerts=alerts
         if alerts is not None
         else [
@@ -435,7 +447,14 @@ class TestDailyReportDcf:
         or not the supplementary DCF section is present."""
         rows = [_screened_row_row(1, "AAPL"), _screened_row_row(2, "MSFT")]
         dcf_rows = [
-            {"ticker": "AAPL", "intrinsic": 140.35, "price": 338.40, "mos": -1.411, "verdict": "OVERVALUED", "reason": ""}
+            {
+                "ticker": "AAPL",
+                "intrinsic": 140.35,
+                "price": 338.40,
+                "mos": -1.411,
+                "verdict": "OVERVALUED",
+                "reason": "",
+            }
         ]
         with_dcf = build_markdown(_daily_report(dcf_rows=dcf_rows, rows=rows))
         without_dcf = build_markdown(_daily_report(dcf_rows=[], rows=rows))
@@ -458,20 +477,34 @@ class TestDailyReportDcf:
 class TestDailyWorkflowDcfRows:
     def test_daily_dcf_rows_respects_no_dcf_flag(self):
         rows = [_screened_row_row(), _screened_row_row(2, "MSFT")]
-        assert daily_workflow._dcf_rows_for_report(rows, Namespace(no_dcf=True), None, object()) == []
+        assert (
+            daily_workflow._dcf_rows_for_report(
+                rows, Namespace(no_dcf=True), None, object()
+            )
+            == []
+        )
 
     def test_daily_dcf_rows_disabled_by_config(self, monkeypatch):
         monkeypatch.setattr(
             refresh_service, "load_dcf_config", lambda: DCFConfig(in_daily_report=False)
         )
         rows = [_screened_row_row()]
-        assert daily_workflow._dcf_rows_for_report(rows, Namespace(no_dcf=False), None, object()) == []
+        assert (
+            daily_workflow._dcf_rows_for_report(
+                rows, Namespace(no_dcf=False), None, object()
+            )
+            == []
+        )
 
     def test_daily_dcf_rows_top_n(self, monkeypatch):
         monkeypatch.setattr(
             refresh_service, "load_dcf_config", lambda: DCFConfig(daily_report_top_n=2)
         )
-        rows = [_screened_row_row(1, "AAPL"), _screened_row_row(2, "MSFT"), _screened_row_row(3, "KO")]
+        rows = [
+            _screened_row_row(1, "AAPL"),
+            _screened_row_row(2, "MSFT"),
+            _screened_row_row(3, "KO"),
+        ]
         dcf_rows = daily_workflow._dcf_rows_for_report(
             rows, Namespace(no_dcf=False), _Repo("dcf_aapl_like.json"), _Prices()
         )
@@ -479,9 +512,7 @@ class TestDailyWorkflowDcfRows:
         assert all(r["verdict"] != "ERROR" for r in dcf_rows)
 
     def test_daily_dcf_rows_error_isolated(self, monkeypatch):
-        monkeypatch.setattr(
-            refresh_service, "load_dcf_config", lambda: DCFConfig()
-        )
+        monkeypatch.setattr(refresh_service, "load_dcf_config", lambda: DCFConfig())
 
         class _Broken:
             def get_best_available(self, ticker):
@@ -510,6 +541,7 @@ class TestDcfStaysOutsideMethodologies:
             "fisher_quantitative_subset",
             "graham",
             "graham_dodd",
+            "greenblatt",
             "lynch_garp",
         }
         assert not any("dcf" in name.lower() for name in names)
@@ -518,7 +550,6 @@ class TestDcfStaysOutsideMethodologies:
         """backend/valuation is not a subpackage of backend/methodologies, so
         auto-discovery can never register it."""
         mods = {
-            info.name
-            for info in pkgutil.iter_modules(backend.methodologies.__path__)
+            info.name for info in pkgutil.iter_modules(backend.methodologies.__path__)
         }
         assert "valuation" not in mods

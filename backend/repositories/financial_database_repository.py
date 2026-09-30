@@ -302,6 +302,8 @@ BALANCE_SHEET_CONCEPTS = {
     # Asset managers/others that report only the restricted-inclusive total
     # (e.g. BEN: CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents)
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": "cash_and_equivalents",
+    # Net property, plant and equipment (Greenblatt's ROC denominator)
+    "PropertyPlantAndEquipmentNet": "net_ppe",
     # Working Capital (calculated as Current Assets - Current Liabilities)
     # We'll calculate this separately since it's not typically stored directly
     # Retained Earnings
@@ -1112,6 +1114,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             total_liabilities=balance.get("total_liabilities"),
             total_debt=balance.get("total_debt"),
             cash_and_equivalents=balance.get("cash_and_equivalents"),
+            net_ppe=balance.get("net_ppe"),
             retained_earnings=balance.get("retained_earnings"),
             stockholders_equity=balance.get("stockholders_equity"),
             current_assets=balance.get("current_assets"),
