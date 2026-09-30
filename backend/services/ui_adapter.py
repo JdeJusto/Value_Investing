@@ -624,6 +624,13 @@ def apply_numeric_filters(
     return [row for row in rows if keep(row)]
 
 
+def validate_screener_range(mcap_min: float, mcap_max: float) -> str | None:
+    """Error message when the market-cap range is impossible, else None."""
+    if mcap_max and mcap_min > mcap_max:
+        return "El market cap mínimo no puede superar el máximo."
+    return None
+
+
 def refresh_portfolio_prices(portfolio: Any, price_service: Any) -> dict[str, dict]:
     """Current price per open position vs the stored one; persists nothing.
 

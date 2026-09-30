@@ -18,6 +18,7 @@ from backend.services.ui_adapter import (
     list_reports,
     parse_daily_report,
     parse_universe_tickers,
+    validate_screener_range,
 )
 from ui._shared import format_pct, format_value, normalize_rows, rows_to_csv
 
@@ -142,6 +143,13 @@ AAPL,1,Apple,"SP500,NASDAQ100"
 KO,2,Coca-Cola,SP500
 ZZZ,3,Small Cap,RUSSELL2000
 """
+
+
+def test_validate_screener_range():
+    assert validate_screener_range(0.0, 0.0) is None
+    assert validate_screener_range(10.0, 500.0) is None
+    assert validate_screener_range(500.0, 10.0) is not None
+    assert validate_screener_range(10.0, 0.0) is None  # max disabled
 
 
 def test_parse_universe_tickers():

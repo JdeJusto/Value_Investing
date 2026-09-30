@@ -28,6 +28,7 @@ from backend.services.ui_adapter import (
     apply_numeric_filters,
     parse_universe_tickers,
     run_methodologies,
+    validate_screener_range,
 )
 from ui._shared import (
     UNIVERSE_PATH,
@@ -54,7 +55,9 @@ CATEGORIES = [
     "UNKNOWN",
 ]
 DISPLAY_CAP = 200
-SECONDS_PER_TICKER = 0.6
+#: Measured on the SP500/Technology run: 91.8 s for 50 tickers (batched
+#: Yahoo snapshot prefetch + methodology enrichment).
+SECONDS_PER_TICKER = 1.8
 
 
 def main() -> None:
@@ -105,7 +108,7 @@ def _filter_panel() -> dict:
             categories = st.multiselect("Lynch category", CATEGORIES)
         st.caption(
             f"Rendimiento estimado: ~{SECONDS_PER_TICKER} s/ticker → "
-            f"~{int(SECONDS_PER_TICKER * max_tickers / 60)} min para "
+            f"{_human_duration(SECONDS_PER_TICKER * max_tickers)} para "
             f"{int(max_tickers)} tickers."
         )
     return {
@@ -123,6 +126,13 @@ def _filter_panel() -> dict:
     }
 
 
+def _human_duration(seconds: float) -> str:
+    """Human estimate: seconds under two minutes, minutes above."""
+    if seconds < 120:
+        return f"~{seconds:.0f} s"
+    return f"~{seconds / 60:.0f} min"
+
+
 def _methodology_names() -> list[str]:
     from backend.methodologies.registry import discover, registry
 
@@ -136,6 +146,10 @@ def _default_methodology_index() -> int:
 
 
 def _run(filters: dict) -> None:
+    error = validate_screener_range(filters["mcap_min"], filters["mcap_max"])
+    if error:
+        st.error(error)
+        return
     tickers = _universe_tickers(tuple(filters["universes"]))
     if not tickers:
         st.warning("El universo seleccionado está vacío (¿config/universe.csv?).")
