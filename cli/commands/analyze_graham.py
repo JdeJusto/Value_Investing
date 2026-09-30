@@ -55,8 +55,10 @@ def _run(args):
     from backend.methodologies.graham.methodology import GrahamMethodology
     from backend.methodologies.registry import discover, registry
     from backend.services.price_service import get_price_service
+    from cli.commands.preflight import require_known_tickers
 
     discover()
+    require_known_tickers([args.ticker])
     refresh_analysis_inputs([args.ticker], args)
     if registry.get("graham") is None:
         print(red("ERROR: the 'graham' methodology is not registered."))

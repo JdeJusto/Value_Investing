@@ -44,8 +44,10 @@ def _run(args):
     from backend.app.cli import build_financial_repository, refresh_analysis_inputs
     from backend.methodologies.registry import discover, registry
     from backend.services.price_service import get_price_service
+    from cli.commands.preflight import require_known_tickers
 
     discover()
+    require_known_tickers([args.ticker])
     refresh_analysis_inputs([args.ticker], args)
     methodology = registry.get("buffett_classic")
     if methodology is None:

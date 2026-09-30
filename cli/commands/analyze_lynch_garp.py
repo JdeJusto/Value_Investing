@@ -60,8 +60,10 @@ def _run(args):
     from backend.methodologies.lynch_garp.methodology import LynchGARPMethodology
     from backend.methodologies.registry import discover, registry
     from backend.services.price_service import get_price_service
+    from cli.commands.preflight import require_known_tickers
 
     discover()
+    require_known_tickers([args.ticker])
     refresh_analysis_inputs([args.ticker], args)
     if registry.get("lynch_garp") is None:
         print(red("ERROR: the 'lynch_garp' methodology is not registered."))

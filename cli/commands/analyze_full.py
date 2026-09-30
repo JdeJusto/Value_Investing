@@ -24,6 +24,7 @@ from backend.app.cli import (
     refresh_analysis_inputs,
 )
 from backend.services.historical_valuation_service import HistoricalValuationService
+from cli.commands.preflight import require_known_tickers
 from cli.formatters import (
     bold,
     dim,
@@ -288,37 +289,10 @@ def _section_risks(row_input):
     )
 
 
-def _unknown_tickers(tickers: list[str]) -> list[str]:
-    """Tickers with no active Financial-DataBase listing.
-
-    A database failure returns [] so the analysis still runs (degraded)
-    instead of blocking on infrastructure trouble.
-    """
-    from backend.services.ticker_resolver import resolve_ticker
-
-    unknown = []
-    for ticker in tickers:
-        try:
-            resolved = resolve_ticker(ticker)
-        except Exception:  # noqa: BLE001 — DB unreachable: do not block
-            return []
-        if resolved is None:
-            unknown.append(ticker)
-    return unknown
-
-
 def _run(args):
     service = build_screener_service()
     tickers = [t.upper().strip() for t in args.tickers]
-    unknown = _unknown_tickers(tickers)
-    if unknown:
-        for ticker in unknown:
-            print(red(f"Error: ticker '{ticker}' not found in Financial-DataBase."))
-        print(
-            "Check that it is a valid listed ticker or run "
-            "`python -m scripts.daily_workflow --refresh` to update the universe."
-        )
-        raise SystemExit(2)
+    require_known_tickers(tickers)
     refresh_analysis_inputs(tickers, args, fetch_prices=not args.no_prices)
 
     for ticker in tickers:
