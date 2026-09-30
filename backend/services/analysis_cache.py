@@ -41,7 +41,7 @@ logger = logging.getLogger("backend.analysis_cache")
 #   v2 -> fundamentals rows + the per-year DB lookups (shares outstanding,
 #        fiscal-year-end). v1 files are ignored, not migrated: the history is
 #        cheap to rebuild and a half-migrated entry would be a silent risk.
-ANALYSIS_VERSION = "2"
+ANALYSIS_VERSION = "3"
 
 DEFAULT_DIRECTORY = "data/cache/analysis"
 

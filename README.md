@@ -35,6 +35,17 @@ This is an analysis tool, **not investment advice**. Results depend on the quali
 
 Provider data and trademarks are not covered by this repository's MIT license. Follow each provider's terms, access policies, and attribution requirements. Data may be delayed, incomplete, or unavailable.
 
+## Data conventions
+
+- **Net income**: when a company reports both a consolidated net income and
+  a net income available to common stockholders (usually because it has
+  preferred stock), the platform uses the **available to common** figure —
+  it is the right basis for per-share metrics (EPS, P/E, DDM) and keeps
+  preferred dividends from inflating returns. The CLI marks the figure as
+  "available to common" so it is not mistaken for the consolidated number
+  found on EDGAR (JPM FY2025: 55.7B available to common vs 57.0B
+  consolidated — see `docs/coherence_audit_2026-09-30.md`).
+
 The Python integrations use `edgartools`, `yfinance`, and SQLAlchemy. The
 interfaces include Streamlit and FastAPI + React; the optional Compose stack
 also uses Redis and Celery. `Pipfile` and `Pipfile.lock` are the authoritative

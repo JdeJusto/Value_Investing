@@ -55,6 +55,11 @@ class NormalizedFinancials:
     ebit: float | None = None
     ebitda: float | None = None
     net_income: float | None = None
+    #: Which net-income concept won: "consolidated" (NetIncomeLoss /
+    #: NetIncome / ProfitLoss) or "available_to_common"
+    #: (NetIncomeLossAvailableToCommonStockholders*). None when no
+    #: net-income fact was found. Rendered as a note by the CLI.
+    net_income_convention: str | None = None
     interest_expense: float | None = None
     tax_provision: float | None = None
     pretax_income: float | None = None

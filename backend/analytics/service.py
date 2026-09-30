@@ -180,6 +180,7 @@ class CompanyAnalysisService:
             "market_cap": market_cap,
             "revenue": revenue,
             "net_income": net_income,
+            "net_income_convention": getattr(last, "net_income_convention", None),
             "ebit": ebit,
             "fcf": fcf,
             "total_debt": debt,

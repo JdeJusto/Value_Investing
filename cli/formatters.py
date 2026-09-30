@@ -53,6 +53,19 @@ def fmt_dollar(value: float | None) -> str:
     return f"${value:.2f}"
 
 
+def fmt_net_income(value: float | None, convention: str | None = None) -> str:
+    """Net income with its accounting convention when it is not consolidated.
+
+    "available_to_common" subtracts preferred dividends, so the figure is
+    lower than the consolidated net income shown on EDGAR; the note keeps
+    the difference from looking like a data error.
+    """
+    text = fmt_dollar(value) + " USD"
+    if convention == "available_to_common":
+        return text + dim(" (available to common; see README for convention)")
+    return text
+
+
 def fmt_ratio(value: float | None, decimals: int = 2) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return dim("N/A")

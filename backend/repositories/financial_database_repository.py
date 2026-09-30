@@ -200,6 +200,25 @@ INCOME_CONCEPT_RANK = {
     for rank, concept in enumerate(concepts)
 }
 
+#: Net-income concepts and the convention they represent. "Available to
+#: common" subtracts preferred dividends, so per-share metrics (EPS, P/E,
+#: DDM) use it while the consolidated figure is the whole-company number.
+_AVAILABLE_TO_COMMON_NET_INCOME = (
+    "NetIncomeLossAvailableToCommonStockholdersBasic",
+    "NetIncomeLossAvailableToCommonStockholdersDiluted",
+)
+_CONSOLIDATED_NET_INCOME = ("NetIncomeLoss", "NetIncome", "ProfitLoss")
+
+
+def _income_convention(concept: str | None) -> str | None:
+    """Label the net-income convention from the winning XBRL concept."""
+    if concept in _AVAILABLE_TO_COMMON_NET_INCOME:
+        return "available_to_common"
+    if concept in _CONSOLIDATED_NET_INCOME:
+        return "consolidated"
+    return None
+
+
 # Some companies file several capital-expenditure elements for the same period
 # (e.g. AEP reports both PaymentsToAcquireProductiveAssets and the broader
 # SegmentExpenditureAdditionToLongLivedAssets). Rank the concepts so the most
@@ -894,6 +913,10 @@ class FinancialDatabaseRepository(FinancialRepository):
                 # Handle duplicates by taking the first fact ordered above
                 if field_name not in income_data or income_data[field_name] is None:
                     income_data[field_name] = value
+                    if field_name == "net_income":
+                        income_data["net_income_convention"] = _income_convention(
+                            concept
+                        )
 
             # Map to balance sheet
             elif (
@@ -1114,6 +1137,7 @@ class FinancialDatabaseRepository(FinancialRepository):
             ebit=income.get("ebit"),
             ebitda=income.get("ebitda"),
             net_income=income.get("net_income"),
+            net_income_convention=income.get("net_income_convention"),
             interest_expense=income.get("interest_expense"),
             tax_provision=income.get("tax_provision"),
             pretax_income=income.get("pretax_income"),

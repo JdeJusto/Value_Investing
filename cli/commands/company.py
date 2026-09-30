@@ -5,6 +5,7 @@ from cli.formatters import (
     bold,
     dim,
     fmt_dollar,
+    fmt_net_income,
     fmt_pct,
     fmt_ratio,
     green,
@@ -116,7 +117,10 @@ def _run(args):
 
     print()
     print_key_value("Revenue", fmt_dollar(result.get("revenue")) + " USD")
-    print_key_value("Net Income", fmt_dollar(result.get("net_income")) + " USD")
+    print_key_value(
+        "Net Income",
+        fmt_net_income(result.get("net_income"), result.get("net_income_convention")),
+    )
     print_key_value("Free Cash Flow", fmt_dollar(result.get("fcf")) + " USD")
 
     print_separator("-")
