@@ -116,8 +116,7 @@ Versioning rules:
 
 The package version must match the top `CHANGELOG.md` entry; that consistency
 (plus the changelog format and the README badges) is enforced by
-`tests/unit/test_version.py` and `tests/unit/test_release_consistency.py` in the
-regular suite.
+`tests/unit/test_release_consistency.py` in the regular suite.
 
 ## Reporting bugs
 

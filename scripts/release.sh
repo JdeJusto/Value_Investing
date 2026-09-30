@@ -169,6 +169,7 @@ fi
 info "8/9  Commit y tag anotado"
 git add "$VERSION_FILE" "$CHANGELOG"
 [ -f pyproject.toml ] && git add pyproject.toml
+[ -f Pipfile ] && git add Pipfile
 for README in README.md README.es.md; do
   [ -f "$README" ] && git add "$README"
 done

@@ -1,10 +1,9 @@
 """Consistencia del release: versión ↔ CHANGELOG ↔ metadatos.
 
-Complementa a ``tests/unit/test_version.py`` (que ya comprueba que
-``backend.__version__`` coincide con la primera entrada del CHANGELOG)
-validando además el formato Keep a Changelog (fecha ISO en cada release,
-secciones y orden), la versión declarada en ``pyproject.toml`` si existiera y
-los badges de versión de los README. Así el script ``scripts/release.sh`` no
+Valida que ``backend.__version__`` coincide con la primera entrada del
+CHANGELOG, el formato Keep a Changelog (fecha ISO en cada release, secciones
+y orden), la versión declarada en ``pyproject.toml`` si existiera y los
+badges de versión de los README. Así el script ``scripts/release.sh`` no
 puede dejar el repositorio descuadrado.
 """
 
