@@ -83,14 +83,21 @@ Before making the repository public:
 - [ ] `.env` gitignored in both repos (and never tracked)
 - [ ] LICENSE, CONTRIBUTING, SECURITY present (Value Investing also
       CODE_OF_CONDUCT)
-- [ ] Topics set on GitHub (both repos)
-- [ ] Roadmap issue pinned (Value Investing #18)
+- [x] Topics set on GitHub (both repos)
+- [x] Roadmap issue pinned (Value Investing #18)
 
-### After making the repos public: branch protection
+### Branch protection — applied 2026-09-30
 
-Branch protection and rulesets require GitHub Pro or a public repository
-(free private repos return HTTP 403). Once public, enable it with the real
-CI check names:
+> Branch protection applied on 2026-09-30:
+> - VI: required checks = Unit tests (no database), Compile check, Frontend (audit, lint, build)
+> - FDB: required checks = Unit tests (no database), PostgreSQL integration tests
+>
+> `strict: true`, force-push and branch deletion disabled, admins exempt
+> (the release script pushes directly to `main`).
+
+The commands below are kept as a reference for re-applying or adjusting
+the protection (branch protection and rulesets require GitHub Pro or a
+public repository — free private repos return HTTP 403).
 
 ```bash
 # Value Investing
@@ -117,4 +124,4 @@ gh api repos/JdeJusto/Financial-DataBase/branches/main/protection -X PUT \
   -F "allow_force_pushes=false" -F "allow_deletions=false"
 ```
 
-Do NOT run these until the repositories are public (or on a Pro plan).
+Applied on 2026-09-30 (both repos public); see the note above.
