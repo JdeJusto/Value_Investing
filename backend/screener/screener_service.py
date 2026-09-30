@@ -59,6 +59,7 @@ class ScreenerService:
         price_service=None,
         no_prices: bool = False,
         workers: int = 1,
+        price_cache=None,
     ):
         """``analyzer`` must return the analysis dict (or None when no data).
 
@@ -76,11 +77,17 @@ class ScreenerService:
         must be safe for the injected analyzer/repository (the
         FinancialDatabaseRepository opens one PostgreSQL connection per
         thread).
+
+        ``price_cache`` (PriceCache, optional) prefetches every screened
+        ticker's price in one paced batch before the per-ticker step and then
+        serves the reads from memory; without it the per-ticker calls are
+        unchanged.
         """
         self._analyzer = analyzer
         self._universe = list(universe) if universe is not None else None
         self._enrich = enrich
         self._price_service = price_service
+        self._price_cache = price_cache
         self._no_prices = no_prices
         self._workers = max(1, int(workers or 1))
 
@@ -128,6 +135,10 @@ class ScreenerService:
         from concurrent.futures import ThreadPoolExecutor
 
         tickers = criteria.tickers or (self._universe or [])
+        if self._price_cache is not None and not self._no_prices:
+            # One paced batch instead of N individual Yahoo calls; the
+            # per-ticker enrichment below then reads from memory.
+            self._price_cache.prefetch(list(tickers))
         if self._workers > 1:
             with ThreadPoolExecutor(max_workers=self._workers) as pool:
                 return [
@@ -153,7 +164,10 @@ class ScreenerService:
         filters.
         """
         try:
-            price = self._price_service.get_current_price(ticker)
+            if self._price_cache is not None:
+                price = self._price_cache.get(ticker)
+            else:
+                price = self._price_service.get_current_price(ticker)
             if price is None:
                 item["price_metrics"] = {}
                 return

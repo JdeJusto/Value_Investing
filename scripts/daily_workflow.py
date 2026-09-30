@@ -448,6 +448,7 @@ def _run(args) -> None:
         save_state,
         trim_state,
     )
+    from backend.services.price_cache import PriceCache
 
     report_date = (
         date.fromisoformat(args.date) if args.date else datetime.now().date()  # noqa: DTZ005 — the report follows the local calendar day
@@ -773,6 +774,7 @@ def _run(args) -> None:
         price_service=price_service,
         no_prices=args.no_prices,
         workers=args.workers,
+        price_cache=PriceCache(),
     )
     screened = screener.run()
     logger.info("screened %d of %d tickers", len(screened), len(universe))

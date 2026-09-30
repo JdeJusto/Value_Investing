@@ -22,6 +22,7 @@ from backend.repositories.financial_database_repository import (
 from backend.repositories.json_financial_repository import JsonFinancialRepository
 from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
+from backend.services.price_cache import PriceCache
 from backend.services.price_service import get_price_service
 from backend.services.screener_service import StockScreenerService
 from backend.utils.input import get_tickers
@@ -154,6 +155,8 @@ def build_investment_screener(
         enrich=enrich,
         price_service=get_price_service(),
         no_prices=no_prices,
+        # One paced batch per run instead of N individual Yahoo calls.
+        price_cache=PriceCache(),
     )
 
 
