@@ -90,6 +90,84 @@ figures pinned to a date — regenerate them with
 `python -m scripts.build_demo_data`. To use the real system, see
 [Installation](#installation).
 
+## A worked example
+
+`analyze-full` runs everything on one company: fundamentals, the eight
+methodologies, the DCF and the historical valuation. This is the real output
+of `python main.py analyze-full KO --demo`:
+
+```text
+  Analisis integral: KO
+1) Company overview
+     Ticker         KO
+     Nombre         The Coca-Cola Company
+2) Precio y valoracion en tiempo real
+     Precio             $70.00
+     Market Cap         $374.7B
+     PER                29.0
+     P/B                11.71
+     FCF Yield          3.8%
+     EV/EBIT            28.1
+3) Metricas fundamentales
+     ROE                      40.4%
+     ROIC                     17.2%
+     Margen operativo         30.0%
+     Margen neto              27.0%
+     Crecimiento ingresos     4.0%
+     Deuda / Equity           1.38
+     Free Cash Flow           $14.4B
+     Owner Earnings           $11.5B
+4) Calidad de la empresa
+     Buffett score        97.5
+     Moat                 STRONG
+     Rating               A
+     Score total          98.8
+     Valor DCF            $449.3B
+     Margen de seguridad  16.6%
+     ROIC medio           16.4%
+     Insight: High sustained ROE above 15%; Strong free cash flow generation
+     in most years; Stable margins indicate pricing power; Wide economic moat.
+
+  DCF Valuation (supplementary, not-from-canon)
+         Intrinsic value/share : $59.48
+                 Current price : $70.00
+              Margin of safety : -17.7%
+                       Verdict : OVERVALUED
+  ⚠️ This valuation is NOT part of any book-derived methodology.
+     It is a practical addition labeled not-from-canon.
+
+5) Valoracion historica
+fiscal_year |    price |      eps |   pe_ratio |  fcf_yield
+      2025 |    68.58 |     3.04 |      22.55 |      1.79%
+      2024 |    59.32 |     2.47 |      24.05 |      1.85%
+      2023 |    54.49 |     2.48 |      21.98 |      4.14%
+6) Riesgos / anomalias / triggers
+     Piotroski F-Score: 6/9
+     Altman Z-Score: 4.23
+     Fuente: YAHOO  |  Confianza datos: HIGH  |  Calidad: 100.0%
+```
+
+What you are seeing:
+
+- **1) Overview / 2) Price**: identity plus the live-price metrics (market
+  cap, P/E, FCF yield, EV/EBIT). In demo mode the price is the pinned
+  fixture ($70.00).
+- **3) Fundamentals**: margins, ROE/ROIC, leverage, owner earnings — the
+  raw material every methodology consumes.
+- **4) Quality**: the Buffett-style composite (score, moat, rating) with the
+  human-readable insights behind it.
+- **DCF panel**: shown separately and labeled `not-from-canon` — it is a
+  practical valuation, not a book rule, and it never feeds the methodology
+  scores. Here it says OVERVALUED while the quality block rates the business
+  highly: exactly the disagreement this platform is built to show.
+- **5) Historical valuation**: P/E and FCF yield per fiscal year, so you can
+  judge whether today's multiple is high or low *for this company*.
+- **6) Risks**: z-score anomalies, Piotroski F-Score, Altman Z-Score and any
+  active trigger.
+
+For the multi-framework view use `compare-methodologies KO --demo`: the eight
+verdicts side by side plus the disagreement summary.
+
 ## UI
 
 | Home | Analysis |
@@ -228,6 +306,41 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3   # safe smoke run
 The daily report feeds the Home page (top opportunities + alerts).
 
 The optional Docker Compose stack includes PostgreSQL, Redis, the FastAPI service, Celery workers, and the React frontend. It is for local development, not a production deployment; configure secrets, database migrations, and network access before exposing any service.
+
+### Common tasks
+
+**Analyze a company you have never looked at**
+
+```bash
+python main.py analyze-full <TICKER> --demo   # try it without a database
+python main.py analyze-full <TICKER>          # real SEC fundamentals
+```
+
+**Find candidates in a sector**
+
+```bash
+VI_DEMO=1 ./run_ui.sh
+# Screener -> pick universe/sector -> Run
+```
+
+**Compare how different frameworks see the same company**
+
+```bash
+python main.py compare-methodologies <TICKER>
+```
+
+**Track a position**
+
+```bash
+python main.py portfolio add <TICKER> <SHARES> <PRICE> --thesis "..." --signal BUY
+python main.py portfolio view
+```
+
+**Run the daily workflow manually**
+
+```bash
+python -m scripts.daily_workflow --limit 20 --top 5
+```
 
 ## Troubleshooting
 
