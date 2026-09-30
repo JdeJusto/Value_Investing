@@ -62,3 +62,9 @@ closed. This file now tracks what remains.
 6. **`analyze-graham`/`lynch-garp` first-call warm-up** (13-26 s) is
    Yahoo price latency, not a defect; a shared prefetch across commands
    would smooth it. *Effort*: M.
+
+## Deferred
+
+- **Ubuntu 26 migration (2026-10-19)**: GitHub Actions `ubuntu-latest`
+  migrates to Ubuntu 26. Workflows are pinned to `ubuntu-24.04` (done);
+  review and test on `ubuntu-26.04` when available.
