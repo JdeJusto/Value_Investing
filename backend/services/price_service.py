@@ -144,7 +144,7 @@ class PriceService:
                 cache_ttl = int(
                     os.getenv("PRICE_CACHE_TTL", str(DEFAULT_CACHE_TTL_SECONDS))
                 )
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 cache_ttl = DEFAULT_CACHE_TTL_SECONDS
         self._cache_ttl = cache_ttl
         # Optional run telemetry (NetworkMetrics) and availability preflight
@@ -383,7 +383,7 @@ class PriceService:
                     beta = float(beta)
                     self._set_cached(key, beta)
                     return beta
-                except TypeError, ValueError:
+                except (TypeError, ValueError):
                     pass
         except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
             pass
@@ -481,7 +481,7 @@ class PriceService:
             if shares is not None:
                 try:
                     self._set_cached(f"shares:{ticker}", int(shares))
-                except TypeError, ValueError:
+                except (TypeError, ValueError):
                     pass
         return snapshots
 
@@ -929,7 +929,7 @@ class PriceService:
                     continue
                 try:
                     prices.append((d, float(close)))
-                except TypeError, ValueError:
+                except (TypeError, ValueError):
                     continue
             return prices
         except Exception:  # noqa: BLE001

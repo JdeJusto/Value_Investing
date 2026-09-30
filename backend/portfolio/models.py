@@ -60,7 +60,7 @@ class Position:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Position:
+    def from_dict(cls, data: dict[str, Any]) -> "Position":
         known = {
             "ticker",
             "quantity",
@@ -139,7 +139,7 @@ class Portfolio:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Portfolio:
+    def from_dict(cls, data: dict[str, Any]) -> "Portfolio":
         return cls(
             name=data.get("name", "default"),
             positions=[Position.from_dict(p) for p in data.get("positions", [])],

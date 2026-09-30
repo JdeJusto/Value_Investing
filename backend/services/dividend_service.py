@@ -68,11 +68,11 @@ def _parse_dividends(raw) -> list[DividendRecord]:
         try:
             if key != key:  # noqa: PLR0124 — NaT check (NaT != NaT is True)
                 continue
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             pass
         try:
             value = float(amount)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
         if value <= 0:
             continue

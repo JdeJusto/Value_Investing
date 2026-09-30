@@ -171,7 +171,7 @@ def _safe_div(num: float | None, den: float | None) -> float | None:
         return None
     try:
         den = float(den)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     if den == 0:
         return None
@@ -434,7 +434,7 @@ def compare_rows(vi_row: dict, ext_row: dict) -> list[dict[str, Any]]:
             continue
         try:
             va_f, vb_f = float(va), float(vb)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
         if math.isnan(va_f) or math.isnan(vb_f):
             continue

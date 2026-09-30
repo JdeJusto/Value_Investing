@@ -53,7 +53,7 @@ def run(limit: int, workers: int, no_update: bool, out_dir: str) -> dict[str, fl
         try:
             name, seconds = line.strip().split("[timing]")[1].strip().split(":")
             phases[name.strip()] = float(seconds.split("s")[0])
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             continue
     if not phases:
         print(combined[-3000:], file=sys.stderr)

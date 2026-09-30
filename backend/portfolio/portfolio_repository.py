@@ -30,7 +30,7 @@ class JsonPortfolioRepository(PortfolioRepository):
         try:
             with open(self._path, "r", encoding="utf-8") as handle:
                 return Portfolio.from_dict(json.load(handle))
-        except json.JSONDecodeError, KeyError, ValueError:
+        except (json.JSONDecodeError, KeyError, ValueError):
             return Portfolio()
 
     def save(self, portfolio: Portfolio) -> None:

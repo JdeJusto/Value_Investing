@@ -36,7 +36,7 @@ def _period_end_year(value) -> int | None:
         return value.year
     try:
         return date.fromisoformat(str(value)[:10]).year
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         return None
 
 
@@ -46,7 +46,7 @@ def _as_date(value) -> date | None:
         return value
     try:
         return date.fromisoformat(str(value)[:10])
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         return None
 
 
@@ -76,7 +76,7 @@ def _cumulative_split_multiplier(fy_end, split_rows: list) -> float:
             continue
         try:
             ratio_f = float(ratio)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
         if effective <= end or ratio_f <= 0:
             continue
@@ -807,7 +807,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 return value.toordinal()
             try:
                 return date.fromisoformat(str(value)[:10]).toordinal()
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 return 0
 
         # Precompute each fact's sort key ONCE, before sorting. The previous

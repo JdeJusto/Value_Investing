@@ -122,7 +122,7 @@ class JsonFinancialRepository(FinancialRepository):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             years = payload.get("years", {}) if isinstance(payload, dict) else {}
-        except json.JSONDecodeError, OSError:
+        except (json.JSONDecodeError, OSError):
             return {}
 
         normalized: dict[str, dict] = {}

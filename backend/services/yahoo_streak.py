@@ -214,7 +214,7 @@ class YahooStreakTracker:
         blank.update({k: v for k, v in data.items() if k in blank})
         try:
             blank["consecutive_failures"] = int(blank.get("consecutive_failures", 0))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             blank["consecutive_failures"] = 0
         blank["alerted"] = bool(blank.get("alerted", False))
         return blank

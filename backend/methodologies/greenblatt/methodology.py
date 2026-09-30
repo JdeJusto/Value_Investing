@@ -207,7 +207,7 @@ class GreenblattMethodology(Methodology):
         path = files[-1]
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except OSError, json.JSONDecodeError:
+        except (OSError, json.JSONDecodeError):
             return None, f"Greenblatt ranking file {path.name} is unreadable"
         ranking_date = payload.get("date")
         if not ranking_date:

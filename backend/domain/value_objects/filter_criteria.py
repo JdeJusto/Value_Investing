@@ -35,19 +35,19 @@ class FilterCriteria:
 
         try:
             left = float(metric_value)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return False
 
         if self.operator == FilterOperator.EQ:
             try:
                 return left == float(self.value)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 return str(metric_value) == str(self.value)
 
         if self.operator == FilterOperator.NEQ:
             try:
                 return left != float(self.value)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 return str(metric_value) != str(self.value)
 
         if self.operator in (
@@ -58,7 +58,7 @@ class FilterCriteria:
         ):
             try:
                 right = float(self.value)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 return False
             if self.operator == FilterOperator.GT:
                 return left > right
@@ -74,23 +74,23 @@ class FilterCriteria:
             try:
                 low, high = float(self.value[0]), float(self.value[1])
                 return low <= left <= high
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 return False
 
         return False
 
     @classmethod
-    def lt(cls, field: str, value: float) -> FilterCriteria:
+    def lt(cls, field: str, value: float) -> "FilterCriteria":
         return cls(field=field, operator=FilterOperator.LT, value=value)
 
     @classmethod
-    def gt(cls, field: str, value: float) -> FilterCriteria:
+    def gt(cls, field: str, value: float) -> "FilterCriteria":
         return cls(field=field, operator=FilterOperator.GT, value=value)
 
     @classmethod
-    def between(cls, field: str, low: float, high: float) -> FilterCriteria:
+    def between(cls, field: str, low: float, high: float) -> "FilterCriteria":
         return cls(field=field, operator=FilterOperator.BETWEEN, value=(low, high))
 
     @classmethod
-    def eq(cls, field: str, value: Any) -> FilterCriteria:
+    def eq(cls, field: str, value: Any) -> "FilterCriteria":
         return cls(field=field, operator=FilterOperator.EQ, value=value)

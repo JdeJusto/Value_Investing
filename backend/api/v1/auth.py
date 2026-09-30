@@ -85,7 +85,7 @@ async def refresh_token(body: TokenRefreshRequest, db: AsyncSession = Depends(ge
 
     try:
         numeric_id = int(user_id)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )

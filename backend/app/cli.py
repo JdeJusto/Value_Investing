@@ -218,7 +218,7 @@ def refresh_analysis_inputs(
     if freshness_hours is not None:
         try:
             freshness_hours = int(freshness_hours)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             freshness_hours = None
 
     skip = None  # None => let the config decide (skip_refresh_flag/auto_refresh)

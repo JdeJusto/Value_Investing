@@ -37,7 +37,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
 
         try:
             return bool(np.isnan(value))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return False
 
     def _safe_val(self, series, index=0):
@@ -46,7 +46,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             if self._is_nan(val):
                 return None
             return val
-        except IndexError, AttributeError, KeyError, TypeError:
+        except (IndexError, AttributeError, KeyError, TypeError):
             return None
 
     def _get(self, df: pd.DataFrame, name: str, index: int = 0):
@@ -54,7 +54,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
         raising KeyError (some statements omit rows like Operating Income)."""
         try:
             return self._safe_val(df.loc[name], index)
-        except KeyError, IndexError, AttributeError, TypeError:
+        except (KeyError, IndexError, AttributeError, TypeError):
             return None
 
     def _pick(self, df: pd.DataFrame, candidates: list[str], index: int = 0):
@@ -64,7 +64,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 if self._is_nan(val):
                     continue
                 return val
-            except KeyError, IndexError, AttributeError, TypeError:
+            except (KeyError, IndexError, AttributeError, TypeError):
                 continue
         return None
 
@@ -86,7 +86,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 tax_provision=self._get(ism, "Tax Provision", year_index),
                 pretax_income=self._get(ism, "Pretax Income", year_index),
             )
-        except AttributeError, TypeError:
+        except (AttributeError, TypeError):
             return None
 
     def get_balance_sheet(
@@ -116,7 +116,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                     year_index,
                 ),
             )
-        except AttributeError, TypeError:
+        except (AttributeError, TypeError):
             return None
 
     def get_cash_flow(
@@ -165,7 +165,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                     year_index,
                 ),
             )
-        except KeyError, AttributeError, TypeError:
+        except (KeyError, AttributeError, TypeError):
             return None
 
     def get_market_cap(self, ticker: str) -> float | None:
@@ -209,7 +209,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             )
             if ni is not None and shares:
                 return float(ni) / float(shares)
-        except KeyError, AttributeError, TypeError:
+        except (KeyError, AttributeError, TypeError):
             pass
         return None
 
@@ -223,7 +223,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
             )
             if years:
                 return years
-        except KeyError, AttributeError, TypeError:
+        except (KeyError, AttributeError, TypeError):
             pass
         return []
 
@@ -252,7 +252,7 @@ class YahooFinanceProvider(FinancialDataProvider, MarketDataProvider):
                 )
             entries.sort(key=lambda e: e["end_date"], reverse=True)
             return entries
-        except KeyError, AttributeError, TypeError:
+        except (KeyError, AttributeError, TypeError):
             return []
 
     def get_risk_free_rate(self) -> float:
