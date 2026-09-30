@@ -45,7 +45,11 @@ def main() -> None:
         "Portfolio",
         "Positions, actions and risk. Prices refresh in memory; saving is explicit.",
     )
-    path = os.environ.get("PORTFOLIO_PATH", DEFAULT_PORTFOLIO_PATH)
+    path = (
+        str(DEMO_PORTFOLIO)
+        if is_demo()
+        else os.environ.get("PORTFOLIO_PATH", DEFAULT_PORTFOLIO_PATH)
+    )
     portfolio = load_portfolio(path)
     if portfolio is None:
         st.error(f"No se pudo leer la cartera en {path}.")
