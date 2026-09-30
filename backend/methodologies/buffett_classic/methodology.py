@@ -23,6 +23,7 @@ from backend.methodologies.base import (
     SourceRef,
     Verdict,
 )
+from backend.methodologies.common.company_type import is_financial
 
 # The engine (buffett_engine.py) defines per-pillar thresholds but no
 # BUY/WATCH/HOLD/AVOID mapping, so the wrapper uses the framework's agreed
@@ -79,13 +80,40 @@ class BuffettClassicMethodology(Methodology):
                 sources=[_SOURCE],
             )
 
+        latest = rows[0]
+        if is_financial(latest, getattr(latest, "sector", None)):
+            return MethodologyResult(
+                methodology=self.name,
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.INSUFFICIENT_DATA,
+                score=None,
+                metrics={
+                    "financial_company": True,
+                    "fiscal_years_analyzed": len(rows),
+                },
+                reasons=[
+                    (
+                        "buffett_classic does not apply to financial companies "
+                        "(banks, insurers): the 4-pillar filter reads bank "
+                        "leverage as weakness. See README for details."
+                    ),
+                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=[_SOURCE],
+                passed_rules=[],
+                failed_rules=[],
+            )
+
         metrics = compute_quality_metrics(rows)
         filter_result = buffett_filter(metrics)
         score = float(filter_result["score"])
         pillars = filter_result.get("breakdown") or {}
         try:
             moat = analyze_moat(rows, metrics=metrics)
-        except (AttributeError, KeyError, TypeError, ValueError):
+        except AttributeError, KeyError, TypeError, ValueError:
             moat = None
 
         result_metrics: dict[str, Any] = dict(pillars)

@@ -55,3 +55,8 @@ from the value screens. That disagreement is by design.
 - Quality-only: does not value the company or check the price.
 - Verdict thresholds are framework conventions (75/60/40).
 - Sources point to the engine module (implementation-defined), not a book.
+- **Does not apply to financial companies** (banks, insurers): the shared
+  company-type detector routes them to INSUFFICIENT_DATA with confidence
+  HIGH, because the financial-strength pillar (debt/equity, interest
+  coverage) reads bank leverage as weakness. This matches the other five
+  book methodologies; the guard was added on 2026-09-30 for consistency.

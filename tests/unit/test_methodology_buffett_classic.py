@@ -126,3 +126,29 @@ def test_rules_and_metadata(monkeypatch):
     meta = methodology.metadata()
     assert "Buffett" in meta["description"]
     assert "buffett_engine" in meta["source"]["book"]
+
+
+def test_financial_company_returns_insufficient():
+    # Consistency with the other five methodologies: a bank/insurer cannot
+    # be judged by rules designed for industrials (the financial-strength
+    # pillar reads bank leverage as weakness).
+    from backend.domain.value_objects.financials_normalized import (
+        NormalizedFinancials,
+    )
+
+    rows = [
+        NormalizedFinancials(
+            ticker="JPM",
+            fiscal_year=2024,
+            period="FY",
+            sector="Financial Services",
+        )
+    ]
+    result = BuffettClassicMethodology().evaluate("JPM", rows, _Prices())
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
+    assert result.confidence == Confidence.HIGH
+    assert result.metrics["financial_company"] is True
+    assert any("financial companies" in reason for reason in result.reasons)
+    assert result.passed_rules == []
+    assert result.failed_rules == []
