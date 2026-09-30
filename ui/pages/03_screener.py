@@ -106,6 +106,14 @@ def _filter_panel() -> dict:
             fcf_min = st.slider("FCF yield min (%)", 0.0, 20.0, 0.0, 0.5)
             verdicts = st.multiselect("Verdict", VERDICTS)
             categories = st.multiselect("Lynch category", CATEGORIES)
+            include_funds = st.checkbox(
+                "Incluir fondos y SPACs",
+                value=False,
+                help=(
+                    "Por defecto se excluyen los vehículos sin ingresos "
+                    "operativos (fondos, trusts, ETFs, SPACs)."
+                ),
+            )
         estimate = screener_estimate(
             int(max_tickers), st.session_state.get("screener_speed_s")
         )
@@ -133,6 +141,7 @@ def _filter_panel() -> dict:
         "fcf_min": fcf_min / 100.0,
         "verdicts": verdicts,
         "categories": categories,
+        "include_funds": include_funds,
     }
 
 
@@ -198,7 +207,7 @@ def _run(filters: dict) -> None:
         roe_min=filters["roe_min"],
         fcf_min=filters["fcf_min"],
     )
-    rows = _enrich(rows, filters["methodology"], sectors)
+    rows = _enrich(rows, filters["methodology"], sectors, filters["include_funds"])
     st.session_state["screener_speed_s"] = (time.time() - start) / max(len(tickers), 1)
     if filters["verdicts"]:
         rows = [row for row in rows if row["Verdict"] in filters["verdicts"]]
@@ -247,7 +256,9 @@ def _universe_tickers(universes: tuple[str, ...]) -> list[str]:
     return parse_universe_tickers(UNIVERSE_PATH.read_text(encoding="utf-8"), universes)
 
 
-def _enrich(rows: list[dict], methodology: str, sectors: dict) -> list[dict]:
+def _enrich(
+    rows: list[dict], methodology: str, sectors: dict, include_funds: bool = False
+) -> list[dict]:
     tickers = [row["ticker"] for row in rows]
     if not sectors:
         sectors = load_sector_map_bulk(tuple(tickers)) if tickers else {}
@@ -257,6 +268,7 @@ def _enrich(rows: list[dict], methodology: str, sectors: dict) -> list[dict]:
         sectors,
         load_fundamentals,
         run_methodologies,
+        include_funds=include_funds,
     )
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.services.ui_adapter import enrich_rows
 
 
@@ -22,7 +23,15 @@ def _make_loaders(failing: set[str] | None = None, exploding: set[str] | None = 
         calls.append(ticker)
         if ticker in failing:
             raise RuntimeError("db down for this ticker")
-        return [] if ticker in exploding else [object()]
+        if ticker in exploding:
+            return []
+        # A real row with operating revenue: the enrichment tests exercise
+        # mechanics, not the fund/SPAC eligibility filter.
+        return [
+            NormalizedFinancials(
+                ticker=ticker, fiscal_year=2025, period="FY", revenue=1_000.0
+            )
+        ]
 
     def run_methodologies(ticker, fundamentals, price):
         if ticker in exploding:

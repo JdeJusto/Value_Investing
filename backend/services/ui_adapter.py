@@ -25,6 +25,7 @@ from backend.portfolio.allocation import (
     sector_exposure,
 )
 from backend.portfolio.performance import portfolio_performance
+from backend.services.screener_filters import is_investable_company
 from backend.valuation.dcf import DCFValuation
 
 #: Human labels for the DCF variants. Mirrors ``cli/commands/dcf.py`` on
@@ -757,6 +758,7 @@ def enrich_rows(
     load_fundamentals,
     run_methodologies,
     workers: int = ENRICHMENT_WORKERS,
+    include_funds: bool = False,
 ) -> list[dict]:
     """Enrich screener rows with verdict, score and category (parallel).
 
@@ -768,13 +770,19 @@ def enrich_rows(
     per-batch Yahoo preflight is involved.
     """
 
-    def enrich_one(row: dict) -> dict:
+    def enrich_one(row: dict) -> dict | None:
         ticker = row["ticker"]
         verdict = score = category = None
         try:
             fundamentals = load_fundamentals(ticker)
         except Exception:  # noqa: BLE001 — one bad ticker must not break the batch
             fundamentals = None
+        if not include_funds and not is_investable_company(
+            fundamentals[0] if fundamentals else None,
+            fundamentals,
+            name=row.get("name"),
+        ):
+            return None
         if fundamentals:
             try:
                 view = run_methodologies(ticker, fundamentals, row.get("price"))
@@ -803,6 +811,8 @@ def enrich_rows(
         }
 
     if workers <= 1 or len(rows) <= 1:
-        return [enrich_one(row) for row in rows]
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(pool.map(enrich_one, rows))
+        enriched = [enrich_one(row) for row in rows]
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            enriched = list(pool.map(enrich_one, rows))
+    return [row for row in enriched if row is not None]

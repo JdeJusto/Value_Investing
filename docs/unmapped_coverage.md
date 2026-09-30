@@ -59,3 +59,14 @@ the US-GAAP priority when a filer reports both taxonomies.
   cannot be fixed with a mapping change — there is no revenue to map.
 - These companies stay excluded from revenue-based screens; the platform
   degrades to INSUFFICIENT_DATA instead of fabricating a figure.
+
+## Exclusion from screens
+
+Companies with no revenue AND no net income in the last 3 fiscal years are
+excluded from the screener by default (they are typically funds, trusts,
+ETFs and SPACs). A curated name pattern (Trust / Fund / Acquisition Corp /
+SPAC …) also excludes revenue-less entities that do report a bottom line,
+such as funds with investment income; a company with real sales is never
+excluded by name (e.g. Northern Trust). The exclusion can be disabled per
+session with the "Incluir fondos y SPACs" toggle.
+`backend/services/screener_filters.py::is_investable_company` implements it.
