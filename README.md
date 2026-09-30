@@ -15,6 +15,10 @@ First public release: seven book-derived methodologies (Graham, Graham & Dodd, B
 
 ## Try it in 30 seconds (no database required)
 
+![analyze-full](assets/analyze-full.gif)
+
+![compare-methodologies](assets/compare-methodologies.gif)
+
 ```bash
 git clone https://github.com/JdeJusto/Value_Investing.git
 cd Value_Investing
