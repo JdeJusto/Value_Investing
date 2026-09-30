@@ -41,4 +41,4 @@ alembic = ">=1.13"
 ui = "streamlit run ui/app.py"
 
 [requires]
-python_version = ">=3.11"
+python_version = ">=3.13"
