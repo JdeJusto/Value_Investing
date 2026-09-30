@@ -543,6 +543,7 @@ class TestDcfStaysOutsideMethodologies:
             "graham_dodd",
             "greenblatt",
             "lynch_garp",
+            "marks",
         }
         assert not any("dcf" in name.lower() for name in names)
 
