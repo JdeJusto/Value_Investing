@@ -32,10 +32,10 @@ closed. This file now tracks what remains.
 
 ### P2 — nice to have
 
-1. **Screener enrichment is GIL-bound.** `enrich_rows` parallelizes with 4
-   workers, but 97% of the 0.2 s/ticker cost is Python reconstruction of DB
-   rows (measured). A process pool or a lighter SQL projection (latest N
-   years only) would move the needle. *Effort*: M.
+1. ~~**Screener enrichment is GIL-bound.**~~ Done in v0.3.0: the screener
+   reads the newest 10 fiscal years (SQL cap, 178 -> 146 ms/ticker) on top
+   of the parallel enrichment. Deeper gains (bulk multi-ticker query) remain
+   if needed.
 2. **Greenblatt rankings need a schedule.** The methodology reads
    `data/rankings/greenblatt_*.json` and abstains when older than 30 days;
    add a weekly cron / `daily_workflow` hook so the file never goes stale.
@@ -57,11 +57,12 @@ closed. This file now tracks what remains.
 
 ### P3 — deferred / future
 
-5. **Marks cycle positioning** — the remaining book methodology from the
-   original plan (the other, Greenblatt, shipped in 0.1.0).
-6. **`analyze-graham`/`lynch-garp` first-call warm-up** (13-26 s) is
-   Yahoo price latency, not a defect; a shared prefetch across commands
-   would smooth it. *Effort*: M.
+5. ~~**Marks cycle positioning**~~ — shipped in v0.3.0 as the 8th
+   methodology (measurable subset: cycle position, resilience, margin of
+   safety, quality persistence).
+6. ~~**`analyze-graham`/`lynch-garp` first-call warm-up**~~ — v0.3.0 runs
+   the analysis price batch with 3 bounded workers (the remaining latency is
+   Yahoo's own response time, not sequencing).
 
 ## Deferred
 
