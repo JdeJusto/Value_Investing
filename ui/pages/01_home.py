@@ -13,7 +13,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
-from backend.services.demo_mode import is_demo
+from backend.services.demo_mode import DEMO_PORTFOLIO, is_demo
 from backend.services.ui_adapter import (
     build_portfolio_view,
     latest_daily_report,
@@ -31,7 +31,7 @@ from ui._shared import (
 )
 from ui.services import get_price_service, load_portfolio, load_sector_map
 
-PORTFOLIO_PATH = "data/portfolio.json"
+PORTFOLIO_PATH = str(DEMO_PORTFOLIO) if is_demo() else "data/portfolio.json"
 
 
 def main() -> None:

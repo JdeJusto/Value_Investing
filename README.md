@@ -38,6 +38,23 @@ figures pinned to a date — regenerate them with
 `python -m scripts.build_demo_data`. To use the real system, see
 [Installation](#installation).
 
+## UI
+
+| Home | Analysis |
+|------|----------|
+| ![Home](assets/ui_home.png) | ![Analysis](assets/ui_analysis.png) |
+
+| Screener | Portfolio |
+|----------|-----------|
+| ![Screener](assets/ui_screener.png) | ![Portfolio](assets/ui_portfolio.png) |
+
+| Reports |
+|---------|
+| ![Reports](assets/ui_reports.png) |
+
+Captured from the five-page Streamlit app running in demo mode
+(`VI_DEMO=1 ./run_ui.sh`).
+
 ## What it does
 
 - Loads and normalizes company fundamentals from SEC filings, Yahoo Finance, or the companion Financial-DataBase.

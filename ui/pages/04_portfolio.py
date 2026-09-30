@@ -18,6 +18,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
+from backend.services.demo_mode import DEMO_PORTFOLIO, is_demo
 from backend.services.ui_adapter import (
     PortfolioActionError,
     add_position,
@@ -35,7 +36,7 @@ from ui.services import (
     load_sector_map,
 )
 
-DEFAULT_PORTFOLIO_PATH = "data/portfolio.json"
+DEFAULT_PORTFOLIO_PATH = str(DEMO_PORTFOLIO) if is_demo() else "data/portfolio.json"
 SIGNALS = ["BUY", "WATCH", "HOLD"]
 
 
