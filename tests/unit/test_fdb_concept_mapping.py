@@ -142,3 +142,29 @@ def test_total_dividend_tag_keeps_preferred():
     )
     assert normalized["income"]["preferred_dividends"] == 1_600_000_000
     assert normalized["cash_flow"]["dividends_paid"] == 16_000_000_000
+
+
+def test_ifrs_revenue_from_contracts_maps():
+    """IFRS 15 revenue (20-F/40-F filers) maps to revenue."""
+    income = _income(_fact("RevenueFromContractsWithCustomers", 900.0))
+    assert income["revenue"] == 900.0
+
+
+def test_ifrs_cost_of_sales_maps_and_derives_gross_profit():
+    """IFRS CostOfSales maps to cogs and feeds the gross-profit identity."""
+    income = _income(
+        _fact("RevenueFromContractsWithCustomers", 900.0),
+        _fact("CostOfSales", 400.0),
+    )
+    assert income["revenue"] == 900.0
+    assert income["cogs"] == 400.0
+    assert income["gross_profit"] == 500.0
+
+
+def test_us_gaap_revenue_wins_over_ifrs_when_both_present():
+    """A filer reporting both taxonomies prefers the US-GAAP tag."""
+    income = _income(
+        _fact("Revenues", 1000.0),
+        _fact("RevenueFromContractsWithCustomers", 900.0),
+    )
+    assert income["revenue"] == 1000.0

@@ -108,6 +108,9 @@ INCOME_STATEMENT_CONCEPTS = {
     "SalesRevenueNet": "revenue",
     "RevenueFromContractWithCustomerExcludingAssessedTax": "revenue",
     "RevenueFromContractWithCustomerIncludingAssessedTax": "revenue",
+    # IFRS 15 tag used by 20-F/40-F filers (e.g. SOPHiA GENETICS); stored by
+    # Financial-DataBase under the IFRS concept name.
+    "RevenueFromContractsWithCustomers": "revenue",
     "SalesRevenueGoodsNet": "revenue",
     "SalesRevenueServicesNet": "revenue",
     # REITs file their rental income here when no 'Revenues' tag is present
@@ -116,6 +119,8 @@ INCOME_STATEMENT_CONCEPTS = {
     "CostOfGoodsSold": "cogs",
     "CostOfRevenue": "cogs",
     "CostOfGoodsAndServicesSold": "cogs",
+    # IFRS cost line used by 20-F/40-F filers.
+    "CostOfSales": "cogs",
     # Gross Profit
     "GrossProfit": "gross_profit",
     # Operating Expenses
@@ -173,6 +178,9 @@ INCOME_FIELD_PRIORITY = {
         "SalesRevenueServicesNet",
         "RevenueFromContractWithCustomerExcludingAssessedTax",
         "RevenueFromContractWithCustomerIncludingAssessedTax",
+        # IFRS 15 revenue (20-F/40-F filers); after the US-GAAP tags so a
+        # filer reporting both prefers the domestic tag.
+        "RevenueFromContractsWithCustomers",
         # REIT rental income; ranked last so explicit revenue tags win, with a
         # value-based override in _normalize_financial_facts for REITs whose
         # rental income is the whole top line (e.g. CPT).
