@@ -837,9 +837,17 @@ class RefreshService:
             meta[ticker] = (company_id, cik, last)
         return meta
 
+    #: Analysis warm-up fetches a handful of tickers; running them
+    #: concurrently turns N sequential Yahoo latencies into ~1 (the snapshot
+    #: path already uses up to 6). Bounded to stay polite to Yahoo.
+    PRICE_WARMUP_WORKERS = 3
+
     def _fetch_prices(self, tickers: list[str]) -> dict[str, float | None]:
         try:
-            return self._price_service.get_current_prices(tickers)
+            return self._price_service.get_current_prices(
+                tickers,
+                workers=min(len(tickers), self.PRICE_WARMUP_WORKERS) or 1,
+            )
         except Exception:  # noqa: BLE001 — prices must never break the command
             return {}
 

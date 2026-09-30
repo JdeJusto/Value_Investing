@@ -76,7 +76,7 @@ class FakePriceService:
         self.prices = prices or {}
         self.calls: list[list[str]] = []
 
-    def get_current_prices(self, tickers, batch_size=25, delay=0.2):
+    def get_current_prices(self, tickers, batch_size=25, delay=0.2, workers=1):
         self.calls.append(list(tickers))
         return {t: self.prices.get(t) for t in tickers}
 
