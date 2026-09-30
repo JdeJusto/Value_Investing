@@ -74,7 +74,9 @@ subset** (4 of 15 points), because scuttlebutt cannot be automated.
 ```bash
 git clone https://github.com/JdeJusto/Value_Investing.git
 cd Value_Investing
-uv sync            # or: pipenv install --dev
+python -m pip install pipenv
+PIPENV_VENV_IN_PROJECT=1 pipenv install --dev   # creates ./.venv
+source .venv/bin/activate
 
 python main.py analyze-full AAPL --demo
 python main.py compare-methodologies AAPL --demo
