@@ -1,0 +1,45 @@
+name: Release tag verification
+
+# The release itself is published by scripts/release.sh (commit + annotated tag
+# + GitHub release). This workflow only verifies that a tag never ships without
+# the suite passing and that the tag matches the package version. It never
+# creates the GitHub release on its own.
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-tag:
+    name: Verify tagged release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: Pipfile.lock
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt-get update && sudo apt-get install -y libmagic1
+          pip install pipenv
+          pipenv install --system --deploy --dev
+
+      - name: Run the unit suite
+        run: python -m pytest tests/unit -q
+
+      - name: Tag matches the package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(python -c 'from backend import __version__; print(__version__)')"
+          echo "tag=$TAG package=$PKG"
+          test "$TAG" = "$PKG"

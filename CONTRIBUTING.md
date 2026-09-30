@@ -93,6 +93,32 @@ your change in an unrelated diff. Adding a brand-new dependency does need
 3. `python -m pytest tests/unit -q` must be green.
 4. Open the PR describing what changed and why, and reference the issue.
 
+## Releasing
+
+Use `./scripts/release.sh <patch|minor|major> "<message>"` from a clean `main`
+branch with the tests passing. The script:
+
+1. Bumps the version (single source of truth: `backend/__init__.py`).
+2. Updates `CHANGELOG.md` (Keep a Changelog) and the version badges.
+3. Commits, creates the annotated tag `vX.Y.Z` and pushes.
+4. Creates the GitHub release (`gh release create`).
+
+It refuses to continue if the working tree is dirty, `main` is not in sync with
+`origin/main`, the unit tests fail or `ruff` reports problems — a release is
+never tagged with failing tests. Use `--dry-run` to prepare the changes without
+committing, tagging or pushing.
+
+Versioning rules:
+
+- **patch** (`0.1.X`): bug fixes, docs, small polish.
+- **minor** (`0.X.0`): new methodologies, features, non-breaking behaviour changes.
+- **major** (`X.0.0`): breaking changes.
+
+The package version must match the top `CHANGELOG.md` entry; that consistency
+(plus the changelog format and the README badges) is enforced by
+`tests/unit/test_version.py` and `tests/unit/test_release_consistency.py` in the
+regular suite.
+
 ## Reporting bugs
 
 Open an issue with the `.github/ISSUE_TEMPLATE/bug_report.md` template:

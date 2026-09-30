@@ -94,6 +94,10 @@ data/         datos del repositorio local, caché e informes
 - [Metodología de validación entre fuentes](docs/validation_methodology.md)
 - [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
+## Publicación de versiones
+
+Las versiones siguen [Versionado Semántico](https://semver.org/lang/es/). Consulta el proceso en [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
+
 ## Licencia
 
 [MIT](LICENSE). La licencia cubre el código de este proyecto, no los datos proporcionados por terceros.

@@ -162,6 +162,10 @@ data/         local repository data, cache, and reports
 - [Cross-source validation methodology](docs/validation_methodology.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 
+## Releasing
+
+Releases follow [Semantic Versioning](https://semver.org/). See [CONTRIBUTING.md](CONTRIBUTING.md#releasing) for the process.
+
 ## License
 
 [MIT](LICENSE). The license applies to this project's code, not to data supplied by external providers.
