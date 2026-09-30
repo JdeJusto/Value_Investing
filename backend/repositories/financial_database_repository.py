@@ -1316,7 +1316,9 @@ class FinancialDatabaseRepository(FinancialRepository):
             # instead of failing the ticker.
             return []
 
-    def list_years(self, ticker: str) -> list[NormalizedFinancials]:
+    def list_years(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
         """Return the best record per year for a ticker, most recent first.
 
         Results are cached for the lifetime of this repository instance so the
@@ -1325,13 +1327,24 @@ class FinancialDatabaseRepository(FinancialRepository):
         fetching the full FY history twice. Only non-empty results are cached
         and ``invalidate_list_cache``/``upsert*`` clear a ticker when its data
         changes, so a deliberate refresh never serves stale fundamentals.
+
+        ``max_years`` limits the read to the newest N fiscal years and
+        bypasses the instance cache (a capped list must never be served to a
+        caller that wants the full history).
         """
         ticker = ticker.upper()
-        cached = self._list_cache_get(ticker)
-        if cached is not None:
-            return list(cached)
+        if max_years is None:
+            cached = self._list_cache_get(ticker)
+            if cached is not None:
+                return list(cached)
 
-        rows = self._list_years_uncached(ticker)
+        if max_years is None:
+            rows = self._list_years_uncached(ticker)
+        else:
+            rows = self._list_years_uncached(ticker, max_years=max_years)
+
+        if max_years is not None:
+            return rows
 
         if rows:
             self._list_cache_set(ticker, rows)
@@ -1341,7 +1354,23 @@ class FinancialDatabaseRepository(FinancialRepository):
             self.invalidate_list_cache(ticker)
         return rows
 
-    def _list_years_uncached(self, ticker: str) -> list[NormalizedFinancials]:
+    @staticmethod
+    def _min_fiscal_year(cur, company_id: str, max_years: int) -> int | None:
+        """Oldest fiscal year a ``max_years`` cap should read (newest N)."""
+        cur.execute(
+            "SELECT MAX(fiscal_year) FROM financial_facts "
+            "WHERE company_id = %s AND UPPER(fiscal_period) = 'FY'",
+            (company_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        latest = next(iter(row.values()))
+        return None if latest is None else latest - max_years + 1
+
+    def _list_years_uncached(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
         """The uncached list_years implementation (see ``list_years``).
 
         All *annual* (FY) facts for the company are fetched in a single query
@@ -1349,6 +1378,10 @@ class FinancialDatabaseRepository(FinancialRepository):
         round-trips (3 + 2×N queries per ticker) with 2 queries. The rows fed
         to ``_normalize_financial_facts`` per year are identical to what
         ``get_by_year`` produced, so the reconstructed records do not change.
+
+        ``max_years`` pushes the history cap into SQL (newest N fiscal years)
+        so neither the transfer nor the per-year normalization pays for the
+        full archive; the screener reads ~10 years instead of ~16.
         """
         try:
             # Get company ID from ticker (same as get_by_year)
@@ -1368,8 +1401,7 @@ class FinancialDatabaseRepository(FinancialRepository):
                 # the latest 10-K, so filtering to 'FY' is what makes each value
                 # represent a completed fiscal year (see _normalize_financial_facts
                 # for the max-period_end dedup).
-                cur.execute(
-                    """
+                sql = """
                     SELECT
                         f.concept,
                         f.value,
@@ -1381,9 +1413,14 @@ class FinancialDatabaseRepository(FinancialRepository):
                     FROM financial_facts f
                     WHERE f.company_id = %s
                       AND UPPER(f.fiscal_period) = 'FY'
-                """,
-                    (company_id,),
-                )
+                """
+                params: list = [company_id]
+                if max_years is not None:
+                    min_year = self._min_fiscal_year(cur, company_id, max_years)
+                    if min_year is not None:
+                        sql += " AND f.fiscal_year >= %s"
+                        params.append(min_year)
+                cur.execute(sql, tuple(params))
                 facts = cur.fetchall()
 
             if not facts:
@@ -1432,11 +1469,20 @@ class FinancialDatabaseRepository(FinancialRepository):
         except Exception:  # noqa: BLE001 — a broken listing degrades to an empty history
             return []
 
-    def list_all(self, ticker: str) -> list[NormalizedFinancials]:
-        """Return every stored record (all sources), year desc."""
+    def list_all(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
+        """Return every stored record (all sources), year desc.
+
+        ``max_years`` caps the history to the newest N fiscal years (the
+        screener needs ~10, not the full ~16-year archive); ``None`` keeps
+        every year.
+        """
         # For Financial-DataBase, we primarily have SEC EDGAR data
         # and we don't have multiple sources, so we return the same as list_years.
-        return self.list_years(ticker)
+        if max_years is None:
+            return self.list_years(ticker)
+        return self.list_years(ticker, max_years=max_years)
 
     # Core fields any usable fiscal year must populate. A reconstructed row
     # whose bucket picked up only stray non-income facts (e.g. an in-progress
@@ -1462,7 +1508,9 @@ class FinancialDatabaseRepository(FinancialRepository):
             for field in FinancialDatabaseRepository._EMPTY_ROW_FIELDS
         )
 
-    def get_best_available(self, ticker: str) -> list[NormalizedFinancials]:
+    def get_best_available(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
         """Return the most consistent usable history for a ticker.
 
         For Financial-DataBase, we assume SEC EDGAR data is consistently
@@ -1470,9 +1518,12 @@ class FinancialDatabaseRepository(FinancialRepository):
         ones (``_row_is_empty``). An all-empty row is an in-progress
         fiscal-year bucket that only picked up stray non-income facts; no
         analysis must read it as the latest year. Returns [] when no usable
-        row exists.
+        row exists. ``max_years`` caps the history to the newest N fiscal
+        years (see ``list_years``).
         """
         rows = self.list_all(ticker)
+        if max_years is not None:
+            rows = self.list_all(ticker, max_years=max_years)
         return [row for row in rows if not self._row_is_empty(row)]
 
     def has_data(self, ticker: str) -> bool:

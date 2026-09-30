@@ -30,10 +30,17 @@ def get_screener_service():
     )
 
 
+#: The screener reads the newest N fiscal years: enough for every
+#: methodology's trend window without paying for the full ~16-year archive.
+SCREENER_HISTORY_YEARS = 10
+
+
 @st.cache_data(ttl=3600)
 def load_fundamentals(ticker: str):
     """Cached fundamentals for one ticker (DB read only, nothing persisted)."""
-    rows = build_financial_repository().get_best_available(ticker)
+    rows = build_financial_repository().get_best_available(
+        ticker, max_years=SCREENER_HISTORY_YEARS
+    )
     return [row for row in rows if row is not None]
 
 
