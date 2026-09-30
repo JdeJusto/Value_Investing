@@ -1,6 +1,10 @@
 # Minimal ruff configuration. The project predates a lint config; only the
 # settings the lint sprint needed are pinned here.
-target-version = "py314"
+# target-version MUST match the Python CI runs (3.13, see .github/workflows/
+# and CONTRIBUTING.md "Requires Python 3.13+"): with py314 the formatter
+# rewrote `except (A, B):` into the PEP 758 `except A, B:` form, which is a
+# SyntaxError on 3.13 and broke CI.
+target-version = "py313"
 
 [lint.flake8-bugbear]
 # FastAPI dependency injection uses Depends()/Query()/... in argument
