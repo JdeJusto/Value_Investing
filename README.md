@@ -9,9 +9,18 @@ A deterministic, explainable toolkit for fundamental stock analysis. It combines
 
 > **Design principle:** “Fools admire complexity; geniuses admire simplicity.” Prefer clear rules, small components, and traceable data over complexity that does not add value.
 
-## What's in 0.1.0
+## What's in 0.4
 
-First public release: seven book-derived methodologies (Graham, Graham & Dodd, Buffett/Clark, Buffett Classic, Fisher, Lynch GARP and Greenblatt Magic Formula), DCF valuation with four variants, SEC-derived fundamentals through the companion Financial-DataBase, a five-page Streamlit UI, screener, portfolio tracking, daily workflow and alerts. Prices are fetched on demand and never persisted. See [CHANGELOG.md](CHANGELOG.md) for the full list and the known limitations.
+Eight book-derived methodologies (Graham, Graham & Dodd, Buffett/Clark,
+Buffett Classic, Fisher, Lynch GARP, Greenblatt Magic Formula and Marks),
+DCF valuation with four variants labeled `not-from-canon`, SEC-derived
+fundamentals through the companion Financial-DataBase, a five-page Streamlit
+UI, a screener, portfolio tracking, a daily workflow with alerts, and an
+offline demo mode. Prices are fetched on demand and never persisted. See
+[CHANGELOG.md](CHANGELOG.md) for the full list and the known limitations.
+
+> For a detailed walkthrough of the architecture and design decisions, see
+> [docs/architecture.md](docs/architecture.md).
 
 ## Why this project
 
@@ -59,6 +68,8 @@ subset** (4 of 15 points), because scuttlebutt cannot be automated.
 ![analyze-full](assets/analyze-full.gif)
 
 ![compare-methodologies](assets/compare-methodologies.gif)
+
+> See [A worked example](#a-worked-example) below for a narrated full run.
 
 ```bash
 git clone https://github.com/JdeJusto/Value_Investing.git
