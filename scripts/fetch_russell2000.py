@@ -68,9 +68,18 @@ def parse_iwm_holdings(text: str) -> list[dict]:
         if head[0] == "Ticker" and len(head) > 2:
             continue  # the holdings table header row
         first = head[0]
-        if first.startswith(("iShares", "Fund Holdings", "Inception",
-                             "Shares Outstanding", "Stock", "Bond",
-                             "Cash", "Other")):
+        if first.startswith(
+            (
+                "iShares",
+                "Fund Holdings",
+                "Inception",
+                "Shares Outstanding",
+                "Stock",
+                "Bond",
+                "Cash",
+                "Other",
+            )
+        ):
             continue  # fund metadata block
         if "*" in first and first.count("*") >= 2:
             continue  # iShares placeholder lines ("**..." asterisk rows)

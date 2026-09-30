@@ -6,7 +6,6 @@ rebalanced every ``rebalance_every`` snapshots into an equal-weighted
 selection, and returns compound into an equity curve.
 """
 
-
 from backend.backtesting.strategy import Strategy
 
 RISK_FREE_RATE = 0.0

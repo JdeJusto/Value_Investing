@@ -29,7 +29,7 @@ class JsonWatchlistRepository(WatchlistRepository):
         try:
             with open(self._path, "r", encoding="utf-8") as handle:
                 return Watchlist.from_dict(json.load(handle))
-        except (json.JSONDecodeError, KeyError, ValueError):
+        except json.JSONDecodeError, KeyError, ValueError:
             return Watchlist()
 
     def save(self, watchlist: Watchlist) -> None:

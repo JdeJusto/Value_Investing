@@ -213,7 +213,7 @@ class GrahamMethodology(Methodology):
             return None
         try:
             return float(value) if value is not None else None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     def _latest(self, rows: list[NormalizedFinancials]) -> NormalizedFinancials | None:

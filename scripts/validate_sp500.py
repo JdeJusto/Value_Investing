@@ -113,7 +113,8 @@ def build_constituents(out: Path, verbose: bool = False) -> None:
 
     with out.open("w", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=["ticker", "company_name", "cik", "sector", "in_database"]
+            handle,
+            fieldnames=["ticker", "company_name", "cik", "sector", "in_database"],
         )
         writer.writeheader()
         writer.writerows(out_rows)
@@ -170,14 +171,16 @@ def _safe_div(num: float | None, den: float | None) -> float | None:
         return None
     try:
         den = float(den)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if den == 0:
         return None
     return num / den
 
 
-def vi_metrics_for(repo, price_service, ticker: str, target_fy: int | None = None) -> dict[str, Any]:
+def vi_metrics_for(
+    repo, price_service, ticker: str, target_fy: int | None = None
+) -> dict[str, Any]:
     """Compute the validation metrics the way Value Investing does:
     fundamentals from Financial-DataBase (latest completed fiscal year, or the
     explicitly requested year) and real-time price/shares from PriceService
@@ -267,12 +270,12 @@ def build_vi_metrics(out: Path, limit: int | None) -> None:
         ticker = r["ticker"]
         start = time.time()
         rows.append(vi_metrics_for(repo, price_service, ticker))
-        print(f"  [{i}/{len(sample)}] {ticker} ({time.time()-start:.1f}s)")
+        print(f"  [{i}/{len(sample)}] {ticker} ({time.time() - start:.1f}s)")
         sys.stdout.flush()
 
     _write_metrics(out, rows)
     ok = sum(1 for x in rows if x["ok"])
-    print(f"  wrote {len(rows)} rows to {out} ({ok} ok, {len(rows)-ok} failed)")
+    print(f"  wrote {len(rows)} rows to {out} ({ok} ok, {len(rows) - ok} failed)")
 
 
 # ---------------------------------------------------------------------------
@@ -372,12 +375,12 @@ def build_external_metrics(out: Path, limit: int | None) -> None:
         ticker = r["ticker"]
         start = time.time()
         rows.append(ext_metrics_for(provider, ticker, target_fye=vi_fye.get(ticker)))
-        print(f"  [{i}/{len(sample)}] {ticker} ({time.time()-start:.1f}s)")
+        print(f"  [{i}/{len(sample)}] {ticker} ({time.time() - start:.1f}s)")
         sys.stdout.flush()
 
     _write_metrics(out, rows)
     ok = sum(1 for x in rows if x["ok"])
-    print(f"  wrote {len(rows)} rows to {out} ({ok} ok, {len(rows)-ok} failed)")
+    print(f"  wrote {len(rows)} rows to {out} ({ok} ok, {len(rows) - ok} failed)")
 
 
 # ---------------------------------------------------------------------------
@@ -431,7 +434,7 @@ def compare_rows(vi_row: dict, ext_row: dict) -> list[dict[str, Any]]:
             continue
         try:
             va_f, vb_f = float(va), float(vb)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if math.isnan(va_f) or math.isnan(vb_f):
             continue
@@ -645,9 +648,15 @@ def _summarize(
     n_low = by_sev.get("LOW", 0)
     print(f"  companies compared: {compared}")
     print(f"  total discrepancy rows: {total}")
-    print(f"  HIGH genuine: {n_high}  HIGH excluded: {excluded_by_severity.get('HIGH', 0) if excluded_by_severity else 0}")
-    print(f"  MEDIUM genuine: {n_med}  MEDIUM excluded: {excluded_by_severity.get('MEDIUM', 0) if excluded_by_severity else 0}")
-    print(f"  LOW genuine: {n_low}  LOW excluded: {excluded_by_severity.get('LOW', 0) if excluded_by_severity else 0}")
+    print(
+        f"  HIGH genuine: {n_high}  HIGH excluded: {excluded_by_severity.get('HIGH', 0) if excluded_by_severity else 0}"
+    )
+    print(
+        f"  MEDIUM genuine: {n_med}  MEDIUM excluded: {excluded_by_severity.get('MEDIUM', 0) if excluded_by_severity else 0}"
+    )
+    print(
+        f"  LOW genuine: {n_low}  LOW excluded: {excluded_by_severity.get('LOW', 0) if excluded_by_severity else 0}"
+    )
     print(f"  flagged rows by metric: {dict(by_metric)}")
     print(f"  by severity: {dict(by_sev)}")
 

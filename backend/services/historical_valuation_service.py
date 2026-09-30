@@ -29,7 +29,8 @@ class HistoricalValuationService:
     @staticmethod
     def _row_is_empty(row) -> bool:
         return all(
-            getattr(row, field) is None for field in HistoricalValuationService._CORE_FIELDS
+            getattr(row, field) is None
+            for field in HistoricalValuationService._CORE_FIELDS
         )
 
     def __init__(
@@ -64,12 +65,14 @@ class HistoricalValuationService:
         # Return only the P/E ratio related fields
         pe_ratios = []
         for ratio in ratios:
-            pe_ratios.append({
-                'fiscal_year': ratio['fiscal_year'],
-                'price': ratio['price'],
-                'eps': ratio['eps'],
-                'pe_ratio': ratio['pe_ratio']
-            })
+            pe_ratios.append(
+                {
+                    "fiscal_year": ratio["fiscal_year"],
+                    "price": ratio["price"],
+                    "eps": ratio["eps"],
+                    "pe_ratio": ratio["pe_ratio"],
+                }
+            )
         return pe_ratios
 
     def get_historical_fcf_yields(self, ticker: str) -> list[dict[str, Any]]:
@@ -89,14 +92,16 @@ class HistoricalValuationService:
         # Return only the FCF yield related fields
         fcf_yields = []
         for ratio in ratios:
-            fcf_yields.append({
-                'fiscal_year': ratio['fiscal_year'],
-                'price': ratio['price'],
-                'shares_outstanding': ratio['shares_outstanding'],
-                'market_cap': ratio['market_cap'],
-                'free_cash_flow': ratio['free_cash_flow'],
-                'fcf_yield': ratio['fcf_yield']
-            })
+            fcf_yields.append(
+                {
+                    "fiscal_year": ratio["fiscal_year"],
+                    "price": ratio["price"],
+                    "shares_outstanding": ratio["shares_outstanding"],
+                    "market_cap": ratio["market_cap"],
+                    "free_cash_flow": ratio["free_cash_flow"],
+                    "fcf_yield": ratio["fcf_yield"],
+                }
+            )
         return fcf_yields
 
     def get_historical_valuation_summary(self, ticker: str) -> list[dict[str, Any]]:
@@ -152,7 +157,11 @@ class HistoricalValuationService:
             if shares and shares != 0:
                 adjusted_shares = shares * split_adjustment
                 if financials.net_income is not None:
-                    eps = financials.net_income / adjusted_shares if adjusted_shares else None
+                    eps = (
+                        financials.net_income / adjusted_shares
+                        if adjusted_shares
+                        else None
+                    )
 
                 if price is not None:
                     market_cap = price * adjusted_shares
@@ -167,23 +176,28 @@ class HistoricalValuationService:
                         financials.operating_cash_flow is not None
                         and financials.capital_expenditure is not None
                     ):
-                        fcf = financials.operating_cash_flow - financials.capital_expenditure
+                        fcf = (
+                            financials.operating_cash_flow
+                            - financials.capital_expenditure
+                        )
                     if fcf is not None and market_cap != 0:
                         fcf_yield = fcf / market_cap
 
-            ratios.append({
-                'fiscal_year': year,
-                'price': price,
-                'eps': eps,
-                'pe_ratio': pe_ratio,
-                'fcf_yield': fcf_yield,
-                'market_cap': market_cap,
-                'shares_outstanding': shares,
-                'shares_adjusted': shares * split_adjustment if shares else None,
-                'split_adjustment': split_adjustment,
-                'net_income': financials.net_income,
-                'free_cash_flow': fcf if market_cap else financials.free_cash_flow,
-            })
+            ratios.append(
+                {
+                    "fiscal_year": year,
+                    "price": price,
+                    "eps": eps,
+                    "pe_ratio": pe_ratio,
+                    "fcf_yield": fcf_yield,
+                    "market_cap": market_cap,
+                    "shares_outstanding": shares,
+                    "shares_adjusted": shares * split_adjustment if shares else None,
+                    "split_adjustment": split_adjustment,
+                    "net_income": financials.net_income,
+                    "free_cash_flow": fcf if market_cap else financials.free_cash_flow,
+                }
+            )
 
         return ratios
 
@@ -219,13 +233,19 @@ class HistoricalValuationService:
 
         rows = []
         for ratio in ratios:
-            year = ratio['fiscal_year']
-            price = f"{ratio['price']:.2f}" if ratio['price'] is not None else "N/A"
-            eps = f"{ratio['eps']:.2f}" if ratio['eps'] is not None else "N/A"
-            pe_ratio = f"{ratio['pe_ratio']:.2f}" if ratio['pe_ratio'] is not None else "N/A"
-            fcf_yield = f"{ratio['fcf_yield']:.2%}" if ratio['fcf_yield'] is not None else "N/A"
+            year = ratio["fiscal_year"]
+            price = f"{ratio['price']:.2f}" if ratio["price"] is not None else "N/A"
+            eps = f"{ratio['eps']:.2f}" if ratio["eps"] is not None else "N/A"
+            pe_ratio = (
+                f"{ratio['pe_ratio']:.2f}" if ratio["pe_ratio"] is not None else "N/A"
+            )
+            fcf_yield = (
+                f"{ratio['fcf_yield']:.2%}" if ratio["fcf_yield"] is not None else "N/A"
+            )
 
-            row = f"{year:>10} | {price:>8} | {eps:>8} | {pe_ratio:>10} | {fcf_yield:>10}"
+            row = (
+                f"{year:>10} | {price:>8} | {eps:>8} | {pe_ratio:>10} | {fcf_yield:>10}"
+            )
             rows.append(row)
 
         return f"{header}\n{separator}\n" + "\n".join(rows)

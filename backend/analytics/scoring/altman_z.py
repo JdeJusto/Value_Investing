@@ -1,4 +1,3 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -12,7 +11,7 @@ class AltmanZScoreCalculator(MetricCalculator):
         market_cap: float | None = None,
         total_liabilities: float | None = None,
         revenue: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if any(v is None for v in [total_assets, total_liabilities, revenue]):
             return None

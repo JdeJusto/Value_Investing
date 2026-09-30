@@ -28,7 +28,9 @@ def _make_loaders(failing: set[str] | None = None, exploding: set[str] | None = 
         if ticker in exploding:
             raise RuntimeError("evaluation blew up")
         return _View(
-            details=[{"methodology": "buffett_classic", "verdict": "BUY", "score": 80.0}],
+            details=[
+                {"methodology": "buffett_classic", "verdict": "BUY", "score": 80.0}
+            ],
             category="Quality",
         )
 

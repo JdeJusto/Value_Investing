@@ -35,19 +35,19 @@ class FilterCriteria:
 
         try:
             left = float(metric_value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
         if self.operator == FilterOperator.EQ:
             try:
                 return left == float(self.value)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return str(metric_value) == str(self.value)
 
         if self.operator == FilterOperator.NEQ:
             try:
                 return left != float(self.value)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return str(metric_value) != str(self.value)
 
         if self.operator in (
@@ -58,7 +58,7 @@ class FilterCriteria:
         ):
             try:
                 right = float(self.value)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return False
             if self.operator == FilterOperator.GT:
                 return left > right
@@ -74,7 +74,7 @@ class FilterCriteria:
             try:
                 low, high = float(self.value[0]), float(self.value[1])
                 return low <= left <= high
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return False
 
         return False

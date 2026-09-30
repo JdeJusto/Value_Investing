@@ -113,7 +113,11 @@ class YahooHealth:
 
     @property
     def rate_limited(self) -> bool:
-        return self.http_status == 429 or "429" in self.reason or "rate limit" in self.reason.lower()
+        return (
+            self.http_status == 429
+            or "429" in self.reason
+            or "rate limit" in self.reason.lower()
+        )
 
     @property
     def non_transient(self) -> bool:
@@ -170,11 +174,17 @@ def _http_error_health(exc: urllib.error.HTTPError, stage: str) -> YahooHealth:
         )
     if exc.code == 404:
         return YahooHealth(
-            False, f"Yahoo returned HTTP 404 at the {stage} step", exc.code, now,
+            False,
+            f"Yahoo returned HTTP 404 at the {stage} step",
+            exc.code,
+            now,
             stage=stage,
         )
     return YahooHealth(
-        False, f"Yahoo returned HTTP {exc.code} at the {stage} step", exc.code, now,
+        False,
+        f"Yahoo returned HTTP {exc.code} at the {stage} step",
+        exc.code,
+        now,
         stage=stage,
     )
 
@@ -273,9 +283,16 @@ def _verdict_from_exception(exc: Exception, stage: str) -> YahooHealth:
     lowered = text.lower()
     type_name = type(exc).__name__
 
-    if "ratelimit" in type_name.lower() or "too many requests" in lowered or "429" in text:
+    if (
+        "ratelimit" in type_name.lower()
+        or "too many requests" in lowered
+        or "429" in text
+    ):
         return YahooHealth(
-            False, f"Yahoo rate limited ({type_name}) at the {stage} step", 429, now,
+            False,
+            f"Yahoo rate limited ({type_name}) at the {stage} step",
+            429,
+            now,
             stage=stage,
         )
     if "invalid crumb" in lowered or "401" in text or "unauthorized" in lowered:
@@ -287,7 +304,10 @@ def _verdict_from_exception(exc: Exception, stage: str) -> YahooHealth:
             stage=stage,
         )
     return YahooHealth(
-        False, f"Yahoo probe failed at the {stage} step: {type_name}: {text}", None, now,
+        False,
+        f"Yahoo probe failed at the {stage} step: {type_name}: {text}",
+        None,
+        now,
         stage=stage,
     )
 
@@ -333,7 +353,10 @@ def _probe_via_http(timeout: float) -> YahooHealth:
         return _http_error_health(exc, STAGE_CRUMB)
     except Exception as exc:  # noqa: BLE001 — any failure means unavailable
         return YahooHealth(
-            False, f"Yahoo unreachable at the crumb step: {exc}", None, now,
+            False,
+            f"Yahoo unreachable at the crumb step: {exc}",
+            None,
+            now,
             stage=STAGE_CRUMB,
         )
 
@@ -375,7 +398,10 @@ def _probe_via_http(timeout: float) -> YahooHealth:
         return _http_error_health(exc, STAGE_QUOTE)
     except Exception as exc:  # noqa: BLE001 — any failure means unavailable
         return YahooHealth(
-            False, f"Yahoo unreachable at the quote step: {exc}", None, time.time(),
+            False,
+            f"Yahoo unreachable at the quote step: {exc}",
+            None,
+            time.time(),
             stage=STAGE_QUOTE,
         )
 
@@ -421,7 +447,9 @@ def check_yahoo_availability(
         else _env_float("YAHOO_HEALTH_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)
     )
     ttl = (
-        ttl if ttl is not None else _env_float("YAHOO_HEALTH_TTL_SECONDS", DEFAULT_TTL_SECONDS)
+        ttl
+        if ttl is not None
+        else _env_float("YAHOO_HEALTH_TTL_SECONDS", DEFAULT_TTL_SECONDS)
     )
     probe_fn = probe or _probe
 
@@ -444,7 +472,10 @@ def check_yahoo_availability(
                 health = probe_fn(YAHOO_CHART_URL, timeout)
         except Exception as exc:  # noqa: BLE001 — a broken probe = unavailable
             health = YahooHealth(
-                False, f"Yahoo preflight error: {exc}", None, time.time(),
+                False,
+                f"Yahoo preflight error: {exc}",
+                None,
+                time.time(),
                 stage=STAGE_UNKNOWN,
             )
         if health.available:

@@ -1,13 +1,9 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
 class PbCalculator(MetricCalculator):
     def calculate(
-        self,
-        market_cap: float | None = None,
-        equity: float | None = None,
-        **kwargs
+        self, market_cap: float | None = None, equity: float | None = None, **kwargs
     ) -> float | None:
         if market_cap is not None and equity is not None and equity != 0:
             return market_cap / equity
@@ -16,10 +12,7 @@ class PbCalculator(MetricCalculator):
 
 class EvEbitCalculator(MetricCalculator):
     def calculate(
-        self,
-        enterprise_value: float | None = None,
-        ebit: float | None = None,
-        **kwargs
+        self, enterprise_value: float | None = None, ebit: float | None = None, **kwargs
     ) -> float | None:
         if enterprise_value is not None and ebit is not None and ebit != 0:
             return enterprise_value / ebit
@@ -32,7 +25,7 @@ class NetDebtToEbitdaCalculator(MetricCalculator):
         total_debt: float | None = None,
         cash: float | None = None,
         ebitda: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if total_debt is None or ebitda is None or ebitda == 0:
             return None
@@ -45,10 +38,7 @@ class NetDebtToEbitdaCalculator(MetricCalculator):
 
 class InterestCoverageCalculator(MetricCalculator):
     def calculate(
-        self,
-        ebit: float | None = None,
-        interest_expense: float | None = None,
-        **kwargs
+        self, ebit: float | None = None, interest_expense: float | None = None, **kwargs
     ) -> float | None:
         if ebit is None or interest_expense is None or interest_expense == 0:
             return None
@@ -60,7 +50,7 @@ class CroicCalculator(MetricCalculator):
         self,
         free_cash_flow: float | None = None,
         invested_capital: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if (
             free_cash_flow is not None
@@ -78,7 +68,7 @@ class OwnerEarningsCalculator(MetricCalculator):
         depreciation: float | None = None,
         maintenance_capex: float | None = None,
         working_capital_change: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if any(v is None for v in [net_income, depreciation, maintenance_capex]):
             return None

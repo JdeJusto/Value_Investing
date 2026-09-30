@@ -102,7 +102,9 @@ class NetworkMetrics:
         except Exception:  # noqa: BLE001, S110 — telemetry must never break a run
             pass
 
-    def record_failure(self, service: str, reason: str, *, latency_ms: float | None = None) -> None:
+    def record_failure(
+        self, service: str, reason: str, *, latency_ms: float | None = None
+    ) -> None:
         """Record a failed attempt (counted as a request + 1 retry)."""
         self.record(service, latency_ms=latency_ms, retries=1, reason=reason)
 

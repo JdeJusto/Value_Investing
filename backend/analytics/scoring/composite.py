@@ -1,4 +1,3 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -9,7 +8,7 @@ class CompositeScoreCalculator(MetricCalculator):
         pb: float | None = None,
         fcf_yield: float | None = None,
         operating_margin: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float:
         score = 0.0
         if roe is not None:

@@ -70,7 +70,9 @@ def test_different_run_id_triggers_recomputation(tmp_path):
 
 def test_different_date_triggers_recomputation(tmp_path):
     cache = AlertsCache(directory=tmp_path)
-    cache.put(date(2026, 9, 27), "run-1", "digest-1", [_alert("AAPL")], as_dict=_as_dict)
+    cache.put(
+        date(2026, 9, 27), "run-1", "digest-1", [_alert("AAPL")], as_dict=_as_dict
+    )
 
     assert cache.get(date(2026, 9, 28), "run-1", "digest-1") is None
     # each day gets its own file
@@ -120,9 +122,12 @@ def test_version_bump_invalidates(tmp_path):
     old = AlertsCache(directory=tmp_path, version="1")
     old.put(date(2026, 9, 27), "run-1", "d", [_alert("AAPL")], as_dict=_as_dict)
 
-    assert AlertsCache(directory=tmp_path, version="2").get(
-        date(2026, 9, 27), "run-1", "d"
-    ) is None
+    assert (
+        AlertsCache(directory=tmp_path, version="2").get(
+            date(2026, 9, 27), "run-1", "d"
+        )
+        is None
+    )
 
 
 # ----------------------------------------------------------------------
@@ -156,9 +161,9 @@ def test_digest_reacts_to_the_previous_state():
     """SELL_WARNING compares against the previous day, so it is an input."""
     current = {"AAPL": _analysis()}
 
-    assert input_digest(current, {"AAPL": {"composite_score": {"total_score": 60}}}) != (
-        input_digest(current, {"AAPL": {"composite_score": {"total_score": 50}}})
-    )
+    assert input_digest(
+        current, {"AAPL": {"composite_score": {"total_score": 60}}}
+    ) != (input_digest(current, {"AAPL": {"composite_score": {"total_score": 50}}}))
 
 
 def test_digest_ignores_tickers_without_an_analysis():

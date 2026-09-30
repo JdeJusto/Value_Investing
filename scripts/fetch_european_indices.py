@@ -161,7 +161,9 @@ def build_universe_european(
                 info = None
                 logger.warning(
                     "SEC name-match excluded for %s (%s): %s",
-                    c["company"], code, collision,
+                    c["company"],
+                    code,
+                    collision,
                 )
             domestic = re.sub(r"\s+", "", c["ticker"].upper())
             if info:
@@ -186,11 +188,17 @@ def build_universe_european(
                         "has_sec_filings": "false",
                     }
                 )
-        stats[code] = {"constituents": len(constituents),
-                       "with_sec": filings, "without_sec": non_filings}
+        stats[code] = {
+            "constituents": len(constituents),
+            "with_sec": filings,
+            "without_sec": non_filings,
+        }
         logger.info(
             "%s: %d constituents — %d with SEC filings, %d without",
-            code, len(constituents), filings, non_filings,
+            code,
+            len(constituents),
+            filings,
+            non_filings,
         )
 
     path = Path(output)
@@ -199,7 +207,10 @@ def build_universe_european(
         writer = csv.DictWriter(
             handle,
             fieldnames=[
-                "ticker", "cik", "company_name", "source_index",
+                "ticker",
+                "cik",
+                "company_name",
+                "source_index",
                 "has_sec_filings",
             ],
         )

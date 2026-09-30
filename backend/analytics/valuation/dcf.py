@@ -1,4 +1,3 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -10,7 +9,7 @@ class DcfCalculator(MetricCalculator):
         growth_rate: float = 0.05,
         terminal_growth: float = 0.02,
         years: int = 5,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if free_cash_flow is None:
             return None

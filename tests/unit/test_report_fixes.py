@@ -117,8 +117,12 @@ def test_sort_alerts_is_deterministic_whatever_the_input_order():
         _alert("MMM", "BUY_SIGNAL"),
         _alert("AAA", "BUY_SIGNAL"),
     ]
-    expected = [("AAA", "BUY_SIGNAL"), ("AAA", "TRIGGER_EVENT"),
-                ("MMM", "BUY_SIGNAL"), ("ZZZ", "TRIGGER_EVENT")]
+    expected = [
+        ("AAA", "BUY_SIGNAL"),
+        ("AAA", "TRIGGER_EVENT"),
+        ("MMM", "BUY_SIGNAL"),
+        ("ZZZ", "TRIGGER_EVENT"),
+    ]
 
     import itertools
 
@@ -145,7 +149,9 @@ def test_sort_alerts_tolerates_alerts_without_reason():
 def test_alert_sort_key_works_on_dicts_and_objects():
     obj = _alert("BBB", "TRIGGER_EVENT")
     as_dict = {"ticker": "BBB", "alert_type": "TRIGGER_EVENT", "reason": ["r"]}
-    assert alert_sort_key(obj) == alert_sort_key(as_dict) == ("BBB", "TRIGGER_EVENT", "r")
+    assert (
+        alert_sort_key(obj) == alert_sort_key(as_dict) == ("BBB", "TRIGGER_EVENT", "r")
+    )
 
 
 def test_cache_stores_alerts_in_the_canonical_order(tmp_path):
@@ -196,11 +202,18 @@ def test_two_different_worker_orders_render_identical_alert_sections():
 
     def _section(alerts):
         return build_markdown(
-            DailyReport(report_date=_date(2026, 9, 28), alerts=[
-                {"ticker": a.ticker, "alert_type": a.alert_type,
-                 "reason": a.reason, "confidence": a.confidence}
-                for a in alerts
-            ])
+            DailyReport(
+                report_date=_date(2026, 9, 28),
+                alerts=[
+                    {
+                        "ticker": a.ticker,
+                        "alert_type": a.alert_type,
+                        "reason": a.reason,
+                        "confidence": a.confidence,
+                    }
+                    for a in alerts
+                ],
+            )
         ).split("## Alerts")[1]
 
     assert _section(first) == _section(shuffled)
@@ -261,9 +274,7 @@ def test_delisted_still_reported_when_yahoo_answers(monkeypatch):
     service._last_health = YahooHealth(True, "ok", 200, 0.0)
     # The per-symbol probe finds nothing, but a control symbol does have data,
     # so the provider is fine and this symbol really is unquoted.
-    monkeypatch.setattr(
-        service, "_probe_has_data", lambda ticker: ticker == "AAPL"
-    )
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: ticker == "AAPL")
 
     assert service.classify_price_failure("ZZZZ", known_ticker=lambda t: True) == (
         PRICE_FAILURE_DELISTED
@@ -276,9 +287,7 @@ def test_mapping_still_reported_when_yahoo_answers(monkeypatch):
 
     service = PriceService()
     service._last_health = YahooHealth(True, "ok", 200, 0.0)
-    monkeypatch.setattr(
-        service, "_probe_has_data", lambda ticker: ticker == "AAPL"
-    )
+    monkeypatch.setattr(service, "_probe_has_data", lambda ticker: ticker == "AAPL")
 
     assert service.classify_price_failure("ZZZZ", known_ticker=lambda t: False) == (
         PRICE_FAILURE_MAPPING

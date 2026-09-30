@@ -113,9 +113,7 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
                 self._apply(model, item)
             session.commit()
 
-    def get_by_year(
-        self, ticker: str, fiscal_year: int
-    ) -> NormalizedFinancials | None:
+    def get_by_year(self, ticker: str, fiscal_year: int) -> NormalizedFinancials | None:
         """Best available record for a year (highest priority, then quality)."""
         with self._session_factory() as session:
             models = session.execute(

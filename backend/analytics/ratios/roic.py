@@ -1,4 +1,3 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -10,7 +9,7 @@ class RoicCalculator(MetricCalculator):
         total_debt: float | None = None,
         equity: float | None = None,
         cash: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if ebit is None:
             return None
@@ -36,7 +35,7 @@ class IncrementalRoicCalculator(MetricCalculator):
         equity_prior: float | None = None,
         cash_current: float | None = None,
         cash_prior: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if any(v is None for v in [ebit_current, ebit_prior]):
             return None

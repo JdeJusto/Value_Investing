@@ -5,7 +5,6 @@ deterministic, published conditions. A company can trigger several
 types; the strongest match is reported first.
 """
 
-
 # --- Undervalued quality ---
 UNDERVALUED_MIN_BUFFETT = 70.0
 UNDERVALUED_MIN_MARGIN = 0.15
@@ -219,8 +218,8 @@ def fundamental_acceleration(item: dict) -> dict | None:
         and (fcf_ratio is None or fcf_ratio >= 0.7)
     ):
         reasons = [
-            f"revenue growth accelerating by {rev_delta*100:.1f}pp",
-            f"ROIC improving by {roic_delta*100:.1f}pp",
+            f"revenue growth accelerating by {rev_delta * 100:.1f}pp",
+            f"ROIC improving by {roic_delta * 100:.1f}pp",
         ]
         if fcf_ratio is not None:
             reasons.append("cash generation intact")
@@ -246,11 +245,11 @@ def quality_with_trigger(item: dict) -> dict | None:
 
     triggers: list[str] = []
     if margin_delta is not None and margin_delta >= QUALITY_TRIGGER_MARGIN:
-        triggers.append(f"margin expansion of {margin_delta*100:.1f}pp")
+        triggers.append(f"margin expansion of {margin_delta * 100:.1f}pp")
     if rev_delta is not None and rev_delta >= QUALITY_TRIGGER_REV_DELTA:
-        triggers.append(f"revenue acceleration of {rev_delta*100:.1f}pp")
+        triggers.append(f"revenue acceleration of {rev_delta * 100:.1f}pp")
     if roic_delta is not None and roic_delta >= QUALITY_TRIGGER_ROIC_DELTA:
-        triggers.append(f"ROIC improvement of {roic_delta*100:.1f}pp")
+        triggers.append(f"ROIC improvement of {roic_delta * 100:.1f}pp")
 
     if not triggers:
         return None

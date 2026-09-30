@@ -1,5 +1,3 @@
-
-
 class FinancialRepository:
     def __init__(self, provider):
         self._provider = provider

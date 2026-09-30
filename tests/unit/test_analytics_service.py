@@ -136,12 +136,10 @@ def test_net_debt_to_ebitda_requires_debt_data():
     assert calc.calculate(total_debt=None, cash=1e9, ebitda=1e10) is None
     assert calc.calculate(total_debt=None, cash=0, ebitda=1e10) is None
     # With real data the sign and magnitude come from (debt - cash) / ebitda.
-    assert calc.calculate(
-        total_debt=40e9, cash=1e9, ebitda=10e9
-    ) == pytest.approx(3.9)
-    assert calc.calculate(
-        total_debt=0.5e9, cash=1e9, ebitda=10e9
-    ) == pytest.approx(-0.05)
+    assert calc.calculate(total_debt=40e9, cash=1e9, ebitda=10e9) == pytest.approx(3.9)
+    assert calc.calculate(total_debt=0.5e9, cash=1e9, ebitda=10e9) == pytest.approx(
+        -0.05
+    )
 
 
 def test_analyze_skips_partial_latest_year_without_revenue(repo, market, service):

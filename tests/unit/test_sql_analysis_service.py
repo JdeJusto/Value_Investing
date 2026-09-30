@@ -15,7 +15,7 @@ class TestSqlAnalysisService:
     @pytest.fixture
     def service(self):
         """Create a SqlAnalysisService instance."""
-        with patch('backend.services.sql_analysis_service.FinancialDatabaseRepository'):
+        with patch("backend.services.sql_analysis_service.FinancialDatabaseRepository"):
             return SqlAnalysisService()
 
     @pytest.fixture
@@ -34,20 +34,20 @@ class TestSqlAnalysisService:
     def test_init(self, service):
         """Test service initialization."""
         assert service is not None
-        assert hasattr(service, '_repository')
-        assert hasattr(service, '_scripts_dir')
+        assert hasattr(service, "_repository")
+        assert hasattr(service, "_scripts_dir")
 
     def test_get_available_scripts_no_directory(self, service_with_mock_repo):
         """Test getting available scripts when directory doesn't exist."""
-        with patch('os.path.exists', return_value=False):
+        with patch("os.path.exists", return_value=False):
             scripts = service_with_mock_repo.get_available_scripts()
             assert scripts == []
 
     def test_get_available_scripts_empty_directory(self, service_with_mock_repo):
         """Test getting available scripts when directory is empty."""
         with (
-            patch('os.path.exists', return_value=True),
-            patch('os.listdir', return_value=[]),
+            patch("os.path.exists", return_value=True),
+            patch("os.listdir", return_value=[]),
         ):
             scripts = service_with_mock_repo.get_available_scripts()
             assert scripts == []
@@ -55,13 +55,13 @@ class TestSqlAnalysisService:
     def test_get_available_scripts_with_files(self, service_with_mock_repo):
         """Test getting available scripts with SQL files."""
         with (
-            patch('os.path.exists', return_value=True),
+            patch("os.path.exists", return_value=True),
             patch(
-                'os.listdir',
-                return_value=['company_overview.sql', 'ratios.sql', 'README.md'],
+                "os.listdir",
+                return_value=["company_overview.sql", "ratios.sql", "README.md"],
             ),
-            patch('builtins.open') as mock_open,
-            patch('os.path.join', side_effect=lambda *args: '/'.join(args)),
+            patch("builtins.open") as mock_open,
+            patch("os.path.join", side_effect=lambda *args: "/".join(args)),
         ):
             mock_open.return_value.__enter__.return_value.read.side_effect = [
                 "-- Description: Company overview\nSELECT 1",
@@ -70,10 +70,10 @@ class TestSqlAnalysisService:
             ]
             scripts = service_with_mock_repo.get_available_scripts()
             assert len(scripts) == 2
-            assert scripts[0]['name'] == 'company_overview'
-            assert scripts[0]['description'] == 'Description: Company overview'
-            assert scripts[1]['name'] == 'ratios'
-            assert scripts[1]['description'] == 'Description: Financial ratios'
+            assert scripts[0]["name"] == "company_overview"
+            assert scripts[0]["description"] == "Description: Company overview"
+            assert scripts[1]["name"] == "ratios"
+            assert scripts[1]["description"] == "Description: Financial ratios"
 
     def test_extract_description(self, service_with_mock_repo):
         """Test extracting description from SQL content."""
@@ -107,8 +107,8 @@ class TestSqlAnalysisService:
     def test_execute_script_empty_file(self, service_with_mock_repo):
         """Test executing an empty script file."""
         with (
-            patch('os.path.exists', return_value=True),
-            patch('builtins.open') as mock_open,
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open") as mock_open,
         ):
             mock_open.return_value.__enter__.return_value.read.return_value = ""
             result = service_with_mock_repo.execute_script("empty")
@@ -151,11 +151,14 @@ class TestSqlAnalysisService:
 
     def test_get_sql_analysis_service(self):
         """Test the factory function."""
-        with patch('backend.services.sql_analysis_service.SqlAnalysisService') as mock_service_class:
+        with patch(
+            "backend.services.sql_analysis_service.SqlAnalysisService"
+        ) as mock_service_class:
             mock_instance = Mock()
             mock_service_class.return_value = mock_instance
 
             from backend.services.sql_analysis_service import get_sql_analysis_service
+
             service = get_sql_analysis_service()
 
             assert service == mock_instance
@@ -182,6 +185,7 @@ class TestSqlAnalysisService:
     def test_script_alias_resolution(self, service_with_mock_repo):
         """Test that 'compare' resolves to 'compare_companies'."""
         from backend.services.sql_analysis_service import SCRIPT_ALIASES
+
         assert SCRIPT_ALIASES["compare"] == "compare_companies"
 
     def test_execute_script_passes_list_param(self, service_with_mock_repo):
@@ -190,10 +194,12 @@ class TestSqlAnalysisService:
         script_content = "SELECT unnest(:ciks::text[]) as cik"
 
         with (
-            patch('os.path.exists', return_value=True),
-            patch('builtins.open') as mock_open,
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open") as mock_open,
         ):
-            mock_open.return_value.__enter__.return_value.read.return_value = script_content
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                script_content
+            )
             # Mock the DB pieces used by execute_script.
             conn = MagicMock()
             cur = MagicMock()

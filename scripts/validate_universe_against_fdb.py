@@ -85,7 +85,9 @@ def validate_universe(
     resolved_tickers = {r["ticker"] for r in resolved}
     buckets: dict[str, list] = {}
     for row in rows:
-        toks = {("European" if t in european else t) for t in _sources(row["source_index"])}
+        toks = {
+            ("European" if t in european else t) for t in _sources(row["source_index"])
+        }
         for s in toks:
             buckets.setdefault(s, []).append(row)
     for source, group in sorted(buckets.items()):
@@ -103,10 +105,7 @@ def validate_universe(
             print(f"    … and {len(unresolved) - max_unresolved} more")
 
     ok = coverage >= threshold
-    print(
-        f"\nResult: {'PASS' if ok else 'FAIL'} — "
-        f"{coverage:.1f}% >= {threshold:.0f}%"
-    )
+    print(f"\nResult: {'PASS' if ok else 'FAIL'} — {coverage:.1f}% >= {threshold:.0f}%")
     return ok
 
 
@@ -117,15 +116,20 @@ def _sources(source_index: str) -> set[str]:
 def main() -> None:
     parser = argparse.ArgumentParser(prog="validate_universe_against_fdb.py")
     parser.add_argument(
-        "--universe", default="config/universe.csv",
+        "--universe",
+        default="config/universe.csv",
         help="Master universe CSV (default: config/universe.csv)",
     )
     parser.add_argument(
-        "--threshold", type=float, default=80.0,
+        "--threshold",
+        type=float,
+        default=80.0,
         help="Minimum FDB coverage in percent (default: 80)",
     )
     parser.add_argument(
-        "--max-unresolved", type=int, default=100,
+        "--max-unresolved",
+        type=int,
+        default=100,
         help="How many unresolved tickers to print (default: 100)",
     )
     args = parser.parse_args()

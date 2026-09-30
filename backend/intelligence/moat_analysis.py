@@ -5,7 +5,6 @@ high ROIC, stable or improving gross margins, low capital intensity and
 predictable revenue. All signals are deterministic and interpretable.
 """
 
-
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 
 STRONG_THRESHOLD = 70.0

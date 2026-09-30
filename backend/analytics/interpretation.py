@@ -240,7 +240,7 @@ def format_metric_value(val):
 def print_analysis(result):
     ticker = result.get("ticker", "?")
     score = result.get("score", None)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     label = f"{ticker} - Score: {score:.4f}" if score else f"{ticker} - Sin score"
     print(f"{ticker} {label}")
     print("=" * 60)

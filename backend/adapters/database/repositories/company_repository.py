@@ -1,4 +1,3 @@
-
 from sqlalchemy import select
 
 from backend.adapters.database.base import get_session

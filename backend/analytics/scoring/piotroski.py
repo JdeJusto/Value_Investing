@@ -1,4 +1,3 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -19,7 +18,7 @@ class PiotroskiFScoreCalculator(MetricCalculator):
         revenue_prior: float | None = None,
         cogs_current: float | None = None,
         cogs_prior: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> int | None:
         try:
             score = 0

@@ -209,7 +209,7 @@ class TestEuropeanConstituents:
         stats = build_universe_european(
             output=str(out), frames_by_code=frames_by_code, sec=sec
         )
-        assert stats["with_sec"] == 1   # ABB (via OTC-preferred ABBNY)
+        assert stats["with_sec"] == 1  # ABB (via OTC-preferred ABBNY)
         assert stats["without_sec"] == 1  # Nestlé — not an SEC filer
         text = out.read_text(encoding="utf-8")
         assert "ABBNY," in text and "true" in text
@@ -278,9 +278,30 @@ class TestMergeSources:
 
         merged = merge_sources(
             [
-                [{"ticker": "AAPL", "cik": "0000320193", "name": "Apple Inc.", "sources": {"SP500"}}],
-                [{"ticker": "aapl", "cik": "0000320193", "name": "", "sources": {"NASDAQ100"}}],
-                [{"ticker": "MSFT", "cik": "0000789019", "name": "Microsoft", "sources": {"SP500"}}],
+                [
+                    {
+                        "ticker": "AAPL",
+                        "cik": "0000320193",
+                        "name": "Apple Inc.",
+                        "sources": {"SP500"},
+                    }
+                ],
+                [
+                    {
+                        "ticker": "aapl",
+                        "cik": "0000320193",
+                        "name": "",
+                        "sources": {"NASDAQ100"},
+                    }
+                ],
+                [
+                    {
+                        "ticker": "MSFT",
+                        "cik": "0000789019",
+                        "name": "Microsoft",
+                        "sources": {"SP500"},
+                    }
+                ],
             ]
         )
         assert [m["ticker"] for m in merged] == ["AAPL", "MSFT"]
@@ -291,8 +312,22 @@ class TestMergeSources:
 
         merged = merge_sources(
             [
-                [{"ticker": "GOOGL", "cik": "0001652044", "name": "Alphabet", "sources": {"SP500"}}],
-                [{"ticker": "GOOG", "cik": "0001652044", "name": "Alphabet", "sources": {"NASDAQ100"}}],
+                [
+                    {
+                        "ticker": "GOOGL",
+                        "cik": "0001652044",
+                        "name": "Alphabet",
+                        "sources": {"SP500"},
+                    }
+                ],
+                [
+                    {
+                        "ticker": "GOOG",
+                        "cik": "0001652044",
+                        "name": "Alphabet",
+                        "sources": {"NASDAQ100"},
+                    }
+                ],
             ]
         )
         assert [m["ticker"] for m in merged] == ["GOOGL"]
@@ -303,8 +338,22 @@ class TestMergeSources:
 
         merged = merge_sources(
             [
-                [{"ticker": "X", "cik": "", "name": "no cik", "sources": {"Russell2000"}}],
-                [{"ticker": "Y", "cik": "0000000001", "name": "ok", "sources": {"SP500"}}],
+                [
+                    {
+                        "ticker": "X",
+                        "cik": "",
+                        "name": "no cik",
+                        "sources": {"Russell2000"},
+                    }
+                ],
+                [
+                    {
+                        "ticker": "Y",
+                        "cik": "0000000001",
+                        "name": "ok",
+                        "sources": {"SP500"},
+                    }
+                ],
             ]
         )
         assert [m["ticker"] for m in merged] == ["Y"]
@@ -315,24 +364,56 @@ class TestBuildUniverse:
         from scripts.build_universe import build_universe
 
         sp = _csv(
-            tmp_path, "universe_sp500_nasdaq.csv",
-            ["ticker", "cik", "company_name", "source_index"],
-            [{"ticker": "AAPL", "cik": "0000320193", "company_name": "Apple Inc.", "source_index": "SP500"}],
-        )
-        ru = _csv(
-            tmp_path, "universe_russell2000.csv",
+            tmp_path,
+            "universe_sp500_nasdaq.csv",
             ["ticker", "cik", "company_name", "source_index"],
             [
-                {"ticker": "MOGA", "cik": "0000067887", "company_name": "Moog", "source_index": "Russell2000"},
-                {"ticker": "NOCIK", "cik": "", "company_name": "No Cik", "source_index": "Russell2000"},
+                {
+                    "ticker": "AAPL",
+                    "cik": "0000320193",
+                    "company_name": "Apple Inc.",
+                    "source_index": "SP500",
+                }
+            ],
+        )
+        ru = _csv(
+            tmp_path,
+            "universe_russell2000.csv",
+            ["ticker", "cik", "company_name", "source_index"],
+            [
+                {
+                    "ticker": "MOGA",
+                    "cik": "0000067887",
+                    "company_name": "Moog",
+                    "source_index": "Russell2000",
+                },
+                {
+                    "ticker": "NOCIK",
+                    "cik": "",
+                    "company_name": "No Cik",
+                    "source_index": "Russell2000",
+                },
             ],
         )
         eu = _csv(
-            tmp_path, "universe_european.csv",
+            tmp_path,
+            "universe_european.csv",
             ["ticker", "cik", "company_name", "source_index", "has_sec_filings"],
             [
-                {"ticker": "SHEL", "cik": "0001306965", "company_name": "Shell plc", "source_index": "FTSE100", "has_sec_filings": "true"},
-                {"ticker": "NESN", "cik": "", "company_name": "Nestlé", "source_index": "SMI", "has_sec_filings": "false"},
+                {
+                    "ticker": "SHEL",
+                    "cik": "0001306965",
+                    "company_name": "Shell plc",
+                    "source_index": "FTSE100",
+                    "has_sec_filings": "true",
+                },
+                {
+                    "ticker": "NESN",
+                    "cik": "",
+                    "company_name": "Nestlé",
+                    "source_index": "SMI",
+                    "has_sec_filings": "false",
+                },
             ],
         )
         out = tmp_path / "master.csv"
@@ -371,7 +452,9 @@ class TestValidateUniverse:
     def _universe(self, tmp_path, rows):
         path = tmp_path / "u.csv"
         with open(path, "w", encoding="utf-8", newline="") as h:
-            w = csv.DictWriter(h, fieldnames=["ticker", "cik", "company_name", "source_index"])
+            w = csv.DictWriter(
+                h, fieldnames=["ticker", "cik", "company_name", "source_index"]
+            )
             w.writeheader()
             w.writerows(rows)
         return str(path)
@@ -382,11 +465,24 @@ class TestValidateUniverse:
         path = self._universe(
             tmp_path,
             [
-                {"ticker": "AAPL", "cik": "0000320193", "company_name": "A", "source_index": "SP500"},
-                {"ticker": "KO", "cik": "0000021344", "company_name": "K", "source_index": "SP500"},
+                {
+                    "ticker": "AAPL",
+                    "cik": "0000320193",
+                    "company_name": "A",
+                    "source_index": "SP500",
+                },
+                {
+                    "ticker": "KO",
+                    "cik": "0000021344",
+                    "company_name": "K",
+                    "source_index": "SP500",
+                },
             ],
         )
-        assert validate_universe(path, repo=FakeRepo(["AAPL", "KO"]), threshold=80.0) is True
+        assert (
+            validate_universe(path, repo=FakeRepo(["AAPL", "KO"]), threshold=80.0)
+            is True
+        )
 
     def test_coverage_fails_below_threshold(self, tmp_path):
         from scripts.validate_universe_against_fdb import validate_universe
@@ -394,8 +490,18 @@ class TestValidateUniverse:
         path = self._universe(
             tmp_path,
             [
-                {"ticker": "AAPL", "cik": "0000320193", "company_name": "A", "source_index": "SP500"},
-                {"ticker": "NOPE", "cik": "", "company_name": "N", "source_index": "Russell2000"},
+                {
+                    "ticker": "AAPL",
+                    "cik": "0000320193",
+                    "company_name": "A",
+                    "source_index": "SP500",
+                },
+                {
+                    "ticker": "NOPE",
+                    "cik": "",
+                    "company_name": "N",
+                    "source_index": "Russell2000",
+                },
             ],
         )
         assert validate_universe(path, repo=FakeRepo(["AAPL"]), threshold=80.0) is False
@@ -408,14 +514,41 @@ class TestResolveUniverse:
     def _master(self, tmp_path):
         path = tmp_path / "universe.csv"
         with open(path, "w", encoding="utf-8", newline="") as h:
-            w = csv.DictWriter(h, fieldnames=["ticker", "cik", "company_name", "source_index"])
+            w = csv.DictWriter(
+                h, fieldnames=["ticker", "cik", "company_name", "source_index"]
+            )
             w.writeheader()
             for row in [
-                {"ticker": "AAPL", "cik": "0000320193", "company_name": "A", "source_index": "SP500,NASDAQ100"},
-                {"ticker": "KO", "cik": "0000021344", "company_name": "K", "source_index": "SP500"},
-                {"ticker": "MOGA", "cik": "0000067887", "company_name": "M", "source_index": "Russell2000"},
-                {"ticker": "SHEL", "cik": "0001306965", "company_name": "S", "source_index": "FTSE100"},
-                {"ticker": "LEGACY", "cik": "0000000001", "company_name": "L", "source_index": "BOTH"},
+                {
+                    "ticker": "AAPL",
+                    "cik": "0000320193",
+                    "company_name": "A",
+                    "source_index": "SP500,NASDAQ100",
+                },
+                {
+                    "ticker": "KO",
+                    "cik": "0000021344",
+                    "company_name": "K",
+                    "source_index": "SP500",
+                },
+                {
+                    "ticker": "MOGA",
+                    "cik": "0000067887",
+                    "company_name": "M",
+                    "source_index": "Russell2000",
+                },
+                {
+                    "ticker": "SHEL",
+                    "cik": "0001306965",
+                    "company_name": "S",
+                    "source_index": "FTSE100",
+                },
+                {
+                    "ticker": "LEGACY",
+                    "cik": "0000000001",
+                    "company_name": "L",
+                    "source_index": "BOTH",
+                },
             ]:
                 w.writerow(row)
         return str(path)
@@ -478,7 +611,9 @@ class TestResolveUniverse:
         assert args.run_id is None
         fresh = build_parser().parse_args(["--no-resume"])
         assert fresh.resume is False
-        targeted = build_parser().parse_args(["--run-id", "2026-09-25T08:00:00Z-abc123"])
+        targeted = build_parser().parse_args(
+            ["--run-id", "2026-09-25T08:00:00Z-abc123"]
+        )
         assert targeted.run_id == "2026-09-25T08:00:00Z-abc123"
 
 
@@ -582,6 +717,5 @@ class TestClassifyPriceFailures:
         from scripts.daily_workflow import _classify_price_failures
 
         assert (
-            _classify_price_failures([], self._price_service({}), self._repo({}))
-            == {}
+            _classify_price_failures([], self._price_service({}), self._repo({})) == {}
         )

@@ -41,7 +41,9 @@ class _FakeGateway:
     def available(self) -> bool:
         return self._available
 
-    def stale_companies(self, *, max_age_hours=None, limit=500, priority="recent_filings"):
+    def stale_companies(
+        self, *, max_age_hours=None, limit=500, priority="recent_filings"
+    ):
         self.calls.append(
             {"max_age_hours": max_age_hours, "limit": limit, "priority": priority}
         )
@@ -123,7 +125,10 @@ def test_limit_must_be_positive(_patched, capsys):
 def test_all_three_priorities_are_accepted(_patched):
     recorded = _patched()
     for priority in ("recent_filings", "alphabetical", "random"):
-        assert catch_up_stale.main(["--limit", "2", "--dry-run", "--priority", priority]) == 0
+        assert (
+            catch_up_stale.main(["--limit", "2", "--dry-run", "--priority", priority])
+            == 0
+        )
 
     assert [call["priority"] for call in recorded["gateway"].calls] == [
         "recent_filings",
@@ -172,9 +177,7 @@ def test_syncs_every_selected_company_individually(_patched, capsys):
     assert exit_code == 0
     # One targeted sync per company. The worker pool makes the completion
     # order non-deterministic, so this asserts the set of CIKs, not a sequence.
-    assert sorted(recorded["service"].synced) == sorted(
-        f"{i:010d}" for i in range(4)
-    )
+    assert sorted(recorded["service"].synced) == sorted(f"{i:010d}" for i in range(4))
     assert "4 synced, 0 failed" in capsys.readouterr().out
 
 

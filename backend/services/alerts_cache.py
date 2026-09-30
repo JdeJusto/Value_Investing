@@ -78,6 +78,7 @@ def alert_sort_key(alert: Any):
     built by a parallel pool), so without this the stored list, the report and
     the JSON state would differ between two runs of the same day.
     """
+
     def _get(name, default=""):
         if isinstance(alert, dict):
             return alert.get(name, default) or default
@@ -118,9 +119,7 @@ def input_digest(
                 _scalar(composite.get("confidence")),
                 _scalar(item.get("buffett_score")),
                 _scalar(item.get("opportunity")),
-                sorted(
-                    (str(k), _scalar(v)) for k, v in deltas.items()
-                ),
+                sorted((str(k), _scalar(v)) for k, v in deltas.items()),
                 _scalar(prior.get("total_score")),
             ]
         )

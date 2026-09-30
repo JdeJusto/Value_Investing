@@ -47,9 +47,7 @@ def test_rate_limit_is_non_transient():
 
 
 def test_invalid_crumb_is_non_transient():
-    non_transient, status, _ = classify_fetch_exception(
-        RuntimeError("Invalid Crumb")
-    )
+    non_transient, status, _ = classify_fetch_exception(RuntimeError("Invalid Crumb"))
     assert non_transient is True
     assert status == 401
 
@@ -189,6 +187,7 @@ def test_three_consecutive_429s_abort_the_stage(monkeypatch):
 
 def test_the_stage_stops_and_records_the_abort(monkeypatch):
     """get_market_snapshots returns what it got and records why it stopped."""
+
     class _Ticker:
         def __init__(self, symbol):
             pass
@@ -217,6 +216,7 @@ def test_the_stage_stops_and_records_the_abort(monkeypatch):
 
 def test_a_single_429_does_not_abort_the_stage(monkeypatch):
     """One bad symbol is not a provider outage."""
+
     class _Ticker:
         def __init__(self, symbol):
             self.symbol = symbol
@@ -317,7 +317,9 @@ def test_threshold_comes_from_the_config_file(tmp_path, monkeypatch):
     assert config.price_abort_after_consecutive_non_transient == 7
 
     monkeypatch.setenv("PRICE_ABORT_AFTER", "5")
-    assert load_refresh_config(str(path)).price_abort_after_consecutive_non_transient == 5
+    assert (
+        load_refresh_config(str(path)).price_abort_after_consecutive_non_transient == 5
+    )
 
 
 def test_shipped_config_sets_the_threshold():
@@ -328,7 +330,12 @@ def test_shipped_config_sets_the_threshold():
     root = Path(__file__).resolve().parents[2]
     config_path = root / "config" / "refresh.yaml"
     assert config_path.exists()
-    assert load_refresh_config(str(config_path)).price_abort_after_consecutive_non_transient == 3
+    assert (
+        load_refresh_config(
+            str(config_path)
+        ).price_abort_after_consecutive_non_transient
+        == 3
+    )
 
 
 def test_configure_sets_the_threshold():
@@ -393,9 +400,7 @@ def test_old_run_state_reads_as_ok(tmp_path):
     from backend.services.run_state import RUN_STATE_FILENAME, RunState
 
     path = tmp_path / RUN_STATE_FILENAME
-    RunState.create(
-        path, universe_spec="all", options={}, total_tickers=10
-    )
+    RunState.create(path, universe_spec="all", options={}, total_tickers=10)
     payload = json.loads(path.read_text())
     del payload["price_stage"]
     path.write_text(json.dumps(payload))

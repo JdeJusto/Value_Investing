@@ -41,9 +41,7 @@ def _sort_sources(sources: set[str]) -> list[str]:
     return [c for c in _CANON if c in sources] + sorted(sources - set(_CANON))
 
 
-def _read_universe_csv(
-    path: str, european_sec_only: bool = False
-) -> list[dict]:
+def _read_universe_csv(path: str, european_sec_only: bool = False) -> list[dict]:
     """Rows from a per-index universe CSV as normalized dicts."""
     rows: list[dict] = []
     with open(path, encoding="utf-8") as handle:
@@ -52,12 +50,13 @@ def _read_universe_csv(
                 continue
             if not raw.get("cik"):
                 continue  # never analyzable downstream
-            if european_sec_only and raw.get("has_sec_filings", "").strip().lower() != "true":
+            if (
+                european_sec_only
+                and raw.get("has_sec_filings", "").strip().lower() != "true"
+            ):
                 continue
             sources = {
-                s.strip()
-                for s in raw.get("source_index", "").split(",")
-                if s.strip()
+                s.strip() for s in raw.get("source_index", "").split(",") if s.strip()
             }
             if "BOTH" in sources:
                 sources = (sources - {"BOTH"}) | {"SP500", "NASDAQ100"}
@@ -83,9 +82,7 @@ def merge_sources(source_chunks: list[list[dict]]) -> list[dict]:
                 continue
             if tick in by_ticker:
                 by_ticker[tick]["sources"] |= row["sources"]
-                by_ticker[tick]["name"] = (
-                    by_ticker[tick]["name"] or row["name"]
-                )
+                by_ticker[tick]["name"] = by_ticker[tick]["name"] or row["name"]
                 continue
             by_ticker[tick] = {
                 "ticker": tick,
@@ -117,8 +114,9 @@ def build_universe(
     european_file: str = "config/universe_european.csv",
 ) -> dict:
     """Merge all per-index CSVs into the master file. Returns stats."""
-    missing = [p for p in (sp500_file, russell_file, european_file)
-               if not Path(p).exists()]
+    missing = [
+        p for p in (sp500_file, russell_file, european_file) if not Path(p).exists()
+    ]
     if missing:
         raise SystemExit(
             "ERROR: missing universe source files: "

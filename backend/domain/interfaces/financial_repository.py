@@ -24,9 +24,7 @@ class FinancialRepository(ABC):
         """Insert or update a batch of fiscal-year records in one operation."""
 
     @abstractmethod
-    def get_by_year(
-        self, ticker: str, fiscal_year: int
-    ) -> NormalizedFinancials | None:
+    def get_by_year(self, ticker: str, fiscal_year: int) -> NormalizedFinancials | None:
         """Return the normalized record for a given fiscal year, if stored."""
 
     @abstractmethod

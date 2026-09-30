@@ -73,7 +73,7 @@ def _sell_alert(
     if drop is None:
         return None
     reasons = [
-        (f"score total {prev_score:.1f} -> {current_score:.1f} " f"(-{drop:.0f} puntos)")
+        (f"score total {prev_score:.1f} -> {current_score:.1f} (-{drop:.0f} puntos)")
     ]
     trigger = trigger_label(detect_trigger(current, thresholds=thresholds))
     if trigger:
@@ -89,9 +89,7 @@ def _sell_alert(
 def _trigger_alert(
     ticker: str, analysis: dict, thresholds: dict | None = None
 ) -> Alert | None:
-    trigger = trigger_label(
-        detect_trigger(analysis, thresholds=thresholds)
-    )
+    trigger = trigger_label(detect_trigger(analysis, thresholds=thresholds))
     if trigger is None:
         return None
     rank = rank_score(analysis)
@@ -126,9 +124,7 @@ def evaluate_company(
         alerts.append(buy)
 
     if previous is not None:
-        sell = _sell_alert(
-            ticker, current, previous, thresholds=thresholds
-        )
+        sell = _sell_alert(ticker, current, previous, thresholds=thresholds)
         if sell is not None:
             alerts.append(sell)
 

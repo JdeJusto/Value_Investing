@@ -132,9 +132,7 @@ class ScreenerService:
             with ThreadPoolExecutor(max_workers=self._workers) as pool:
                 return [
                     item
-                    for item in pool.map(
-                        lambda t: self._process(t, criteria), tickers
-                    )
+                    for item in pool.map(lambda t: self._process(t, criteria), tickers)
                     if item is not None
                 ]
         items: list[dict] = []
@@ -162,9 +160,7 @@ class ScreenerService:
             shares = item.get("shares_outstanding")
             if not shares:
                 shares = self._price_service.get_shares_outstanding(ticker)
-            market_cap = (
-                price * float(shares) if shares else item.get("market_cap")
-            )
+            market_cap = price * float(shares) if shares else item.get("market_cap")
             metrics: dict = {"price": price, "market_cap": market_cap}
 
             per = item.get("per")

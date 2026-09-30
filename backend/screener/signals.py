@@ -5,7 +5,6 @@ Confidence always carries the data confidence so a signal is never
 stronger than the data it rests on.
 """
 
-
 BUY_MIN_RANK = 75.0
 BUY_MIN_TOTAL = 70.0
 # LOW-confidence data needs a materially stronger bar before it can justify
@@ -45,10 +44,10 @@ def _opportunity_type(item: dict) -> str | None:
 # ---------------------------------------------------------------------------
 
 # Absolute floors: the raw delta must be at least this large to fire.
-MARGIN_EXPANSION_FLOOR = 0.02        # gross margin +≥ 2 pp
-REVENUE_ACCELERATION_FLOOR = 0.05    # revenue growth-rate acceleration +≥ 5 pp
-ROIC_IMPROVEMENT_FLOOR = 0.03        # ROIC +≥ 3 pp
-FCF_SURGE_FLOOR = 0.20               # FCF growth +≥ 20%
+MARGIN_EXPANSION_FLOOR = 0.02  # gross margin +≥ 2 pp
+REVENUE_ACCELERATION_FLOOR = 0.05  # revenue growth-rate acceleration +≥ 5 pp
+ROIC_IMPROVEMENT_FLOOR = 0.03  # ROIC +≥ 3 pp
+FCF_SURGE_FLOOR = 0.20  # FCF growth +≥ 20%
 
 # Cross-sectional quantile of the (signed) delta across the analyzed
 # universe. Effective threshold = max(floor, percentile). Calibrated on the
@@ -198,9 +197,7 @@ def detect_trigger(item: dict, thresholds: dict | None = None) -> str | None:
     return max(candidates, key=lambda pair: pair[0])[1]
 
 
-def generate_signal(
-    item: dict, rank: float, thresholds: dict | None = None
-) -> dict:
+def generate_signal(item: dict, rank: float, thresholds: dict | None = None) -> dict:
     """Assign a BUY / WATCHLIST / HOLD / AVOID label and its reasons."""
     buffett = item.get("buffett_score")
     confidence = _confidence(item)

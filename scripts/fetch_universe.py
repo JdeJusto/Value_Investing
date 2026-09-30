@@ -60,9 +60,7 @@ def _wiki_sp500() -> list[str]:
             return []
         df = frames[0]
         col = "Symbol" if "Symbol" in df.columns else df.columns[0]
-        tickers = [
-            str(t).strip().replace(".", "-") for t in df[col] if str(t).strip()
-        ]
+        tickers = [str(t).strip().replace(".", "-") for t in df[col] if str(t).strip()]
         return tickers
     except Exception as exc:  # noqa: BLE001
         logger.warning("failed to fetch S&P 500 list from Wikipedia: %s", exc)
@@ -176,12 +174,16 @@ def fetch_universe(output: str = "config/universe_sp500_nasdaq.csv") -> dict:
         )
 
     if skipped:
-        logger.warning("skipped %d ticker(s) not in FDB: %s", len(skipped), ", ".join(skipped))
+        logger.warning(
+            "skipped %d ticker(s) not in FDB: %s", len(skipped), ", ".join(skipped)
+        )
 
     out = Path(output)
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=["ticker", "cik", "company_name", "source_index"])
+        writer = csv.DictWriter(
+            fh, fieldnames=["ticker", "cik", "company_name", "source_index"]
+        )
         writer.writeheader()
         writer.writerows(rows)
     logger.info("wrote %s (%d rows)", out, len(rows))
@@ -203,6 +205,7 @@ def _build_repo():
     from backend.repositories.financial_database_repository import (
         FinancialDatabaseRepository,
     )
+
     return FinancialDatabaseRepository()
 
 

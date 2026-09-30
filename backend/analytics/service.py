@@ -362,11 +362,7 @@ class CompanyAnalysisService:
         # Repository), the newest bucket may hold a stray field (e.g. net
         # income) but no revenue. It must not anchor the analysis when the
         # previous completed year has a full income statement.
-        while (
-            len(rows) > 1
-            and rows[0].revenue is None
-            and rows[1].revenue is not None
-        ):
+        while len(rows) > 1 and rows[0].revenue is None and rows[1].revenue is not None:
             rows = rows[1:]
         return rows
 
@@ -408,9 +404,7 @@ class CompanyAnalysisService:
         if cache is not None and fingerprint is not None:
             from backend.services.analysis_cache import SECTION_ALL_YEARS
 
-            cache.put_lookup(
-                ticker, fingerprint, SECTION_ALL_YEARS, "years", years
-            )
+            cache.put_lookup(ticker, fingerprint, SECTION_ALL_YEARS, "years", years)
         return set(years)
 
     def _data_reliability(self, ticker: str, rows: list[NormalizedFinancials]) -> dict:
@@ -442,8 +436,8 @@ class CompanyAnalysisService:
         # data coverage — both concrete, deterministic numbers that scale
         # with how much usable history is available.
         quality = quality_raw if quality_raw is not None else round(depth, 3)
-        completeness = completeness_raw if completeness_raw is not None else round(
-            coverage, 3
+        completeness = (
+            completeness_raw if completeness_raw is not None else round(coverage, 3)
         )
 
         report = {
@@ -474,12 +468,7 @@ class CompanyAnalysisService:
         price = self._safe_market(self._market.get_current_price, ticker)
         market_cap = self._safe_market(self._market.get_market_cap, ticker)
         margin = None
-        if (
-            dcf_value
-            and dcf_value > 0
-            and market_cap is not None
-            and market_cap > 0
-        ):
+        if dcf_value and dcf_value > 0 and market_cap is not None and market_cap > 0:
             margin = (dcf_value - market_cap) / dcf_value
         return {
             "current_price": price,

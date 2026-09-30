@@ -29,8 +29,10 @@ def _fact(concept, value, year=2024, period="FY", end=None):
 
 
 def _revenue(facts):
-    return FinancialDatabaseRepository()._normalize_financial_facts(facts)["income"].get(
-        "revenue"
+    return (
+        FinancialDatabaseRepository()
+        ._normalize_financial_facts(facts)["income"]
+        .get("revenue")
     )
 
 

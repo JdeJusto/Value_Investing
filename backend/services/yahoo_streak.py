@@ -136,9 +136,11 @@ class StreakUpdate:
         rate_limited = bool(state.get("rate_limited", True))
         kind = "HTTP 429 (rate limit)" if rate_limited else "an unrelated failure"
         lines = [
-            (f"Yahoo has been unavailable for the last "
-            f"**{self.consecutive_failures} consecutive runs** "
-            f"(threshold {self.threshold}) — {kind}."),
+            (
+                f"Yahoo has been unavailable for the last "
+                f"**{self.consecutive_failures} consecutive runs** "
+                f"(threshold {self.threshold}) — {kind}."
+            ),
             f"First failure: {state.get('first_failure_at') or 'unknown'} · "
             f"Last failure: {state.get('last_failure_at') or 'unknown'}"
             + (
@@ -146,14 +148,18 @@ class StreakUpdate:
                 if state.get("last_failure_reason")
                 else ""
             ),
-            ("Impact: P/E, P/B, FCF yield, EV/EBIT and margin of safety are N/A, "
-            "and `rank_score` loses its margin-of-safety and momentum "
-            "components, so `BUY_SIGNAL` alerts can be suppressed."),
-            ("Action: verify manually with "
-            "`curl -s -o /dev/null -w '%{http_code}\\n' -H 'User-Agent: Mozilla/5.0' "
-            "'https://query1.finance.yahoo.com/v8/finance/chart/AAPL"
-            "?range=1d&interval=1d'`, then re-run "
-            "`python -m scripts.daily_workflow --universe sp500 --limit 20`."),
+            (
+                "Impact: P/E, P/B, FCF yield, EV/EBIT and margin of safety are N/A, "
+                "and `rank_score` loses its margin-of-safety and momentum "
+                "components, so `BUY_SIGNAL` alerts can be suppressed."
+            ),
+            (
+                "Action: verify manually with "
+                "`curl -s -o /dev/null -w '%{http_code}\\n' -H 'User-Agent: Mozilla/5.0' "
+                "'https://query1.finance.yahoo.com/v8/finance/chart/AAPL"
+                "?range=1d&interval=1d'`, then re-run "
+                "`python -m scripts.daily_workflow --universe sp500 --limit 20`."
+            ),
         ]
         if not rate_limited:
             lines.insert(
@@ -201,12 +207,14 @@ class YahooStreakTracker:
         except FileNotFoundError:
             return blank
         except Exception as exc:  # noqa: BLE001 — corrupt state must not block
-            logger.warning("yahoo streak: unreadable state %s: %s", self.state_path, exc)
+            logger.warning(
+                "yahoo streak: unreadable state %s: %s", self.state_path, exc
+            )
             return blank
         blank.update({k: v for k, v in data.items() if k in blank})
         try:
             blank["consecutive_failures"] = int(blank.get("consecutive_failures", 0))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             blank["consecutive_failures"] = 0
         blank["alerted"] = bool(blank.get("alerted", False))
         return blank
@@ -243,16 +251,16 @@ class YahooStreakTracker:
         return False
 
     # ------------------------------------------------------------------
-    def record_failure(self, reason: str = "", rate_limited: bool = True) -> StreakUpdate:
+    def record_failure(
+        self, reason: str = "", rate_limited: bool = True
+    ) -> StreakUpdate:
         """Register a failed preflight; fires the alert at the threshold.
 
         ``rate_limited`` records *why* it failed, so a DNS or TLS error never
         raises a rate-limit alarm (see :func:`is_rate_limit`).
         """
         if not self.enabled:
-            return StreakUpdate(
-                state=self.load(), threshold=self.threshold
-            )
+            return StreakUpdate(state=self.load(), threshold=self.threshold)
         state = self.load()
         streak = int(state.get("consecutive_failures", 0)) + 1
         state["consecutive_failures"] = streak
@@ -293,9 +301,7 @@ class YahooStreakTracker:
     def record_success(self) -> StreakUpdate:
         """Register a working preflight: reset the streak, clear the alert."""
         if not self.enabled:
-            return StreakUpdate(
-                state=self.load(), threshold=self.threshold
-            )
+            return StreakUpdate(state=self.load(), threshold=self.threshold)
         state = self.load()
         was_failing = int(state.get("consecutive_failures", 0)) > 0
         state["consecutive_failures"] = 0

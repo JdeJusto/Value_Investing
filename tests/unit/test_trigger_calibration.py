@@ -41,26 +41,36 @@ class TestAbsoluteFloors:
         assert detect_trigger(item) is None
 
     def test_revenue_floor(self):
-        assert detect_trigger(
-            make_item({"revenue_growth_delta": REVENUE_ACCELERATION_FLOOR})
-        ) == "REVENUE_ACCELERATION"
-        assert detect_trigger(
-            make_item({"revenue_growth_delta": REVENUE_ACCELERATION_FLOOR - 0.01})
-        ) is None
+        assert (
+            detect_trigger(
+                make_item({"revenue_growth_delta": REVENUE_ACCELERATION_FLOOR})
+            )
+            == "REVENUE_ACCELERATION"
+        )
+        assert (
+            detect_trigger(
+                make_item({"revenue_growth_delta": REVENUE_ACCELERATION_FLOOR - 0.01})
+            )
+            is None
+        )
 
     def test_roic_floor(self):
-        assert detect_trigger(
-            make_item({"roic_delta": ROIC_IMPROVEMENT_FLOOR})
-        ) == "ROIC_IMPROVEMENT"
-        assert detect_trigger(
-            make_item({"roic_delta": ROIC_IMPROVEMENT_FLOOR - 0.005})
-        ) is None
+        assert (
+            detect_trigger(make_item({"roic_delta": ROIC_IMPROVEMENT_FLOOR}))
+            == "ROIC_IMPROVEMENT"
+        )
+        assert (
+            detect_trigger(make_item({"roic_delta": ROIC_IMPROVEMENT_FLOOR - 0.005}))
+            is None
+        )
 
     def test_fcf_surge_floor_and_positive_fcf(self):
         item = make_item({"fcf_delta": FCF_SURGE_FLOOR}, fcf=5.0)
         assert detect_trigger(item) == "FCF_SURGE"
         # A surge from a negative FCF base is not an improvement worth an alert.
-        assert detect_trigger(make_item({"fcf_delta": FCF_SURGE_FLOOR}, fcf=-1.0)) is None
+        assert (
+            detect_trigger(make_item({"fcf_delta": FCF_SURGE_FLOOR}, fcf=-1.0)) is None
+        )
 
 
 class TestDominance:
@@ -136,7 +146,9 @@ class TestPersistence:
 
 class TestCalibration:
     def test_small_universe_uses_absolute_floors(self):
-        items = [make_item(d) for d in ({"gross_margin_delta": 0.03}, {"roic_delta": 0.05})]
+        items = [
+            make_item(d) for d in ({"gross_margin_delta": 0.03}, {"roic_delta": 0.05})
+        ]
         thresholds = calibrate_trigger_thresholds(items)
         # Isolated runs fall back to the absolute floors, so a single-company
         # evaluation still behaves deterministically.
@@ -146,7 +158,9 @@ class TestCalibration:
     def test_percentile_raises_the_bar(self):
         # A large universe with mostly large positive deltas pushes the
         # threshold above the absolute floors.
-        deltas = [{"gross_margin_delta": 0.08}] * 40 + [{"gross_margin_delta": 0.06}] * 40
+        deltas = [{"gross_margin_delta": 0.08}] * 40 + [
+            {"gross_margin_delta": 0.06}
+        ] * 40
         items = [make_item(d) for d in deltas]
         thresholds = calibrate_trigger_thresholds(items)
         assert thresholds["MARGIN_EXPANSION"] > MARGIN_EXPANSION_FLOOR
@@ -160,7 +174,9 @@ class TestCalibration:
     def test_calibrated_threshold_is_applied(self):
         # Wide-spread universe: the 92nd-percentile floor sits above the
         # mid-point values, so the calibrated bar keeps only the biggest delta.
-        items = [make_item({"gross_margin_delta": v}) for v in (0.03, 0.04, 0.05, 0.06, 0.07)]
+        items = [
+            make_item({"gross_margin_delta": v}) for v in (0.03, 0.04, 0.05, 0.06, 0.07)
+        ]
         thresholds = calibrate_trigger_thresholds(items, min_samples=5)
         firing = [i for i in items if detect_trigger(i, thresholds=thresholds)]
         assert len(firing) == 1
@@ -171,12 +187,13 @@ class TestAlertEngineIntegration:
         # Every FCF delta would pass the absolute 20% floor. The calibrated
         # 92nd-percentile bar keeps only the top of the universe plus the
         # clear outlier.
-        uniform = {f"T{i}": make_item({"fcf_delta": 0.20 + 0.12 * i / 39}, fcf=10.0) for i in range(40)}
+        uniform = {
+            f"T{i}": make_item({"fcf_delta": 0.20 + 0.12 * i / 39}, fcf=10.0)
+            for i in range(40)
+        }
         analyses = uniform | {"BIG": make_item({"fcf_delta": 9.0}, fcf=10.0)}
         alerts = run(analyses)
-        trigger_tickers = {
-            a.ticker for a in alerts if a.alert_type == TRIGGER_EVENT
-        }
+        trigger_tickers = {a.ticker for a in alerts if a.alert_type == TRIGGER_EVENT}
         assert "BIG" in trigger_tickers
         assert len(trigger_tickers) <= 6
 

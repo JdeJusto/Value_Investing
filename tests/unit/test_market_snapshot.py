@@ -31,9 +31,7 @@ class TestGetMarketSnapshots:
             "backend.services.price_service.yf.Ticker",
             return_value=_fake_info(_INFO),
         ):
-            snapshots = service.get_market_snapshots(
-                ["AAPL"], batch_size=1, delay=0
-            )
+            snapshots = service.get_market_snapshots(["AAPL"], batch_size=1, delay=0)
 
         assert snapshots["AAPL"]["marketCap"] == 2_300_000_000_000
         # The derived price/shares are warmed into the memory cache so
@@ -51,9 +49,7 @@ class TestGetMarketSnapshots:
             "backend.services.price_service.yf.Ticker",
             side_effect=[t, t2],
         ):
-            snapshots = service.get_market_snapshots(
-                ["ZZZZ"], batch_size=1, delay=0
-            )
+            snapshots = service.get_market_snapshots(["ZZZZ"], batch_size=1, delay=0)
         assert snapshots["ZZZZ"] is None
 
 
@@ -94,9 +90,7 @@ class TestPriceFailureClassification:
             "backend.services.price_service.yf.Ticker",
             side_effect=[self._quote({"quoteType": "EQUITY"})],
         ):
-            category = service.classify_price_failure(
-                "ON", known_ticker=lambda _: True
-            )
+            category = service.classify_price_failure("ON", known_ticker=lambda _: True)
         assert category == "yahoo_glitch"
 
     def test_no_data_and_unknown_listing_is_mapping(self):
@@ -165,9 +159,7 @@ class TestPriceFailureClassification:
             "backend.services.price_service.yf.Ticker",
             side_effect=[ticker, ticker, third],
         ):
-            category = service.classify_price_failure(
-                "ON", known_ticker=lambda _: True
-            )
+            category = service.classify_price_failure("ON", known_ticker=lambda _: True)
         assert category == "yahoo_glitch"
 
     def test_empty_info_dict_is_not_data(self):
@@ -181,6 +173,7 @@ class TestPriceFailureClassification:
                 "JUNK", known_ticker=lambda _: False
             )
         assert category == "mapping"
+
 
 class TestSnapshotMarketProvider:
     def test_serves_all_market_fields_from_snapshot(self):

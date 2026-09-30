@@ -4,7 +4,6 @@ Deterministic math over position prices — no external data required.
 ``current_price`` is refreshed upstream by the analytics layer.
 """
 
-
 from backend.portfolio.models import Portfolio, Position
 
 

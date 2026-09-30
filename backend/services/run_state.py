@@ -341,7 +341,7 @@ class RunState:
         for key, value in (failures or {}).items():
             try:
                 clean[str(key)] = int(value)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
         with self._lock:
             self._payload["prices_stage"] = {

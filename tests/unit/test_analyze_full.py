@@ -51,7 +51,9 @@ def _analysis_dict(**overrides):
 class TestAnalyzeFullSections:
     def test_section_overview(self, capsys):
         analyze_full._section_overview(
-            {"ticker": "AAPL", "name": "Apple Inc."}, "Technology", "Consumer Electronics"
+            {"ticker": "AAPL", "name": "Apple Inc."},
+            "Technology",
+            "Consumer Electronics",
         )
         out = capsys.readouterr().out
         assert "Apple Inc." in out
@@ -107,9 +109,7 @@ class TestAnalyzeFullRunner:
             def _analyze_ticker(self, ticker, no_prices=False):
                 raise ValueError("boom")
 
-        monkeypatch.setattr(
-            analyze_full, "build_screener_service", lambda: Broken()
-        )
+        monkeypatch.setattr(analyze_full, "build_screener_service", lambda: Broken())
         analyze_full._run(self._args())
         out = capsys.readouterr().out
         assert "ERROR" in out
@@ -146,9 +146,7 @@ class TestAnalyzeFullRunner:
             extra=_analysis_dict(),
         )
         service = self._fake_service(row)
-        monkeypatch.setattr(
-            analyze_full, "build_screener_service", lambda: service
-        )
+        monkeypatch.setattr(analyze_full, "build_screener_service", lambda: service)
 
         class _FakeHist:
             def format_valuation_table(self, ticker):
@@ -249,9 +247,7 @@ class TestAnalyzeFullMockedPrice:
         assert "EV/EBIT" in out and "8.9" in out
         assert "6) Riesgos" in out
 
-    def test_runner_no_prices_never_calls_price_service(
-        self, monkeypatch, capsys
-    ):
+    def test_runner_no_prices_never_calls_price_service(self, monkeypatch, capsys):
         """With --no-prices the PriceService is never consulted and section 2
         says so — real-time prices stay optional for the report."""
         service, prices = self._build_service()

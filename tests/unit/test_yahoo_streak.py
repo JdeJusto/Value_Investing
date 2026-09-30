@@ -273,12 +273,16 @@ def test_is_rate_limit_distinguishes_causes():
     from backend.services.yahoo_health import YahooHealth
     from backend.services.yahoo_streak import is_rate_limit
 
-    assert is_rate_limit(YahooHealth(False, "Yahoo returned HTTP 429 (rate limited)", 429, 0.0))
+    assert is_rate_limit(
+        YahooHealth(False, "Yahoo returned HTTP 429 (rate limited)", 429, 0.0)
+    )
     assert is_rate_limit(YahooHealth(False, "HTTP 429", None, 0.0))
     assert is_rate_limit(YahooHealth(False, "Too Many Requests", None, 0.0))
     # A local network problem must not be reported as a rate limit
     assert not is_rate_limit(
-        YahooHealth(False, "Yahoo unreachable: Temporary failure in name resolution", None, 0.0)
+        YahooHealth(
+            False, "Yahoo unreachable: Temporary failure in name resolution", None, 0.0
+        )
     )
     assert not is_rate_limit(YahooHealth(False, "Yahoo returned HTTP 500", 500, 0.0))
     assert not is_rate_limit(YahooHealth(True, "ok", 200, 0.0))
@@ -317,10 +321,14 @@ def test_report_title_reflects_the_cause():
         "alerted": True,
     }
     limited = build_markdown(
-        DailyReport(report_date=_date(2026, 9, 28), yahoo_streak={**base, "rate_limited": True})
+        DailyReport(
+            report_date=_date(2026, 9, 28), yahoo_streak={**base, "rate_limited": True}
+        )
     )
     other = build_markdown(
-        DailyReport(report_date=_date(2026, 9, 28), yahoo_streak={**base, "rate_limited": False})
+        DailyReport(
+            report_date=_date(2026, 9, 28), yahoo_streak={**base, "rate_limited": False}
+        )
     )
 
     assert "## ⚠️ Yahoo Rate Limit Alert" in limited

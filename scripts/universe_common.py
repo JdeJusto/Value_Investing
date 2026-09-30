@@ -136,9 +136,7 @@ def company_key(name: str) -> str:
     to the same key ``novonordisk``.
     """
     words = re.findall(r"[a-z0-9]+", (name or "").lower())
-    kept = [
-        w for w in words if w not in _COMPANY_TYPE_TOKENS and len(w) > 1
-    ]
+    kept = [w for w in words if w not in _COMPANY_TYPE_TOKENS and len(w) > 1]
     return "".join(kept)
 
 
@@ -184,7 +182,9 @@ def sec_company_tickers(
         # never serve a process-cached map built from a different dataset.
         cache_key = None
 
-    data = json.loads(raw_json)  # {"0": {"cik_str": 320193, "ticker": ..., "title": ...}}
+    data = json.loads(
+        raw_json
+    )  # {"0": {"cik_str": 320193, "ticker": ..., "title": ...}}
 
     by_ticker: dict[str, dict[str, str]] = {}
     by_stripped: dict[str, str] = {}
@@ -207,9 +207,7 @@ def sec_company_tickers(
     return result
 
 
-def ticker_to_sec(
-    ticker: str, sec: dict[str, Any]
-) -> dict[str, str] | None:
+def ticker_to_sec(ticker: str, sec: dict[str, Any]) -> dict[str, str] | None:
     """Resolve a US ticker to ``{cik, title, ticker}`` via the SEC map."""
     t = normalize_ticker(ticker)
     entry = sec["ticker"].get(t)

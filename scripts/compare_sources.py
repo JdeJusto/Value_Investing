@@ -21,6 +21,7 @@ from backend.providers.yahoo import YahooFinanceProvider
 
 class _ProviderFinancials:
     """Simple wrapper to hold financial data for comparison."""
+
     def __init__(self):
         self.revenue: float | None = None
         self.net_income: float | None = None
@@ -49,20 +50,46 @@ def _extract_financials_from_yahoo(ticker: str) -> _ProviderFinancials | None:
         fin = _ProviderFinancials()
         if income:
             fin.revenue = float(income.revenue) if income.revenue is not None else None
-            fin.net_income = float(income.net_income) if income.net_income is not None else None
+            fin.net_income = (
+                float(income.net_income) if income.net_income is not None else None
+            )
         if balance:
-            fin.total_assets = float(balance.total_assets) if balance.total_assets is not None else None
-            fin.total_liabilities = float(balance.total_liabilities) if balance.total_liabilities is not None else None
-            fin.shareholders_equity = float(balance.stockholders_equity) if balance.stockholders_equity is not None else None
+            fin.total_assets = (
+                float(balance.total_assets)
+                if balance.total_assets is not None
+                else None
+            )
+            fin.total_liabilities = (
+                float(balance.total_liabilities)
+                if balance.total_liabilities is not None
+                else None
+            )
+            fin.shareholders_equity = (
+                float(balance.stockholders_equity)
+                if balance.stockholders_equity is not None
+                else None
+            )
         if cash_flow:
-            fin.operating_cash_flow = float(cash_flow.operating_cash_flow) if cash_flow.operating_cash_flow is not None else None
+            fin.operating_cash_flow = (
+                float(cash_flow.operating_cash_flow)
+                if cash_flow.operating_cash_flow is not None
+                else None
+            )
             # Capital expenditure is often negative; we want positive for comparison
             capex = cash_flow.capital_expenditure
             if capex is not None:
                 fin.capital_expenditure = abs(float(capex))
-            fin.free_cash_flow = float(cash_flow.free_cash_flow) if cash_flow.free_cash_flow is not None else None
+            fin.free_cash_flow = (
+                float(cash_flow.free_cash_flow)
+                if cash_flow.free_cash_flow is not None
+                else None
+            )
         # Calculate diluted EPS if possible
-        if fin.net_income is not None and shares_outstanding is not None and shares_outstanding != 0:
+        if (
+            fin.net_income is not None
+            and shares_outstanding is not None
+            and shares_outstanding != 0
+        ):
             fin.diluted_eps = fin.net_income / float(shares_outstanding)
         # Attempt to get fiscal year (most recent)
         try:
@@ -94,17 +121,39 @@ def _extract_financials_from_edgar(ticker: str) -> _ProviderFinancials | None:
         fin = _ProviderFinancials()
         if income:
             fin.revenue = float(income.revenue) if income.revenue is not None else None
-            fin.net_income = float(income.net_income) if income.net_income is not None else None
+            fin.net_income = (
+                float(income.net_income) if income.net_income is not None else None
+            )
         if balance:
-            fin.total_assets = float(balance.total_assets) if balance.total_assets is not None else None
-            fin.total_liabilities = float(balance.total_liabilities) if balance.total_liabilities is not None else None
-            fin.shareholders_equity = float(balance.stockholders_equity) if balance.stockholders_equity is not None else None
+            fin.total_assets = (
+                float(balance.total_assets)
+                if balance.total_assets is not None
+                else None
+            )
+            fin.total_liabilities = (
+                float(balance.total_liabilities)
+                if balance.total_liabilities is not None
+                else None
+            )
+            fin.shareholders_equity = (
+                float(balance.stockholders_equity)
+                if balance.stockholders_equity is not None
+                else None
+            )
         if cash_flow:
-            fin.operating_cash_flow = float(cash_flow.operating_cash_flow) if cash_flow.operating_cash_flow is not None else None
+            fin.operating_cash_flow = (
+                float(cash_flow.operating_cash_flow)
+                if cash_flow.operating_cash_flow is not None
+                else None
+            )
             capex = cash_flow.capital_expenditure
             if capex is not None:
                 fin.capital_expenditure = abs(float(capex))
-            fin.free_cash_flow = float(cash_flow.free_cash_flow) if cash_flow.free_cash_flow is not None else None
+            fin.free_cash_flow = (
+                float(cash_flow.free_cash_flow)
+                if cash_flow.free_cash_flow is not None
+                else None
+            )
         # Calculate diluted EPS if possible (EDGAR provider doesn't have shares_outstanding method)
         # We could try to get it from the balance sheet? Not available. Leave as None.
         # Attempt to get fiscal year (not directly available; we could try to infer from filings? skip)
@@ -121,9 +170,9 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
         ticker: Company ticker symbol
         provider: Which provider(s) to compare against Financial-DataBase ('yahoo', 'edgar', 'both')
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Comparing financial data for {ticker}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Get Financial-DataBase repository
     try:
@@ -139,12 +188,16 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
     try:
         years = fd_repo.list_years(ticker)
         if not years:
-            print(f"WARNING: No financial data found in Financial-DataBase for {ticker}")
+            print(
+                f"WARNING: No financial data found in Financial-DataBase for {ticker}"
+            )
             fd_financials = None
         else:
             # Prefer the most recent completed fiscal year (with a period='FY'
             # record) over the potentially in-progress current year.
-            target_year = getattr(fd_repo, 'get_latest_completed_fiscal_year', lambda t: None)(ticker)
+            target_year = getattr(
+                fd_repo, "get_latest_completed_fiscal_year", lambda t: None
+            )(ticker)
             if target_year is not None:
                 fd_financials = next(
                     (fy for fy in years if fy.fiscal_year == target_year),
@@ -153,7 +206,9 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
             else:
                 fd_financials = years[0]
     except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
-        print(f"ERROR: Could not get financial data from Financial-DataBase for {ticker}: {e}")
+        print(
+            f"ERROR: Could not get financial data from Financial-DataBase for {ticker}: {e}"
+        )
         fd_financials = None
 
     # Get data from Yahoo Finance if requested
@@ -168,12 +223,12 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
 
     # Define fields to compare (fundamentals only — prices are never compared)
     fields_to_compare = [
-        ('revenue', 'Revenue'),
-        ('net_income', 'Net Income'),
-        ('total_assets', 'Total Assets'),
-        ('total_liabilities', 'Total Liabilities'),
-        ('operating_cash_flow', 'Operating Cash Flow'),
-        ('capital_expenditure', 'Capital Expenditures'),
+        ("revenue", "Revenue"),
+        ("net_income", "Net Income"),
+        ("total_assets", "Total Assets"),
+        ("total_liabilities", "Total Liabilities"),
+        ("operating_cash_flow", "Operating Cash Flow"),
+        ("capital_expenditure", "Capital Expenditures"),
     ]
 
     # Prepare data for comparison
@@ -182,22 +237,24 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
 
     if fd_financials:
         data_sources.append(fd_financials)
-        source_names.append('Financial-DataBase')
+        source_names.append("Financial-DataBase")
 
     if yahoo_financials:
         data_sources.append(yahoo_financials)
-        source_names.append('Yahoo Finance')
+        source_names.append("Yahoo Finance")
 
     if edgar_financials:
         data_sources.append(edgar_financials)
-        source_names.append('EDGAR')
+        source_names.append("EDGAR")
 
     if not data_sources:
         print(f"ERROR: No financial data available from any source for {ticker}")
         return
 
     # Print header
-    print(f"\nFiscal Year: {getattr(fd_financials, 'fiscal_year', 'N/A') if fd_financials else 'N/A'}")
+    print(
+        f"\nFiscal Year: {getattr(fd_financials, 'fiscal_year', 'N/A') if fd_financials else 'N/A'}"
+    )
     print("-" * 60)
 
     # Print comparison table
@@ -223,11 +280,11 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
             else:
                 # Format large numbers
                 if abs(value) >= 1e9:
-                    formatted_values.append(f"{value/1e9:.2f}B")
+                    formatted_values.append(f"{value / 1e9:.2f}B")
                 elif abs(value) >= 1e6:
-                    formatted_values.append(f"{value/1e6:.2f}M")
+                    formatted_values.append(f"{value / 1e6:.2f}M")
                 elif abs(value) >= 1e3:
-                    formatted_values.append(f"{value/1e3:.2f}K")
+                    formatted_values.append(f"{value / 1e3:.2f}K")
                 else:
                     formatted_values.append(f"{value:.2f}")
 
@@ -250,7 +307,9 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
     # Summary
     print("\n" + "=" * 60)
     print("SUMMARY:")
-    sources_with_data = [name for name, data in zip(source_names, data_sources) if data is not None]
+    sources_with_data = [
+        name for name, data in zip(source_names, data_sources) if data is not None
+    ]
     print(f"  Sources with data: {', '.join(sources_with_data)}")
 
     # Flag significant discrepancies
@@ -258,8 +317,15 @@ def compare_financials(ticker: str, provider: str = "both") -> None:
         print("\n  Significant discrepancies (>5%):")
         found_discrepancy = False
         for i, (field_attr, field_name) in enumerate(fields_to_compare):
-            values = [getattr(ds, field_attr, None) for ds in data_sources[:2]]  # Compare first two sources
-            if len(values) == 2 and values[0] is not None and values[1] is not None and values[1] != 0:
+            values = [
+                getattr(ds, field_attr, None) for ds in data_sources[:2]
+            ]  # Compare first two sources
+            if (
+                len(values) == 2
+                and values[0] is not None
+                and values[1] is not None
+                and values[1] != 0
+            ):
                 diff_pct = abs((values[0] - values[1]) / values[1]) * 100
                 if diff_pct > 5.0:
                     print(f"    {field_name}: {diff_pct:.2f}% difference")

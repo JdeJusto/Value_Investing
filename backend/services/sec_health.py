@@ -138,7 +138,9 @@ def check_sec_availability(
         else _env_float("SEC_HEALTH_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)
     )
     ttl = (
-        ttl if ttl is not None else _env_float("SEC_HEALTH_TTL_SECONDS", DEFAULT_TTL_SECONDS)
+        ttl
+        if ttl is not None
+        else _env_float("SEC_HEALTH_TTL_SECONDS", DEFAULT_TTL_SECONDS)
     )
     probe_fn = probe or _probe
 

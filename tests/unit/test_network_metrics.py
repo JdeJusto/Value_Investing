@@ -28,7 +28,9 @@ def test_counters_accumulate_and_average_latency():
 def test_sec_throttling_is_counted_from_status_and_reason():
     metrics = NetworkMetrics()
     metrics.record("sec", latency_ms=7240.0)
-    metrics.record_failure("sec", "sec sync failed (HTTP 403: rate limit)", latency_ms=10.0)
+    metrics.record_failure(
+        "sec", "sec sync failed (HTTP 403: rate limit)", latency_ms=10.0
+    )
     metrics.record("sec", http_status=429, latency_ms=5.0)
     metrics.record("sec", reason="timeout while fetching companyfacts", latency_ms=7.0)
 

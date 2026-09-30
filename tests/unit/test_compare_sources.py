@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Add the scripts directory to the path so we can import the module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../scripts'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../scripts"))
 
 from compare_sources import compare_financials, main
 
@@ -103,47 +103,61 @@ class TestCompareSources:
         # We don't call them, so we can leave them unmocked or return None.
         return provider
 
-    @patch('compare_sources.build_financial_repository')
-    @patch('compare_sources.YahooFinanceProvider')
-    @patch('compare_sources.EdgarProvider')
-    def test_compare_financials_all_sources_available(self, mock_edgar, mock_yahoo, mock_build_repo,
-                                                      mock_fd_repo, mock_yahoo_provider, mock_edgar_provider):
+    @patch("compare_sources.build_financial_repository")
+    @patch("compare_sources.YahooFinanceProvider")
+    @patch("compare_sources.EdgarProvider")
+    def test_compare_financials_all_sources_available(
+        self,
+        mock_edgar,
+        mock_yahoo,
+        mock_build_repo,
+        mock_fd_repo,
+        mock_yahoo_provider,
+        mock_edgar_provider,
+    ):
         """Test comparison when all sources are available."""
         mock_build_repo.return_value = mock_fd_repo
         mock_yahoo.return_value = mock_yahoo_provider
         mock_edgar.return_value = mock_edgar_provider
 
         # Capture print output
-        with patch('builtins.print') as mock_print:
-            compare_financials('AAPL')
+        with patch("builtins.print") as mock_print:
+            compare_financials("AAPL")
 
             # Verify that print was called multiple times (for headers, table, etc.)
             assert mock_print.call_count > 10
 
             # Check that the comparison table was printed
             print_calls = [str(call) for call in mock_print.call_args_list]
-            assert any('Comparing financial data for AAPL' in call for call in print_calls)
-            assert any('Revenue' in call for call in print_calls)
-            assert any('Financial-DataBase' in call for call in print_calls)
-            assert any('Yahoo Finance' in call for call in print_calls)
-            assert any('EDGAR' in call for call in print_calls)
+            assert any(
+                "Comparing financial data for AAPL" in call for call in print_calls
+            )
+            assert any("Revenue" in call for call in print_calls)
+            assert any("Financial-DataBase" in call for call in print_calls)
+            assert any("Yahoo Finance" in call for call in print_calls)
+            assert any("EDGAR" in call for call in print_calls)
 
-    @patch('compare_sources.build_financial_repository')
+    @patch("compare_sources.build_financial_repository")
     def test_compare_financials_fd_unavailable(self, mock_build_repo):
         """Test comparison when Financial-DataBase is unavailable."""
         mock_build_repo.return_value.available.return_value = False
 
-        with patch('builtins.print') as mock_print:
-            compare_financials('AAPL')
+        with patch("builtins.print") as mock_print:
+            compare_financials("AAPL")
 
             # Should print error message
             print_calls = [str(call) for call in mock_print.call_args_list]
-            assert any('ERROR: Financial-DataBase repository not available' in call for call in print_calls)
+            assert any(
+                "ERROR: Financial-DataBase repository not available" in call
+                for call in print_calls
+            )
 
-    @patch('compare_sources.build_financial_repository')
-    @patch('compare_sources.YahooFinanceProvider')
-    @patch('compare_sources.EdgarProvider')
-    def test_compare_financials_no_data_anywhere(self, mock_edgar, mock_yahoo, mock_build_repo):
+    @patch("compare_sources.build_financial_repository")
+    @patch("compare_sources.YahooFinanceProvider")
+    @patch("compare_sources.EdgarProvider")
+    def test_compare_financials_no_data_anywhere(
+        self, mock_edgar, mock_yahoo, mock_build_repo
+    ):
         """Test comparison when no data is available from any source."""
         mock_fd_repo = Mock()
         mock_fd_repo.available.return_value = True
@@ -153,40 +167,50 @@ class TestCompareSources:
         mock_yahoo.side_effect = Exception("Yahoo Finance error")
         mock_edgar.side_effect = Exception("EDGAR error")
 
-        with patch('builtins.print') as mock_print:
-            compare_financials('INVALID')
+        with patch("builtins.print") as mock_print:
+            compare_financials("INVALID")
 
             # Should print error about no data
             print_calls = [str(call) for call in mock_print.call_args_list]
-            assert any('ERROR: No financial data available from any source' in call for call in print_calls)
+            assert any(
+                "ERROR: No financial data available from any source" in call
+                for call in print_calls
+            )
 
-    @patch('compare_sources.build_financial_repository')
-    @patch('compare_sources.YahooFinanceProvider')
-    @patch('compare_sources.EdgarProvider')
-    def test_compare_financials_significant_discrepancies(self, mock_edgar, mock_yahoo, mock_build_repo,
-                                                          mock_fd_repo, mock_yahoo_provider, mock_edgar_provider):
+    @patch("compare_sources.build_financial_repository")
+    @patch("compare_sources.YahooFinanceProvider")
+    @patch("compare_sources.EdgarProvider")
+    def test_compare_financials_significant_discrepancies(
+        self,
+        mock_edgar,
+        mock_yahoo,
+        mock_build_repo,
+        mock_fd_repo,
+        mock_yahoo_provider,
+        mock_edgar_provider,
+    ):
         """Test that significant discrepancies are flagged."""
         mock_build_repo.return_value = mock_fd_repo
         mock_yahoo.return_value = mock_yahoo_provider
         mock_edgar.return_value = mock_edgar_provider
 
-        with patch('builtins.print') as mock_print:
-            compare_financials('AAPL')
+        with patch("builtins.print") as mock_print:
+            compare_financials("AAPL")
 
             # Check for discrepancy reporting
             print_calls = [str(call) for call in mock_print.call_args_list]
-            assert any('Significant discrepancies' in call for call in print_calls)
+            assert any("Significant discrepancies" in call for call in print_calls)
             # Should find discrepancies for revenue, net_income, etc. (>5% difference)
 
-    @patch('sys.argv', ['compare_sources.py', 'AAPL', 'MSFT'])
-    @patch('compare_sources.compare_financials')
+    @patch("sys.argv", ["compare_sources.py", "AAPL", "MSFT"])
+    @patch("compare_sources.compare_financials")
     def test_main_function(self, mock_compare):
         """Test the main function."""
         main()
         # Should be called once for each ticker
         assert mock_compare.call_count == 2
-        mock_compare.assert_any_call('AAPL', 'both')
-        mock_compare.assert_any_call('MSFT', 'both')
+        mock_compare.assert_any_call("AAPL", "both")
+        mock_compare.assert_any_call("MSFT", "both")
 
 
 if __name__ == "__main__":

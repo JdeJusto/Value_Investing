@@ -1,4 +1,3 @@
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
@@ -25,7 +24,7 @@ async def get_current_user(
         return None
     try:
         numeric_id = int(user_id)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     result = await db.execute(select(UserModel).where(UserModel.id == numeric_id))
     user = result.scalar_one_or_none()

@@ -2,6 +2,7 @@
 Integration tests comparing Financial-DataBase repository with existing providers.
 Tests data consistency and validates that Financial-DataBase can serve as a drop-in replacement.
 """
+
 import os
 from datetime import date
 
@@ -39,7 +40,9 @@ class TestFinancialDatabaseIntegration:
         """Test fiscal year."""
         return 2023
 
-    def test_repository_availability(self, financial_db_repo: FinancialRepository) -> None:
+    def test_repository_availability(
+        self, financial_db_repo: FinancialRepository
+    ) -> None:
         """Test that Financial-DataBase repository is available."""
         # Skip if database is not available
         if not financial_db_repo.available():
@@ -47,7 +50,9 @@ class TestFinancialDatabaseIntegration:
 
         assert financial_db_repo.available() is True
 
-    def test_has_data_method(self, financial_db_repo: FinancialRepository, test_ticker: str) -> None:
+    def test_has_data_method(
+        self, financial_db_repo: FinancialRepository, test_ticker: str
+    ) -> None:
         """Test has_data method returns boolean."""
         if not financial_db_repo.available():
             pytest.skip("Financial-DataBase not available")
@@ -57,7 +62,9 @@ class TestFinancialDatabaseIntegration:
         # For AAPL, we expect True if data exists
         # But we won't assert the value since it depends on data loading
 
-    def test_list_years_method(self, financial_db_repo: FinancialRepository, test_ticker: str) -> None:
+    def test_list_years_method(
+        self, financial_db_repo: FinancialRepository, test_ticker: str
+    ) -> None:
         """Test list_years method returns list of NormalizedFinancials."""
         if not financial_db_repo.available():
             pytest.skip("Financial-DataBase not available")
@@ -73,10 +80,7 @@ class TestFinancialDatabaseIntegration:
             assert fiscal_years == sorted(fiscal_years, reverse=True)
 
     def test_get_normalized_financials_method(
-        self,
-        financial_db_repo: FinancialRepository,
-        test_ticker: str,
-        test_year: int
+        self, financial_db_repo: FinancialRepository, test_ticker: str, test_year: int
     ) -> None:
         """Test get_normalized_financials returns NormalizedFinancials or None."""
         if not financial_db_repo.available():
@@ -90,10 +94,7 @@ class TestFinancialDatabaseIntegration:
             assert result.fiscal_year == test_year
 
     def test_fiscal_year_end_date_method(
-        self,
-        financial_db_repo: FinancialRepository,
-        test_ticker: str,
-        test_year: int
+        self, financial_db_repo: FinancialRepository, test_ticker: str, test_year: int
     ) -> None:
         """Test fiscal year end date retrieval (fundamentals-only repository)."""
         if not financial_db_repo.available():
@@ -102,7 +103,7 @@ class TestFinancialDatabaseIntegration:
         fye = financial_db_repo.get_fiscal_year_end_date(test_ticker, test_year)
         # Either None (no data) or a date near the fiscal year end.
         if fye is not None:
-            assert hasattr(fye, 'year')
+            assert hasattr(fye, "year")
             # AAPL's fiscal year ends in late September, so the FYE must be
             # within a reasonable window of the fiscal year.
             assert fye.year in (test_year - 1, test_year, test_year + 1)
@@ -132,7 +133,9 @@ class TestFinancialDatabaseIntegration:
         assert got[2024] == date(2024, 9, 28)
         assert got[2023] == date(2023, 9, 30)
 
-    def test_repository_exposes_no_price_methods(self, financial_db_repo: FinancialRepository) -> None:
+    def test_repository_exposes_no_price_methods(
+        self, financial_db_repo: FinancialRepository
+    ) -> None:
         """Prices must NOT be read from Financial-DataBase."""
         assert not hasattr(financial_db_repo, "get_latest_price")
         assert not hasattr(financial_db_repo, "get_prices")
@@ -140,14 +143,14 @@ class TestFinancialDatabaseIntegration:
 
     @pytest.mark.skipif(
         not os.getenv("FINANCIAL_DATABASE_URL"),
-        reason="Financial-DataBase URL not configured"
+        reason="Financial-DataBase URL not configured",
     )
     def test_data_consistency_with_existing_repository(
         self,
         financial_db_repo: FinancialRepository,
         sql_repo: FinancialRepository,
         test_ticker: str,
-        test_year: int
+        test_year: int,
     ) -> None:
         """Test that Financial-DataBase data is consistent with existing repository."""
         # Skip if either repository is not available
@@ -168,13 +171,13 @@ class TestFinancialDatabaseIntegration:
 
             # Compare key financial fields with tolerance (5%)
             key_fields = [
-                'revenue',
-                'net_income',
-                'total_assets',
-                'total_liabilities',
-                'equity',
-                'operating_cash_flow',
-                'free_cash_flow'
+                "revenue",
+                "net_income",
+                "total_assets",
+                "total_liabilities",
+                "equity",
+                "operating_cash_flow",
+                "free_cash_flow",
             ]
 
             for field in key_fields:
@@ -192,10 +195,14 @@ class TestFinancialDatabaseIntegration:
                 # Calculate tolerance
                 if sql_value != 0:
                     tolerance = abs(fd_value - sql_value) / abs(sql_value)
-                    assert tolerance <= 0.05, f"Field {field} differs by more than 5%: FD={fd_value}, SQL={sql_value}"
+                    assert tolerance <= 0.05, (
+                        f"Field {field} differs by more than 5%: FD={fd_value}, SQL={sql_value}"
+                    )
                 else:
                     # If SQL value is zero, FD value should also be close to zero
-                    assert abs(fd_value) <= 0.05 * max(abs(fd_value), 1), f"Field {field} should be near zero: FD={fd_value}, SQL={sql_value}"
+                    assert abs(fd_value) <= 0.05 * max(abs(fd_value), 1), (
+                        f"Field {field} should be near zero: FD={fd_value}, SQL={sql_value}"
+                    )
 
     def test_fallback_behavior(self) -> None:
         """Test that repository properly handles unavailable database."""
@@ -207,7 +214,9 @@ class TestFinancialDatabaseIntegration:
 
         try:
             # Make database unavailable by setting invalid URL
-            os.environ["FINANCIAL_DATABASE_URL"] = "postgresql://invalid:invalid@localhost:5432/nonexistent"
+            os.environ["FINANCIAL_DATABASE_URL"] = (
+                "postgresql://invalid:invalid@localhost:5432/nonexistent"
+            )
 
             # Try to create repository - should fall back to SQL or JSON
             repo = FinancialDatabaseRepository()

@@ -65,7 +65,10 @@ def _fundamentals(row: NormalizedFinancials) -> dict:
 
 def _cache(tmp_path, repo, version: str = ANALYSIS_VERSION, enabled: bool = True):
     return AnalysisCache(
-        repository=repo, directory=tmp_path / "analysis", version=version, enabled=enabled
+        repository=repo,
+        directory=tmp_path / "analysis",
+        version=version,
+        enabled=enabled,
     )
 
 

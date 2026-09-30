@@ -40,14 +40,12 @@ class JsonFinancialRepository(FinancialRepository):
             for item in items:
                 record = item.to_dict()
                 record["ticker"] = ticker
-                data.setdefault(str(item.fiscal_year), {})[
-                    self._source_key(item)
-                ] = record
+                data.setdefault(str(item.fiscal_year), {})[self._source_key(item)] = (
+                    record
+                )
             self._write(ticker, data)
 
-    def get_by_year(
-        self, ticker: str, fiscal_year: int
-    ) -> NormalizedFinancials | None:
+    def get_by_year(self, ticker: str, fiscal_year: int) -> NormalizedFinancials | None:
         data = self._read(ticker)
         year_records = data.get(str(fiscal_year), {})
         records = [
@@ -124,7 +122,7 @@ class JsonFinancialRepository(FinancialRepository):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             years = payload.get("years", {}) if isinstance(payload, dict) else {}
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             return {}
 
         normalized: dict[str, dict] = {}

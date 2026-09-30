@@ -115,7 +115,9 @@ class DataPipelineService(DataLoader):
             else:
                 # We have cached records, use them directly
                 logger.info(
-                    "pipeline: %s served from cache (%d years)", ticker, len(cached_records)
+                    "pipeline: %s served from cache (%d years)",
+                    ticker,
+                    len(cached_records),
                 )
                 return LoadResult(
                     ticker=ticker,

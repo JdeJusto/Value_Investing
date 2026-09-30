@@ -1,4 +1,3 @@
-
 from backend.analytics.calculator import MetricCalculator
 
 
@@ -7,7 +6,7 @@ class RevenueGrowthCalculator(MetricCalculator):
         self,
         revenue_current: float | None = None,
         revenue_prior: float | None = None,
-        **kwargs
+        **kwargs,
     ) -> float | None:
         if (
             revenue_current is not None

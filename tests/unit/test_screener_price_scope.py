@@ -145,7 +145,7 @@ class TestMarketScreenerPriceScope:
         # Low EV/EBIT company vs a rich one.
         s._analysis.analyze.side_effect = [
             _analysis("AAPL", ebit=2_000_000_000_000),  # EV/EBIT ~ 0.5
-            _analysis("MSFT", ebit=100_000_000),        # EV/EBIT ~ 10k
+            _analysis("MSFT", ebit=100_000_000),  # EV/EBIT ~ 10k
         ]
 
         filters = [FilterCriteria.lt("ev_ebit", 20)]
@@ -160,7 +160,7 @@ class TestMarketScreenerPriceScope:
         s = _market_service(prices)
         s._analysis.analyze.side_effect = [
             _analysis("AAPL", net_income=500_000_000_000),  # P/E ~ 2
-            _analysis("MSFT", net_income=2_000_000_000),    # P/E ~ 500
+            _analysis("MSFT", net_income=2_000_000_000),  # P/E ~ 500
         ]
 
         filters = [FilterCriteria.lt("per", 15)]

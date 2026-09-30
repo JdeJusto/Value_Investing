@@ -156,7 +156,9 @@ class AnalysisCache:
             self._count("misses")
             return None
         try:
-            return [NormalizedFinancials.from_dict(row) for row in payload["fundamentals"]]
+            return [
+                NormalizedFinancials.from_dict(row) for row in payload["fundamentals"]
+            ]
         except Exception as exc:  # noqa: BLE001 — never let the cache break a run
             self._count("errors")
             logger.warning("analysis cache: bad payload for %s: %s", ticker, exc)

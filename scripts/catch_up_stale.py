@@ -160,8 +160,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.limit <= 0:
-        print("ERROR: --limit must be positive (a catch-up is always bounded).",
-              file=sys.stderr)
+        print(
+            "ERROR: --limit must be positive (a catch-up is always bounded).",
+            file=sys.stderr,
+        )
         return 2
 
     config = load_refresh_config()
@@ -204,13 +206,14 @@ def main(argv: list[str] | None = None) -> int:
     health = check_sec_availability()
     if not health.available:
         print(f"ERROR: SEC preflight failed: {health.reason}", file=sys.stderr)
-        print("Nothing was synced. Fix SEC_USER_AGENT / wait, then retry.",
-              file=sys.stderr)
+        print(
+            "Nothing was synced. Fix SEC_USER_AGENT / wait, then retry.",
+            file=sys.stderr,
+        )
         return 3
 
     if not os.environ.get("SEC_USER_AGENT", "").strip():
-        print("ERROR: SEC_USER_AGENT is not set (see .env.example).",
-              file=sys.stderr)
+        print("ERROR: SEC_USER_AGENT is not set (see .env.example).", file=sys.stderr)
         return 2
 
     service = RefreshService(
@@ -225,7 +228,11 @@ def main(argv: list[str] | None = None) -> int:
 
     def _one(row: dict) -> tuple[str, str, object]:
         t0 = time.time()
-        return row["legal_name"], row["cik"], (service.sync_one(row["cik"]), time.time() - t0)
+        return (
+            row["legal_name"],
+            row["cik"],
+            (service.sync_one(row["cik"]), time.time() - t0),
+        )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(_one, row): row for row in candidates}
