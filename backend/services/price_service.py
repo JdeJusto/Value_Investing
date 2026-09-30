@@ -17,7 +17,7 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 
 class _LazyModuleProxy:
@@ -274,14 +274,22 @@ class PriceService:
         if isinstance(target_date, str):
             target_date = date.fromisoformat(target_date)
 
-        start = target_date - timedelta(days=window_days)
-        # yfinance treats `end` as exclusive, so push it one day past.
-        end = target_date + timedelta(days=window_days + 1)
-        prices = self.get_historical_prices(ticker, start_date=start, end_date=end)
+        # One full-history fetch per ticker (cached): the old per-window
+        # fetch made historical-valuation pay one network round-trip per
+        # fiscal year (~10 per company). The window filter below keeps the
+        # exact same "closest trading day" semantics.
+        prices = self.get_historical_prices(ticker, start_date=date(2000, 1, 1))
         if not prices:
             return None
+        window = [
+            price
+            for price in prices
+            if abs((price[0] - target_date).days) <= window_days
+        ]
+        if not window:
+            return None
         _best_date, best_close = min(
-            prices, key=lambda p: abs((p[0] - target_date).days)
+            window, key=lambda p: abs((p[0] - target_date).days)
         )
         return best_close
 

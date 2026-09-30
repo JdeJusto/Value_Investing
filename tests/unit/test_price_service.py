@@ -15,7 +15,9 @@ def _make_history(dates, closes):
     """Build a yfinance-like history DataFrame."""
     return pd.DataFrame(
         {"Close": closes},
-        index=pd.DatetimeIndex([datetime.combine(d, datetime.min.time()) for d in dates]),
+        index=pd.DatetimeIndex(
+            [datetime.combine(d, datetime.min.time()) for d in dates]
+        ),
     )
 
 
@@ -33,7 +35,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_current_price("AAPL")
 
         assert price == 150.25
@@ -44,7 +48,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = pd.DataFrame()
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_current_price("INVALID")
 
         assert price is None
@@ -55,7 +61,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.side_effect = [pd.DataFrame(), hist]
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_current_price("SWKS")
 
         assert price == 88.5
@@ -66,7 +74,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.side_effect = Exception("network error")
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_current_price("AAPL")
 
         assert price is None
@@ -77,7 +87,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             p1 = service.get_current_price("AAPL")
             p2 = service.get_current_price("AAPL")
 
@@ -92,7 +104,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             prices = service.get_current_prices(tickers)
 
         assert prices == {"AAPL": 150.25, "MSFT": 150.25, "GOOGL": 150.25}
@@ -110,7 +124,9 @@ class TestPriceService:
                 m.history.return_value = pd.DataFrame()
             return m
 
-        with patch("backend.services.price_service.yf.Ticker", side_effect=_side_effect):
+        with patch(
+            "backend.services.price_service.yf.Ticker", side_effect=_side_effect
+        ):
             prices = service.get_current_prices(tickers)
 
         assert prices["AAPL"] == 150.25
@@ -122,7 +138,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             p1 = service.get_current_prices(["AAPL", "MSFT"])
             p2 = service.get_current_prices(["AAPL", "MSFT"])
 
@@ -138,7 +156,9 @@ class TestPriceService:
 
         # ttl = 0 forces a fresh fetch on every call.
         expired_service = PriceService(cache_ttl=0)
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             expired_service.get_current_price("AAPL")
             expired_service.get_current_price("AAPL")
 
@@ -151,7 +171,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             prices = service.get_historical_prices(
                 "AAPL", start_date=date(2024, 1, 1), end_date=date(2024, 2, 1)
             )
@@ -164,7 +186,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = pd.DataFrame()
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             prices = service.get_historical_prices("INVALID")
 
         assert prices == []
@@ -174,7 +198,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.side_effect = Exception("boom")
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             prices = service.get_historical_prices("AAPL")
 
         assert prices == []
@@ -194,10 +220,28 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_price_on_date("AAPL", date(2023, 12, 29))
 
         assert price == 192.53
+
+    def test_get_price_on_date_reuses_one_history_fetch(self, service):
+        """One full-history fetch serves every fiscal-year lookup."""
+        dates = [date(2023, 12, 29), date(2022, 12, 30)]
+        closes = [192.53, 129.93]
+        hist = _make_history(dates, closes)
+        mock_ticker = Mock()
+        mock_ticker.history.return_value = hist
+
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
+            assert service.get_price_on_date("AAPL", date(2023, 12, 29)) == 192.53
+            assert service.get_price_on_date("AAPL", date(2022, 12, 30)) == 129.93
+
+        assert mock_ticker.history.call_count == 1
 
     def test_get_price_at_fiscal_year_end_default_dec31(self, service):
         """Test fiscal year end price defaults to Dec 31 of the fiscal year."""
@@ -206,13 +250,17 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_price_at_fiscal_year_end("AAPL", 2023)
 
         assert price == 192.53
-        # The request range should span Dec 31 2023 +/- window.
-        start, end = mock_ticker.history.call_args.kwargs["start"], mock_ticker.history.call_args.kwargs["end"]
-        assert start <= date(2023, 12, 31) <= end
+        # One full-history fetch covers every fiscal year (the per-year
+        # windows used to be separate network calls).
+        start = mock_ticker.history.call_args.kwargs["start"]
+        assert start == date(2000, 1, 1)
+        assert "end" not in mock_ticker.history.call_args.kwargs
 
     def test_get_price_at_fiscal_year_end_custom_date(self, service):
         """Test fiscal year end price with a custom fiscal year end date."""
@@ -221,7 +269,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = hist
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_price_at_fiscal_year_end(
                 "AAPL", 2023, fiscal_year_end_date=date(2023, 9, 30)
             )
@@ -233,7 +283,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.history.return_value = pd.DataFrame()
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             price = service.get_price_at_fiscal_year_end("INVALID", 2023)
 
         assert price is None
@@ -243,7 +295,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.info = {"sharesOutstanding": 15_700_000_000}
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             shares = service.get_shares_outstanding("AAPL")
 
         assert shares == 15_700_000_000
@@ -253,7 +307,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.info = {}
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             shares = service.get_shares_outstanding("AAPL")
 
         assert shares is None
@@ -264,7 +320,9 @@ class TestPriceService:
         mock_splits = pd.Series(dtype=float)  # empty
         mock_ticker.splits = mock_splits
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             multiplier = service.get_split_adjustment("AAPL", date(2023, 9, 30))
 
         assert multiplier == 1.0
@@ -280,7 +338,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.splits = splits
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             # Both splits happened after 2010 -> 7 * 4 = 28
             m2010 = service.get_split_adjustment("AAPL", date(2010, 9, 30))
             # Only the 2020 4:1 split happened after 2019.
@@ -300,7 +360,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.splits = splits
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             m_after = service.get_split_adjustment("AAPL", date(2015, 9, 30))
 
         assert m_after == pytest.approx(1.0)
@@ -317,7 +379,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.splits = splits
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             # 2010-12-31 is before both splits -> 7 * 4 = 28; identical to
             # passing an explicit date for the same day.
             m_int = service.get_split_adjustment("AAPL", 2010)
@@ -333,7 +397,9 @@ class TestPriceService:
         mock_ticker = Mock()
         mock_ticker.splits.side_effect = Exception("boom")
 
-        with patch("backend.services.price_service.yf.Ticker", return_value=mock_ticker):
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ):
             multiplier = service.get_split_adjustment("AAPL", date(2023, 9, 30))
 
         assert multiplier == 1.0
