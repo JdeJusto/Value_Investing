@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../store/AuthContext'
+import { useAuth } from '../store/useAuth'
 import { LayoutDashboard, Search, Building2, Briefcase, Bell, LogOut } from 'lucide-react'
 
 export default function Layout() {
