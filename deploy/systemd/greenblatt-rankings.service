@@ -1,14 +1,21 @@
+# Install for the current user (no sudo):
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/systemd/greenblatt-rankings.* ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now greenblatt-rankings.timer
+#
+# `%h` expands to the user's home: the checkout is expected at %h/Value_Investing.
+
 [Unit]
 Description=Compute Greenblatt Magic Formula rankings
-Documentation=file:///home/caudillo/Value_Investing/backend/methodologies/greenblatt/README.md
+Documentation=file:///%h/Value_Investing/backend/methodologies/greenblatt/README.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/caudillo/Value_Investing
-Environment="PATH=/home/caudillo/Value_Investing/.venv/bin:/usr/bin"
-EnvironmentFile=-/home/caudillo/Value_Investing/.env
-ExecStart=/home/caudillo/Value_Investing/.venv/bin/python -m scripts.compute_greenblatt_rankings --universe sp500
-StandardOutput=append:/home/caudillo/Value_Investing/data/logs/greenblatt_rankings.log
-StandardError=append:/home/caudillo/Value_Investing/data/logs/greenblatt_rankings.log
+WorkingDirectory=%h/Value_Investing
+Environment="PATH=%h/Value_Investing/.venv/bin:/usr/bin"
+EnvironmentFile=-%h/Value_Investing/.env
+ExecStart=%h/Value_Investing/.venv/bin/python -m scripts.compute_greenblatt_rankings --universe sp500
+StandardOutput=append:%h/Value_Investing/data/logs/greenblatt_rankings.log
+StandardError=append:%h/Value_Investing/data/logs/greenblatt_rankings.log

@@ -421,6 +421,7 @@ class FinancialDatabaseRepository(FinancialRepository):
         if database_url is None:
             database_url = os.environ.get(
                 "FINANCIAL_DATABASE_URL",
+                # Local development default; override with the env var.
                 "postgresql://financial:test@localhost:5432/financial_database",
             )
 

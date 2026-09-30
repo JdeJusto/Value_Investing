@@ -87,7 +87,7 @@ source .venv/bin/activate   # python3.13+ venv
 | --- | --- |
 | `SEC_USER_AGENT` | Required for SEC requests (app name + real contact, e.g. `MyApp/1.0 me@example.com`). |
 | `SEC_EMAIL` / `SEC_NAME` | Contact for the direct `edgartools` provider. |
-| `FINANCIAL_DATABASE_URL` | Financial-DataBase PostgreSQL URL (default `postgresql://financial:test@localhost:5432/financial_database`). Optional: without a reachable FDB the app falls back to the local JSON repository and live providers. |
+| `FINANCIAL_DATABASE_URL` | Financial-DataBase PostgreSQL URL (default `postgresql://financial:test@localhost:5432/financial_database` — a **local development default**, not a secret; change it for anything beyond localhost). Optional: without a reachable FDB the app falls back to the local JSON repository and live providers. |
 | `DATA_RAW_DIR` | Raw SEC download directory used by the FDB sync subprocess. |
 | `PORTFOLIO_PATH` | Portfolio JSON (default `data/portfolio.json`). |
 

@@ -167,3 +167,6 @@ data/cache/analysis/
 data/cache/alerts/
 data/state/
 data/alerts/
+
+# AI agent guidelines (kept locally, not published)
+AGENTS.md

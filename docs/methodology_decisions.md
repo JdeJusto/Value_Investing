@@ -2,7 +2,7 @@
 
 Permanente reference for the multi-methodology analysis engine. These ten
 decisions were fixed after analyzing four value-investing classics
-(`/home/caudillo/books_analysis/`) and **cannot be re-litigated by an
+(book notes kept outside the repository) and **cannot be re-litigated by an
 implementation**: if a change is wanted, edit this document first.
 
 The books, abbreviated below:
