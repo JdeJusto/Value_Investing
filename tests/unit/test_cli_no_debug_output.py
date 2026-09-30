@@ -20,6 +20,7 @@ def test_help_has_no_debug_output():
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
     assert result.returncode == 0
     assert "DEBUG" not in result.stderr
