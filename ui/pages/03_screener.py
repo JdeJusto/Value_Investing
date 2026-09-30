@@ -16,6 +16,7 @@ Flow (SQL-first where it is cheap):
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 _root = Path(__file__).resolve().parents[2]
@@ -28,6 +29,7 @@ from backend.services.ui_adapter import (
     apply_numeric_filters,
     parse_universe_tickers,
     run_methodologies,
+    screener_estimate,
     validate_screener_range,
 )
 from ui._shared import (
@@ -55,9 +57,6 @@ CATEGORIES = [
     "UNKNOWN",
 ]
 DISPLAY_CAP = 200
-#: Measured on the SP500/Technology run: 91.8 s for 50 tickers (batched
-#: Yahoo snapshot prefetch + methodology enrichment).
-SECONDS_PER_TICKER = 1.8
 
 
 def main() -> None:
@@ -106,10 +105,20 @@ def _filter_panel() -> dict:
             fcf_min = st.slider("FCF yield min (%)", 0.0, 20.0, 0.0, 0.5)
             verdicts = st.multiselect("Verdict", VERDICTS)
             categories = st.multiselect("Lynch category", CATEGORIES)
+        estimate = screener_estimate(
+            int(max_tickers), st.session_state.get("screener_speed_s")
+        )
+        basis = (
+            "estimación inicial"
+            if estimate["is_initial"]
+            else (
+                f"basada en {estimate['per_ticker']:.1f} s/ticker "
+                "de la última ejecución"
+            )
+        )
         st.caption(
-            f"Rendimiento estimado: ~{SECONDS_PER_TICKER} s/ticker → "
-            f"{_human_duration(SECONDS_PER_TICKER * max_tickers)} para "
-            f"{int(max_tickers)} tickers."
+            f"Rendimiento estimado: {estimate['text']} para {int(max_tickers)} "
+            f"tickers ({basis})."
         )
     return {
         "universes": universes,
@@ -124,13 +133,6 @@ def _filter_panel() -> dict:
         "verdicts": verdicts,
         "categories": categories,
     }
-
-
-def _human_duration(seconds: float) -> str:
-    """Human estimate: seconds under two minutes, minutes above."""
-    if seconds < 120:
-        return f"~{seconds:.0f} s"
-    return f"~{seconds / 60:.0f} min"
 
 
 def _methodology_names() -> list[str]:
@@ -184,6 +186,7 @@ def _run(filters: dict) -> None:
             text=f"Analizando {ticker} ({current}/{total})",
         )
 
+    start = time.time()
     rows = _screen_cached(tuple(tickers), callback)
     progress.progress(1.0, text=f"Completado: {len(rows)} filas")
     rows = apply_numeric_filters(
@@ -195,6 +198,7 @@ def _run(filters: dict) -> None:
         fcf_min=filters["fcf_min"],
     )
     rows = _enrich(rows, filters["methodology"], sectors)
+    st.session_state["screener_speed_s"] = (time.time() - start) / max(len(tickers), 1)
     if filters["verdicts"]:
         rows = [row for row in rows if row["Verdict"] in filters["verdicts"]]
     if filters["categories"]:

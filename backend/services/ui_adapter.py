@@ -631,6 +631,32 @@ def validate_screener_range(mcap_min: float, mcap_max: float) -> str | None:
     return None
 
 
+#: Initial guess until a real run has been measured.
+DEFAULT_SCREENER_SECONDS_PER_TICKER = 1.8
+
+
+def screener_estimate(n_tickers: int, per_ticker: float | None = None) -> dict:
+    """Estimated screener duration for ``n_tickers``.
+
+    ``per_ticker`` is the measured seconds/ticker from the last run; when it
+    is missing or non-positive the initial guess is used and
+    ``is_initial`` is True.
+    """
+    is_initial = per_ticker is None or per_ticker <= 0
+    speed = DEFAULT_SCREENER_SECONDS_PER_TICKER if is_initial else float(per_ticker)
+    seconds = speed * max(int(n_tickers), 0)
+    if seconds < 120:
+        text = f"~{seconds:.0f} s"
+    else:
+        text = f"~{seconds / 60:.0f} min"
+    return {
+        "seconds": seconds,
+        "text": text,
+        "per_ticker": speed,
+        "is_initial": is_initial,
+    }
+
+
 def refresh_portfolio_prices(portfolio: Any, price_service: Any) -> dict[str, dict]:
     """Current price per open position vs the stored one; persists nothing.
 

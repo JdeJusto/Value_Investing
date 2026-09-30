@@ -14,10 +14,12 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from backend.services.ui_adapter import (
+    DEFAULT_SCREENER_SECONDS_PER_TICKER,
     apply_numeric_filters,
     list_reports,
     parse_daily_report,
     parse_universe_tickers,
+    screener_estimate,
     validate_screener_range,
 )
 from ui._shared import format_pct, format_value, normalize_rows, rows_to_csv
@@ -150,6 +152,20 @@ def test_validate_screener_range():
     assert validate_screener_range(10.0, 500.0) is None
     assert validate_screener_range(500.0, 10.0) is not None
     assert validate_screener_range(10.0, 0.0) is None  # max disabled
+
+
+def test_screener_estimate_initial():
+    estimate = screener_estimate(50)
+    assert estimate["is_initial"] is True
+    assert estimate["per_ticker"] == DEFAULT_SCREENER_SECONDS_PER_TICKER
+    assert estimate["text"] == "~90 s"
+
+
+def test_screener_estimate_uses_measured_value():
+    estimate = screener_estimate(200, per_ticker=1.0)
+    assert estimate["is_initial"] is False
+    assert estimate["seconds"] == 200.0
+    assert estimate["text"] == "~3 min"
 
 
 def test_parse_universe_tickers():
