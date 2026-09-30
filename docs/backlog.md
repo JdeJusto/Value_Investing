@@ -1,7 +1,20 @@
-# Backlog (updated 2026-09-30, after the refinement sprint)
+# Backlog (updated 2026-09-30, after v0.1.0)
 
-All P0/P1 and the smaller P2 items from the QA session are closed. This
-file now tracks what remains.
+All P0/P1, the QA-session P2 items and the v0.1.0 hardening items are
+closed. This file now tracks what remains.
+
+## Closed in the v0.1.0 session (2026-09-30)
+
+| Item | Commit |
+| --- | --- |
+| Unknown-ticker preflight only in `analyze-full` | shared `require_known_tickers` in all seven `analyze-*` commands (`4569b78`, 14 tests) |
+| No test pinning the price fetch without a window | `26d22ec` (3 tests) |
+| Greenblatt Magic Formula (P3) | 7th methodology with weekly rankings (`a7ebf3f`, 19 tests) |
+| Screener enrichment sequential | bounded parallel `enrich_rows` (`57c2829`, 5 tests); cost is GIL-bound DB reconstruction, 1.14x measured |
+| Unmapped revenue coverage (P3) | IFRS tags mapped (`5f4cd54`); classification in `docs/unmapped_coverage.md` |
+| Leftover DEBUG prints in the CLI entry points | removed (`570847a`) |
+| Repo-wide `ruff format` drift (77 files) | clean (`85efd90`) |
+| First release | v0.1.0 tagged, CHANGELOG + README badges |
 
 ## Closed in the refinement sprint (2026-09-30)
 
@@ -19,29 +32,26 @@ file now tracks what remains.
 
 ### P2 — nice to have
 
-1. **Extend the unknown-ticker preflight to the six `analyze-*`
-   commands.** Today only `analyze-full` validates the ticker; the
-   methodology commands evaluate empty rows and print an INSUFFICIENT
-   verdict. Reuse `backend/services/ticker_resolver.resolve_ticker` (the
-   helper is already shared). *Effort*: S.
-2. **Screener enrichment batching.** Verdict/category cost ~1.8 s/ticker
-   because each row re-reads fundamentals and runs the registry. Reusing
-   the daily workflow's in-process analysis would cut it substantially.
-   *Effort*: M.
-3. **`get_price_on_date` window semantics** are now applied in memory
-   over a full-history fetch; if Yahoo's `history()` default period ever
-   changes, the explicit `start=2000-01-01` keeps it safe, but a test
-   pinning the fetch args for a no-window caller would document it
-   further. *Effort*: XS.
+1. **Screener enrichment is GIL-bound.** `enrich_rows` parallelizes with 4
+   workers, but 97% of the 0.2 s/ticker cost is Python reconstruction of DB
+   rows (measured). A process pool or a lighter SQL projection (latest N
+   years only) would move the needle. *Effort*: M.
+2. **Greenblatt rankings need a schedule.** The methodology reads
+   `data/rankings/greenblatt_*.json` and abstains when older than 30 days;
+   add a weekly cron / `daily_workflow` hook so the file never goes stale.
+   *Effort*: S.
+3. **~1,020 analyzable companies still show no revenue** — structurally
+   revenue-less funds, trusts, SPACs and shells
+   (`docs/unmapped_coverage.md`). No mapping fix exists; the next lever is
+   excluding them from revenue-based screens explicitly. *Effort*: S.
+4. **JPM net income uses the common-stockholders tag** (55,681 M vs the
+   57,048 M consolidated); documented in `docs/coherence_audit_2026-09-30.md`
+   but worth a one-line note in the analysis output. *Effort*: XS.
 
 ### P3 — deferred / future
 
-4. **New methodologies**: Greenblatt Magic Formula (ROC + earnings
-   yield) and Marks cycle positioning — both fit the book methodology
-   pattern (rules + README + tests + registry).
-5. **Unmapped universe coverage**: ~2,300 listed companies have no
-   facts (unmapped / never synced); expanding the CIK mapping grows the
-   analyzable universe.
+5. **Marks cycle positioning** — the remaining book methodology from the
+   original plan (the other, Greenblatt, shipped in 0.1.0).
 6. **`analyze-graham`/`lynch-garp` first-call warm-up** (13-26 s) is
    Yahoo price latency, not a defect; a shared prefetch across commands
    would smooth it. *Effort*: M.
