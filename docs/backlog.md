@@ -69,3 +69,52 @@ closed. This file now tracks what remains.
 - **Ubuntu 26 migration (2026-10-19)**: GitHub Actions `ubuntu-latest`
   migrates to Ubuntu 26. Workflows are pinned to `ubuntu-24.04` (done);
   review and test on `ubuntu-26.04` when available.
+
+## Pre-publish checklist
+
+Before making the repository public:
+
+- [ ] `git status` clean in both repos
+- [ ] `main` in sync with `origin/main`
+- [ ] Latest tag matches `__version__` and the top CHANGELOG entry
+- [ ] CI green on `main` and on the latest tag
+- [ ] No personal email in the tree beyond the intentional contacts
+      (`SECURITY.md`, `CODE_OF_CONDUCT.md`)
+- [ ] `.env` gitignored in both repos (and never tracked)
+- [ ] LICENSE, CONTRIBUTING, SECURITY present (Value Investing also
+      CODE_OF_CONDUCT)
+- [ ] Topics set on GitHub (both repos)
+- [ ] Roadmap issue pinned (Value Investing #18)
+
+### After making the repos public: branch protection
+
+Branch protection and rulesets require GitHub Pro or a public repository
+(free private repos return HTTP 403). Once public, enable it with the real
+CI check names:
+
+```bash
+# Value Investing
+gh api repos/JdeJusto/Value_Investing/branches/main/protection -X PUT \
+  -H "Accept: application/vnd.github+json" \
+  -f "required_status_checks[strict]=true" \
+  -f "required_status_checks[contexts][]=Unit tests (no database)" \
+  -f "required_status_checks[contexts][]=Compile check" \
+  -f "required_status_checks[contexts][]=Frontend (audit, lint, build)" \
+  -f "enforce_admins=false" \
+  -f "required_pull_request_reviews=null" \
+  -f "restrictions=null" \
+  -F "allow_force_pushes=false" -F "allow_deletions=false"
+
+# Financial-DataBase
+gh api repos/JdeJusto/Financial-DataBase/branches/main/protection -X PUT \
+  -H "Accept: application/vnd.github+json" \
+  -f "required_status_checks[strict]=true" \
+  -f "required_status_checks[contexts][]=Unit tests (no database)" \
+  -f "required_status_checks[contexts][]=PostgreSQL integration tests" \
+  -f "enforce_admins=false" \
+  -f "required_pull_request_reviews=null" \
+  -f "restrictions=null" \
+  -F "allow_force_pushes=false" -F "allow_deletions=false"
+```
+
+Do NOT run these until the repositories are public (or on a Pro plan).
