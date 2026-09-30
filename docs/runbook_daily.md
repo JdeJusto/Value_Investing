@@ -482,3 +482,20 @@ files).
   (`sec sync <CIK>`) or `load-data <TICKER>` on the Value Investing side.
 - **`financial_database` module not found**: make sure `--fdb-dir` points to
   the Financial-DataBase repo and its `.venv` is installed.
+
+## Greenblatt rankings
+
+`backend/methodologies/greenblatt` reads the newest
+`data/rankings/greenblatt_<date>.json`, computed from SEC fundamentals and
+Yahoo market caps. The file is refreshed **weekly** by the user-level systemd
+timer `greenblatt-rankings.timer` (Monday 06:00, `Persistent=true`); the units
+are versioned in `deploy/systemd/` and installed under
+`~/.config/systemd/user/`. Rankings older than **14 days** (two missed runs)
+read INSUFFICIENT_DATA, so a failing timer shows up as abstaining verdicts.
+
+```bash
+systemctl --user list-timers | grep greenblatt          # next run
+systemctl --user start greenblatt-rankings.service      # manual run
+tail -n 20 data/logs/greenblatt_rankings.log            # output
+python -m scripts.compute_greenblatt_rankings --universe sp500   # ad hoc
+```

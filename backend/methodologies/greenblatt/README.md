@@ -38,7 +38,7 @@ the newest file — it never touches the network or the database itself.
 
 `score = (1 − percentile) × 100`. INSUFFICIENT_DATA when: the ticker is a
 financial (the ROC denominator assumes an industrial balance sheet), the
-ranking file is missing or older than 30 days, the ticker is not in the
+ranking file is missing or older than 14 days, the ticker is not in the
 file, or the stored ROC/EY is not positive.
 
 ## Usage
@@ -51,7 +51,9 @@ python main.py compare-methodologies AAPL   # greenblatt is the 7th row
 ## Known limitations
 
 - The rankings must be refreshed periodically (weekly recommended); a stale
-  file (> 30 days) reads INSUFFICIENT_DATA.
+  file (> 14 days) reads INSUFFICIENT_DATA. The file is refreshed weekly by
+  the user-level systemd timer `greenblatt-rankings.timer` (Monday 06:00);
+  manual run: `systemctl --user start greenblatt-rankings.service`.
 - Filers without a `PropertyPlantAndEquipmentNet` tag are excluded from the
   ranking (net fixed assets cannot be computed).
 - Financials abstain (shared company-type detector).

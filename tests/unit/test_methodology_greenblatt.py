@@ -125,6 +125,19 @@ def test_stale_ranking_is_insufficient(tmp_path):
     assert any("stale" in reason for reason in result.reasons)
 
 
+def test_ranking_older_than_the_weekly_tolerance_is_stale(tmp_path):
+    # Weekly automation: 20 days means two missed runs -> stale (was 30).
+    _write_ranking(tmp_path, age_days=20)
+    result = _evaluate([_row()], tmp_path)
+    assert result.verdict is Verdict.INSUFFICIENT_DATA
+    assert any("stale" in reason for reason in result.reasons)
+
+
+def test_ranking_within_the_weekly_tolerance_is_usable(tmp_path):
+    _write_ranking(tmp_path, age_days=10)
+    assert _evaluate([_row()], tmp_path).verdict is Verdict.BUY
+
+
 def test_missing_ranking_file_is_insufficient(tmp_path):
     result = _evaluate([_row()], tmp_path)
     assert result.verdict is Verdict.INSUFFICIENT_DATA

@@ -31,8 +31,10 @@ from backend.methodologies.greenblatt.rules import ALL_RULES, RULE_3_RANK
 
 #: Where the weekly ranking files live (relative to the repo root).
 RANKINGS_DIR = Path("data/rankings")
-#: A ranking file older than this is considered stale.
-STALE_DAYS = 30
+#: A ranking file older than this is considered stale. The systemd timer
+#: (deploy/systemd/greenblatt-rankings.timer) refreshes the file weekly, so
+#: two missed runs (14 days) mean something is broken.
+STALE_DAYS = 14
 #: Percentile upper bounds per verdict (lower percentile = better).
 _BUY_PERCENTILE = 0.10
 _WATCH_PERCENTILE = 0.30

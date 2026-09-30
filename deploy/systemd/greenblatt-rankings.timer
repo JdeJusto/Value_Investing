@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Greenblatt Magic Formula rankings weekly
+
+[Timer]
+# Monday 06:00 local time; Persistent=true runs a missed job after boot.
+OnCalendar=Mon 06:00:00
+Persistent=true
+Unit=greenblatt-rankings.service
+
+[Install]
+WantedBy=timers.target
