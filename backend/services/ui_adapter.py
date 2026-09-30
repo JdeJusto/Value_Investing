@@ -94,6 +94,7 @@ class MethodologiesView:
     agreement: bool = True
     family_lines: list[str] = field(default_factory=list)
     explanation: str | None = None
+    consensus: str | None = None
     reason_lines: list[str] = field(default_factory=list)
     category: str | None = None
 
@@ -157,7 +158,7 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
         )
         if result.methodology == "lynch_garp":
             category = metrics.get("lynch_category_label")
-    agreement, family_lines, explanation = _disagreement_summary(results)
+    agreement, family_lines, explanation, consensus = _disagreement_summary(results)
     reason_lines = [
         f"{result.methodology} ({result.verdict.value}): "
         + "; ".join(result.reasons[:2])
@@ -170,30 +171,21 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
         agreement=agreement,
         family_lines=family_lines,
         explanation=explanation,
+        consensus=consensus,
         reason_lines=reason_lines,
         category=category,
     )
 
 
-def _disagreement_summary(results: list[Any]) -> tuple[bool, list[str], str | None]:
-    """Group verdicts by family and explain the conflict (never a winner).
+def disagreement_narrative(results: list[Any]) -> dict[str, str]:
+    """Honest narrative for a disagreement: explanation + consensus.
 
-    Same logic as the CLI's ``compare-methodologies`` summary, as pure data.
+    The long value-vs-quality paragraph is printed only when the pattern
+    really is "value rejects what quality rewards" (a deep-value member
+    says AVOID and a quality member says BUY). Anything else gets a neutral
+    line: the families answer different questions. It never declares a
+    winner.
     """
-    if len(results) < 2:
-        return True, [], "Only one methodology is registered."
-    if len({result.verdict.value for result in results}) == 1:
-        return True, [], None
-    families: dict[str, list[Any]] = {}
-    for result in results:
-        families.setdefault(result.family, []).append(result)
-    family_lines = [
-        f"{family} → "
-        + ", ".join(
-            f"{member.methodology}={member.verdict.value}" for member in members
-        )
-        for family, members in sorted(families.items())
-    ]
     value_members = [
         result
         for result in results
@@ -206,7 +198,9 @@ def _disagreement_summary(results: list[Any]) -> tuple[bool, list[str], str | No
         or "COMPOUNDER" in result.family.upper()
         or "DCA" in result.family.upper()
     ]
-    if value_members and quality_members:
+    value_rejects = any(r.verdict.value == "AVOID" for r in value_members)
+    quality_buys = any(r.verdict.value == "BUY" for r in quality_members)
+    if value_members and quality_members and value_rejects and quality_buys:
         value_names = ", ".join(m.methodology for m in value_members)
         quality_names = ", ".join(m.methodology for m in quality_members)
         explanation = (
@@ -218,8 +212,53 @@ def _disagreement_summary(results: list[Any]) -> tuple[bool, list[str], str | No
             "where a strong-but-expensive company splits them."
         )
     else:
-        explanation = "The methodologies use different lenses; see the reasons below."
-    return False, family_lines, explanation
+        explanation = (
+            "The methodologies answer different questions (price vs quality "
+            "vs growth); see the family lines and reasons below."
+        )
+    buys = sum(1 for result in results if result.verdict.value == "BUY")
+    if buys == 0:
+        consensus = (
+            "No methodology gives BUY; the consensus is between rejection and hold."
+        )
+    elif buys == len(results):
+        consensus = "All methodologies give BUY."
+    else:
+        consensus = (
+            f"{buys} of {len(results)} methodologies give BUY; no single "
+            "winner is declared."
+        )
+    return {"explanation": explanation, "consensus": consensus}
+
+
+def _disagreement_summary(
+    results: list[Any],
+) -> tuple[bool, list[str], str | None, str | None]:
+    """Group verdicts by family and explain the conflict (never a winner).
+
+    Same logic as the CLI's ``compare-methodologies`` summary, as pure data.
+    """
+    if len(results) < 2:
+        return True, [], "Only one methodology is registered.", None
+    if len({result.verdict.value for result in results}) == 1:
+        return True, [], None, None
+    families: dict[str, list[Any]] = {}
+    for result in results:
+        families.setdefault(result.family, []).append(result)
+    family_lines = [
+        f"{family} → "
+        + ", ".join(
+            f"{member.methodology}={member.verdict.value}" for member in members
+        )
+        for family, members in sorted(families.items())
+    ]
+    narrative = disagreement_narrative(results)
+    return (
+        False,
+        family_lines,
+        narrative["explanation"],
+        narrative["consensus"],
+    )
 
 
 def build_dcf_view(result: Any) -> DCFView:

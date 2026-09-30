@@ -125,6 +125,8 @@ def _overview(rows, quote: dict, view) -> None:
             st.markdown(f"- {line}")
         if view.explanation:
             st.caption(view.explanation)
+        if view.consensus:
+            st.caption(view.consensus)
         for line in view.reason_lines:
             st.markdown(f"- {line}")
 

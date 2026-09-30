@@ -105,35 +105,11 @@ def _run(args):
             )
         print()
 
-        value_members = [
-            result
-            for result in results
-            if "VALUE" in result.family.upper() or "DEEP" in result.family.upper()
-        ]
-        quality_members = [
-            result
-            for result in results
-            if "QUALITY" in result.family.upper()
-            or "COMPOUNDER" in result.family.upper()
-            or "DCA" in result.family.upper()
-        ]
-        if value_members and quality_members:
-            value_names = ", ".join(m.methodology for m in value_members)
-            quality_names = ", ".join(m.methodology for m in quality_members)
-            print(
-                dim(
-                    f"  Why the families disagree: the value screen(s) "
-                    f"({value_names}) judge price against assets/earnings "
-                    f"and require a safety margin, so an expensive or "
-                    f"levered balance sheet vetoes them. The quality "
-                    f"screen(s) ({quality_names}) reward durable "
-                    f"profitability and business strength without "
-                    f"requiring a cheap price — exactly where a "
-                    f"strong-but-expensive company splits them."
-                )
-            )
-        else:
-            print(dim("  The methodologies use different lenses; see reasons below."))
+        from backend.services.ui_adapter import disagreement_narrative
+
+        narrative = disagreement_narrative(results)
+        print(dim(f"  {narrative['explanation']}"))
+        print(dim(f"  {narrative['consensus']}"))
         print()
 
         for result in results:

@@ -15,6 +15,7 @@ from backend.services.ui_adapter import (
     DASH,
     build_dcf_view,
     build_methodologies_view,
+    disagreement_narrative,
     fmt_money_short,
     fmt_or_dash,
     run_dcf,
@@ -127,6 +128,55 @@ def test_agreement_when_all_verdicts_match():
     assert view.agreement is True
     assert view.family_lines == []
     assert view.explanation is None
+
+
+def test_narrative_value_vs_quality_when_pattern_matches():
+    # AAPL-like: a deep-value screen rejects what a quality screen rewards.
+    results = [
+        _fake("graham", "DEEP_VALUE", Verdict.AVOID, 20.0),
+        _fake("buffett_clark", "QUALITY_COMPOUNDER", Verdict.BUY, 71.4),
+    ]
+    narrative = disagreement_narrative(results)
+    assert "value screen(s)" in narrative["explanation"]
+    assert "quality screen(s)" in narrative["explanation"]
+    assert "1 of 2" in narrative["consensus"]
+
+
+def test_narrative_neutral_for_mixed_cyclical_pattern():
+    # XOM-like: no BUY anywhere; the long value/quality paragraph would be
+    # misleading, so the neutral line is used instead.
+    results = [
+        _fake("graham", "DEEP_VALUE", Verdict.AVOID, 14.3),
+        _fake("graham_dodd", "DEEP_VALUE", Verdict.HOLD, 50.0),
+        _fake("buffett_clark", "QUALITY_COMPOUNDER", Verdict.AVOID, 28.6),
+        _fake("fisher_quantitative_subset", "QUALITY_COMPOUNDER", Verdict.AVOID, 0.0),
+        _fake("lynch_garp", "GARP", Verdict.AVOID, 20.0),
+    ]
+    narrative = disagreement_narrative(results)
+    assert "answer different questions" in narrative["explanation"]
+    assert "value screen(s)" not in narrative["explanation"]
+    assert "No methodology gives BUY" in narrative["consensus"]
+
+
+def test_narrative_never_declares_a_winner():
+    for results in (
+        [
+            _fake("graham", "DEEP_VALUE", Verdict.AVOID, 20.0),
+            _fake("buffett_clark", "QUALITY_COMPOUNDER", Verdict.BUY, 71.4),
+        ],
+        [
+            _fake("graham", "DEEP_VALUE", Verdict.BUY, 80.0),
+            _fake("buffett_clark", "QUALITY_COMPOUNDER", Verdict.BUY, 71.4),
+        ],
+    ):
+        narrative = disagreement_narrative(results)
+        text = (narrative["explanation"] + " " + narrative["consensus"]).lower()
+        assert "recommended" not in text
+        assert (
+            "winner is declared" in text
+            or "no single winner" in text
+            or "all methodologies give buy" in text
+        )
 
 
 # ---------------------------------------------------------------------------
