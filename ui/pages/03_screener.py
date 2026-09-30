@@ -27,6 +27,7 @@ import streamlit as st
 
 from backend.services.ui_adapter import (
     apply_numeric_filters,
+    enrich_rows,
     parse_universe_tickers,
     run_methodologies,
     screener_estimate,
@@ -250,35 +251,13 @@ def _enrich(rows: list[dict], methodology: str, sectors: dict) -> list[dict]:
     tickers = [row["ticker"] for row in rows]
     if not sectors:
         sectors = load_sector_map_bulk(tuple(tickers)) if tickers else {}
-    enriched = []
-    for row in rows:
-        ticker = row["ticker"]
-        verdict = score = category = None
-        fundamentals = load_fundamentals(ticker)
-        if fundamentals:
-            view = run_methodologies(ticker, fundamentals, row.get("price"))
-            detail = next(
-                (d for d in view.details if d["methodology"] == methodology), None
-            )
-            if detail:
-                verdict = detail["verdict"]
-                score = detail["score"]
-            category = view.category
-        enriched.append(
-            {
-                "Ticker": ticker,
-                "Name": row.get("name"),
-                "Sector": sectors.get(ticker),
-                "Price": row.get("price"),
-                "P/E": row.get("per"),
-                "FCF Yield": row.get("fcf_yield"),
-                "ROE": row.get("roe"),
-                "Verdict": verdict,
-                "Score": score,
-                "Category": category,
-            }
-        )
-    return enriched
+    return enrich_rows(
+        rows,
+        methodology,
+        sectors,
+        load_fundamentals,
+        run_methodologies,
+    )
 
 
 def _results() -> None:

@@ -12,6 +12,7 @@ stub) and are never persisted.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -741,3 +742,67 @@ def save_portfolio_prices(
     if updated:
         repository.save(portfolio)
     return updated
+
+
+#: Bounded workers for the screener enrichment. The per-ticker cost is
+#: dominated by the fundamentals read (one DB round trip), so a small pool
+#: gives a near-linear speedup without hammering the database.
+ENRICHMENT_WORKERS = 4
+
+
+def enrich_rows(
+    rows: list[dict],
+    methodology: str,
+    sectors: dict,
+    load_fundamentals,
+    run_methodologies,
+    workers: int = ENRICHMENT_WORKERS,
+) -> list[dict]:
+    """Enrich screener rows with verdict, score and category (parallel).
+
+    ``load_fundamentals`` and ``run_methodologies`` are injected so the UI
+    can pass its cached loaders and tests can pass stubs. Results keep the
+    input order; a ticker whose loader or evaluation fails degrades to an
+    empty verdict instead of breaking the whole batch. The enrichment never
+    touches the network itself (prices come from the screened rows), so no
+    per-batch Yahoo preflight is involved.
+    """
+
+    def enrich_one(row: dict) -> dict:
+        ticker = row["ticker"]
+        verdict = score = category = None
+        try:
+            fundamentals = load_fundamentals(ticker)
+        except Exception:  # noqa: BLE001 — one bad ticker must not break the batch
+            fundamentals = None
+        if fundamentals:
+            try:
+                view = run_methodologies(ticker, fundamentals, row.get("price"))
+            except Exception:  # noqa: BLE001 — same: degrade this row only
+                view = None
+            if view is not None:
+                detail = next(
+                    (d for d in view.details if d["methodology"] == methodology),
+                    None,
+                )
+                if detail:
+                    verdict = detail["verdict"]
+                    score = detail["score"]
+                category = view.category
+        return {
+            "Ticker": ticker,
+            "Name": row.get("name"),
+            "Sector": sectors.get(ticker),
+            "Price": row.get("price"),
+            "P/E": row.get("per"),
+            "FCF Yield": row.get("fcf_yield"),
+            "ROE": row.get("roe"),
+            "Verdict": verdict,
+            "Score": score,
+            "Category": category,
+        }
+
+    if workers <= 1 or len(rows) <= 1:
+        return [enrich_one(row) for row in rows]
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(enrich_one, rows))
