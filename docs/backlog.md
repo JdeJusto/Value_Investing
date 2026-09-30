@@ -48,6 +48,13 @@ closed. This file now tracks what remains.
    57,048 M consolidated); documented in `docs/coherence_audit_2026-09-30.md`
    but worth a one-line note in the analysis output. *Effort*: XS.
 
+5. **Frontend lint warnings in CI** (not failures): `setState`
+   synchronously inside effects and fast-refresh-only-exports warnings in
+   `src/store/AuthContext.tsx`, `src/pages/PortfoliosPage.tsx`,
+   `src/pages/AlertsPage.tsx` and `src/pages/CompanyDetailPage.tsx`. The
+   fixes touch React state flow, so they were deferred ahead of v0.1.1.
+   *Effort*: S-M.
+
 ### P3 — deferred / future
 
 5. **Marks cycle positioning** — the remaining book methodology from the
