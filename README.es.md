@@ -2,9 +2,16 @@
 
 [English](README.md) · [Español](README.es.md)
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-1324%20passed-green)]()
+
 Herramienta determinista y explicable para el análisis fundamental de acciones. Combina estados financieros, métricas transparentes de valoración y calidad, filtros, seguimiento de carteras y backtesting mediante una interfaz de terminal y aplicaciones web.
 
 > **Principio de diseño:** «Los tontos admiran la complejidad; los genios admiran la simpleza». Se prefieren reglas claras, componentes pequeños y datos trazables antes que complejidad que no aporte valor.
+
+## Qué incluye la 0.1.0
+
+Primera release pública: siete metodologías derivadas de libros (Graham, Graham & Dodd, Buffett/Clark, Buffett Classic, Fisher, Lynch GARP y Greenblatt Magic Formula), valoración DCF con cuatro variantes, fundamentales de la SEC a través de Financial-DataBase, UI Streamlit de cinco páginas, screener, cartera, workflow diario y alertas. Los precios se obtienen bajo demanda y nunca se persisten. Véase [CHANGELOG.md](CHANGELOG.md) para la lista completa y las limitaciones conocidas.
 
 ## Qué ofrece
 
