@@ -110,6 +110,23 @@ def test_total_liabilities_over_85_percent_is_financial():
     assert is_financial(row) is True
 
 
+def test_known_non_financial_sector_beats_the_fingerprint():
+    # Ford: tl/ta > 0.85 via Ford Credit; the sector says cyclical, so the
+    # company is an automaker, not a bank. Without a sector the fingerprint
+    # still applies.
+    row = _row(
+        2024,
+        total_assets=285e9,
+        total_liabilities=250e9,
+    )
+    assert is_financial(row) is True
+    assert is_financial(row, "Consumer Cyclical") is False
+    assert (
+        detect_company_type(row, sector_hint="Consumer Cyclical")
+        is CompanyType.STANDARD
+    )
+
+
 def test_bank_cash_flow_fingerprint_is_financial():
     # The JPM signature the DCF previously carried: positive net income,
     # non-positive operating cash flow, no capex, revenue present.

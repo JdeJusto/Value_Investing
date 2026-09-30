@@ -13,7 +13,10 @@ A company is typed by the first rule that matches (see
 1. ``sector_hint`` — a label containing ``financial``/``bank``/``insurance``
    -> FINANCIAL; ``real estate``/``reit`` -> REIT; ``utilities``/``utility``
    -> UTILITY.
-2. Balance-sheet / cash-flow fingerprint of a financial company:
+2. Balance-sheet / cash-flow fingerprint of a financial company — applied
+   only when no sector hint is known (a known non-financial sector wins:
+   Ford's captive finance arm looks bank-like by leverage, but the sector
+   says cyclical):
    - no inventory AND long-term debt > 5x net income;
    - total_liabilities / total_assets > 0.85;
    - positive net income, non-positive operating cash flow, and no reported
@@ -164,7 +167,11 @@ def detect_company_type(
         return CompanyType.REIT
     if _hint_matches(sector_hint, _UTILITY_KEYWORDS):
         return CompanyType.UTILITY
-    if _financial_fingerprint(row):
+    # A known non-financial sector wins over the balance-sheet fingerprint:
+    # Ford's captive finance arm pushes total_liabilities/total_assets over
+    # 0.85, but the company is a cyclical automaker, not a bank. The
+    # fingerprint remains the fallback when no sector is known.
+    if not sector_hint and _financial_fingerprint(row):
         return CompanyType.FINANCIAL
     if row is not None:
         cagr = _revenue_cagr(fundamentals_history)
