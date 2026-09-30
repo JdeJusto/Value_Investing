@@ -195,12 +195,19 @@ class GreenblattMethodology(Methodology):
 
     def _load_rankings(self) -> tuple[dict | None, str | None]:
         """Newest ranking payload, or (None, reason) when unusable."""
-        if not self._rankings_dir.exists():
+        directory = self._rankings_dir
+        # Demo mode: the pinned offline bundle, only when the default dir is
+        # in use (an explicit dir — tests, custom runs — is respected).
+        from backend.services.demo_mode import demo_rankings_dir, is_demo
+
+        if is_demo() and directory == RANKINGS_DIR:
+            directory = demo_rankings_dir()
+        if not directory.exists():
             return None, (
                 "no Greenblatt ranking file "
                 "(run scripts/compute_greenblatt_rankings.py)"
             )
-        files = sorted(self._rankings_dir.glob("greenblatt_*.json"))
+        files = sorted(directory.glob("greenblatt_*.json"))
         if not files:
             return None, (
                 "no Greenblatt ranking file "

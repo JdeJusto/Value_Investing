@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 from backend.app.cli import (
+    add_demo_argument,
     add_refresh_arguments,
     build_financial_repository,
     refresh_analysis_inputs,
@@ -35,6 +36,7 @@ def register(subparsers):
         help="Ticker(s) to show historical valuation for (e.g: AAPL or AAPL MSFT)",
     )
     add_refresh_arguments(p)
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

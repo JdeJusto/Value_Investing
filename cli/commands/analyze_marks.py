@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.app.cli import add_refresh_arguments
+from backend.app.cli import add_demo_argument, add_refresh_arguments
 from cli.formatters import (
     dim,
     green,
@@ -25,6 +25,7 @@ def register(subparsers):
     )
     p.add_argument("ticker", help="Ticker to evaluate (e.g. AAPL)")
     add_refresh_arguments(p)
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

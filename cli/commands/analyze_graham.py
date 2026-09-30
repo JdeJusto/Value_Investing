@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.app.cli import add_refresh_arguments
+from backend.app.cli import add_demo_argument, add_refresh_arguments
 from cli.formatters import (
     dim,
     green,
@@ -31,6 +31,7 @@ def register(subparsers):
         help="Rescale the size threshold to 2024 dollars (labelled graham_modernized)",
     )
     add_refresh_arguments(p)
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

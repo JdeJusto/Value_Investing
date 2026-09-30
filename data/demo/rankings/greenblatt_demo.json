@@ -1,0 +1,303 @@
+{
+  "date": "2026-09-30",
+  "rankings": {
+    "AAPL": {
+      "combined_rank": 30,
+      "earnings_yield": 0.025793,
+      "fiscal_year": 2025,
+      "percentile": 0.45454545454545453,
+      "rank_ey": 28,
+      "rank_roc": 2,
+      "roc": 1.6
+    },
+    "FILL00": {
+      "combined_rank": 65,
+      "earnings_yield": 0.01,
+      "fiscal_year": 2025,
+      "percentile": 0.9848484848484849,
+      "rank_ey": 32,
+      "rank_roc": 33,
+      "roc": 0.05
+    },
+    "FILL01": {
+      "combined_rank": 42,
+      "earnings_yield": 0.0628,
+      "fiscal_year": 2025,
+      "percentile": 0.6363636363636364,
+      "rank_ey": 16,
+      "rank_roc": 26,
+      "roc": 0.134
+    },
+    "FILL02": {
+      "combined_rank": 20,
+      "earnings_yield": 0.1156,
+      "fiscal_year": 2025,
+      "percentile": 0.30303030303030304,
+      "rank_ey": 3,
+      "rank_roc": 17,
+      "roc": 0.218
+    },
+    "FILL03": {
+      "combined_rank": 30,
+      "earnings_yield": 0.0484,
+      "fiscal_year": 2025,
+      "percentile": 0.45454545454545453,
+      "rank_ey": 20,
+      "rank_roc": 10,
+      "roc": 0.302
+    },
+    "FILL04": {
+      "combined_rank": 36,
+      "earnings_yield": 0.1012,
+      "fiscal_year": 2025,
+      "percentile": 0.5454545454545454,
+      "rank_ey": 6,
+      "rank_roc": 30,
+      "roc": 0.086
+    },
+    "FILL05": {
+      "combined_rank": 46,
+      "earnings_yield": 0.034,
+      "fiscal_year": 2025,
+      "percentile": 0.696969696969697,
+      "rank_ey": 24,
+      "rank_roc": 22,
+      "roc": 0.17
+    },
+    "FILL06": {
+      "combined_rank": 23,
+      "earnings_yield": 0.0868,
+      "fiscal_year": 2025,
+      "percentile": 0.3484848484848485,
+      "rank_ey": 9,
+      "rank_roc": 14,
+      "roc": 0.254
+    },
+    "FILL07": {
+      "combined_rank": 37,
+      "earnings_yield": 0.0196,
+      "fiscal_year": 2025,
+      "percentile": 0.5606060606060606,
+      "rank_ey": 30,
+      "rank_roc": 7,
+      "roc": 0.338
+    },
+    "FILL08": {
+      "combined_rank": 40,
+      "earnings_yield": 0.0724,
+      "fiscal_year": 2025,
+      "percentile": 0.6060606060606061,
+      "rank_ey": 13,
+      "rank_roc": 27,
+      "roc": 0.122
+    },
+    "FILL09": {
+      "combined_rank": 19,
+      "earnings_yield": 0.1252,
+      "fiscal_year": 2025,
+      "percentile": 0.2878787878787879,
+      "rank_ey": 1,
+      "rank_roc": 18,
+      "roc": 0.206
+    },
+    "FILL10": {
+      "combined_rank": 28,
+      "earnings_yield": 0.058,
+      "fiscal_year": 2025,
+      "percentile": 0.42424242424242425,
+      "rank_ey": 17,
+      "rank_roc": 11,
+      "roc": 0.29
+    },
+    "FILL11": {
+      "combined_rank": 35,
+      "earnings_yield": 0.1108,
+      "fiscal_year": 2025,
+      "percentile": 0.5303030303030303,
+      "rank_ey": 4,
+      "rank_roc": 31,
+      "roc": 0.074
+    },
+    "FILL12": {
+      "combined_rank": 44,
+      "earnings_yield": 0.0436,
+      "fiscal_year": 2025,
+      "percentile": 0.6666666666666666,
+      "rank_ey": 21,
+      "rank_roc": 23,
+      "roc": 0.158
+    },
+    "FILL13": {
+      "combined_rank": 22,
+      "earnings_yield": 0.0964,
+      "fiscal_year": 2025,
+      "percentile": 0.3333333333333333,
+      "rank_ey": 7,
+      "rank_roc": 15,
+      "roc": 0.242
+    },
+    "FILL14": {
+      "combined_rank": 34,
+      "earnings_yield": 0.0292,
+      "fiscal_year": 2025,
+      "percentile": 0.5151515151515151,
+      "rank_ey": 26,
+      "rank_roc": 8,
+      "roc": 0.326
+    },
+    "FILL15": {
+      "combined_rank": 38,
+      "earnings_yield": 0.082,
+      "fiscal_year": 2025,
+      "percentile": 0.5757575757575758,
+      "rank_ey": 10,
+      "rank_roc": 28,
+      "roc": 0.11
+    },
+    "FILL16": {
+      "combined_rank": 50,
+      "earnings_yield": 0.0148,
+      "fiscal_year": 2025,
+      "percentile": 0.7575757575757576,
+      "rank_ey": 31,
+      "rank_roc": 19,
+      "roc": 0.194
+    },
+    "FILL17": {
+      "combined_rank": 26,
+      "earnings_yield": 0.0676,
+      "fiscal_year": 2025,
+      "percentile": 0.3939393939393939,
+      "rank_ey": 14,
+      "rank_roc": 12,
+      "roc": 0.278
+    },
+    "FILL18": {
+      "combined_rank": 34,
+      "earnings_yield": 0.1204,
+      "fiscal_year": 2025,
+      "percentile": 0.5151515151515151,
+      "rank_ey": 2,
+      "rank_roc": 32,
+      "roc": 0.062
+    },
+    "FILL19": {
+      "combined_rank": 44,
+      "earnings_yield": 0.0532,
+      "fiscal_year": 2025,
+      "percentile": 0.6666666666666666,
+      "rank_ey": 19,
+      "rank_roc": 25,
+      "roc": 0.146
+    },
+    "FILL20": {
+      "combined_rank": 21,
+      "earnings_yield": 0.106,
+      "fiscal_year": 2025,
+      "percentile": 0.3181818181818182,
+      "rank_ey": 5,
+      "rank_roc": 16,
+      "roc": 0.23
+    },
+    "FILL21": {
+      "combined_rank": 32,
+      "earnings_yield": 0.0388,
+      "fiscal_year": 2025,
+      "percentile": 0.48484848484848486,
+      "rank_ey": 23,
+      "rank_roc": 9,
+      "roc": 0.314
+    },
+    "FILL22": {
+      "combined_rank": 37,
+      "earnings_yield": 0.0916,
+      "fiscal_year": 2025,
+      "percentile": 0.5606060606060606,
+      "rank_ey": 8,
+      "rank_roc": 29,
+      "roc": 0.098
+    },
+    "FILL23": {
+      "combined_rank": 50,
+      "earnings_yield": 0.0244,
+      "fiscal_year": 2025,
+      "percentile": 0.7575757575757576,
+      "rank_ey": 29,
+      "rank_roc": 21,
+      "roc": 0.182
+    },
+    "FILL24": {
+      "combined_rank": 24,
+      "earnings_yield": 0.0772,
+      "fiscal_year": 2025,
+      "percentile": 0.36363636363636365,
+      "rank_ey": 11,
+      "rank_roc": 13,
+      "roc": 0.266
+    },
+    "JNJ": {
+      "combined_rank": 23,
+      "earnings_yield": 0.05635,
+      "fiscal_year": 2025,
+      "percentile": 0.3484848484848485,
+      "rank_ey": 18,
+      "rank_roc": 5,
+      "roc": 1.04
+    },
+    "JPM": {
+      "combined_rank": 16,
+      "earnings_yield": 0.065,
+      "fiscal_year": 2025,
+      "percentile": 0.24242424242424243,
+      "rank_ey": 15,
+      "rank_roc": 1,
+      "roc": 2.916667
+    },
+    "KO": {
+      "combined_rank": 26,
+      "earnings_yield": 0.042806,
+      "fiscal_year": 2025,
+      "percentile": 0.3939393939393939,
+      "rank_ey": 22,
+      "rank_roc": 4,
+      "roc": 1.363636
+    },
+    "MSFT": {
+      "combined_rank": 28,
+      "earnings_yield": 0.033547,
+      "fiscal_year": 2025,
+      "percentile": 0.42424242424242425,
+      "rank_ey": 25,
+      "rank_roc": 3,
+      "roc": 1.5
+    },
+    "PLD": {
+      "combined_rank": 33,
+      "earnings_yield": 0.027343,
+      "fiscal_year": 2025,
+      "percentile": 0.5,
+      "rank_ey": 27,
+      "rank_roc": 6,
+      "roc": 0.473684
+    },
+    "TSLA": {
+      "combined_rank": 57,
+      "earnings_yield": 0.004741,
+      "fiscal_year": 2025,
+      "percentile": 0.8636363636363636,
+      "rank_ey": 33,
+      "rank_roc": 24,
+      "roc": 0.155556
+    },
+    "XOM": {
+      "combined_rank": 32,
+      "earnings_yield": 0.075741,
+      "fiscal_year": 2025,
+      "percentile": 0.48484848484848486,
+      "rank_ey": 12,
+      "rank_roc": 20,
+      "roc": 0.184615
+    }
+  },
+  "universe_size": 33
+}

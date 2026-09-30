@@ -85,4 +85,8 @@ def main():
         return
 
     args = parser.parse_args()
+    if getattr(args, "demo", False):
+        from backend.services.demo_mode import enable_demo
+
+        enable_demo()
     args.func(args)

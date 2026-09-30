@@ -19,6 +19,7 @@ deliberately NOT part of any book methodology and never affects scoring.
 
 from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.app.cli import (
+    add_demo_argument,
     add_refresh_arguments,
     build_screener_service,
     refresh_analysis_inputs,
@@ -65,6 +66,7 @@ def register(subparsers):
         help="Omitir la seccion DCF suplementaria (not-from-canon)",
     )
     add_refresh_arguments(p)
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

@@ -13,6 +13,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
+from backend.services.demo_mode import is_demo
 from backend.services.ui_adapter import (
     build_portfolio_view,
     latest_daily_report,
@@ -70,7 +71,7 @@ def _portfolio_summary() -> None:
 
 def _refresh_prices(portfolio, path: str) -> None:
     col1, col2 = st.columns(2)
-    if col1.button("Refresh prices", key="home_refresh"):
+    if col1.button("Refresh prices", key="home_refresh", disabled=is_demo()):
         st.session_state["home_prices"] = refresh_portfolio_prices(
             portfolio, get_price_service()
         )

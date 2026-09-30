@@ -25,6 +25,10 @@ class JsonFinancialRepository(FinancialRepository):
         self._dir = Path(directory)
         self._dir.mkdir(parents=True, exist_ok=True)
 
+    def available(self) -> bool:
+        """The JSON store is always available (used by the demo path)."""
+        return self._dir.exists()
+
     # ------------------------------------------------------------------
     def upsert(self, financials: NormalizedFinancials) -> None:
         self.upsert_many([financials])

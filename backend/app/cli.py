@@ -19,7 +19,6 @@ from backend.providers.tickers import TICKERS
 from backend.repositories.financial_database_repository import (
     FinancialDatabaseRepository,
 )
-from backend.repositories.json_financial_repository import JsonFinancialRepository
 from backend.screener.screener_service import ScreenerService
 from backend.services.data_pipeline_service import DataPipelineService
 from backend.services.price_cache import PriceCache
@@ -157,6 +156,24 @@ def build_investment_screener(
         no_prices=no_prices,
         # One paced batch per run instead of N individual Yahoo calls.
         price_cache=PriceCache(),
+    )
+
+
+def add_demo_argument(parser) -> None:
+    """Add the ``--demo`` offline flag to a command parser.
+
+    The flag sets ``VI_DEMO=1`` for the process (see
+    ``backend/services/demo_mode.py``); the composition layer then swaps the
+    database, prices, rankings, portfolio and reports for the pinned bundle
+    in ``data/demo/``. No external service is touched.
+    """
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help=(
+            "Modo demo offline: datos predefinidos de 8 tickers, sin "
+            "PostgreSQL, SEC ni Yahoo (ver README)"
+        ),
     )
 
 
@@ -329,6 +346,17 @@ def cmd_historical_valuation(args):
 
 
 def build_financial_repository() -> FinancialRepository:
+    # Demo mode: the pinned offline bundle, never the database.
+    from backend.services.demo_mode import DEMO_FUNDAMENTALS, is_demo
+
+    if is_demo():
+        from backend.repositories.json_financial_repository import (
+            JsonFinancialRepository,
+        )
+
+        logger.info("Using demo financial repository (offline bundle)")
+        return JsonFinancialRepository(DEMO_FUNDAMENTALS)
+
     # Try Financial-DataBase repository first
     try:
         financial_db_repo = FinancialDatabaseRepository()
@@ -356,11 +384,15 @@ def build_portfolio_service():
     """Portfolio tracking wired to the analytics layer for live refresh."""
     from backend.portfolio.portfolio_repository import JsonPortfolioRepository
     from backend.portfolio.portfolio_service import PortfolioService
+    from backend.services.demo_mode import DEMO_PORTFOLIO, is_demo
 
+    # Demo mode ignores PORTFOLIO_PATH: the bundle must be self-contained.
+    if is_demo():
+        path = str(DEMO_PORTFOLIO)
+    else:
+        path = os.getenv("PORTFOLIO_PATH", "data/portfolio.json")
     return PortfolioService(
-        repository=JsonPortfolioRepository(
-            os.getenv("PORTFOLIO_PATH", "data/portfolio.json")
-        ),
+        repository=JsonPortfolioRepository(path),
         analyzer=build_analysis_service().analyze,
     )
 

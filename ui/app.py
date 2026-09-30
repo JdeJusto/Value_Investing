@@ -20,6 +20,11 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+from backend.services.demo_mode import BANNER, is_demo
+
+if is_demo():
+    st.info(BANNER)
+
 pages = [
     st.Page("pages/01_home.py", title="Home", default=True),
     st.Page("pages/02_analysis.py", title="Analysis"),

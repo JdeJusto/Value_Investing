@@ -13,6 +13,27 @@ A deterministic, explainable toolkit for fundamental stock analysis. It combines
 
 First public release: seven book-derived methodologies (Graham, Graham & Dodd, Buffett/Clark, Buffett Classic, Fisher, Lynch GARP and Greenblatt Magic Formula), DCF valuation with four variants, SEC-derived fundamentals through the companion Financial-DataBase, a five-page Streamlit UI, screener, portfolio tracking, daily workflow and alerts. Prices are fetched on demand and never persisted. See [CHANGELOG.md](CHANGELOG.md) for the full list and the known limitations.
 
+## Try it in 30 seconds (no database required)
+
+```bash
+git clone https://github.com/JdeJusto/Value_Investing.git
+cd Value_Investing
+uv sync            # or: pipenv install --dev
+
+python main.py analyze-full AAPL --demo
+python main.py compare-methodologies AAPL --demo
+
+VI_DEMO=1 ./run_ui.sh   # http://localhost:8501
+```
+
+Demo mode uses a **pinned offline bundle** for 8 tickers (AAPL, MSFT, KO, JNJ,
+JPM, XOM, PLD, TSLA): no PostgreSQL, no SEC, no Yahoo. Every command accepts
+`--demo`, `screener --universe demo` screens the bundle, and the UI shows a
+demo banner with the price refresh disabled. The fixtures are real-ish 10-K
+figures pinned to a date — regenerate them with
+`python -m scripts.build_demo_data`. To use the real system, see
+[Installation](#installation).
+
 ## What it does
 
 - Loads and normalizes company fundamentals from SEC filings, Yahoo Finance, or the companion Financial-DataBase.

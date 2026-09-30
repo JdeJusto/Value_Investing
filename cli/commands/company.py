@@ -1,6 +1,6 @@
 import math
 
-from backend.app.cli import build_analysis_service
+from backend.app.cli import add_demo_argument, build_analysis_service
 from cli.formatters import (
     bold,
     dim,
@@ -23,6 +23,7 @@ def register(subparsers):
         description="Muestra nombre, precio y metricas principales de un ticker.",
     )
     p.add_argument("ticker", type=str, help="Ticker a consultar (ej: AAPL)")
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

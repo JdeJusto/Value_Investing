@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.app.cli import add_demo_argument
 from cli.formatters import bold, dim, print_header, print_section
 
 
@@ -22,6 +23,7 @@ def register(subparsers):
         default="",
         help="Comma-separated subset (default: all registered)",
     )
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

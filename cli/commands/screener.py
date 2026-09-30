@@ -6,6 +6,7 @@ import time
 import pandas as pd
 
 from backend.app.cli import (
+    add_demo_argument,
     add_refresh_arguments,
     build_screener_service,
     refresh_analysis_inputs,
@@ -165,6 +166,18 @@ def _run_screener(args):
     filters = _build_filters(args)
 
     tickers = None
+    universe = getattr(args, "universe", None)
+    if universe and universe.lower() != "demo":
+        print(red(f"Universo desconocido: {universe} (usa 'demo' o --tickers)"))
+        return
+    if (universe and universe.lower() == "demo") or (
+        getattr(args, "demo", False) and not args.tickers and not args.search
+    ):
+        # The offline bundle doubles as a named universe; a bare --demo
+        # screen defaults to it instead of the configured universe.
+        from backend.services.demo_mode import load_demo_prices
+
+        tickers = sorted(load_demo_prices())
     if args.tickers:
         tickers = [t.strip().upper() for t in args.tickers.split(",")]
 
@@ -331,6 +344,11 @@ def register(subparsers):
     p.add_argument(
         "--tickers", type=str, help="Tickers separados por coma (ej: AAPL,MSFT,GOOGL)"
     )
+    p.add_argument(
+        "--universe",
+        type=str,
+        help="Universo con nombre: 'demo' usa los 8 tickers del bundle offline",
+    )
     p.add_argument("--search", type=str, help="Buscar por ticker o nombre de empresa")
     p.add_argument(
         "--pe-max",
@@ -402,6 +420,7 @@ def register(subparsers):
     )
     p.add_argument("--save", action="store_true", help="Guardar resultados en CSV")
     add_refresh_arguments(p)
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 

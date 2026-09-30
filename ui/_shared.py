@@ -14,9 +14,12 @@ from typing import Any
 
 import streamlit as st
 
+from backend.services.demo_mode import DEMO_REPORTS, is_demo
+
 DASH = "—"
 UNIVERSE_PATH = Path("config/universe.csv")
-REPORTS_DIR = Path("data/reports")
+#: Demo mode reads the pinned bundle instead of the local report archive.
+REPORTS_DIR = DEMO_REPORTS if is_demo() else Path("data/reports")
 
 
 def page_header(title: str, subtitle: str | None = None) -> None:

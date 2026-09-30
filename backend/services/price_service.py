@@ -937,10 +937,16 @@ class PriceService:
 
 
 def get_price_service() -> PriceService:
-    """Get or create a PriceService instance (process-level singleton)."""
+    """Get or create a PriceService instance (process-level singleton).
+
+    In demo mode the singleton is a ``DemoPriceService``: same interface,
+    answers from ``data/demo/prices.json`` and never calls the network.
+    """
     global _PRICE_SERVICE
     if _PRICE_SERVICE is None:
-        _PRICE_SERVICE = PriceService()
+        from backend.services.demo_mode import DemoPriceService, is_demo
+
+        _PRICE_SERVICE = DemoPriceService() if is_demo() else PriceService()
     return _PRICE_SERVICE
 
 

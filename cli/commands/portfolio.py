@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from backend.app.cli import build_portfolio_service
+from backend.app.cli import add_demo_argument, build_portfolio_service
 from cli.formatters import (
     bold,
     dim,
@@ -45,6 +45,7 @@ def register(subparsers):
         default=None,
         help="Fecha de entrada ISO (default: hoy)",
     )
+    add_demo_argument(add)
     add.set_defaults(func=_add)
 
     exit_ = sub.add_parser("exit", help="Cierra una posicion vendiendo")
@@ -56,15 +57,17 @@ def register(subparsers):
         default=None,
         help="Fecha de venta ISO (default: hoy)",
     )
+    add_demo_argument(exit_)
     exit_.set_defaults(func=_exit)
 
     remove = sub.add_parser("remove", help="Borra una posicion sin registrar venta")
     remove.add_argument("ticker", type=str)
+    add_demo_argument(remove)
     remove.set_defaults(func=_remove)
 
-    sub.add_parser(
-        "view", help="Posiciones enriquecidas con puntuaciones"
-    ).set_defaults(func=_view)
+    view = sub.add_parser("view", help="Posiciones enriquecidas con puntuaciones")
+    add_demo_argument(view)
+    view.set_defaults(func=_view)
 
     sub.add_parser(
         "performance",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from backend.app.cli import add_demo_argument
 from backend.valuation.base import SOURCE
 from cli.formatters import (
     dim,
@@ -76,6 +77,7 @@ def register(subparsers):
         default=None,
         help="Override terminal growth (e.g. 0.03)",
     )
+    add_demo_argument(p)
     p.set_defaults(func=_run)
 
 
