@@ -13,6 +13,47 @@ A deterministic, explainable toolkit for fundamental stock analysis. It combines
 
 First public release: seven book-derived methodologies (Graham, Graham & Dodd, Buffett/Clark, Buffett Classic, Fisher, Lynch GARP and Greenblatt Magic Formula), DCF valuation with four variants, SEC-derived fundamentals through the companion Financial-DataBase, a five-page Streamlit UI, screener, portfolio tracking, daily workflow and alerts. Prices are fetched on demand and never persisted. See [CHANGELOG.md](CHANGELOG.md) for the full list and the known limitations.
 
+## Why this project
+
+Most fundamental-analysis tools give you **one** answer: a single score, a
+single rating, a single recommendation. This project does the opposite: it
+runs **8 book methodologies in parallel** and shows you where they agree and
+where they disagree — because disagreement is information, not a bug.
+
+- **8 book methodologies, side by side.** Graham, Graham & Dodd, Buffett
+  (×2), Fisher (quantitative subset), Lynch, Greenblatt and Marks. Each one
+  evaluates the same company independently.
+- **DCF as an explicit outsider.** Valuations that come from a
+  discounted-cash-flow model are labeled `not-from-canon` and never merged
+  into the book methodology scores.
+- **Disagreement summary.** When Graham says AVOID and Buffett says BUY, the
+  system tells you *why* — different frameworks, not different data.
+- **Financial guards.** Banks and insurers are excluded from methodologies
+  that do not apply to them, instead of producing misleading numbers.
+- **Data engine built in.** Financial-DataBase ingests 76M+ SEC facts across
+  8,000 companies with full provenance and idempotency.
+- **Prices are never persisted.** Every price is fetched in real time and
+  cached in memory, so the numbers you see are the numbers the market has
+  right now.
+
+### How it compares
+
+| Feature | This project | Simply Wall St | Finviz | Morningstar |
+|---|:---:|:---:|:---:|:---:|
+| Multiple methodologies, side by side | ✅ 8 | ❌ | ❌ | ❌ |
+| Explicit disagreement summary | ✅ | ❌ | ❌ | ❌ |
+| Financial guards by methodology | ✅ | ❌ | ❌ | ❌ |
+| Book-derived rules (documented) | ✅ | ⚠️ | ❌ | ⚠️ |
+| Open source | ✅ | ❌ | ❌ | ❌ |
+| Self-hostable, no accounts | ✅ | ❌ | ❌ | ❌ |
+| Prices never persisted | ✅ | — | — | — |
+| DCF explicitly labeled not-from-canon | ✅ | ❌ | ❌ | ❌ |
+
+*Honest footnote:* the table is about the workflow this project optimises
+for. Commercial tools beat it in other dimensions (universe breadth, news,
+broker integration, mobile apps) — and Fisher here is a **quantitative
+subset** (4 of 15 points), because scuttlebutt cannot be automated.
+
 ## Try it in 30 seconds (no database required)
 
 ![analyze-full](assets/analyze-full.gif)
