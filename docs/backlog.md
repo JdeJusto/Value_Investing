@@ -90,7 +90,14 @@ Before making the repository public:
 
 > Branch protection applied on 2026-09-30:
 > - VI: required checks = Unit tests (no database), Compile check, Frontend (audit, lint, build)
-> - FDB: required checks = Unit tests (no database), PostgreSQL integration tests
+> - FDB: required checks = Unit tests (no database), PostgreSQL integration tests, Compile check
+>
+> Fresh-clone onboarding verified on 2026-09-30 (clean clone, no .env, no
+> database, no network): `pipenv install --dev` (with
+> `PIPENV_VENV_IN_PROJECT=1`) took 1m15s, `analyze-full AAPL --demo` 5s and
+> `VI_DEMO=1 ./run_ui.sh` answered HTTP 200. The README quick start was
+> fixed (33837ae): `uv sync` cannot work without a pyproject.toml and a
+> plain `pipenv install` puts the virtualenv outside the project.
 >
 > `strict: true`, force-push and branch deletion disabled, admins exempt
 > (the release script pushes directly to `main`).
