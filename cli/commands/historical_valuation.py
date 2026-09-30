@@ -65,7 +65,9 @@ def _run(args):
 
         if not ratios:
             print(f"  {yellow('No hay datos de valoración disponibles para')} {ticker}")
-            print(f"  {dim('Esto puede deberse a falta de datos de precios en Financial-DataBase')}")
+            print(
+                f"  {dim('Esto puede deberse a falta de datos de precios en Financial-DataBase')}"
+            )
             continue
 
         # Print table
@@ -76,20 +78,24 @@ def _run(args):
         if ratios:
             latest = ratios[0]  # Most recent year first
             print()
-            print_key_value("Último año fiscal", str(latest['fiscal_year']))
+            print_key_value("Último año fiscal", str(latest["fiscal_year"]))
             print_key_value(
                 "Precio de cierre",
-                f"{latest['price']:.2f}" if latest['price'] is not None else "N/A",
+                f"{latest['price']:.2f}" if latest["price"] is not None else "N/A",
             )
             print_key_value(
                 "EPS",
-                f"{latest['eps']:.2f}" if latest['eps'] is not None else "N/A",
+                f"{latest['eps']:.2f}" if latest["eps"] is not None else "N/A",
             )
             print_key_value(
                 "P/E Ratio",
-                f"{latest['pe_ratio']:.2f}" if latest['pe_ratio'] is not None else "N/A",
+                f"{latest['pe_ratio']:.2f}"
+                if latest["pe_ratio"] is not None
+                else "N/A",
             )
             print_key_value(
                 "FCF Yield",
-                f"{latest['fcf_yield']:.2%}" if latest['fcf_yield'] is not None else "N/A",
+                f"{latest['fcf_yield']:.2%}"
+                if latest["fcf_yield"] is not None
+                else "N/A",
             )

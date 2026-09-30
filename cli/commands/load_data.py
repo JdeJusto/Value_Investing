@@ -28,8 +28,7 @@ def register(subparsers):
         "--force",
         action="store_true",
         help=(
-            "Re-descargar y sobrescribir datos aunque ya existan "
-            "en el almacenamiento"
+            "Re-descargar y sobrescribir datos aunque ya existan en el almacenamiento"
         ),
     )
     p.set_defaults(func=_run)

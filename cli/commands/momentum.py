@@ -52,9 +52,7 @@ def _delta_color(value):
 def _run(args):
     service = build_analysis_service()
     universe = build_universe(args.tickers)
-    refresh_analysis_inputs(
-        universe, args, explicit=bool(args.tickers)
-    )
+    refresh_analysis_inputs(universe, args, explicit=bool(args.tickers))
 
     rows = []
     for ticker in universe:

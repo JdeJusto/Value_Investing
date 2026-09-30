@@ -54,7 +54,7 @@ def register(subparsers):
     p.add_argument(
         "--params",
         type=str,
-        help="Additional parameters as JSON string (e.g: '{\"param1\": \"value1\"}')",
+        help='Additional parameters as JSON string (e.g: \'{"param1": "value1"}\')',
     )
     p.add_argument(
         "--limit",
@@ -118,6 +118,7 @@ def _run(args):
     if args.ticker and not args.cik:
         # Get repository to convert ticker to CIK
         from backend.app.cli import build_financial_repository
+
         repo = build_financial_repository()
         if not repo.available():
             print(f"{red('ERROR:')} Financial-DataBase repository not available")
@@ -132,19 +133,22 @@ def _run(args):
             # Get CIK from company_identifiers
             conn = repo._get_connection()
             with conn.cursor() as cur:
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT ci.identifier_value
                     FROM company_identifiers ci
                     JOIN data_providers dp ON ci.provider_id = dp.id
                     WHERE ci.company_id = %s
                       AND ci.identifier_type = 'CIK'
                       AND dp.name = 'SEC EDGAR'
-                """, (company_id,))
+                """,
+                    (company_id,),
+                )
                 row = cur.fetchone()
                 if not row:
                     print(f"{red('ERROR:')} No CIK found for ticker '{args.ticker}'")
                     return
-                parameters["cik"] = row['identifier_value']
+                parameters["cik"] = row["identifier_value"]
         except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"{red('ERROR:')} Failed to get CIK for ticker '{args.ticker}': {e}")
             return
@@ -152,7 +156,10 @@ def _run(args):
         parameters["cik"] = args.cik
 
     # Debug: print what we're about to execute
-    print(f"DEBUG: About to execute script '{script_name}' with parameters: {parameters}", file=sys.stderr)
+    print(
+        f"DEBUG: About to execute script '{script_name}' with parameters: {parameters}",
+        file=sys.stderr,
+    )
 
     # Execute the script
     print_header(f"Executing SQL script: {script_name}")
@@ -164,14 +171,19 @@ def _run(args):
 
     # Output results
     if args.output == "json":
-        print(json.dumps({
-            "script": result.script_name,
-            "description": result.description,
-            "parameters": result.parameters,
-            "rows": result.rows,
-            "row_count": result.row_count,
-            "execution_time_ms": result.execution_time_ms
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "script": result.script_name,
+                    "description": result.description,
+                    "parameters": result.parameters,
+                    "rows": result.rows,
+                    "row_count": result.row_count,
+                    "execution_time_ms": result.execution_time_ms,
+                },
+                indent=2,
+            )
+        )
     elif args.output == "csv":
         _output_csv(result)
     else:
@@ -199,7 +211,9 @@ def _output_table(result):
         print(f"{yellow('No data returned')}")
         return
 
-    print(f"{green(f'Query executed successfully in {result.execution_time_ms:.2f}ms')}")
+    print(
+        f"{green(f'Query executed successfully in {result.execution_time_ms:.2f}ms')}"
+    )
     print(f"Rows returned: {result.row_count}")
     print()
 
@@ -212,7 +226,7 @@ def _output_table(result):
         for col in columns:
             col_widths[col] = max(
                 len(str(col)),
-                max((len(str(row.get(col, ''))) for row in result.rows), default=0)
+                max((len(str(row.get(col, ""))) for row in result.rows), default=0),
             )
             # Cap width at 50 characters for readability
             col_widths[col] = min(col_widths[col], 50)
@@ -246,9 +260,11 @@ def _output_csv(result):
     for row in result.rows:
         values = []
         for col in columns:
-            value = row.get(col, '')
+            value = row.get(col, "")
             # Quote values that contain commas or quotes
-            if isinstance(value, str) and (',' in value or '"' in value or '\n' in value):
+            if isinstance(value, str) and (
+                "," in value or '"' in value or "\n" in value
+            ):
                 value = f'"{value.replace('"', '""')}"'
             values.append(str(value))
         print(",".join(values))
@@ -286,6 +302,7 @@ def cmd_sql_analysis(args):
     if args.ticker and not args.cik:
         # Get repository to convert ticker to CIK
         from backend.app.cli import build_financial_repository
+
         repo = build_financial_repository()
         if not repo.available():
             print("Error: Financial-DataBase repository not available")
@@ -300,6 +317,7 @@ def cmd_sql_analysis(args):
             # Get CIK from company_identifiers
             with repo._get_session() as session:
                 from sqlalchemy import text
+
                 result = session.execute(
                     text("""
                         SELECT ci.identifier_value
@@ -309,7 +327,7 @@ def cmd_sql_analysis(args):
                         AND ci.identifier_type = 'CIK'
                         AND dp.name = 'SEC EDGAR'
                     """),
-                    {"company_id": company_id}
+                    {"company_id": company_id},
                 )
                 row = result.fetchone()
                 if not row:
@@ -331,14 +349,19 @@ def cmd_sql_analysis(args):
 
     # Output results
     if args.output == "json":
-        print(json.dumps({
-            "script": result.script_name,
-            "description": result.description,
-            "parameters": result.parameters,
-            "rows": result.rows,
-            "row_count": result.row_count,
-            "execution_time_ms": result.execution_time_ms
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "script": result.script_name,
+                    "description": result.description,
+                    "parameters": result.parameters,
+                    "rows": result.rows,
+                    "row_count": result.row_count,
+                    "execution_time_ms": result.execution_time_ms,
+                },
+                indent=2,
+            )
+        )
     elif args.output == "csv":
         _output_csv(result)
     else:

@@ -109,7 +109,11 @@ def _build_filters(args) -> list[FilterCriteria]:
         )
         sys.exit(1)
 
-    if args.pe_min is not None and args.pe_max is not None and args.pe_min > args.pe_max:
+    if (
+        args.pe_min is not None
+        and args.pe_max is not None
+        and args.pe_min > args.pe_max
+    ):
         print(
             f"  {red('ERROR:')} pe-min ({args.pe_min}) no puede ser mayor "
             f"que pe-max ({args.pe_max})"
@@ -344,7 +348,9 @@ def register(subparsers):
         metavar="N",
         help="PER minimo",
     )
-    p.add_argument("--ev-ebit-max", type=float, metavar="N", help="EV/EBIT maximo (ej: 20)")
+    p.add_argument(
+        "--ev-ebit-max", type=float, metavar="N", help="EV/EBIT maximo (ej: 20)"
+    )
     p.add_argument("--pb-max", type=float, metavar="N", help="P/B maximo (ej: 1.5)")
     p.add_argument("--pb-min", type=float, metavar="N", help="P/B minimo (ej: 1.0)")
     p.add_argument(

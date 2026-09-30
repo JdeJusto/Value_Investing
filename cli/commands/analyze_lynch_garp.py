@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.app.cli import add_refresh_arguments
 from cli.formatters import (
     dim,
     green,
@@ -25,11 +26,7 @@ def register(subparsers):
         ),
     )
     p.add_argument("ticker", help="Ticker to evaluate (e.g. AAPL)")
-    p.add_argument(
-        "--no-refresh",
-        action="store_true",
-        help="Skip the on-demand SEC refresh before evaluating",
-    )
+    add_refresh_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -59,12 +56,13 @@ def _rule_color(outcome: str):
 
 
 def _run(args):
-    from backend.app.cli import build_financial_repository
+    from backend.app.cli import build_financial_repository, refresh_analysis_inputs
     from backend.methodologies.lynch_garp.methodology import LynchGARPMethodology
     from backend.methodologies.registry import discover, registry
     from backend.services.price_service import get_price_service
 
     discover()
+    refresh_analysis_inputs([args.ticker], args)
     if registry.get("lynch_garp") is None:
         print(red("ERROR: the 'lynch_garp' methodology is not registered."))
         return

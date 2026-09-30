@@ -17,7 +17,6 @@ ticker never stops the rest of the batch. The supplementary DCF block is
 deliberately NOT part of any book methodology and never affects scoring.
 """
 
-
 from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.app.cli import (
     add_refresh_arguments,
@@ -198,7 +197,9 @@ def render_dcf_section(result) -> None:
         ):
             print(f"  {label:<20} : {value}")
     print()
-    print(f"  {yellow('⚠️')} This valuation is NOT part of any book-derived methodology.")
+    print(
+        f"  {yellow('⚠️')} This valuation is NOT part of any book-derived methodology."
+    )
     print("     It is a practical addition labeled not-from-canon.")
     print("     See backend/valuation/README.md for assumptions and limits.")
 
@@ -309,9 +310,7 @@ def _run(args):
             sector, industry = _company_overview(ticker, row.name)
 
             _print_section(ticker)
-            _section_overview(
-                {"ticker": ticker, "name": row.name}, sector, industry
-            )
+            _section_overview({"ticker": ticker, "name": row.name}, sector, industry)
             _section_price(
                 row.price,
                 row.market_cap,
