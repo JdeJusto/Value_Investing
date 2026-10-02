@@ -29,6 +29,8 @@ redis = "*"
 alembic = "*"
 asyncpg = "*"
 bcrypt = "==4.0.1"
+beautifulsoup4 = ">=4.15"
+lxml = ">=6.0"
 
 [dev-packages]
 black = ">=25.0"
