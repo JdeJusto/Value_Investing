@@ -240,8 +240,10 @@ cp .env.example .env
 Edit `.env` before making SEC requests. Replace the example `SEC_USER_AGENT` with a descriptive application name and a real contact address. Set `SEC_EMAIL` and `SEC_NAME` for the direct `edgartools` provider. Never commit `.env` or real credentials.
 
 ```bash
-# With pipenv (creates .venv automatically)
-pipenv install --dev
+# With pipenv (PIPENV_VENV_IN_PROJECT=1 creates ./.venv, which ./run_ui.sh
+# and the source/activate flow below expect; without it pipenv puts the
+# virtualenv outside the project)
+PIPENV_VENV_IN_PROJECT=1 pipenv install --dev
 pipenv shell                # or prefix every command with: pipenv run
 # Without pipenv: use the checked-in venv wrapper
 source .venv/bin/activate   # python3.13+ venv
