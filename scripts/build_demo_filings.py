@@ -96,8 +96,106 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+# (the `--sections` dispatch lives at the end of the file, after the builders)
+
+
+# ---------------------------------------------------------------------------
+# Narrative-section fixtures (Risk Factors and MD&A, 20 KB each)
+# ---------------------------------------------------------------------------
+SECTION_TICKERS = ("AAPL", "KO", "JNJ", "JPM")
+MAX_FIXTURE_BYTES = 20_000  # keep the demo bundle small
+
+
+def build_section_fixtures() -> int:
+    """Extract each ticker's Risk Factors and MD&A into 20 KB demo fixtures."""
+    import json as _json
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    from backend.services.filing_service import FilingService
+    from backend.services.narrative_extractor import (
+        NARRATIVE_PARSER_VERSION,
+        NarrativeExtractor,
+        SectionType,
+    )
+
+    target_dir = PROJECT_ROOT / "data" / "demo" / "sections"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    service = FilingService()
+    extractor = NarrativeExtractor()
+    cache_root = PROJECT_ROOT / "data" / "raw" / "filings"
+    written = 0
+
+    for ticker in SECTION_TICKERS:
+        filings = service.list_filings(ticker, form_types=["10-K"])
+        if not filings:
+            print(f"{ticker}: no 10-K, skipped")
+            continue
+        record = filings[0]
+        # Resolve the cached 10-K HTML directly (the local listing may not
+        # carry primary_document; the cache tree is authoritative here).
+        cik_dir = (
+            cache_root / str(int(record.cik))
+            if str(record.cik).isdigit()
+            else cache_root / str(record.cik)
+        )
+        acc_dir = cik_dir / record.accession_number.replace("-", "")
+        cached_docs = sorted(acc_dir.glob("*.htm")) if acc_dir.exists() else []
+        if not cached_docs:
+            print(f"{ticker}: no cached HTML for {record.accession_number}, skipped")
+            continue
+        html = cached_docs[0].read_text(encoding="utf-8", errors="replace")
+        for section_type in (SectionType.RISK_FACTORS, SectionType.MD_A):
+            section = extractor.extract(
+                html,
+                section_type,
+                form_type=record.form_type,
+                filing_date=record.filing_date,
+                period_end=record.period_of_report,
+            )
+            if section is None:
+                print(f"{ticker} {section_type.value}: not found")
+                continue
+            text = section.text[:MAX_FIXTURE_BYTES]
+            warnings = list(section.extraction_warnings)
+            if len(section.text) > MAX_FIXTURE_BYTES:
+                warnings.append("truncated to 20 KB for demo bundle")
+            if len(section.text.split()) < 300:
+                warnings.append(
+                    f"very short section ({len(section.text.split())} words); the "
+                    "filing likely incorporates this narrative by reference "
+                    "instead of carrying it in the document"
+                )
+            period = (
+                record.period_of_report.isoformat()
+                if record.period_of_report
+                else "unknown"
+            )
+            payload = {
+                "version": NARRATIVE_PARSER_VERSION,
+                "section_type": section_type.value,
+                "filing_date": record.filing_date.isoformat(),
+                "period_end": period,
+                "form_type": record.form_type,
+                "title": section.title,
+                "text": text,
+                "word_count": len(text.split()),
+                "source": section.source,
+                "extraction_warnings": warnings,
+            }
+            target = target_dir / f"{ticker}_{section_type.value}.json"
+            target.write_text(
+                _json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            written += 1
+            print(
+                f"{ticker} {section_type.value}: {len(text) // 1024} KB "
+                f"({payload['word_count']} words) -> {target.name}"
+            )
+    print(f"total {written} narrative section fixtures")
+    return 0 if written else 1
 
 
 # ---------------------------------------------------------------------------
@@ -179,8 +277,7 @@ def build_balance_sheets() -> int:
     return written
 
 
-if __name__ == "__main__":
-    raise SystemExit(0 if build_balance_sheets() >= 0 else 1)
+# (the `__main__` dispatch lives at the end of the file)
 
 
 # ---------------------------------------------------------------------------
@@ -276,3 +373,11 @@ def build_statement_fixtures() -> int:
                 f"{ticker} {statement_type.value}: {len(lines)} lines -> {target.name}"
             )
     return written
+
+
+if __name__ == "__main__":
+    import sys as _sys
+
+    if len(_sys.argv) > 1 and _sys.argv[1] == "--sections":
+        raise SystemExit(build_section_fixtures())
+    raise SystemExit(main())
