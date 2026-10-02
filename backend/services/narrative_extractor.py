@@ -28,7 +28,7 @@ from typing import Any
 
 #: Narrative-only cache version. Kept separate from the statement parser's
 #: ``PARSER_VERSION`` so bumping one does not invalidate the other's cache.
-NARRATIVE_PARSER_VERSION = 1
+NARRATIVE_PARSER_VERSION = 2
 MAX_SECTION_BYTES = 200_000
 MIN_BLOCK_WORDS = 3
 

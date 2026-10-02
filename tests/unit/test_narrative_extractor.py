@@ -13,6 +13,7 @@ from backend.services.narrative_extractor import (
     SectionType,
     _is_likely_incorporation,
     load_narrative_section,
+    narrative_cache_path,
 )
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "filings"
@@ -178,9 +179,7 @@ def test_is_likely_incorporation_flags_short_reference_text():
 
 def test_is_likely_incorporation_ignores_long_sections():
     # Over the 500-word threshold even when the phrases are present.
-    assert not _is_likely_incorporation(
-        "Refer to the annual report. " * 100, 600
-    )
+    assert not _is_likely_incorporation("Refer to the annual report. " * 100, 600)
 
 
 def test_is_likely_incorporation_ignores_short_plain_text():
@@ -206,3 +205,44 @@ def test_full_sections_get_no_incorporation_warning():
     )
     assert section is not None
     assert INCORPORATION_WARNING not in section.extraction_warnings
+
+
+def test_stale_cache_version_triggers_a_re_extraction(tmp_path, monkeypatch):
+    """A section cached before a parser-version bump must be re-extracted.
+
+    Guarantees behavioral changes (e.g. the incorporation warning) reach
+    sections that were already cached under an older version.
+    """
+    from backend.services.narrative_extractor import NARRATIVE_PARSER_VERSION
+
+    monkeypatch.delenv("VI_DEMO", raising=False)
+
+    class _Fetcher:
+        calls = 0
+
+        def fetch_html(self, *args, **kwargs):
+            type(self).calls += 1
+            return _html("aapl_10k_risk_factors.html")
+
+    fetcher = _Fetcher()
+    load_narrative_section(
+        _Record(), SectionType.RISK_FACTORS, fetcher=fetcher, cache_dir=tmp_path
+    )
+    assert fetcher.calls == 1
+    path = narrative_cache_path(
+        tmp_path,
+        "0000320193",
+        "0000320193-25-000079",
+        "aapl.htm",
+        SectionType.RISK_FACTORS,
+    )
+    payload = path.read_text(encoding="utf-8").replace(
+        f'"version": {NARRATIVE_PARSER_VERSION}', '"version": 0'
+    )
+    path.write_text(payload, encoding="utf-8")
+
+    section = load_narrative_section(
+        _Record(), SectionType.RISK_FACTORS, fetcher=fetcher, cache_dir=tmp_path
+    )
+    assert section is not None and section.word_count > 1000
+    assert fetcher.calls == 2  # a stale cache must not be served as-is
