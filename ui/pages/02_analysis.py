@@ -15,7 +15,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
-from backend.services.balance_sheet_parser import load_balance_sheet
+from backend.services.financial_statement_parser import load_financial_statement
 from backend.services.ui_adapter import (
     fmt_money_short,
     fmt_or_dash,
@@ -193,20 +193,42 @@ def _filings(ticker: str) -> None:
             f"period "
             f"{record.period_of_report.isoformat() if record.period_of_report else '—'}**"
         )
+        from backend.services.financial_statement_parser import StatementType
+
+        labels = {
+            "Balance Sheet": StatementType.BALANCE_SHEET,
+            "Income": StatementType.INCOME_STATEMENT,
+            "Cash Flow": StatementType.CASH_FLOW,
+        }
+        # A radio instead of st.segmented_control: same UX and it is
+        # exercisable from AppTest (the selector never triggers a fetch).
+        choice = st.radio(
+            "Statement type",
+            options=list(labels),
+            horizontal=True,
+            key=f"statement_type_{ticker}",
+        )
+        statement_type = labels[choice]
         col_load, col_clear = st.columns([1, 1])
-        if col_load.button("Load balance sheet", key="filings_load_bs"):
-            sheet = load_balance_sheet(record)
-            if sheet is None:
-                st.warning("Could not extract the balance sheet from this document.")
+        if col_load.button("Load", key="filings_load_statement"):
+            statement = load_financial_statement(record, statement_type)
+            if statement is None:
+                st.warning(
+                    f"This filing does not contain a {statement_type.label} "
+                    "statement (or it could not be extracted)."
+                )
                 if record.sec_url:
                     st.markdown(f"[Open it on SEC EDGAR]({record.sec_url})")
             else:
-                st.dataframe(sheet.as_rows(), hide_index=True, use_container_width=True)
-                st.caption(
-                    f"Source: SEC EDGAR · Extraction: {sheet.source} · Cached locally"
+                st.dataframe(
+                    statement.as_rows(), hide_index=True, use_container_width=True
                 )
-                if sheet.extraction_warnings:
-                    st.caption(sheet.extraction_warnings[0])
+                st.caption(
+                    f"Source: SEC EDGAR · Statement: {statement_type.label} · "
+                    f"Extraction: {statement.source} · Cached locally"
+                )
+                if statement.extraction_warnings:
+                    st.caption(statement.extraction_warnings[0])
         if col_clear.button("Clear cache", key="filings_clear_cache"):
             from backend.services.filing_fetcher import FilingFetcher
 
