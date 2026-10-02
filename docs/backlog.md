@@ -66,6 +66,14 @@ closed. This file now tracks what remains.
 
 ## Deferred
 
+- **Primary-document URLs in the filings list (99.7% fall back to the EDGAR
+  index)**: FDB's `filings` table does not persist the SEC
+  `primaryDocument` name (only 0.3% of rows have `filing_url`, so
+  `sec_document_url` is mostly `None`). Consumers already prefer the
+  document via `sec_url` (audited 2026-10-02; pinned by tests). Real fix:
+  persist `primaryDocument` at FDB ingest time, or resolve the document name
+  from SEC at listing time (would make `FilingService` fetch — currently
+  "never fetches"). Priority: low (the index page is one click away).
 - **Auto-follow incorporation-by-reference**: when a section points to another
   document, fetch and extract that document as well. Requires exhibit index
   parsing and additional SEC fetches. Priority: low (rare case, and the user
