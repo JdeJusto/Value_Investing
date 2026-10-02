@@ -8,8 +8,13 @@ only links out to SEC EDGAR.
 
 - [x] Balance sheet (v0.6.0) — anchors first, content fallback; CLI
       `filing-balance-sheet` and the Filings tab preview
-- [ ] Income statement
-- [ ] Cash flow statement
+- [x] Income statement (v0.7.0) — `FinancialStatementParser`, CLI
+      `filing-statement --type income_statement`
+- [x] Cash flow statement (v0.7.0) — same parser and command
+- [x] Parse cache (v0.7.0) — `<doc>.<statement_type>.json` next to the HTML,
+      invalidated by `PARSER_VERSION`
+- [ ] UI statement-type selector (next patch) — the Filings tab still loads
+      the balance sheet only; the parser and CLI already support all three
 - [ ] Risk factors (requires NLP/LLM)
 - [ ] MD&A (requires NLP/LLM)
 
