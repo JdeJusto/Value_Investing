@@ -154,3 +154,12 @@ def test_cache_roundtrip_avoids_re_extraction(tmp_path, monkeypatch):
     )
     assert second is not None and second.text == first.text
     assert fetcher.calls == 1  # neither re-fetched nor re-parsed
+
+
+def test_text_does_not_start_with_the_duplicated_title():
+    section = NarrativeExtractor().extract(
+        _html("aapl_10k_risk_factors.html"), SectionType.RISK_FACTORS, "10-K"
+    )
+    assert section is not None
+    first_line = section.text.split("\n\n")[0]
+    assert "Item 1A" not in first_line

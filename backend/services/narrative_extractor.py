@@ -140,6 +140,7 @@ class NarrativeExtractor:
             return None
 
         paragraphs = self._collect(elements, start_index, signature["end_headings"])
+        paragraphs = self._drop_repeated_title(paragraphs, title)
         text = "\n\n".join(paragraphs).strip()
         if not text or len(text.split()) < 50:
             # A handful of words is a fragment (navigation), not a section.
@@ -205,6 +206,33 @@ class NarrativeExtractor:
                 continue  # a container, not a heading
             return index, text, "text_search"
         return None, "", ""
+
+    @staticmethod
+    def _drop_repeated_title(paragraphs: list[str], title: str) -> list[str]:
+        """Drop leading paragraphs that just repeat the section title.
+
+        The real SEC markup repeats the heading (an anchored heading div,
+        then an inner div with the same text), so every consecutive
+        leading block that is the title (or starts with it) is dropped --
+        not just the first one.
+        """
+        wanted = _clean((title or "").rstrip(".").lower())
+        if not wanted:
+            return paragraphs
+        kept = list(paragraphs)
+        for _ in range(3):
+            if not kept:
+                break
+            candidate = _clean(kept[0].rstrip(".").lower())
+            if (
+                candidate == wanted
+                or candidate.startswith(wanted)
+                or wanted.startswith(candidate)
+            ):
+                del kept[0]
+                continue
+            break
+        return kept
 
     @staticmethod
     def _collect(
