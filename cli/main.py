@@ -50,6 +50,7 @@ def main():
         dcf,
         debug,
         filing_balance_sheet,
+        filing_section,
         filing_statement,
         filings,
         historical_valuation,
@@ -84,6 +85,7 @@ def main():
     filings.register(sub)
     filing_balance_sheet.register(sub)
     filing_statement.register(sub)
+    filing_section.register(sub)
     register_methodologies(sub)
 
     if len(sys.argv) == 1:
