@@ -13,8 +13,8 @@ only links out to SEC EDGAR.
 - [x] Cash flow statement (v0.7.0) — same parser and command
 - [x] Parse cache (v0.7.0) — `<doc>.<statement_type>.json` next to the HTML,
       invalidated by `PARSER_VERSION`
-- [ ] UI statement-type selector (next patch) — the Filings tab still loads
-      the balance sheet only; the parser and CLI already support all three
+- [x] UI statement-type selector (v0.7.1) — radio per ticker in the Filings
+      tab; the Load button stays the only fetch trigger
 - [ ] Risk factors (requires NLP/LLM)
 - [ ] MD&A (requires NLP/LLM)
 
