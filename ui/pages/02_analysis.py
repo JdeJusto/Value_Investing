@@ -19,6 +19,7 @@ from backend.services.financial_statement_parser import load_financial_statement
 from backend.services.ui_adapter import (
     fmt_money_short,
     fmt_or_dash,
+    render_statement_preview,
     run_dcf,
     run_methodologies,
 )
@@ -211,24 +212,20 @@ def _filings(ticker: str) -> None:
         statement_type = labels[choice]
         col_load, col_clear = st.columns([1, 1])
         if col_load.button("Load", key="filings_load_statement"):
-            statement = load_financial_statement(record, statement_type)
-            if statement is None:
-                st.warning(
-                    f"This filing does not contain a {statement_type.label} "
-                    "statement (or it could not be extracted)."
-                )
-                if record.sec_url:
-                    st.markdown(f"[Open it on SEC EDGAR]({record.sec_url})")
+            preview = render_statement_preview(
+                record, statement_type, load_financial_statement
+            )
+            if not preview["ok"]:
+                st.warning(preview["message"])
+                if preview["sec_url"]:
+                    st.markdown(f"[Open it on SEC EDGAR]({preview['sec_url']})")
             else:
                 st.dataframe(
-                    statement.as_rows(), hide_index=True, use_container_width=True
+                    preview["table_rows"], hide_index=True, use_container_width=True
                 )
-                st.caption(
-                    f"Source: SEC EDGAR · Statement: {statement_type.label} · "
-                    f"Extraction: {statement.source} · Cached locally"
-                )
-                if statement.extraction_warnings:
-                    st.caption(statement.extraction_warnings[0])
+                st.caption(preview["caption"])
+                if preview["warnings"]:
+                    st.caption(preview["warnings"][0])
         if col_clear.button("Clear cache", key="filings_clear_cache"):
             from backend.services.filing_fetcher import FilingFetcher
 

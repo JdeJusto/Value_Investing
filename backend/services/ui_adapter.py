@@ -816,3 +816,51 @@ def enrich_rows(
         with ThreadPoolExecutor(max_workers=workers) as pool:
             enriched = list(pool.map(enrich_one, rows))
     return [row for row in enriched if row is not None]
+
+
+def render_statement_preview(
+    record: Any, statement_type: Any, loader
+) -> dict[str, Any]:
+    """Pure view-model for the Filings tab's statement preview.
+
+    ``loader`` is injected (``load_financial_statement`` in the page, a stub
+    in tests) so the whole preview can be asserted without Streamlit. The
+    page converts the returned dict into st.dataframe / st.caption /
+    st.warning; nothing here touches the network.
+    """
+    label = statement_type.label
+    period = (
+        record.period_of_report.isoformat()
+        if getattr(record, "period_of_report", None)
+        else "—"
+    )
+    header = (
+        f"{record.form_type} filed {record.filing_date.isoformat()} · period {period}"
+    )
+    sec_url = getattr(record, "sec_url", None)
+    statement = loader(record, statement_type)
+    if statement is None:
+        return {
+            "ok": False,
+            "header": header,
+            "table_rows": [],
+            "caption": "",
+            "warnings": [],
+            "message": (
+                f"This filing does not contain a {label} statement "
+                "(or it could not be extracted)."
+            ),
+            "sec_url": sec_url,
+        }
+    return {
+        "ok": True,
+        "header": header,
+        "table_rows": statement.as_rows(),
+        "caption": (
+            f"Source: SEC EDGAR · Statement: {label} · "
+            f"Extraction: {statement.source} · Cached locally"
+        ),
+        "warnings": list(statement.extraction_warnings),
+        "message": None,
+        "sec_url": sec_url,
+    }
