@@ -66,7 +66,9 @@ class NarrativeSection:
 ## Cache
 
 `<doc>.<section_type>.json` under `data/raw/filings/`, next to the statement
-caches, invalidated by `PARSER_VERSION` (shared with the statement parser).
+caches, invalidated by `NARRATIVE_PARSER_VERSION` (kept separate from the
+  statement parser's `PARSER_VERSION` so one bump does not invalidate the
+  other's cache).
 
 ## Limits
 

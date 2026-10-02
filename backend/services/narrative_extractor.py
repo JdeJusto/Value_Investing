@@ -26,8 +26,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-#: Shared with the statement parser: bump when extraction output changes.
-PARSER_VERSION = 1
+#: Narrative-only cache version. Kept separate from the statement parser's
+#: ``PARSER_VERSION`` so bumping one does not invalidate the other's cache.
+NARRATIVE_PARSER_VERSION = 1
 MAX_SECTION_BYTES = 200_000
 MIN_BLOCK_WORDS = 3
 
@@ -305,7 +306,7 @@ def _read_section_cache(path: Path) -> NarrativeSection | None:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if int(payload.get("version", 0)) != PARSER_VERSION:
+    if int(payload.get("version", 0)) != NARRATIVE_PARSER_VERSION:
         return None
     record = type("_R", (), {})()
     record.filing_date = (
@@ -326,7 +327,7 @@ def _read_section_cache(path: Path) -> NarrativeSection | None:
 
 def _write_section_cache(path: Path, section: NarrativeSection) -> None:
     payload = {
-        "version": PARSER_VERSION,
+        "version": NARRATIVE_PARSER_VERSION,
         "section_type": section.section_type,
         "filing_date": section.filing_date.isoformat() if section.filing_date else None,
         "period_end": section.period_end.isoformat() if section.period_end else None,
