@@ -190,3 +190,19 @@ Add a **DCF variant**:
   bug; see `docs/unmapped_coverage.md`).
 - Yahoo rate limits can degrade price-dependent metrics — degradation is
   graceful and visible (N/A, never a fabricated number).
+
+## Filing extraction
+
+Statements are parsed by `FinancialStatementParser`
+(`backend/services/financial_statement_parser.py`) with three supported types:
+`BALANCE_SHEET`, `INCOME_STATEMENT` and `CASH_FLOW` (per-type anchors and
+required label pairs live in `STATEMENT_SIGNATURES`). The parser tries HTML
+anchors first (legacy filings) and falls back to the largest table matching
+the type's label pair — modern filings carry no anchors, so the fallback is
+the working path. Parsed statements are cached as JSON next to the raw HTML
+(`<doc>.<statement_type>.json`, versioned by `PARSER_VERSION`);
+`backend/services/balance_sheet_parser.py` is a v0.6.0 compatibility shim.
+
+Future: risk factors and MD&A (they need NLP/LLM). See
+`docs/filings_extraction.md`.
+
