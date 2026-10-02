@@ -57,6 +57,7 @@ where they disagree — because disagreement is information, not a bug.
 | Self-hostable, no accounts | ✅ | ❌ | ❌ | ❌ |
 | Prices never persisted | ✅ | — | — | — |
 | DCF explicitly labeled not-from-canon | ✅ | ❌ | ❌ | ❌ |
+| Read source filings (10-K/10-Q) and their statements | ✅ | ❌ | ❌ | ⚠️ |
 
 *Honest footnote:* the table is about the workflow this project optimises
 for. Commercial tools beat it in other dimensions (universe breadth, news,
@@ -288,6 +289,29 @@ source .venv/bin/activate   # python3.13+ venv
 ```
 
 Do **not** run `python -m ui.app`: the app is launched with Streamlit (`streamlit run ui/app.py`, which `run_ui.sh` wraps). Pages are `ui/pages/01_home.py` … `05_reports.py`; data loading is cached in memory and prices are never persisted (the only price write is the explicit "Save prices to portfolio" button).
+
+### Filings and statements
+
+Browse every filing for a company and extract the three main financial
+statements directly from the source document:
+
+```bash
+# List filings for a ticker (defaults to 10-K/10-Q/20-F/40-F)
+python main.py filings AAPL --form 10-K,10-Q --year 2025
+
+# Extract a statement from the most recent matching filing
+python main.py filing-statement AAPL --type balance_sheet
+python main.py filing-statement AAPL --type income_statement
+python main.py filing-statement AAPL --type cash_flow
+
+# Open the source directly on SEC EDGAR
+python main.py filings AAPL --open
+```
+
+Extracted statements preserve the original filing format (no
+normalization) and parsed results are cached locally under
+`data/raw/filings/`. In the UI the Filings tab lists every filing and
+previews the statement you pick.
 
 ### Portfolio
 
