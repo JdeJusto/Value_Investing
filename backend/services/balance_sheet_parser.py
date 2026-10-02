@@ -151,10 +151,11 @@ class BalanceSheetParser:
         if not html:
             return None
         try:
-            from bs4 import BeautifulSoup
-        except ImportError:  # pragma: no cover — bs4 is a declared dependency
-            return None
-        try:
+            import warnings
+
+            from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+
+            warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
             soup = BeautifulSoup(html, "lxml")
         except Exception:  # noqa: BLE001 — malformed input must not raise
             return None
@@ -229,3 +230,79 @@ class BalanceSheetParser:
                 )
             )
         return lines, periods
+
+
+# ---------------------------------------------------------------------------
+# Orchestration: demo fixture or fetch + parse
+# ---------------------------------------------------------------------------
+def _demo_sheet_path(record: Any) -> Any:
+    from backend.services.demo_mode import DEMO_ROOT
+
+    period = (
+        record.period_of_report.isoformat()
+        if getattr(record, "period_of_report", None)
+        else "unknown"
+    )
+    return (
+        DEMO_ROOT
+        / "balance_sheets"
+        / f"{record.ticker}_{record.form_type}_{period}.json"
+    )
+
+
+def load_balance_sheet(record: Any, fetcher: Any = None) -> BalanceSheet | None:
+    """Balance sheet for a :class:`FilingRecord`.
+
+    In demo mode it reads the committed fixture
+    (``data/demo/balance_sheets/<ticker>_<form>_<period>.json``); otherwise it
+    fetches the document (cached, never twice per session) and parses it.
+    Never raises: any failure returns None.
+    """
+    from backend.services.demo_mode import is_demo
+
+    if is_demo():
+        path = _demo_sheet_path(record)
+        if not path.exists():
+            return None
+        try:
+            import json
+
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        sheet = BalanceSheet(
+            lines=[
+                BalanceSheetLine(
+                    label=line.get("label", ""),
+                    current=line.get("current"),
+                    prior=line.get("prior"),
+                    indent_level=int(line.get("indent_level") or 0),
+                )
+                for line in payload.get("lines", [])
+            ],
+            source=str(payload.get("source", "demo")),
+            filing_date=getattr(record, "filing_date", None),
+            period_end=getattr(record, "period_of_report", None),
+            form_type=getattr(record, "form_type", None),
+            extraction_warnings=list(payload.get("extraction_warnings", [])),
+        )
+        sheet._periods = tuple(payload.get("periods") or (None, None))  # type: ignore[attr-defined]
+        return sheet if sheet.lines else None
+
+    if fetcher is None:
+        from backend.services.filing_fetcher import FilingFetcher
+
+        fetcher = FilingFetcher()
+    html = fetcher.fetch_html(
+        getattr(record, "cik", ""),
+        getattr(record, "accession_number", ""),
+        getattr(record, "primary_document", None),
+    )
+    if html is None:
+        return None
+    return BalanceSheetParser().parse(
+        html,
+        filing_date=getattr(record, "filing_date", None),
+        period_end=getattr(record, "period_of_report", None),
+        form_type=getattr(record, "form_type", None),
+    )
