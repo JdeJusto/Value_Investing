@@ -368,6 +368,16 @@ def clear_section_cache(
     return removed
 
 
+def _discover_primary_document(
+    cache_dir: str | Path, cik: str, accession: str
+) -> str | None:
+    """The single cached ``.htm`` document for this accession, or None."""
+    cik_no_zeros = str(int(cik)) if str(cik).isdigit() else str(cik)
+    acc_dir = Path(cache_dir) / cik_no_zeros / accession.replace("-", "")
+    docs = sorted(acc_dir.glob("*.htm")) if acc_dir.exists() else []
+    return docs[0].name if docs else None
+
+
 def load_narrative_section(
     record: Any,
     section_type: SectionType,
@@ -391,6 +401,10 @@ def load_narrative_section(
     cik = getattr(record, "cik", "")
     accession = getattr(record, "accession_number", "")
     document = getattr(record, "primary_document", None)
+    if not document:
+        # The local/UI listing may not carry the primary document; the
+        # cache tree for this accession has exactly one .htm file.
+        document = _discover_primary_document(cache_dir, cik, accession)
     cache_path = narrative_cache_path(cache_dir, cik, accession, document, section_type)
     cached = _read_section_cache(cache_path)
     if cached is not None:

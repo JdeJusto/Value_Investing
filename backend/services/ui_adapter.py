@@ -864,3 +864,58 @@ def render_statement_preview(
         "message": None,
         "sec_url": sec_url,
     }
+
+
+_SOURCE_LABELS = {
+    "toc_anchor": "TOC anchor",
+    "text_search": "Text search",
+}
+
+
+def render_narrative_preview(record: Any, section_type: Any, loader) -> dict[str, Any]:
+    """Pure view-model for the Filings tab's narrative preview.
+
+    ``loader`` is injected (``load_narrative_section`` in the page, a stub
+    in tests) so the whole preview can be asserted without Streamlit. The
+    page converts the returned dict into st.markdown / st.caption /
+    st.warning; nothing here touches the network or the filesystem.
+    """
+    label = section_type.label
+    period = (
+        record.period_of_report.isoformat()
+        if getattr(record, "period_of_report", None)
+        else "—"
+    )
+    header = (
+        f"{record.form_type} filed {record.filing_date.isoformat()} · period {period}"
+    )
+    sec_url = getattr(record, "sec_url", None)
+    section = loader(record, section_type)
+    if section is None:
+        return {
+            "ok": False,
+            "header": header,
+            "text": "",
+            "word_count": 0,
+            "source": "",
+            "source_label": "",
+            "title": "",
+            "warnings": [],
+            "message": (
+                f"This filing does not contain a {label} section "
+                "(or it could not be extracted)."
+            ),
+            "sec_url": sec_url,
+        }
+    return {
+        "ok": True,
+        "header": header,
+        "text": section.text,
+        "word_count": section.word_count,
+        "source": section.source,
+        "source_label": _SOURCE_LABELS.get(section.source, section.source),
+        "title": section.title,
+        "warnings": list(section.extraction_warnings),
+        "message": None,
+        "sec_url": sec_url,
+    }

@@ -19,6 +19,7 @@ from backend.services.financial_statement_parser import load_financial_statement
 from backend.services.ui_adapter import (
     fmt_money_short,
     fmt_or_dash,
+    render_narrative_preview,
     render_statement_preview,
     run_dcf,
     run_methodologies,
@@ -43,6 +44,24 @@ DCF_DISCLAIMER = (
     "sensible a los supuestos de WACC y crecimiento."
 )
 MAX_MULTI_TICKERS = 8
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _load_narrative_cached(record_key: tuple, section_value: str) -> dict:
+    """Cached narrative preview keyed by (record fields, section type).
+
+    The demo fixture or the JSON parse cache is read on the first Load
+    click; renders within the TTL reuse it. The view/section radios never
+    trigger a load on their own (the Load button is the only fetch trigger).
+    """
+    from types import SimpleNamespace
+
+    from backend.services.narrative_extractor import SectionType, load_narrative_section
+
+    record = SimpleNamespace(**dict(record_key))
+    return render_narrative_preview(
+        record, SectionType(section_value), load_narrative_section
+    )
 
 
 def main() -> None:
@@ -194,38 +213,93 @@ def _filings(ticker: str) -> None:
             f"period "
             f"{record.period_of_report.isoformat() if record.period_of_report else '—'}**"
         )
-        from backend.services.financial_statement_parser import StatementType
-
-        labels = {
-            "Balance Sheet": StatementType.BALANCE_SHEET,
-            "Income": StatementType.INCOME_STATEMENT,
-            "Cash Flow": StatementType.CASH_FLOW,
-        }
         # A radio instead of st.segmented_control: same UX and it is
         # exercisable from AppTest (the selector never triggers a fetch).
-        choice = st.radio(
-            "Statement type",
-            options=list(labels),
+        view = st.radio(
+            "View",
+            options=["Statements", "Narrative"],
             horizontal=True,
-            key=f"statement_type_{ticker}",
+            key=f"filings_view_{ticker}",
         )
-        statement_type = labels[choice]
         col_load, col_clear = st.columns([1, 1])
-        if col_load.button("Load", key="filings_load_statement"):
-            preview = render_statement_preview(
-                record, statement_type, load_financial_statement
+        if view == "Statements":
+            from backend.services.financial_statement_parser import StatementType
+
+            labels = {
+                "Balance Sheet": StatementType.BALANCE_SHEET,
+                "Income": StatementType.INCOME_STATEMENT,
+                "Cash Flow": StatementType.CASH_FLOW,
+            }
+            choice = st.radio(
+                "Statement type",
+                options=list(labels),
+                horizontal=True,
+                key=f"statement_type_{ticker}",
             )
-            if not preview["ok"]:
-                st.warning(preview["message"])
-                if preview["sec_url"]:
-                    st.markdown(f"[Open it on SEC EDGAR]({preview['sec_url']})")
-            else:
-                st.dataframe(
-                    preview["table_rows"], hide_index=True, use_container_width=True
+            statement_type = labels[choice]
+            if col_load.button("Load", key="filings_load_statement"):
+                preview = render_statement_preview(
+                    record, statement_type, load_financial_statement
                 )
-                st.caption(preview["caption"])
-                if preview["warnings"]:
-                    st.caption(preview["warnings"][0])
+                if not preview["ok"]:
+                    st.warning(preview["message"])
+                    if preview["sec_url"]:
+                        st.markdown(f"[Open it on SEC EDGAR]({preview['sec_url']})")
+                else:
+                    st.dataframe(
+                        preview["table_rows"], hide_index=True, use_container_width=True
+                    )
+                    st.caption(preview["caption"])
+                    if preview["warnings"]:
+                        st.caption(preview["warnings"][0])
+        else:
+            from backend.services.narrative_extractor import SectionType
+
+            section_labels = {
+                "Risk Factors": SectionType.RISK_FACTORS,
+                "MD&A": SectionType.MD_A,
+            }
+            section_choice = st.radio(
+                "Section",
+                options=list(section_labels),
+                horizontal=True,
+                key=f"filings_section_{ticker}",
+            )
+            section_type = section_labels[section_choice]
+            if col_load.button("Load", key="filings_load_section"):
+                key = {
+                    "ticker": ticker,
+                    "cik": getattr(record, "cik", ""),
+                    "accession_number": getattr(record, "accession_number", ""),
+                    "primary_document": getattr(record, "primary_document", None),
+                    "form_type": getattr(record, "form_type", ""),
+                    "filing_date": getattr(record, "filing_date", None),
+                    "period_of_report": getattr(record, "period_of_report", None),
+                    "sec_url": getattr(record, "sec_url", None),
+                }
+                preview = _load_narrative_cached(
+                    tuple(sorted(key.items())), section_type.value
+                )
+                if not preview["ok"]:
+                    st.warning(preview["message"])
+                    if preview["sec_url"]:
+                        st.markdown(f"[Open it on SEC EDGAR]({preview['sec_url']})")
+                else:
+                    st.markdown(
+                        f"**{preview['title']}** — {preview['word_count']:,} words · "
+                        f"{preview['source_label']}"
+                    )
+                    if preview["word_count"] > 5000:
+                        with st.expander("Show full section"):
+                            st.markdown(preview["text"])
+                    else:
+                        st.markdown(preview["text"])
+                    st.caption(
+                        f"Source: SEC EDGAR · Section: {section_type.label} · "
+                        f"Extraction: {preview['source']} · Cached locally"
+                    )
+                    if preview["warnings"]:
+                        st.caption(preview["warnings"][0])
         if col_clear.button("Clear cache", key="filings_clear_cache"):
             from backend.services.filing_fetcher import FilingFetcher
 
