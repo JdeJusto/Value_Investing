@@ -32,6 +32,27 @@ NARRATIVE_PARSER_VERSION = 1
 MAX_SECTION_BYTES = 200_000
 MIN_BLOCK_WORDS = 3
 
+#: Heuristic: sections shorter than this that point at other content are
+#: likely incorporated by reference (a filing pattern), not broken
+#: extractions. Adjust this single knob if tuning is ever needed.
+INCORPORATION_WORD_THRESHOLD = 500
+
+INCORPORATION_PHRASES: tuple[str, ...] = (
+    "incorporated by reference",
+    "incorporated herein by reference",
+    "see ",
+    "refer to ",
+    "included in ",
+    "available at ",
+)
+
+#: Warning attached when a section incorporates its real content elsewhere
+#: (another section, an exhibit, or another document).
+INCORPORATION_WARNING = (
+    "Section appears to incorporate content by reference. The full text "
+    "may be in another section, an exhibit, or another document."
+)
+
 
 class SectionType(str, Enum):
     RISK_FACTORS = "risk_factors"
@@ -89,6 +110,22 @@ def _clean(text: str) -> str:
 def _starts_with_any(text: str, patterns: list[str]) -> bool:
     lowered = text.lower()
     return any(lowered.startswith(pattern.lower()) for pattern in patterns)
+
+
+def _is_likely_incorporation(text: str, word_count: int) -> bool:
+    """True when a short section points its real content elsewhere.
+
+    Filings occasionally do not carry a section inline: the MD&A or some
+    Part III items point to another document, an exhibit, or a different
+    section ("appears on pages 46-160", "refer to..."). A section that is
+    both short and full of such pointers is a genuine filing structure,
+    not an extraction bug: the text is still returned as-is, plus a
+    warning (see ``INCORPORATION_WARNING``).
+    """
+    if word_count >= INCORPORATION_WORD_THRESHOLD:
+        return False
+    lowered = text.lower()
+    return any(phrase in lowered for phrase in INCORPORATION_PHRASES)
 
 
 @dataclass(frozen=True)
@@ -153,6 +190,8 @@ class NarrativeExtractor:
             extraction_warnings.append(
                 "section truncated at 200 KB; likely includes navigation"
             )
+        if _is_likely_incorporation(text, len(text.split())):
+            extraction_warnings.append(INCORPORATION_WARNING)
 
         return NarrativeSection(
             section_type=section_type.value,

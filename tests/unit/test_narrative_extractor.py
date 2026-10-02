@@ -8,8 +8,10 @@ from pathlib import Path
 import pytest
 
 from backend.services.narrative_extractor import (
+    INCORPORATION_WARNING,
     NarrativeExtractor,
     SectionType,
+    _is_likely_incorporation,
     load_narrative_section,
 )
 
@@ -165,3 +167,42 @@ def test_text_does_not_start_with_the_duplicated_title():
     assert section is not None
     first_line = section.text.split("\n\n")[0]
     assert "Item 1A" not in first_line
+
+
+def test_is_likely_incorporation_flags_short_reference_text():
+    # JPM-like stub: short, and points at pages in the annual report.
+    assert _is_likely_incorporation(
+        "The MD&A appears on pages 46-160. Refer to the annual report.", 42
+    )
+
+
+def test_is_likely_incorporation_ignores_long_sections():
+    # Over the 500-word threshold even when the phrases are present.
+    assert not _is_likely_incorporation(
+        "Refer to the annual report. " * 100, 600
+    )
+
+
+def test_is_likely_incorporation_ignores_short_plain_text():
+    assert not _is_likely_incorporation(
+        "We face risks from competition, regulation and macroeconomic conditions.", 14
+    )
+
+
+def test_incorporation_stub_gets_a_warning():
+    section = NarrativeExtractor().extract(
+        _html("incorporation_stub.html"), SectionType.MD_A, "10-K"
+    )
+    assert section is not None
+    assert section.source == "toc_anchor"
+    assert section.word_count < 500
+    assert "refer to" in section.text.lower()
+    assert INCORPORATION_WARNING in section.extraction_warnings
+
+
+def test_full_sections_get_no_incorporation_warning():
+    section = NarrativeExtractor().extract(
+        _html("aapl_10k_md_a.html"), SectionType.MD_A, "10-K"
+    )
+    assert section is not None
+    assert INCORPORATION_WARNING not in section.extraction_warnings

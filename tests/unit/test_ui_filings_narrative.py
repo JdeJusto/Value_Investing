@@ -32,7 +32,9 @@ def _demo_record(ticker="AAPL"):
     )
 
 
-def _stub_section(n_words: int = 120) -> NarrativeSection:
+def _stub_section(
+    n_words: int = 120, warnings: list[str] | None = None
+) -> NarrativeSection:
     text = " ".join(f"word{index}" for index in range(n_words))
     return NarrativeSection(
         section_type="risk_factors",
@@ -43,6 +45,7 @@ def _stub_section(n_words: int = 120) -> NarrativeSection:
         text=text,
         word_count=len(text.split()),
         source="toc_anchor",
+        extraction_warnings=list(warnings or []),
     )
 
 
@@ -175,3 +178,42 @@ def test_narrative_load_renders_the_demo_section(monkeypatch):
     rendered = "\n".join(md.value for md in at.markdown)
     assert "words · TOC anchor" in rendered
     assert "The Company" in rendered
+
+
+def test_preview_exposes_incorporation_warnings():
+    import backend.services.narrative_extractor as narr_module
+
+    preview = render_narrative_preview(
+        _demo_record(),
+        SectionType.RISK_FACTORS,
+        lambda record, st: _stub_section(
+            warnings=[narr_module.INCORPORATION_WARNING]
+        ),
+    )
+    assert preview["ok"] is True
+    assert narr_module.INCORPORATION_WARNING in preview["warnings"]
+
+
+def test_incorporation_warning_renders_an_info_banner(monkeypatch):
+    import backend.services.narrative_extractor as narr_module
+
+    # md_a: the demo load test already cached (AAPL, risk_factors), so this
+    # section key stays unique inside the st.cache_data-backed loader.
+    monkeypatch.setattr(
+        narr_module,
+        "load_narrative_section",
+        lambda record, section_type, **kwargs: _stub_section(
+            n_words=100, warnings=[narr_module.INCORPORATION_WARNING]
+        ),
+    )
+    at = _run_with_selection(monkeypatch)
+    next(radio for radio in at.radio if radio.label == "View").set_value("Narrative")
+    at.run()
+    next(radio for radio in at.radio if radio.label == "Section").set_value("MD&A")
+    at.run()
+    load = next(button for button in at.button if button.key == "filings_load_section")
+    load.click()
+    at.run()
+    assert not at.exception, at.exception
+    assert at.info, "the incorporation warning must render as an info banner"
+    assert any("by reference" in info.value.lower() for info in at.info)

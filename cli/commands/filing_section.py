@@ -55,7 +55,11 @@ def register(subparsers):
 
 def _run(args):
     from backend.services.filing_service import DEFAULT_FORM_TYPES, FilingService
-    from backend.services.narrative_extractor import SectionType, load_narrative_section
+    from backend.services.narrative_extractor import (
+        INCORPORATION_WARNING,
+        SectionType,
+        load_narrative_section,
+    )
 
     section_type = SectionType(args.type)
     ticker = args.ticker.upper().strip()
@@ -96,6 +100,13 @@ def _run(args):
     print(f"  Word count : {section.word_count:,}")
     print(f"  Source     : {_SOURCE_LABELS.get(section.source, section.source)}")
     print(f"  Title      : {section.title}")
+
+    if any(w == INCORPORATION_WARNING for w in section.extraction_warnings):
+        print()
+        print(yellow(f"⚠️  {INCORPORATION_WARNING}"))
+        print("    See the original filing on SEC EDGAR:")
+        if record.sec_url:
+            print(f"    {record.sec_url}")
 
     words = section.text.split()
     total = len(words)

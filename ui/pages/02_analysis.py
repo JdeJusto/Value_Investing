@@ -298,7 +298,22 @@ def _filings(ticker: str) -> None:
                         f"Source: SEC EDGAR · Section: {section_type.label} · "
                         f"Extraction: {preview['source']} · Cached locally"
                     )
-                    if preview["warnings"]:
+                    ibr = next(
+                        (
+                            w
+                            for w in preview["warnings"]
+                            if "by reference" in w.lower()
+                            or "incorporat" in w.lower()
+                        ),
+                        None,
+                    )
+                    if ibr:
+                        st.info(
+                            f"{ibr} "
+                            f"[Open the filing on SEC EDGAR]"
+                            f"({preview['sec_url'] or '#'})"
+                        )
+                    elif preview["warnings"]:
                         st.caption(preview["warnings"][0])
         if col_clear.button("Clear cache", key="filings_clear_cache"):
             from backend.services.filing_fetcher import FilingFetcher

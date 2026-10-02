@@ -39,7 +39,11 @@ def _record():
     )
 
 
-def _section(n_words: int = 2100, source: str = "toc_anchor") -> NarrativeSection:
+def _section(
+    n_words: int = 2100,
+    source: str = "toc_anchor",
+    warnings: list[str] | None = None,
+) -> NarrativeSection:
     text = " ".join(f"word{index}" for index in range(n_words))
     return NarrativeSection(
         section_type="risk_factors",
@@ -50,6 +54,7 @@ def _section(n_words: int = 2100, source: str = "toc_anchor") -> NarrativeSectio
         text=text,
         word_count=len(text.split()),
         source=source,
+        extraction_warnings=list(warnings or []),
     )
 
 
@@ -163,3 +168,27 @@ def test_accession_flag_picks_a_specific_filing(monkeypatch, capsys):
     _run("filing-section", "AAPL", "--accession", "0000320193-25-000079")
     assert seen == ["0000320193-25-000079"]
     assert _Service.last["form_types"] is None
+
+
+def test_incorporation_warning_is_printed_before_the_text(monkeypatch, capsys):
+    import backend.services.narrative_extractor as narr_module
+
+    monkeypatch.setattr(
+        narr_module,
+        "load_narrative_section",
+        lambda record, section_type, **kwargs: _section(
+            n_words=40, warnings=[narr_module.INCORPORATION_WARNING]
+        ),
+    )
+    _run("filing-section", "AAPL")
+    out = capsys.readouterr().out
+    assert out.index("⚠️") < out.index("word0")
+    assert narr_module.INCORPORATION_WARNING in out
+    assert "See the original filing on SEC EDGAR" in out
+    assert "https://www.sec.gov/Archives/edgar/data/320193" in out
+
+
+def test_clean_section_prints_no_incorporation_warning(capsys):
+    _run("filing-section", "AAPL")
+    out = capsys.readouterr().out
+    assert "⚠️" not in out
