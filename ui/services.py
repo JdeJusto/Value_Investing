@@ -36,6 +36,14 @@ SCREENER_HISTORY_YEARS = 10
 
 
 @st.cache_data(ttl=3600)
+def load_filings(ticker: str):
+    """Cached official filings for one ticker (read-only, never downloaded)."""
+    from backend.services.filing_service import FilingService
+
+    return FilingService().list_filings(ticker)
+
+
+@st.cache_data(ttl=3600)
 def load_fundamentals(ticker: str):
     """Cached fundamentals for one ticker (DB read only, nothing persisted)."""
     rows = build_financial_repository().get_best_available(

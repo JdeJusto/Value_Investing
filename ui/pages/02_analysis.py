@@ -29,6 +29,7 @@ from ui._shared import (
 )
 from ui.services import (
     get_price_service,
+    load_filings,
     load_fundamentals,
     load_historical_valuation,
     load_quote,
@@ -80,7 +81,7 @@ def _render_single(ticker: str) -> None:
     with st.spinner(f"Evaluando metodologías y DCF para {ticker}..."):
         view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
         dcf = run_dcf(ticker, rows, get_price_service())
-    tabs = st.tabs(["Overview", "Methodologies", "DCF", "Historical", "Raw"])
+    tabs = st.tabs(["Overview", "Methodologies", "DCF", "Historical", "Filings", "Raw"])
     with tabs[0]:
         _overview(rows, quote, view)
     with tabs[1]:
@@ -90,7 +91,113 @@ def _render_single(ticker: str) -> None:
     with tabs[3]:
         _historical(ticker)
     with tabs[4]:
+        _filings(ticker)
+    with tabs[5]:
         _raw(ticker)
+
+
+def _filings(ticker: str) -> None:
+    """Official SEC filings with EDGAR links (nothing is downloaded)."""
+    records = load_filings(ticker)
+    if not records:
+        st.info(
+            "No filings stored for this company yet. Sync it first "
+            "(`python -m scripts.daily_workflow --refresh`) or try `--demo`."
+        )
+        return
+
+    available_forms = sorted({record.form_type for record in records})
+    available_years = sorted(
+        {
+            record.effective_fiscal_year
+            for record in records
+            if record.effective_fiscal_year
+        },
+        reverse=True,
+    )
+    preferred = [form for form in ("10-K", "10-Q") if form in available_forms]
+    with st.form("filings_filters"):
+        col1, col2, col3 = st.columns([2, 2, 2])
+        with col1:
+            forms = st.multiselect(
+                "Form type", available_forms, default=preferred or available_forms[:2]
+            )
+        with col2:
+            years = st.multiselect(
+                "Fiscal year", available_years, default=available_years[:5]
+            )
+        with col3:
+            include_amendments = st.checkbox("Include amendments", value=True)
+            since = st.date_input("Since (optional)", value=None)
+        st.form_submit_button("Apply filters")
+
+    filtered = [
+        record
+        for record in records
+        if (not forms or record.form_type in forms)
+        and (not years or record.effective_fiscal_year in years)
+        and (include_amendments or not record.is_amended)
+        and (since is None or record.filing_date >= since)
+    ]
+    st.caption(
+        f"{len(filtered)} filings match your filters (out of {len(records)} total)."
+    )
+    if not filtered:
+        st.info(
+            "No filings match your filters. Try widening the date range or "
+            "including amendments."
+        )
+        return
+
+    import pandas as pd
+
+    frame = pd.DataFrame(
+        [
+            {
+                "Form": record.form_type,
+                "Filed": record.filing_date.isoformat(),
+                "Period": (
+                    record.period_of_report.isoformat()
+                    if record.period_of_report
+                    else "—"
+                ),
+                "FY": record.effective_fiscal_year,
+                "Accession": record.accession_number,
+                "Open on SEC": record.sec_url,
+            }
+            for record in filtered
+        ]
+    )
+    event = st.dataframe(
+        frame,
+        hide_index=True,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config={
+            "Open on SEC": st.column_config.LinkColumn(
+                "Open on SEC",
+                help="Opens the filing in a new tab on sec.gov",
+                validate="^https://www\\.sec\\.gov/.*",
+                display_text="Open",
+            )
+        },
+    )
+
+    selected = getattr(getattr(event, "selection", None), "rows", [])
+    if selected:
+        record = filtered[selected[0]]
+        st.markdown(
+            f"**Viewing:** {record.form_type} filed "
+            f"{record.filing_date.isoformat()}, period "
+            f"{record.period_of_report.isoformat() if record.period_of_report else '—'}"
+        )
+        if record.sec_url:
+            st.markdown(f"[Open the document on SEC EDGAR]({record.sec_url})")
+        st.caption(
+            "Full document preview coming soon — for now, click 'Open' to "
+            "view the original on SEC EDGAR."
+        )
 
 
 def _render_compact(ticker: str) -> None:
