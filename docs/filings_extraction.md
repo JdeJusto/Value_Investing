@@ -4,6 +4,15 @@ Reference for the next session: extracting sections from 10-K/10-Q documents
 and showing them inline. **Nothing here is built yet**; the current feature
 only links out to SEC EDGAR.
 
+## Status
+
+- [x] Balance sheet (v0.6.0) — anchors first, content fallback; CLI
+      `filing-balance-sheet` and the Filings tab preview
+- [ ] Income statement
+- [ ] Cash flow statement
+- [ ] Risk factors (requires NLP/LLM)
+- [ ] MD&A (requires NLP/LLM)
+
 ## Goal
 
 Extract and display specific sections of a filing:
