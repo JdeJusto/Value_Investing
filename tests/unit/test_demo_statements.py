@@ -45,7 +45,7 @@ def _fixtures() -> list[tuple[str, str, str]]:
 
 def test_fixtures_exist_and_are_small():
     fixtures = _fixtures()
-    assert len(fixtures) >= 11
+    assert len(fixtures) >= 12
     total = sum(path.stat().st_size for path in STATEMENTS_DIR.glob("*.json"))
     assert total < 500 * 1024, f"demo statements too heavy: {total / 1024:.0f} KB"
 
@@ -67,8 +67,7 @@ def test_all_three_types_are_covered_for_most_tickers():
         coverage.setdefault(ticker, set()).add(statement_type)
     assert coverage["AAPL"] == {"balance_sheet", "income_statement", "cash_flow"}
     assert coverage["KO"] == {"balance_sheet", "income_statement", "cash_flow"}
-    # JNJ's income statement uses "Net earnings": documented follow-up.
-    assert "balance_sheet" in coverage["JNJ"] and "cash_flow" in coverage["JNJ"]
+    assert coverage["JNJ"] == {"balance_sheet", "income_statement", "cash_flow"}
     assert coverage["JPM"] == {"balance_sheet", "income_statement", "cash_flow"}
 
 

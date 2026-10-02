@@ -101,3 +101,15 @@ def test_backward_compatible_imports_still_work():
     assert sheet is not None
     assert sheet.statement_type is StatementType.BALANCE_SHEET
     assert callable(load_balance_sheet)
+
+
+def test_jnj_income_statement_uses_net_earnings_and_sales_to_customers():
+    """JNJ labels the bottom line "Net earnings" and the top line "Sales to
+    customers"; the signature pairs must recognise both."""
+    statement = _parse("jnj_10k_income_statement.html", StatementType.INCOME_STATEMENT)
+    assert statement is not None
+    labels = [line.label for line in statement.lines]
+    assert "Sales to customers" in labels
+    assert "Net earnings" in labels
+    sales = next(line for line in statement.lines if line.label == "Sales to customers")
+    assert sales.current.replace(" ", "") == "$94,193"

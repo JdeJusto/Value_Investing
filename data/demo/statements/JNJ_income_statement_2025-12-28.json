@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "statement_type": "income_statement",
+  "filing_date": "2026-02-11",
+  "period_end": "2025-12-28",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    null,
+    null
+  ],
+  "extraction_warnings": [
+    "no income_statement anchor matched; selected the largest table containing 'net income' and 'revenue'"
+  ],
+  "lines": [
+    {
+      "label": "2025",
+      "current": "2024",
+      "prior": "2023",
+      "indent_level": 0
+    },
+    {
+      "label": "Sales to customers",
+      "current": "$ 94,193",
+      "prior": "88,821",
+      "indent_level": 0
+    },
+    {
+      "label": "Cost of products sold",
+      "current": "30,256",
+      "prior": "27,471",
+      "indent_level": 0
+    },
+    {
+      "label": "Gross profit",
+      "current": "63,937",
+      "prior": "61,350",
+      "indent_level": 0
+    },
+    {
+      "label": "Selling, marketing and administrative expenses",
+      "current": "23,676",
+      "prior": "22,869",
+      "indent_level": 0
+    },
+    {
+      "label": "Research and development expense",
+      "current": "14,665",
+      "prior": "17,232",
+      "indent_level": 0
+    },
+    {
+      "label": "In-process research and development impairments",
+      "current": "81",
+      "prior": "211",
+      "indent_level": 0
+    },
+    {
+      "label": "Interest income",
+      "current": "(1,056)",
+      "prior": "(1,332)",
+      "indent_level": 0
+    },
+    {
+      "label": "Interest expense, net of portion capitalized (Note 4)",
+      "current": "971",
+      "prior": "755",
+      "indent_level": 0
+    },
+    {
+      "label": "Other (income) expense, net",
+      "current": "(7,209)",
+      "prior": "4,694",
+      "indent_level": 0
+    },
+    {
+      "label": "Restructuring (Note 20)",
+      "current": "228",
+      "prior": "234",
+      "indent_level": 0
+    },
+    {
+      "label": "Earnings before provision for taxes on income",
+      "current": "32,581",
+      "prior": "16,687",
+      "indent_level": 0
+    },
+    {
+      "label": "Provision for taxes on income (Note 8)",
+      "current": "5,777",
+      "prior": "2,621",
+      "indent_level": 0
+    },
+    {
+      "label": "Net earnings from continuing operations",
+      "current": "26,804",
+      "prior": "14,066",
+      "indent_level": 0
+    },
+    {
+      "label": "Net earnings from discontinued operations, net of tax (Note 21)",
+      "current": "—",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Net earnings",
+      "current": "$ 26,804",
+      "prior": "14,066",
+      "indent_level": 0
+    },
+    {
+      "label": "Net earnings per share (Notes 1 and 15)",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Continuing operations - basic",
+      "current": "$ 11.13",
+      "prior": "5.84",
+      "indent_level": 0
+    },
+    {
+      "label": "Discontinued operations - basic",
+      "current": "—",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Total net earnings per share - basic",
+      "current": "$ 11.13",
+      "prior": "5.84",
+      "indent_level": 0
+    },
+    {
+      "label": "Continuing operations - diluted",
+      "current": "$ 11.03",
+      "prior": "5.79",
+      "indent_level": 0
+    },
+    {
+      "label": "Discontinued operations - diluted",
+      "current": "—",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Total net earnings per share - diluted",
+      "current": "$ 11.03",
+      "prior": "5.79",
+      "indent_level": 0
+    },
+    {
+      "label": "Average shares outstanding (Notes 1 and 15)",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Basic",
+      "current": "2,407.4",
+      "prior": "2,407.3",
+      "indent_level": 0
+    },
+    {
+      "label": "Diluted",
+      "current": "2,429.4",
+      "prior": "2,429.4",
+      "indent_level": 0
+    }
+  ]
+}

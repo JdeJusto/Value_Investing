@@ -96,6 +96,14 @@ STATEMENT_SIGNATURES: dict[StatementType, dict[str, Any]] = {
             ["net income", "net sales"],
             ["net income", "total net sales"],
             ["net loss", "revenue"],
+            # JNJ (and other filers) label the bottom line "Net earnings".
+            ["net earnings", "revenue"],
+            ["net earnings", "total revenue"],
+            ["net earnings", "net sales"],
+            ["net earnings", "total net sales"],
+            # JNJ labels the top line "Sales to customers".
+            ["net earnings", "sales to customers"],
+            ["net income", "sales to customers"],
         ],
     },
     StatementType.CASH_FLOW: {
