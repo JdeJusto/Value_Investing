@@ -78,3 +78,23 @@ caches, invalidated by `NARRATIVE_PARSER_VERSION` (kept separate from the
 - No comparison between filings (which risks are new this quarter).
 - The section boundaries rely on the filing's own item numbering; a filer that
   omits the end item falls back to the next top-level heading.
+
+## Incorporation by reference
+
+Some SEC filings do not include certain sections inline. Instead, the section
+points to another section, an exhibit, or another document (common for MD&A in
+some filers, and for proxy content). When the extractor finds a section
+shorter than 500 words (`INCORPORATION_WORD_THRESHOLD`) containing phrases
+like "incorporated by reference" / "refer to" (see
+`INCORPORATION_PHRASES`), it still returns the text but adds a warning to
+`extraction_warnings` (`INCORPORATION_WARNING`).
+
+Example: JPM's 10-K MD&A is a 158-word stub that points to the full MD&A
+included elsewhere ("appears on pages 46-160 of the annual report"). The
+extractor returns the stub text with the warning rather than silently
+producing a misleading short "section". The CLI prints the warning before the
+text; the UI shows it as an `st.info` banner with a link to the filing.
+
+Auto-following the reference (extracting the referenced content) is NOT
+implemented. It would require parsing exhibit indices and fetching additional
+documents. This is deferred (see `docs/backlog.md`).
