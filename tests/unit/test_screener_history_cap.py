@@ -106,3 +106,17 @@ def test_uncapped_read_still_caches(monkeypatch):
     repo, _cursor = _repo_with_fake_db(monkeypatch, range(2010, 2026))
     repo.list_years("X")
     assert repo._list_cache_get("X") is not None
+
+
+def test_json_repository_accepts_max_years():
+    """Regression: the UI loader passes max_years to every repository."""
+    from backend.repositories.json_financial_repository import (
+        JsonFinancialRepository,
+    )
+
+    repository = JsonFinancialRepository("data/demo/fundamentals")
+    full = repository.get_best_available("AAPL")
+    capped = repository.get_best_available("AAPL", max_years=3)
+    assert len(full) == 10
+    assert len(capped) == 3
+    assert [row.fiscal_year for row in capped] == [2025, 2024, 2023]

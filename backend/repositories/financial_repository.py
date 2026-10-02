@@ -127,8 +127,10 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
             return None
         return best_of(records)
 
-    def list_years(self, ticker: str) -> list[NormalizedFinancials]:
-        """Best available record per year, most recent first."""
+    def list_years(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
+        """Best available record per year, most recent first (newest N)."""
         with self._session_factory() as session:
             models = session.execute(
                 select(NormalizedFinancialModel)
@@ -136,9 +138,12 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
                 .order_by(NormalizedFinancialModel.fiscal_year.desc())
             ).scalars()
             records = [self._to_entity(m) for m in models]
-        return best_per_year(records)
+        result = best_per_year(records)
+        return result[:max_years] if max_years is not None else result
 
-    def list_all(self, ticker: str) -> list[NormalizedFinancials]:
+    def list_all(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
         """Every stored record across sources, year desc then quality desc."""
         with self._session_factory() as session:
             models = session.execute(
@@ -150,9 +155,15 @@ class SqlAlchemyFinancialRepository(FinancialRepository):
                     NormalizedFinancialModel.data_quality_score.desc(),
                 )
             ).scalars()
-            return [self._to_entity(m) for m in models]
+            records = [self._to_entity(m) for m in models]
+        if max_years is not None and records:
+            cutoff = records[0].fiscal_year - max_years + 1
+            records = [record for record in records if record.fiscal_year >= cutoff]
+        return records
 
-    def get_best_available(self, ticker: str) -> list[NormalizedFinancials]:
+    def get_best_available(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
         """Select the best consistent history for a company.
 
         A single source is used whenever it covers at least

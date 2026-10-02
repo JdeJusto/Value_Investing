@@ -59,13 +59,18 @@ class JsonFinancialRepository(FinancialRepository):
             return None
         return best_per_year(records)[0]
 
-    def list_years(self, ticker: str) -> list[NormalizedFinancials]:
-        """Best available record per year, most recent first."""
-        rows = self.list_all(ticker)
-        return best_per_year(rows) if rows else []
+    def list_years(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
+        """Best available record per year, most recent first (newest N)."""
+        rows = self.list_all(ticker, max_years=max_years)
+        result = best_per_year(rows) if rows else []
+        return result[:max_years] if max_years is not None else result
 
-    def list_all(self, ticker: str) -> list[NormalizedFinancials]:
-        """Every stored record across sources, year desc."""
+    def list_all(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
+        """Every stored record across sources, year desc (newest N years)."""
         data = self._read(ticker)
         records = [
             NormalizedFinancials.from_dict(record)
@@ -76,12 +81,18 @@ class JsonFinancialRepository(FinancialRepository):
             key=lambda r: (r.fiscal_year, self._record_rank(r)),
             reverse=True,
         )
+        if max_years is not None and records:
+            cutoff = records[0].fiscal_year - max_years + 1
+            records = [record for record in records if record.fiscal_year >= cutoff]
         return records
 
-    def get_best_available(self, ticker: str) -> list[NormalizedFinancials]:
+    def get_best_available(
+        self, ticker: str, max_years: int | None = None
+    ) -> list[NormalizedFinancials]:
         """Select the best consistent history (see choose_history)."""
-        rows = self.list_all(ticker)
-        return choose_history(rows) if rows else []
+        rows = self.list_all(ticker, max_years=max_years)
+        result = choose_history(rows) if rows else []
+        return result[:max_years] if max_years is not None else result
 
     def has_data(self, ticker: str) -> bool:
         return self._path(ticker).exists()
