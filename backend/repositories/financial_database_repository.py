@@ -1354,6 +1354,69 @@ class FinancialDatabaseRepository(FinancialRepository):
             self.invalidate_list_cache(ticker)
         return rows
 
+    def list_filings(
+        self,
+        ticker: str,
+        form_types: list[str] | None = None,
+        fiscal_years: list[int] | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        limit: int | None = None,
+    ) -> list[dict]:
+        """Official filings for a ticker, newest first, filtered in SQL.
+
+        The submissions importer leaves ``filings.fiscal_year`` NULL and
+        ``fiscal_period`` at 'FY' for every row, so ``fiscal_years`` filters
+        on the year derived from ``period_end`` (falling back to
+        ``filing_date``). ``filing_url`` is the primary-document URL when the
+        importer stored it (0.3% of rows); callers fall back to the index URL.
+        """
+        company_id = self._get_company_id_by_ticker(ticker)
+        if not company_id:
+            return []
+
+        sql = """
+            SELECT
+                f.accession_number,
+                f.form,
+                f.filing_date,
+                f.period_end,
+                f.fiscal_year,
+                f.fiscal_period,
+                f.is_amended,
+                f.filing_url,
+                ci.identifier_value AS cik
+            FROM filings f
+            JOIN company_identifiers ci
+              ON ci.company_id = f.company_id
+             AND ci.identifier_type = 'CIK'
+            WHERE f.company_id = %s
+        """
+        params: list = [company_id]
+        if form_types:
+            sql += " AND f.form = ANY(%s)"
+            params.append([form.upper() for form in form_types])
+        if fiscal_years:
+            sql += (
+                " AND EXTRACT(YEAR FROM COALESCE(f.period_end, f.filing_date))"
+                " = ANY(%s)"
+            )
+            params.append([int(year) for year in fiscal_years])
+        if start_date is not None:
+            sql += " AND f.filing_date >= %s"
+            params.append(start_date)
+        if end_date is not None:
+            sql += " AND f.filing_date <= %s"
+            params.append(end_date)
+        sql += " ORDER BY f.filing_date DESC, f.form ASC"
+        if limit is not None:
+            sql += " LIMIT %s"
+            params.append(int(limit))
+
+        with self._get_connection().cursor() as cur:
+            cur.execute(sql, tuple(params))
+            return [dict(row) for row in cur.fetchall()]
+
     @staticmethod
     def _min_fiscal_year(cur, company_id: str, max_years: int) -> int | None:
         """Oldest fiscal year a ``max_years`` cap should read (newest N)."""

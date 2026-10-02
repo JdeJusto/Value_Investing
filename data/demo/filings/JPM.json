@@ -1,0 +1,98 @@
+[
+  {
+    "accession_number": "000162828026054343",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-08-06",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "10-Q",
+    "is_amended": false,
+    "period_end": "2026-06-30"
+  },
+  {
+    "accession_number": "000119312526314128",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-23",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-23"
+  },
+  {
+    "accession_number": "000001961726000288",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-23",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-21"
+  },
+  {
+    "accession_number": "000162828026048086",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-14",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-14"
+  },
+  {
+    "accession_number": "000162828026048078",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-14",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-14"
+  },
+  {
+    "accession_number": "000001961726000241",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-06-25",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-06-24"
+  },
+  {
+    "accession_number": "000162828026045169",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-06-24",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-06-24"
+  },
+  {
+    "accession_number": "000162828026045167",
+    "cik": "0000019617",
+    "demo_placeholder": false,
+    "filing_date": "2026-06-24",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-06-24"
+  }
+]

@@ -1,0 +1,98 @@
+[
+  {
+    "accession_number": "000119312526373026",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-08-28",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-08-28"
+  },
+  {
+    "accession_number": "000003408826000093",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-08-03",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "10-Q",
+    "is_amended": false,
+    "period_end": "2026-06-30"
+  },
+  {
+    "accession_number": "000211543626000006",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-31",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-31"
+  },
+  {
+    "accession_number": "000211543626000003",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-07",
+    "filing_url": null,
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-07"
+  },
+  {
+    "accession_number": "000119312526291986",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-07-01",
+    "filing_url": "https://www.sec.gov/Archives/edgar/data/34088/000119312526291986/d70995d8k.htm",
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-07-01"
+  },
+  {
+    "accession_number": "000003408826000078",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-05-29",
+    "filing_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000078/xom-20260527.htm",
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-05-27"
+  },
+  {
+    "accession_number": "000003408826000067",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-05-04",
+    "filing_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/xom-20260331.htm",
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "10-Q",
+    "is_amended": false,
+    "period_end": "2026-03-31"
+  },
+  {
+    "accession_number": "000003408826000069",
+    "cik": "0000034088",
+    "demo_placeholder": false,
+    "filing_date": "2026-05-04",
+    "filing_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000069/xom-20260428.htm",
+    "fiscal_period": "FY",
+    "fiscal_year": null,
+    "form": "8-K",
+    "is_amended": false,
+    "period_end": "2026-04-28"
+  }
+]
