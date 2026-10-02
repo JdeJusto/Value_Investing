@@ -58,6 +58,7 @@ where they disagree — because disagreement is information, not a bug.
 | Prices never persisted | ✅ | — | — | — |
 | DCF explicitly labeled not-from-canon | ✅ | ❌ | ❌ | ❌ |
 | Read source filings (10-K/10-Q) and their statements | ✅ | ❌ | ❌ | ⚠️ |
+| Read source narrative sections (Risk Factors, MD&A) | ✅ | ❌ | ❌ | ⚠️ |
 
 *Honest footnote:* the table is about the workflow this project optimises
 for. Commercial tools beat it in other dimensions (universe breadth, news,
@@ -293,7 +294,8 @@ Do **not** run `python -m ui.app`: the app is launched with Streamlit (`streamli
 ### Filings and statements
 
 Browse every filing for a company and extract the three main financial
-statements directly from the source document:
+statements plus the narrative sections (Risk Factors, MD&A) directly from
+the source document:
 
 ```bash
 # List filings for a ticker (defaults to 10-K/10-Q/20-F/40-F)
@@ -304,14 +306,19 @@ python main.py filing-statement AAPL --type balance_sheet
 python main.py filing-statement AAPL --type income_statement
 python main.py filing-statement AAPL --type cash_flow
 
+# Extract Risk Factors and MD&A as plain text
+python main.py filing-section AAPL --type risk_factors --word-limit 500
+python main.py filing-section AAPL --type md_a
+
 # Open the source directly on SEC EDGAR
 python main.py filings AAPL --open
 ```
 
-Extracted statements preserve the original filing format (no
-normalization) and parsed results are cached locally under
-`data/raw/filings/`. In the UI the Filings tab lists every filing and
-previews the statement you pick.
+Extracted statements and narrative sections preserve the original filing
+text (no normalization, no summarization) and results are cached locally
+under `data/raw/filings/` (HTML) and the matching JSON parse cache. In the
+UI the Filings tab lists every filing, previews the statement you pick, and
+shows Risk Factors / MD&A with an explicit Load button.
 
 ### Portfolio
 

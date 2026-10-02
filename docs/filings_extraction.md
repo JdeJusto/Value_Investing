@@ -15,8 +15,10 @@ only links out to SEC EDGAR.
       invalidated by `PARSER_VERSION`
 - [x] UI statement-type selector (v0.7.1) — radio per ticker in the Filings
       tab; the Load button stays the only fetch trigger
-- [ ] Risk factors (requires NLP/LLM)
-- [ ] MD&A (requires NLP/LLM)
+- [x] Risk Factors (v0.8.0) — `NarrativeExtractor`, TOC-anchor strategy,
+      CLI `filing-section --type risk_factors`
+- [x] MD&A (v0.8.0) — same extractor, CLI `filing-section --type md_a`
+- [ ] LLM-based summarization (v0.9.0+)
 
 ## Goal
 

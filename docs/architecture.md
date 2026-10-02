@@ -203,6 +203,17 @@ the working path. Parsed statements are cached as JSON next to the raw HTML
 (`<doc>.<statement_type>.json`, versioned by `PARSER_VERSION`);
 `backend/services/balance_sheet_parser.py` is a v0.6.0 compatibility shim.
 
-Future: risk factors and MD&A (they need NLP/LLM). See
-`docs/filings_extraction.md`.
+## Narrative extraction
+
+Risk Factors and MD&A are extracted as plain text by `NarrativeExtractor`
+(`backend/services/narrative_extractor.py`). The extractor follows the
+Table-of-Contents anchor (`<a href="#...">Item 1A.</a>` → the element with
+that `id`) to find the section start, then walks forward until the end
+signature (e.g. "Item 1B."). Content is collected from `<div>` blocks (SEC
+filings do not use `<p>` or `<li>`), normalized with paragraph breaks
+preserved, and capped at 200 KB. Extracted sections are cached as JSON next
+to the raw HTML under `data/raw/filings/`
+(`<doc>.<section_type>.json`, versioned by `NARRATIVE_PARSER_VERSION`).
+No LLM is used; the user reads the source directly. See
+`docs/narrative_extraction.md` for the strategy and design notes.
 
