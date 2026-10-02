@@ -302,8 +302,7 @@ def _filings(ticker: str) -> None:
                         (
                             w
                             for w in preview["warnings"]
-                            if "by reference" in w.lower()
-                            or "incorporat" in w.lower()
+                            if "by reference" in w.lower() or "incorporat" in w.lower()
                         ),
                         None,
                     )

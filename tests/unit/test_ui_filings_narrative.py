@@ -186,9 +186,7 @@ def test_preview_exposes_incorporation_warnings():
     preview = render_narrative_preview(
         _demo_record(),
         SectionType.RISK_FACTORS,
-        lambda record, st: _stub_section(
-            warnings=[narr_module.INCORPORATION_WARNING]
-        ),
+        lambda record, st: _stub_section(warnings=[narr_module.INCORPORATION_WARNING]),
     )
     assert preview["ok"] is True
     assert narr_module.INCORPORATION_WARNING in preview["warnings"]
