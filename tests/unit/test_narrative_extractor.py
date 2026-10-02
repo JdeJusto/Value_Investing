@@ -51,9 +51,13 @@ def test_10q_signatures_are_used():
 
 
 def test_text_search_fallback_without_anchors():
+    body = " ".join(
+        f"We face risk number {index} in our business operations every day."
+        for index in range(1, 12)
+    )
     html = (
         "<html><body><div>Item 1A. Risk Factors</div>"
-        "<div>We face many risks in our business operations every day.</div>"
+        f"<div>{body}</div>"
         "<div>Item 1B. Unresolved Staff Comments</div>"
         "<div>This should not be included in the extraction at all.</div>"
         "</body></html>"
@@ -61,7 +65,7 @@ def test_text_search_fallback_without_anchors():
     section = NarrativeExtractor().extract(html, SectionType.RISK_FACTORS, "10-K")
     assert section is not None
     assert section.source == "text_search"
-    assert "many risks" in section.text
+    assert "risk number 1" in section.text
     assert "should not be included" not in section.text
 
 

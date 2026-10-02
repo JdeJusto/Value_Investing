@@ -141,7 +141,7 @@ class NarrativeExtractor:
 
         paragraphs = self._collect(elements, start_index, signature["end_headings"])
         text = "\n\n".join(paragraphs).strip()
-        if not text or len(text.split()) < 10:
+        if not text or len(text.split()) < 50:
             # A handful of words is a fragment (navigation), not a section.
             return None
 
