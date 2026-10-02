@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "statement_type": "cash_flow",
+  "filing_date": "2026-02-11",
+  "period_end": "2025-12-28",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    null,
+    null
+  ],
+  "extraction_warnings": [
+    "no cash_flow anchor matched; selected the largest table containing 'net cash' and 'operating activities'"
+  ],
+  "lines": [
+    {
+      "label": "2025",
+      "current": "2024",
+      "prior": "2023",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash flows from operating activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net earnings",
+      "current": "$ 26,804",
+      "prior": "14,066",
+      "indent_level": 0
+    },
+    {
+      "label": "Adjustments to reconcile net earnings to cash flows from operating activities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Depreciation and amortization of property and intangibles",
+      "current": "7,503",
+      "prior": "7,339",
+      "indent_level": 0
+    },
+    {
+      "label": "Stock based compensation",
+      "current": "1,354",
+      "prior": "1,176",
+      "indent_level": 0
+    },
+    {
+      "label": "Asset write-downs",
+      "current": "204",
+      "prior": "405",
+      "indent_level": 0
+    },
+    {
+      "label": "Charges for acquired in-process research and development",
+      "current": "109",
+      "prior": "1,841",
+      "indent_level": 0
+    },
+    {
+      "label": "Gain on Kenvue separation",
+      "current": "—",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Net gain on sale of assets/businesses",
+      "current": "(263)",
+      "prior": "(226)",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred tax provision",
+      "current": "1,538",
+      "prior": "(2,183)",
+      "indent_level": 0
+    },
+    {
+      "label": "Credit losses and accounts receivable allowances",
+      "current": "(1)",
+      "prior": "11",
+      "indent_level": 0
+    },
+    {
+      "label": "Changes in assets and liabilities, net of effects from acquisitions and divestitures:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Increase in accounts receivable",
+      "current": "(1,781)",
+      "prior": "(406)",
+      "indent_level": 0
+    },
+    {
+      "label": "Increase in inventories",
+      "current": "(1,450)",
+      "prior": "(1,128)",
+      "indent_level": 0
+    },
+    {
+      "label": "Increase in accounts payable and accrued liabilities",
+      "current": "2,377",
+      "prior": "1,621",
+      "indent_level": 0
+    },
+    {
+      "label": "(Increase)/Decrease in other current and non-current assets",
+      "current": "(6,167)",
+      "prior": "1,717",
+      "indent_level": 0
+    },
+    {
+      "label": "(Decrease)/Increase in other current and non-current liabilities",
+      "current": "(5,697)",
+      "prior": "33",
+      "indent_level": 0
+    },
+    {
+      "label": "Net cash flows from operating activities",
+      "current": "24,530",
+      "prior": "24,266",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash flows (used by) from investing activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Additions to property, plant and equipment",
+      "current": "(4,832)",
+      "prior": "(4,424)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from the disposal of assets/businesses, net",
+      "current": "720",
+      "prior": "675",
+      "indent_level": 0
+    },
+    {
+      "label": "Acquisitions, net of cash acquired (Note 18)",
+      "current": "(17,541)",
+      "prior": "(15,146)",
+      "indent_level": 0
+    },
+    {
+      "label": "Acquired in-process research and development/related milestones (Note 18)",
+      "current": "(385)",
+      "prior": "(1,783)",
+      "indent_level": 0
+    },
+    {
+      "label": "Purchases of investments",
+      "current": "(920)",
+      "prior": "(1,726)",
+      "indent_level": 0
+    },
+    {
+      "label": "Sales of investments",
+      "current": "1,661",
+      "prior": "2,462",
+      "indent_level": 0
+    },
+    {
+      "label": "Credit support agreements activity, net",
+      "current": "(2,129)",
+      "prior": "1,517",
+      "indent_level": 0
+    },
+    {
+      "label": "Other (including capitalized licenses and milestones)",
+      "current": "(162)",
+      "prior": "(174)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net cash (used by)/from investing activities",
+      "current": "(23,588)",
+      "prior": "(18,599)",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash flows (used by) from financing activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Dividends to shareholders",
+      "current": "(12,381)",
+      "prior": "(11,823)",
+      "indent_level": 0
+    },
+    {
+      "label": "Repurchase of common stock",
+      "current": "(5,953)",
+      "prior": "(2,432)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from short-term debt",
+      "current": "14,586",
+      "prior": "15,277",
+      "indent_level": 0
+    },
+    {
+      "label": "Repayment of short-term debt",
+      "current": "(12,330)",
+      "prior": "(9,463)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from long-term debt, net of issuance costs",
+      "current": "9,138",
+      "prior": "6,660",
+      "indent_level": 0
+    },
+    {
+      "label": "Repayment of long-term debt",
+      "current": "(1,757)",
+      "prior": "(1,453)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from the exercise of stock options/employee withholding tax on stock awards, net",
+      "current": "3,418",
+      "prior": "838",
+      "indent_level": 0
+    },
+    {
+      "label": "Credit support agreements activity, net",
+      "current": "(226)",
+      "prior": "272",
+      "indent_level": 0
+    }
+  ]
+}

@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "statement_type": "balance_sheet",
+  "filing_date": "2026-02-20",
+  "period_end": "2025-12-31",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    "2025",
+    "2024"
+  ],
+  "extraction_warnings": [
+    "no balance_sheet anchor matched; selected the largest table containing 'total assets' and 'total liabilities'"
+  ],
+  "lines": [
+    {
+      "label": "ASSETS",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Current Assets",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Cash and cash equivalents",
+      "current": "$10,270",
+      "prior": "$10,828",
+      "indent_level": 0
+    },
+    {
+      "label": "Short-term investments",
+      "current": "3,602",
+      "prior": "2,020",
+      "indent_level": 0
+    },
+    {
+      "label": "Total Cash, Cash Equivalents and Short-Term Investments",
+      "current": "13,872",
+      "prior": "12,848",
+      "indent_level": 0
+    },
+    {
+      "label": "Marketable securities",
+      "current": "1,934",
+      "prior": "1,723",
+      "indent_level": 0
+    },
+    {
+      "label": "Trade accounts receivable, less allowances of $ 495 and $ 506 , respectively",
+      "current": "3,038",
+      "prior": "3,569",
+      "indent_level": 0
+    },
+    {
+      "label": "Inventories",
+      "current": "4,425",
+      "prior": "4,728",
+      "indent_level": 0
+    },
+    {
+      "label": "Prepaid expenses and other current assets",
+      "current": "2,433",
+      "prior": "2,998",
+      "indent_level": 0
+    },
+    {
+      "label": "Assets held for sale",
+      "current": "5,342",
+      "prior": "131",
+      "indent_level": 0
+    },
+    {
+      "label": "Total Current Assets",
+      "current": "31,044",
+      "prior": "25,997",
+      "indent_level": 0
+    },
+    {
+      "label": "Equity method investments",
+      "current": "20,235",
+      "prior": "18,087",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred income tax assets",
+      "current": "1,206",
+      "prior": "1,319",
+      "indent_level": 0
+    },
+    {
+      "label": "Property, plant and equipment — net",
+      "current": "9,613",
+      "prior": "10,303",
+      "indent_level": 0
+    },
+    {
+      "label": "Trademarks with indefinite lives",
+      "current": "12,531",
+      "prior": "13,301",
+      "indent_level": 0
+    },
+    {
+      "label": "Goodwill",
+      "current": "15,491",
+      "prior": "18,139",
+      "indent_level": 0
+    },
+    {
+      "label": "Other noncurrent assets",
+      "current": "14,696",
+      "prior": "13,403",
+      "indent_level": 0
+    },
+    {
+      "label": "Total Assets",
+      "current": "$104,816",
+      "prior": "$100,549",
+      "indent_level": 0
+    },
+    {
+      "label": "LIABILITIES AND EQUITY",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Current Liabilities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts payable and accrued expenses",
+      "current": "$14,813",
+      "prior": "$21,712",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans and notes payable",
+      "current": "1,551",
+      "prior": "1,499",
+      "indent_level": 0
+    },
+    {
+      "label": "Current maturities of long-term debt",
+      "current": "1,822",
+      "prior": "648",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued income taxes",
+      "current": "525",
+      "prior": "1,387",
+      "indent_level": 0
+    },
+    {
+      "label": "Liabilities held for sale",
+      "current": "2,570",
+      "prior": "3",
+      "indent_level": 0
+    },
+    {
+      "label": "Total Current Liabilities",
+      "current": "21,281",
+      "prior": "25,249",
+      "indent_level": 0
+    },
+    {
+      "label": "Long-term debt",
+      "current": "42,119",
+      "prior": "42,375",
+      "indent_level": 0
+    },
+    {
+      "label": "Other noncurrent liabilities",
+      "current": "4,735",
+      "prior": "4,084",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred income tax liabilities",
+      "current": "2,406",
+      "prior": "2,469",
+      "indent_level": 0
+    },
+    {
+      "label": "The Coca-Cola Company Shareowners’ Equity",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Common stock, $ 0.25 par value; authorized — 11,200 shares; issued — 7,040 shares",
+      "current": "1,760",
+      "prior": "1,760",
+      "indent_level": 0
+    },
+    {
+      "label": "Capital surplus",
+      "current": "20,581",
+      "prior": "19,801",
+      "indent_level": 0
+    },
+    {
+      "label": "Reinvested earnings",
+      "current": "80,382",
+      "prior": "76,054",
+      "indent_level": 0
+    },
+    {
+      "label": "Accumulated other comprehensive income (loss)",
+      "current": "(14,131)",
+      "prior": "(16,843)",
+      "indent_level": 0
+    },
+    {
+      "label": "Treasury stock, at cost — 2,738 and 2,738 shares, respectively",
+      "current": "(56,423)",
+      "prior": "(55,916)",
+      "indent_level": 0
+    },
+    {
+      "label": "Equity Attributable to Shareowners of The Coca-Cola Company",
+      "current": "32,169",
+      "prior": "24,856",
+      "indent_level": 0
+    },
+    {
+      "label": "Equity attributable to noncontrolling interests",
+      "current": "2,106",
+      "prior": "1,516",
+      "indent_level": 0
+    },
+    {
+      "label": "Total Equity",
+      "current": "34,275",
+      "prior": "26,372",
+      "indent_level": 0
+    },
+    {
+      "label": "Total Liabilities and Equity",
+      "current": "$104,816",
+      "prior": "$100,549",
+      "indent_level": 0
+    }
+  ]
+}

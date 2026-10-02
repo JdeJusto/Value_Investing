@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "statement_type": "income_statement",
+  "filing_date": "2026-02-20",
+  "period_end": "2025-12-31",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    null,
+    null
+  ],
+  "extraction_warnings": [
+    "no income_statement anchor matched; selected the largest table containing 'net income' and 'revenue'"
+  ],
+  "lines": [
+    {
+      "label": "Description of AOCI Component",
+      "current": "Financial Statement Line Item Impacted",
+      "prior": "Amount Reclassified from AOCI",
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign currency translation adjustments:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Divestitures 1,2",
+      "current": "Other income (loss) — net",
+      "prior": "$506",
+      "indent_level": 0
+    },
+    {
+      "label": "Income before income taxes",
+      "current": "506",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Income taxes",
+      "current": "(2)",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Consolidated net income",
+      "current": "$504",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Derivatives:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign currency contracts",
+      "current": "Net operating revenues",
+      "prior": "$247",
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign currency and commodity contracts",
+      "current": "Cost of goods sold",
+      "prior": "(1)",
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign currency and interest rate contracts",
+      "current": "Interest expense",
+      "prior": "7",
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign currency contracts",
+      "current": "Other income (loss) — net",
+      "prior": "(70)",
+      "indent_level": 0
+    },
+    {
+      "label": "Income before income taxes",
+      "current": "183",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Income taxes",
+      "current": "(44)",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Consolidated net income",
+      "current": "$139",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Available-for-sale debt securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Sale of debt securities",
+      "current": "Other income (loss) — net",
+      "prior": "$2",
+      "indent_level": 0
+    },
+    {
+      "label": "Income before income taxes",
+      "current": "2",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Income taxes",
+      "current": "—",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Consolidated net income",
+      "current": "$2",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Pension and other postretirement benefit liabilities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Divestitures 1",
+      "current": "Other income (loss) — net",
+      "prior": "$(2)",
+      "indent_level": 0
+    },
+    {
+      "label": "Settlement loss (gain)",
+      "current": "Other income (loss) — net",
+      "prior": "(3)",
+      "indent_level": 0
+    },
+    {
+      "label": "Curtailment loss (gain)",
+      "current": "Other income (loss) — net",
+      "prior": "11",
+      "indent_level": 0
+    },
+    {
+      "label": "Amortization of net actuarial loss (gain)",
+      "current": "Other income (loss) — net",
+      "prior": "101",
+      "indent_level": 0
+    },
+    {
+      "label": "Amortization of prior service cost (credit)",
+      "current": "Other income (loss) — net",
+      "prior": "(1)",
+      "indent_level": 0
+    },
+    {
+      "label": "Income before income taxes",
+      "current": "106",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Income taxes",
+      "current": "(24)",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Consolidated net income",
+      "current": "$82",
+      "prior": null,
+      "indent_level": 0
+    }
+  ]
+}

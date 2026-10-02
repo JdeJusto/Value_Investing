@@ -1,0 +1,318 @@
+{
+  "version": 1,
+  "statement_type": "balance_sheet",
+  "filing_date": "2026-02-13",
+  "period_end": "2025-12-31",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    "Derivative netting adjustments (f)",
+    "Total fair value"
+  ],
+  "extraction_warnings": [
+    "no balance_sheet anchor matched; selected the largest table containing 'total assets' and 'total liabilities'",
+    "truncated to the first 50 lines (of 66) to keep the demo bundle small"
+  ],
+  "lines": [
+    {
+      "label": "Assets and liabilities measured at fair value on a recurring basis",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Fair value hierarchy",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Federal funds sold and securities purchased under resale agreements",
+      "current": "$—",
+      "prior": "$327,018",
+      "indent_level": 0
+    },
+    {
+      "label": "Securities borrowed",
+      "current": "—",
+      "prior": "98,111",
+      "indent_level": 0
+    },
+    {
+      "label": "Trading assets:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Debt instruments:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Mortgage-backed securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "U.S. GSEs and government agencies (a)",
+      "current": "—",
+      "prior": "157,834",
+      "indent_level": 0
+    },
+    {
+      "label": "Residential – nonagency",
+      "current": "—",
+      "prior": "2,002",
+      "indent_level": 0
+    },
+    {
+      "label": "Commercial – nonagency",
+      "current": "—",
+      "prior": "1,937",
+      "indent_level": 0
+    },
+    {
+      "label": "Total mortgage-backed securities",
+      "current": "—",
+      "prior": "161,773",
+      "indent_level": 0
+    },
+    {
+      "label": "U.S. Treasury, GSEs and government agencies (a)",
+      "current": "225,255",
+      "prior": "18,629",
+      "indent_level": 0
+    },
+    {
+      "label": "Obligations of U.S. states and municipalities",
+      "current": "—",
+      "prior": "6,129",
+      "indent_level": 0
+    },
+    {
+      "label": "Certificates of deposit, bankers’ acceptances and commercial paper",
+      "current": "—",
+      "prior": "1,345",
+      "indent_level": 0
+    },
+    {
+      "label": "Non-U.S. government debt securities (b)",
+      "current": "77,385",
+      "prior": "47,054",
+      "indent_level": 0
+    },
+    {
+      "label": "Corporate debt securities",
+      "current": "—",
+      "prior": "45,053",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans",
+      "current": "—",
+      "prior": "11,782",
+      "indent_level": 0
+    },
+    {
+      "label": "Asset-backed securities",
+      "current": "—",
+      "prior": "3,986",
+      "indent_level": 0
+    },
+    {
+      "label": "Total debt instruments",
+      "current": "302,640",
+      "prior": "295,751",
+      "indent_level": 0
+    },
+    {
+      "label": "Equity securities",
+      "current": "107,585",
+      "prior": "2,153",
+      "indent_level": 0
+    },
+    {
+      "label": "Physical commodities (c)",
+      "current": "20,880",
+      "prior": "947",
+      "indent_level": 0
+    },
+    {
+      "label": "Other",
+      "current": "—",
+      "prior": "12,346",
+      "indent_level": 0
+    },
+    {
+      "label": "Total debt and equity instruments (d)",
+      "current": "431,105",
+      "prior": "311,197",
+      "indent_level": 0
+    },
+    {
+      "label": "Derivative receivables:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Interest rate",
+      "current": "1,579",
+      "prior": "276,565",
+      "indent_level": 0
+    },
+    {
+      "label": "Credit",
+      "current": "—",
+      "prior": "12,018",
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign exchange",
+      "current": "111",
+      "prior": "181,318",
+      "indent_level": 0
+    },
+    {
+      "label": "Equity (b)",
+      "current": "806",
+      "prior": "95,098",
+      "indent_level": 0
+    },
+    {
+      "label": "Commodity",
+      "current": "—",
+      "prior": "29,961",
+      "indent_level": 0
+    },
+    {
+      "label": "Total derivative receivables",
+      "current": "2,496",
+      "prior": "594,960",
+      "indent_level": 0
+    },
+    {
+      "label": "Total trading assets (e)",
+      "current": "433,601",
+      "prior": "906,157",
+      "indent_level": 0
+    },
+    {
+      "label": "Available-for-sale securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Mortgage-backed securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "U.S. GSEs and government agencies (a)",
+      "current": "1",
+      "prior": "90,971",
+      "indent_level": 0
+    },
+    {
+      "label": "Residential – nonagency",
+      "current": "—",
+      "prior": "5,991",
+      "indent_level": 0
+    },
+    {
+      "label": "Commercial – nonagency",
+      "current": "—",
+      "prior": "4,481",
+      "indent_level": 0
+    },
+    {
+      "label": "Total mortgage-backed securities",
+      "current": "1",
+      "prior": "101,443",
+      "indent_level": 0
+    },
+    {
+      "label": "U.S. Treasury and government agencies",
+      "current": "315,361",
+      "prior": "461",
+      "indent_level": 0
+    },
+    {
+      "label": "Obligations of U.S. states and municipalities",
+      "current": "—",
+      "prior": "20,240",
+      "indent_level": 0
+    },
+    {
+      "label": "Non-U.S. government debt securities (b)",
+      "current": "34,308",
+      "prior": "11,347",
+      "indent_level": 0
+    },
+    {
+      "label": "Corporate debt securities",
+      "current": "—",
+      "prior": "20",
+      "indent_level": 0
+    },
+    {
+      "label": "Asset-backed securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Collateralized loan obligations",
+      "current": "—",
+      "prior": "21,947",
+      "indent_level": 0
+    },
+    {
+      "label": "Other (a)",
+      "current": "—",
+      "prior": "1,959",
+      "indent_level": 0
+    },
+    {
+      "label": "Total available-for-sale securities",
+      "current": "349,670",
+      "prior": "157,417",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans",
+      "current": "—",
+      "prior": "67,622",
+      "indent_level": 0
+    },
+    {
+      "label": "Mortgage servicing rights",
+      "current": "—",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Other assets (e)",
+      "current": "6,864",
+      "prior": "6,890",
+      "indent_level": 0
+    },
+    {
+      "label": "Total assets measured at fair value on a recurring basis",
+      "current": "$790,135",
+      "prior": "$1,563,215",
+      "indent_level": 0
+    },
+    {
+      "label": "Deposits",
+      "current": "$—",
+      "prior": "$18,574",
+      "indent_level": 0
+    }
+  ]
+}

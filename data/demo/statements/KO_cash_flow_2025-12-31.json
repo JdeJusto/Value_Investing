@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "statement_type": "cash_flow",
+  "filing_date": "2026-02-20",
+  "period_end": "2025-12-31",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    "2024",
+    "2023"
+  ],
+  "extraction_warnings": [
+    "no cash_flow anchor matched; selected the largest table containing 'net cash' and 'operating activities'"
+  ],
+  "lines": [
+    {
+      "label": "Operating Activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Consolidated net income",
+      "current": "$13,137",
+      "prior": "$10,649",
+      "indent_level": 0
+    },
+    {
+      "label": "Adjustments to reconcile consolidated net income to net cash provided by operating activities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Depreciation and amortization",
+      "current": "1,050",
+      "prior": "1,075",
+      "indent_level": 0
+    },
+    {
+      "label": "Stock-based compensation expense",
+      "current": "279",
+      "prior": "286",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred income taxes",
+      "current": "517",
+      "prior": "(11)",
+      "indent_level": 0
+    },
+    {
+      "label": "Equity (income) loss — net of dividends",
+      "current": "(1,038)",
+      "prior": "(802)",
+      "indent_level": 0
+    },
+    {
+      "label": "Foreign currency adjustments",
+      "current": "191",
+      "prior": "(110)",
+      "indent_level": 0
+    },
+    {
+      "label": "Significant (gains) losses — net",
+      "current": "(713)",
+      "prior": "(1,737)",
+      "indent_level": 0
+    },
+    {
+      "label": "Other operating charges",
+      "current": "1,052",
+      "prior": "4,000",
+      "indent_level": 0
+    },
+    {
+      "label": "Other items",
+      "current": "141",
+      "prior": "(311)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net change in operating assets and liabilities",
+      "current": "(7,208)",
+      "prior": "(6,234)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net Cash Provided by Operating Activities",
+      "current": "7,408",
+      "prior": "6,805",
+      "indent_level": 0
+    },
+    {
+      "label": "Investing Activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Purchases of investments",
+      "current": "(6,160)",
+      "prior": "(5,640)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from disposals of investments",
+      "current": "4,665",
+      "prior": "6,589",
+      "indent_level": 0
+    },
+    {
+      "label": "Acquisitions of businesses, equity method investments and nonmarketable securities",
+      "current": "(461)",
+      "prior": "(315)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from disposals of businesses, equity method investments and nonmarketable securities",
+      "current": "3,567",
+      "prior": "3,485",
+      "indent_level": 0
+    },
+    {
+      "label": "Purchases of property, plant and equipment",
+      "current": "(2,112)",
+      "prior": "(2,064)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from disposals of property, plant and equipment",
+      "current": "13",
+      "prior": "40",
+      "indent_level": 0
+    },
+    {
+      "label": "Collateral (paid) received associated with hedging activities — net",
+      "current": "330",
+      "prior": "235",
+      "indent_level": 0
+    },
+    {
+      "label": "Other investing activities",
+      "current": "91",
+      "prior": "194",
+      "indent_level": 0
+    },
+    {
+      "label": "Net Cash Provided by (Used in) Investing Activities",
+      "current": "(67)",
+      "prior": "2,524",
+      "indent_level": 0
+    },
+    {
+      "label": "Financing Activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Issuances of loans, notes payable and long-term debt",
+      "current": "4,980",
+      "prior": "12,061",
+      "indent_level": 0
+    },
+    {
+      "label": "Payments of loans, notes payable and long-term debt",
+      "current": "(4,967)",
+      "prior": "(9,533)",
+      "indent_level": 0
+    },
+    {
+      "label": "Issuances of stock",
+      "current": "313",
+      "prior": "747",
+      "indent_level": 0
+    },
+    {
+      "label": "Purchases of stock for treasury",
+      "current": "(746)",
+      "prior": "(1,795)",
+      "indent_level": 0
+    },
+    {
+      "label": "Dividends",
+      "current": "(8,779)",
+      "prior": "(8,359)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from sale of a noncontrolling interest",
+      "current": "1,338",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Other financing activities",
+      "current": "(279)",
+      "prior": "(31)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net Cash Provided by (Used in) Financing Activities",
+      "current": "(8,140)",
+      "prior": "(6,910)",
+      "indent_level": 0
+    },
+    {
+      "label": "Effect of Exchange Rate Changes on Cash, Cash Equivalents, Restricted Cash and Restricted Cash Equivalents",
+      "current": "321",
+      "prior": "(623)",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash, Cash Equivalents, Restricted Cash and Restricted Cash Equivalents",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net increase (decrease) in cash, cash equivalents, restricted cash and restricted cash equivalents during the year",
+      "current": "(478)",
+      "prior": "1,796",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash, cash equivalents, restricted cash and restricted cash equivalents at beginning of year",
+      "current": "11,488",
+      "prior": "9,692",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash, Cash Equivalents, Restricted Cash and Restricted Cash Equivalents at End of Year",
+      "current": "11,010",
+      "prior": "11,488",
+      "indent_level": 0
+    },
+    {
+      "label": "Less: Restricted cash and restricted cash equivalents at end of year",
+      "current": "740",
+      "prior": "660",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash and Cash Equivalents at End of Year",
+      "current": "$10,270",
+      "prior": "$10,828",
+      "indent_level": 0
+    }
+  ]
+}

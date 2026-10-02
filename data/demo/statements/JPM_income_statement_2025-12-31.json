@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "statement_type": "income_statement",
+  "filing_date": "2026-02-13",
+  "period_end": "2025-12-31",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    null,
+    null
+  ],
+  "extraction_warnings": [
+    "no income_statement anchor matched; selected the largest table containing 'net income' and 'revenue'"
+  ],
+  "lines": [
+    {
+      "label": "As of or for the year ended December 31, (in millions, except per share, ratio, employee data and where otherwise noted)",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "2025",
+      "current": "2024",
+      "prior": "2023",
+      "indent_level": 0
+    },
+    {
+      "label": "Selected income statement data",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Total net revenue",
+      "current": "$182,447",
+      "prior": "$177,556",
+      "indent_level": 0
+    },
+    {
+      "label": "Total noninterest expense",
+      "current": "95,640",
+      "prior": "91,797",
+      "indent_level": 0
+    },
+    {
+      "label": "Pre-provision profit (a)",
+      "current": "86,807",
+      "prior": "85,759",
+      "indent_level": 0
+    },
+    {
+      "label": "Provision for credit losses",
+      "current": "14,212",
+      "prior": "(e)",
+      "indent_level": 0
+    },
+    {
+      "label": "Income before income tax expense",
+      "current": "72,595",
+      "prior": "75,081",
+      "indent_level": 0
+    },
+    {
+      "label": "Income tax expense",
+      "current": "15,547",
+      "prior": "16,610",
+      "indent_level": 0
+    },
+    {
+      "label": "Net income",
+      "current": "$57,048",
+      "prior": "$58,471",
+      "indent_level": 0
+    },
+    {
+      "label": "Earnings per share data",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net income: Basic",
+      "current": "$20.05",
+      "prior": "$19.79",
+      "indent_level": 0
+    },
+    {
+      "label": "Diluted",
+      "current": "20.02",
+      "prior": "19.75",
+      "indent_level": 0
+    },
+    {
+      "label": "Average shares: Basic",
+      "current": "2,776.5",
+      "prior": "2,873.9",
+      "indent_level": 0
+    },
+    {
+      "label": "Diluted",
+      "current": "2,781.5",
+      "prior": "2,879.0",
+      "indent_level": 0
+    },
+    {
+      "label": "Market and per common share data",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Market capitalization",
+      "current": "868,793",
+      "prior": "670,618",
+      "indent_level": 0
+    },
+    {
+      "label": "Common shares at period-end",
+      "current": "2,696.2",
+      "prior": "2,797.6",
+      "indent_level": 0
+    },
+    {
+      "label": "Book value per share",
+      "current": "126.99",
+      "prior": "116.07",
+      "indent_level": 0
+    },
+    {
+      "label": "Tangible book value per share (“TBVPS”) (a)",
+      "current": "107.56",
+      "prior": "97.30",
+      "indent_level": 0
+    },
+    {
+      "label": "Cash dividends declared per share",
+      "current": "5.80",
+      "prior": "4.80",
+      "indent_level": 0
+    },
+    {
+      "label": "Selected ratios and metrics",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Return on common equity (“ROE”)",
+      "current": "17",
+      "prior": "%",
+      "indent_level": 0
+    },
+    {
+      "label": "Return on tangible common equity (“ROTCE”) (a)",
+      "current": "20",
+      "prior": "22",
+      "indent_level": 0
+    },
+    {
+      "label": "Return on assets (“ROA”)",
+      "current": "1.29",
+      "prior": "1.43",
+      "indent_level": 0
+    },
+    {
+      "label": "Overhead ratio",
+      "current": "52",
+      "prior": "52",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans-to-deposits ratio",
+      "current": "58",
+      "prior": "56",
+      "indent_level": 0
+    },
+    {
+      "label": "Firm Liquidity coverage ratio (“LCR”) (average) (b)",
+      "current": "111",
+      "prior": "113",
+      "indent_level": 0
+    },
+    {
+      "label": "JPMorgan Chase Bank, N.A. LCR (average) (b)",
+      "current": "115",
+      "prior": "124",
+      "indent_level": 0
+    },
+    {
+      "label": "Common equity Tier 1 (“CET1”) capital ratio – Standardized (c)(d)",
+      "current": "14.6",
+      "prior": "(f)",
+      "indent_level": 0
+    },
+    {
+      "label": "Tier 1 capital ratio – Standardized (c)(d)",
+      "current": "15.5",
+      "prior": "(f)",
+      "indent_level": 0
+    },
+    {
+      "label": "Total capital ratio – Standardized (c)(d)",
+      "current": "17.4",
+      "prior": "(f)",
+      "indent_level": 0
+    },
+    {
+      "label": "Tier 1 leverage ratio (b)(c)",
+      "current": "6.9",
+      "prior": "7.2",
+      "indent_level": 0
+    },
+    {
+      "label": "Supplementary leverage ratio (“SLR”) (b)(c)",
+      "current": "5.8",
+      "prior": "6.1",
+      "indent_level": 0
+    },
+    {
+      "label": "Selected balance sheet data (period-end)",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Trading assets",
+      "current": "$802,873",
+      "prior": "$637,784",
+      "indent_level": 0
+    },
+    {
+      "label": "Investment securities, net of allowance for credit losses",
+      "current": "777,332",
+      "prior": "681,320",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans",
+      "current": "1,493,429",
+      "prior": "1,347,988",
+      "indent_level": 0
+    },
+    {
+      "label": "Total assets",
+      "current": "4,424,900",
+      "prior": "4,002,814",
+      "indent_level": 0
+    },
+    {
+      "label": "Deposits",
+      "current": "2,559,320",
+      "prior": "2,406,032",
+      "indent_level": 0
+    },
+    {
+      "label": "Long-term debt",
+      "current": "435,206",
+      "prior": "401,418",
+      "indent_level": 0
+    },
+    {
+      "label": "Common stockholders’ equity",
+      "current": "342,393",
+      "prior": "324,708",
+      "indent_level": 0
+    },
+    {
+      "label": "Total stockholders’ equity",
+      "current": "362,438",
+      "prior": "344,758",
+      "indent_level": 0
+    },
+    {
+      "label": "Employees",
+      "current": "318,512",
+      "prior": "317,233",
+      "indent_level": 0
+    },
+    {
+      "label": "Credit quality metrics",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Allowances for credit losses",
+      "current": "$31,230",
+      "prior": "$26,866",
+      "indent_level": 0
+    },
+    {
+      "label": "Allowance for loan losses to total retained loans",
+      "current": "1.83",
+      "prior": "%",
+      "indent_level": 0
+    },
+    {
+      "label": "Nonperforming assets",
+      "current": "$10,359",
+      "prior": "$9,300",
+      "indent_level": 0
+    },
+    {
+      "label": "Net charge-offs",
+      "current": "9,849",
+      "prior": "8,638",
+      "indent_level": 0
+    },
+    {
+      "label": "Net charge-off rate",
+      "current": "0.74",
+      "prior": "%",
+      "indent_level": 0
+    }
+  ]
+}

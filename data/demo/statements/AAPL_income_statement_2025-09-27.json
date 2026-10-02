@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "statement_type": "income_statement",
+  "filing_date": "2025-10-31",
+  "period_end": "2025-09-27",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    "September 28, 2024",
+    "September 30, 2023"
+  ],
+  "extraction_warnings": [
+    "no income_statement anchor matched; selected the largest table containing 'net income' and 'revenue'"
+  ],
+  "lines": [
+    {
+      "label": "Years ended",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net sales:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Products",
+      "current": "$307,003",
+      "prior": "$294,866",
+      "indent_level": 0
+    },
+    {
+      "label": "Services",
+      "current": "109,158",
+      "prior": "96,169",
+      "indent_level": 0
+    },
+    {
+      "label": "Total net sales",
+      "current": "416,161",
+      "prior": "391,035",
+      "indent_level": 0
+    },
+    {
+      "label": "Cost of sales:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Products",
+      "current": "194,116",
+      "prior": "185,233",
+      "indent_level": 0
+    },
+    {
+      "label": "Services",
+      "current": "26,844",
+      "prior": "25,119",
+      "indent_level": 0
+    },
+    {
+      "label": "Total cost of sales",
+      "current": "220,960",
+      "prior": "210,352",
+      "indent_level": 0
+    },
+    {
+      "label": "Gross margin",
+      "current": "195,201",
+      "prior": "180,683",
+      "indent_level": 0
+    },
+    {
+      "label": "Operating expenses:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Research and development",
+      "current": "34,550",
+      "prior": "31,370",
+      "indent_level": 0
+    },
+    {
+      "label": "Selling, general and administrative",
+      "current": "27,601",
+      "prior": "26,097",
+      "indent_level": 0
+    },
+    {
+      "label": "Total operating expenses",
+      "current": "62,151",
+      "prior": "57,467",
+      "indent_level": 0
+    },
+    {
+      "label": "Operating income",
+      "current": "133,050",
+      "prior": "123,216",
+      "indent_level": 0
+    },
+    {
+      "label": "Other income/(expense), net",
+      "current": "(321)",
+      "prior": "269",
+      "indent_level": 0
+    },
+    {
+      "label": "Income before provision for income taxes",
+      "current": "132,729",
+      "prior": "123,485",
+      "indent_level": 0
+    },
+    {
+      "label": "Provision for income taxes",
+      "current": "20,719",
+      "prior": "29,749",
+      "indent_level": 0
+    },
+    {
+      "label": "Net income",
+      "current": "$112,010",
+      "prior": "$93,736",
+      "indent_level": 0
+    },
+    {
+      "label": "Earnings per share:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Basic",
+      "current": "$7.49",
+      "prior": "$6.11",
+      "indent_level": 0
+    },
+    {
+      "label": "Diluted",
+      "current": "$7.46",
+      "prior": "$6.08",
+      "indent_level": 0
+    },
+    {
+      "label": "Shares used in computing earnings per share:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Basic",
+      "current": "14,948,500",
+      "prior": "15,343,783",
+      "indent_level": 0
+    },
+    {
+      "label": "Diluted",
+      "current": "15,004,697",
+      "prior": "15,408,095",
+      "indent_level": 0
+    }
+  ]
+}

@@ -1,0 +1,318 @@
+{
+  "version": 1,
+  "statement_type": "cash_flow",
+  "filing_date": "2026-02-13",
+  "period_end": "2025-12-31",
+  "form_type": "10-K",
+  "source": "fallback",
+  "periods": [
+    "2024",
+    "2023"
+  ],
+  "extraction_warnings": [
+    "no cash_flow anchor matched; selected the largest table containing 'net cash' and 'operating activities'",
+    "truncated to the first 50 lines (of 55) to keep the demo bundle small"
+  ],
+  "lines": [
+    {
+      "label": "Operating activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net income",
+      "current": "$57,048",
+      "prior": "$58,471",
+      "indent_level": 0
+    },
+    {
+      "label": "Adjustments to reconcile net income to net cash provided by operating activities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Provision for credit losses",
+      "current": "14,212",
+      "prior": "10,678",
+      "indent_level": 0
+    },
+    {
+      "label": "Depreciation and amortization",
+      "current": "8,821",
+      "prior": "7,938",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred tax (benefit)/expense",
+      "current": "5,611",
+      "prior": "2,004",
+      "indent_level": 0
+    },
+    {
+      "label": "Estimated bargain purchase gain associated with the First Republic acquisition",
+      "current": "—",
+      "prior": "(103)",
+      "indent_level": 0
+    },
+    {
+      "label": "Initial gain on the Visa share exchange",
+      "current": "—",
+      "prior": "(7,990)",
+      "indent_level": 0
+    },
+    {
+      "label": "Other",
+      "current": "1,309",
+      "prior": "1,985",
+      "indent_level": 0
+    },
+    {
+      "label": "Originations and purchases of loans held-for-sale",
+      "current": "(260,772)",
+      "prior": "(212,238)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from sales, securitizations and paydowns of loans held-for-sale",
+      "current": "235,232",
+      "prior": "205,303",
+      "indent_level": 0
+    },
+    {
+      "label": "Net change in:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Trading assets",
+      "current": "(156,461)",
+      "prior": "(95,729)",
+      "indent_level": 0
+    },
+    {
+      "label": "Securities borrowed",
+      "current": "(66,648)",
+      "prior": "(18,762)",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued interest and accounts receivable",
+      "current": "(11,514)",
+      "prior": "5,735",
+      "indent_level": 0
+    },
+    {
+      "label": "Other assets",
+      "current": "(12,582)",
+      "prior": "(7,650)",
+      "indent_level": 0
+    },
+    {
+      "label": "Trading liabilities",
+      "current": "23,134",
+      "prior": "2,276",
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts payable and other liabilities",
+      "current": "5,270",
+      "prior": "(90)",
+      "indent_level": 0
+    },
+    {
+      "label": "Other operating adjustments",
+      "current": "9,558",
+      "prior": "6,160",
+      "indent_level": 0
+    },
+    {
+      "label": "Net cash (used in)/provided by operating activities",
+      "current": "(147,782)",
+      "prior": "(42,012)",
+      "indent_level": 0
+    },
+    {
+      "label": "Investing activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net change in:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Federal funds sold and securities purchased under resale agreements",
+      "current": "(41,264)",
+      "prior": "(18,706)",
+      "indent_level": 0
+    },
+    {
+      "label": "Held-to-maturity securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from paydowns and maturities",
+      "current": "54,791",
+      "prior": "99,363",
+      "indent_level": 0
+    },
+    {
+      "label": "Purchases",
+      "current": "(5,432)",
+      "prior": "(4,709)",
+      "indent_level": 0
+    },
+    {
+      "label": "Available-for-sale securities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from paydowns and maturities",
+      "current": "37,414",
+      "prior": "38,499",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from sales",
+      "current": "141,295",
+      "prior": "104,625",
+      "indent_level": 0
+    },
+    {
+      "label": "Purchases",
+      "current": "(308,772)",
+      "prior": "(352,712)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from sales and securitizations of loans held-for-investment",
+      "current": "57,565",
+      "prior": "57,921",
+      "indent_level": 0
+    },
+    {
+      "label": "Other changes in loans, net",
+      "current": "(188,497)",
+      "prior": "(83,176)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net cash used in First Republic Acquisition",
+      "current": "—",
+      "prior": "(2,362)",
+      "indent_level": 0
+    },
+    {
+      "label": "All other investing activities, net",
+      "current": "(12,665)",
+      "prior": "(2,146)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net cash (used in)/provided by investing activities",
+      "current": "(265,565)",
+      "prior": "(163,403)",
+      "indent_level": 0
+    },
+    {
+      "label": "Financing activities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Net change in:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Deposits",
+      "current": "153,168",
+      "prior": "3,299",
+      "indent_level": 0
+    },
+    {
+      "label": "Federal funds purchased and securities loaned or sold under repurchase agreements",
+      "current": "145,535",
+      "prior": "80,288",
+      "indent_level": 0
+    },
+    {
+      "label": "Short-term borrowings",
+      "current": "9,422",
+      "prior": "7,439",
+      "indent_level": 0
+    },
+    {
+      "label": "Beneficial interests issued by consolidated VIEs",
+      "current": "(622)",
+      "prior": "1,543",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from long-term borrowings",
+      "current": "120,761",
+      "prior": "109,915",
+      "indent_level": 0
+    },
+    {
+      "label": "Payments of long-term borrowings",
+      "current": "(108,100)",
+      "prior": "(96,605)",
+      "indent_level": 0
+    },
+    {
+      "label": "Proceeds from issuance of preferred stock",
+      "current": "3,000",
+      "prior": "2,500",
+      "indent_level": 0
+    },
+    {
+      "label": "Redemption of preferred stock",
+      "current": "(3,000)",
+      "prior": "(9,850)",
+      "indent_level": 0
+    },
+    {
+      "label": "Treasury stock repurchased",
+      "current": "(31,591)",
+      "prior": "(18,830)",
+      "indent_level": 0
+    },
+    {
+      "label": "Dividends paid",
+      "current": "(16,625)",
+      "prior": "(14,783)",
+      "indent_level": 0
+    },
+    {
+      "label": "All other financing activities, net",
+      "current": "(2,415)",
+      "prior": "(1,469)",
+      "indent_level": 0
+    },
+    {
+      "label": "Net cash provided by/(used in) financing activities",
+      "current": "269,533",
+      "prior": "63,447",
+      "indent_level": 0
+    },
+    {
+      "label": "Effect of exchange rate changes on cash and due from banks and deposits with banks",
+      "current": "17,835",
+      "prior": "(12,866)",
+      "indent_level": 0
+    }
+  ]
+}

@@ -181,3 +181,98 @@ def build_balance_sheets() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(0 if build_balance_sheets() >= 0 else 1)
+
+
+# ---------------------------------------------------------------------------
+# Statement fixtures: 4 tickers x 3 statement types
+# ---------------------------------------------------------------------------
+STATEMENT_TICKERS = ("AAPL", "KO", "JNJ", "JPM")
+MAX_FIXTURE_LINES = 50
+
+
+def build_statement_fixtures() -> int:
+    """Parse each ticker's latest 10-K into the three statement fixtures."""
+    import json as _json
+    import sys
+    from pathlib import Path as _Path
+
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    from backend.services.filing_fetcher import FilingFetcher
+    from backend.services.filing_service import FilingService
+    from backend.services.financial_statement_parser import (
+        PARSER_VERSION,
+        FinancialStatementParser,
+        StatementType,
+    )
+
+    target_dir = PROJECT_ROOT / "data" / "demo" / "statements"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    service = FilingService()
+    fetcher = FilingFetcher()
+    parser = FinancialStatementParser()
+    written = 0
+
+    for ticker in STATEMENT_TICKERS:
+        filings = service.list_filings(ticker, form_types=["10-K"])
+        if not filings:
+            print(f"{ticker}: no 10-K, skipped")
+            continue
+        record = filings[0]
+        html = fetcher.fetch_html(
+            record.cik, record.accession_number, record.primary_document
+        )
+        if html is None:
+            print(f"{ticker}: fetch failed, skipped")
+            continue
+        for statement_type in StatementType:
+            statement = parser.parse(
+                html,
+                statement_type,
+                filing_date=record.filing_date,
+                period_end=record.period_of_report,
+                form_type=record.form_type,
+            )
+            if statement is None:
+                print(f"{ticker} {statement_type.value}: not found")
+                continue
+            lines = statement.lines[:MAX_FIXTURE_LINES]
+            warnings = list(statement.extraction_warnings)
+            if len(statement.lines) > MAX_FIXTURE_LINES:
+                warnings.append(
+                    f"truncated to the first {MAX_FIXTURE_LINES} lines "
+                    f"(of {len(statement.lines)}) to keep the demo bundle small"
+                )
+            period = (
+                record.period_of_report.isoformat()
+                if record.period_of_report
+                else "unknown"
+            )
+            payload = {
+                "version": PARSER_VERSION,
+                "statement_type": statement_type.value,
+                "filing_date": record.filing_date.isoformat(),
+                "period_end": period,
+                "form_type": record.form_type,
+                "source": statement.source,
+                "periods": list(statement.header_periods),
+                "extraction_warnings": warnings,
+                "lines": [
+                    {
+                        "label": line.label,
+                        "current": line.current,
+                        "prior": line.prior,
+                        "indent_level": line.indent_level,
+                    }
+                    for line in lines
+                ],
+            }
+            target = target_dir / f"{ticker}_{statement_type.value}_{period}.json"
+            target.write_text(
+                _json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            written += 1
+            print(
+                f"{ticker} {statement_type.value}: {len(lines)} lines -> {target.name}"
+            )
+    return written
