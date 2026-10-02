@@ -45,14 +45,14 @@ structure is preserved; nothing is collapsed into a single paragraph.
 ```python
 @dataclass(frozen=True)
 class NarrativeSection:
-    section_type: str          # "risk_factors" | "md_a"
+    section_type: str  # "risk_factors" | "md_a"
     filing_date: date
     period_end: date | None
     form_type: str
     title: str
     text: str
     word_count: int
-    source: str                # "heading" | "text_search"
+    source: str  # "heading" | "text_search"
     extraction_warnings: list[str]
 ```
 
