@@ -28,7 +28,9 @@ def test_real_10k_risk_factors_uses_the_toc_anchor():
     assert section.source == "toc_anchor"
     assert section.text
     assert section.word_count > 1000
-    assert "Risk Factors" in section.text
+    assert (
+        "The Company" in section.text
+    )  # real body text (the heading is de-duplicated)
 
 
 def test_real_10k_md_a_extracts():
