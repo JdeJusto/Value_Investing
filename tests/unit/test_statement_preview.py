@@ -63,6 +63,20 @@ def test_missing_statement_returns_the_warning_and_the_url():
     assert preview["sec_url"].startswith("https://www.sec.gov/")
 
 
+def test_preview_carries_the_document_url_when_available():
+    class _DocUrl(_Record):
+        sec_url = (
+            "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/"
+            "aapl-20250927.htm"
+        )
+
+    preview = render_statement_preview(
+        _DocUrl(), StatementType.BALANCE_SHEET, _loader_ok
+    )
+    assert preview["sec_url"] == _DocUrl.sec_url
+    assert preview["sec_url"].endswith(".htm")
+
+
 def test_caption_includes_the_statement_type_label():
     for statement_type in StatementType:
         preview = render_statement_preview(_Record(), statement_type, _loader_ok)

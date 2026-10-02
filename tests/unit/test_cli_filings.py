@@ -45,6 +45,21 @@ def _record(form="10-K"):
     )
 
 
+def _record_doc(form="10-K"):
+    """A record whose primary document URL is known."""
+    return _Record(
+        form_type=form,
+        filing_date=date(2024, 11, 1),
+        period_of_report=date(2024, 9, 28),
+        effective_fiscal_year=2024,
+        accession_number="0000320193-24-000123",
+        sec_url=(
+            "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+            "aapl-20240928.htm"
+        ),
+    )
+
+
 @pytest.fixture(autouse=True)
 def _patch(monkeypatch):
     import backend.services.filing_service as module
@@ -107,6 +122,20 @@ def test_open_flag_uses_the_browser(monkeypatch, capsys):
     assert "Abriendo 10-K 2024-11-01" in capsys.readouterr().out
 
 
+def test_open_passes_the_document_url_when_available(monkeypatch, capsys):
+    _Recorder.records = [_record_doc()]
+    opened: list[str] = []
+    monkeypatch.setattr(
+        "cli.commands.filings.webbrowser.open", lambda url: opened.append(url)
+    )
+    _run("AAPL", "--open")
+    assert opened == [_record_doc().sec_url]
+    assert opened[0].endswith(".htm")  # the primary document, not the index
+
+    out = capsys.readouterr().out
+    assert "Abriendo 10-K 2024-11-01" in out
+
+
 def test_empty_state_is_clear(monkeypatch, capsys):
     _Recorder.records = []
     _run("AAPL")
@@ -116,3 +145,13 @@ def test_empty_state_is_clear(monkeypatch, capsys):
 def test_urls_flag_prints_the_raw_url(monkeypatch, capsys):
     _run("AAPL", "--urls")
     assert "https://www.sec.gov/Archives/edgar/data/320193/" in capsys.readouterr().out
+
+
+def test_urls_flag_prints_the_document_url_when_available(monkeypatch, capsys):
+    _Recorder.records = [_record_doc()]
+    _run("AAPL", "--urls")
+    out = capsys.readouterr().out
+    assert (
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+        "aapl-20240928.htm" in out
+    )

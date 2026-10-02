@@ -97,6 +97,19 @@ def test_preview_failure_returns_message_and_url():
     assert "https://www.sec.gov/" in preview["sec_url"]
 
 
+def test_preview_carries_the_document_url_when_available():
+    record = _demo_record()
+    record.sec_url = (
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/"
+        "aapl-20250927.htm"
+    )
+    preview = render_narrative_preview(
+        record, SectionType.RISK_FACTORS, lambda r, st: _stub_section()
+    )
+    assert preview["sec_url"] == record.sec_url
+    assert preview["sec_url"].endswith(".htm")
+
+
 def test_loader_is_called_only_when_the_preview_renders():
     """No auto-fetch: the loader fires exactly once, on the Load click."""
     calls: list = []

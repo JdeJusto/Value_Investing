@@ -76,6 +76,20 @@ def test_record_exposes_the_index_as_the_best_link():
     assert record.primary_document is None
 
 
+def test_record_prefers_the_document_url_when_stored():
+    stored = (
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+        "aapl-20240928.htm"
+    )
+    service = FilingService(repository=_Repo([_row(filing_url=stored)]))
+    record = service.list_filings("AAPL")[0]
+    assert record.sec_document_url == stored
+    assert record.primary_document == "aapl-20240928.htm"
+    # The convenience link must open the primary document, not the index.
+    assert record.sec_url == stored
+    assert record.sec_url.endswith(".htm")
+
+
 def test_derived_fiscal_year_falls_back_to_filing_date():
     service = FilingService(repository=_Repo([_row(period_end=None)]))
     record = service.list_filings("AAPL")[0]
