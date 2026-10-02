@@ -15,6 +15,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
+from backend.services.balance_sheet_parser import load_balance_sheet
 from backend.services.ui_adapter import (
     fmt_money_short,
     fmt_or_dash,
@@ -188,14 +189,32 @@ def _filings(ticker: str) -> None:
     if selected:
         record = filtered[selected[0]]
         st.markdown(
-            f"**Viewing:** {record.form_type} filed "
-            f"{record.filing_date.isoformat()}, period "
-            f"{record.period_of_report.isoformat() if record.period_of_report else '—'}"
+            f"**{record.form_type} filed {record.filing_date.isoformat()} · "
+            f"period "
+            f"{record.period_of_report.isoformat() if record.period_of_report else '—'}**"
         )
-        if record.sec_url:
-            st.markdown(f"[Open the document on SEC EDGAR]({record.sec_url})")
+        col_load, col_clear = st.columns([1, 1])
+        if col_load.button("Load balance sheet", key="filings_load_bs"):
+            sheet = load_balance_sheet(record)
+            if sheet is None:
+                st.warning("Could not extract the balance sheet from this document.")
+                if record.sec_url:
+                    st.markdown(f"[Open it on SEC EDGAR]({record.sec_url})")
+            else:
+                st.dataframe(sheet.as_rows(), hide_index=True, use_container_width=True)
+                st.caption(
+                    f"Source: SEC EDGAR · Extraction: {sheet.source} · Cached locally"
+                )
+                if sheet.extraction_warnings:
+                    st.caption(sheet.extraction_warnings[0])
+        if col_clear.button("Clear cache", key="filings_clear_cache"):
+            from backend.services.filing_fetcher import FilingFetcher
+
+            removed = FilingFetcher().clear_cache()
+            st.success(f"Cache cleared ({removed} files).")
+    else:
         st.caption(
-            "Full document preview coming soon — for now, click 'Open' to "
+            "Select a row to preview its balance sheet, or click 'Open' to "
             "view the original on SEC EDGAR."
         )
 

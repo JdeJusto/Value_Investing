@@ -1,0 +1,227 @@
+{
+  "ticker": "AAPL",
+  "form_type": "10-K",
+  "filing_date": "2025-10-31",
+  "period_end": "2025-09-27",
+  "accession_number": "000032019325000079",
+  "source": "fallback",
+  "periods": [
+    "September 27, 2025",
+    "September 28, 2024"
+  ],
+  "extraction_warnings": [
+    "no balance-sheet anchor matched; selected the table containing 'Total assets' and 'Total liabilities'"
+  ],
+  "lines": [
+    {
+      "label": "ASSETS:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Current assets:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Cash and cash equivalents",
+      "current": "$35,934",
+      "prior": "$29,943",
+      "indent_level": 0
+    },
+    {
+      "label": "Marketable securities",
+      "current": "18,763",
+      "prior": "35,228",
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts receivable, net",
+      "current": "39,777",
+      "prior": "33,410",
+      "indent_level": 0
+    },
+    {
+      "label": "Vendor non-trade receivables",
+      "current": "33,180",
+      "prior": "32,833",
+      "indent_level": 0
+    },
+    {
+      "label": "Inventories",
+      "current": "5,718",
+      "prior": "7,286",
+      "indent_level": 0
+    },
+    {
+      "label": "Other current assets",
+      "current": "14,585",
+      "prior": "14,287",
+      "indent_level": 0
+    },
+    {
+      "label": "Total current assets",
+      "current": "147,957",
+      "prior": "152,987",
+      "indent_level": 0
+    },
+    {
+      "label": "Non-current assets:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Marketable securities",
+      "current": "77,723",
+      "prior": "91,479",
+      "indent_level": 0
+    },
+    {
+      "label": "Property, plant and equipment, net",
+      "current": "49,834",
+      "prior": "45,680",
+      "indent_level": 0
+    },
+    {
+      "label": "Other non-current assets",
+      "current": "83,727",
+      "prior": "74,834",
+      "indent_level": 0
+    },
+    {
+      "label": "Total non-current assets",
+      "current": "211,284",
+      "prior": "211,993",
+      "indent_level": 0
+    },
+    {
+      "label": "Total assets",
+      "current": "$359,241",
+      "prior": "$364,980",
+      "indent_level": 0
+    },
+    {
+      "label": "LIABILITIES AND SHAREHOLDERS’ EQUITY:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Current liabilities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts payable",
+      "current": "$69,860",
+      "prior": "$68,960",
+      "indent_level": 0
+    },
+    {
+      "label": "Other current liabilities",
+      "current": "66,387",
+      "prior": "78,304",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred revenue",
+      "current": "9,055",
+      "prior": "8,249",
+      "indent_level": 0
+    },
+    {
+      "label": "Commercial paper",
+      "current": "7,979",
+      "prior": "9,967",
+      "indent_level": 0
+    },
+    {
+      "label": "Term debt",
+      "current": "12,350",
+      "prior": "10,912",
+      "indent_level": 0
+    },
+    {
+      "label": "Total current liabilities",
+      "current": "165,631",
+      "prior": "176,392",
+      "indent_level": 0
+    },
+    {
+      "label": "Non-current liabilities:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Term debt",
+      "current": "78,328",
+      "prior": "85,750",
+      "indent_level": 0
+    },
+    {
+      "label": "Other non-current liabilities",
+      "current": "41,549",
+      "prior": "45,888",
+      "indent_level": 0
+    },
+    {
+      "label": "Total non-current liabilities",
+      "current": "119,877",
+      "prior": "131,638",
+      "indent_level": 0
+    },
+    {
+      "label": "Total liabilities",
+      "current": "285,508",
+      "prior": "308,030",
+      "indent_level": 0
+    },
+    {
+      "label": "Commitments and contingencies",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Shareholders’ equity:",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Common stock and additional paid-in capital, $ 0.00001 par value: 50,400,000 shares authorized; 14,773,260 and 15,116,786 shares issued and outstanding, respectively",
+      "current": "93,568",
+      "prior": "83,276",
+      "indent_level": 0
+    },
+    {
+      "label": "Accumulated deficit",
+      "current": "(14,264)",
+      "prior": "(19,154)",
+      "indent_level": 0
+    },
+    {
+      "label": "Accumulated other comprehensive loss",
+      "current": "(5,571)",
+      "prior": "(7,172)",
+      "indent_level": 0
+    },
+    {
+      "label": "Total shareholders’ equity",
+      "current": "73,733",
+      "prior": "56,950",
+      "indent_level": 0
+    },
+    {
+      "label": "Total liabilities and shareholders’ equity",
+      "current": "$359,241",
+      "prior": "$364,980",
+      "indent_level": 0
+    }
+  ]
+}

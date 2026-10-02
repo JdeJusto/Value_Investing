@@ -1,0 +1,251 @@
+{
+  "ticker": "JNJ",
+  "form_type": "10-K",
+  "filing_date": "2026-02-11",
+  "period_end": "2025-12-28",
+  "accession_number": "000020040626000016",
+  "source": "fallback",
+  "periods": [
+    null,
+    null
+  ],
+  "extraction_warnings": [
+    "no balance-sheet anchor matched; selected the table containing 'Total assets' and 'Total liabilities'"
+  ],
+  "lines": [
+    {
+      "label": "2025",
+      "current": "2024",
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Assets",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Current assets",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Cash and cash equivalents (Notes 1 and 2)",
+      "current": "$ 19,709",
+      "prior": "24,105",
+      "indent_level": 0
+    },
+    {
+      "label": "Marketable securities (Notes 1 and 2)",
+      "current": "393",
+      "prior": "417",
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts receivable trade, less allowances $ 183 (2024, $ 167)",
+      "current": "17,178",
+      "prior": "14,842",
+      "indent_level": 0
+    },
+    {
+      "label": "Inventories (Notes 1 and 3)",
+      "current": "14,191",
+      "prior": "12,444",
+      "indent_level": 0
+    },
+    {
+      "label": "Prepaid expenses and other receivables",
+      "current": "4,153",
+      "prior": "4,085",
+      "indent_level": 0
+    },
+    {
+      "label": "Total current assets",
+      "current": "55,624",
+      "prior": "55,893",
+      "indent_level": 0
+    },
+    {
+      "label": "Property, plant and equipment, net (Notes 1 and 4)",
+      "current": "23,169",
+      "prior": "20,518",
+      "indent_level": 0
+    },
+    {
+      "label": "Intangible assets, net (Notes 1 and 5)",
+      "current": "50,403",
+      "prior": "37,618",
+      "indent_level": 0
+    },
+    {
+      "label": "Goodwill (Notes 1 and 5)",
+      "current": "48,772",
+      "prior": "44,200",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred taxes on income (Note 8)",
+      "current": "6,874",
+      "prior": "10,461",
+      "indent_level": 0
+    },
+    {
+      "label": "Other assets",
+      "current": "14,368",
+      "prior": "11,414",
+      "indent_level": 0
+    },
+    {
+      "label": "Total assets",
+      "current": "$ 199,210",
+      "prior": "180,104",
+      "indent_level": 0
+    },
+    {
+      "label": "Liabilities and Shareholders’ Equity",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Current liabilities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Loans and notes payable (Note 7)",
+      "current": "$ 8,495",
+      "prior": "5,983",
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts payable",
+      "current": "11,991",
+      "prior": "10,311",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued liabilities",
+      "current": "8,594",
+      "prior": "8,549",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued rebates, returns and promotions",
+      "current": "19,124",
+      "prior": "17,580",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued compensation and employee related obligations",
+      "current": "4,534",
+      "prior": "4,126",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued taxes on income (Note 8)",
+      "current": "1,388",
+      "prior": "3,772",
+      "indent_level": 0
+    },
+    {
+      "label": "Total current liabilities",
+      "current": "54,126",
+      "prior": "50,321",
+      "indent_level": 0
+    },
+    {
+      "label": "Long-term debt (Note 7)",
+      "current": "39,438",
+      "prior": "30,651",
+      "indent_level": 0
+    },
+    {
+      "label": "Deferred taxes on income (Note 8)",
+      "current": "6,791",
+      "prior": "2,448",
+      "indent_level": 0
+    },
+    {
+      "label": "Employee related obligations (Notes 9 and 10)",
+      "current": "6,957",
+      "prior": "7,255",
+      "indent_level": 0
+    },
+    {
+      "label": "Long-term taxes payable (Note 1)",
+      "current": "486",
+      "prior": "390",
+      "indent_level": 0
+    },
+    {
+      "label": "Other liabilities",
+      "current": "9,868",
+      "prior": "17,549",
+      "indent_level": 0
+    },
+    {
+      "label": "Total liabilities",
+      "current": "117,666",
+      "prior": "108,614",
+      "indent_level": 0
+    },
+    {
+      "label": "Commitments and Contingencies (Note 19)",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Shareholders’ equity",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Preferred stock — without par value (authorized and unissued 2,000,000 shares)",
+      "current": "—",
+      "prior": "—",
+      "indent_level": 0
+    },
+    {
+      "label": "Common stock — par value $ 1.00 per share (Note 12) (authorized 4,320,000,000 shares; issued 3,119,843,000 shares)",
+      "current": "3,120",
+      "prior": "3,120",
+      "indent_level": 0
+    },
+    {
+      "label": "Accumulated other comprehensive income (loss) (Note 13)",
+      "current": "(14,930)",
+      "prior": "(11,741)",
+      "indent_level": 0
+    },
+    {
+      "label": "Retained earnings and Additional-paid-in-capital",
+      "current": "168,978",
+      "prior": "155,791",
+      "indent_level": 0
+    },
+    {
+      "label": "Less: common stock held in treasury, at cost (Note 12) (711,904,000 shares and 712,921,000 shares)",
+      "current": "75,624",
+      "prior": "75,680",
+      "indent_level": 0
+    },
+    {
+      "label": "Total shareholders’ equity",
+      "current": "81,544",
+      "prior": "71,490",
+      "indent_level": 0
+    },
+    {
+      "label": "Total liabilities and shareholders’ equity",
+      "current": "$ 199,210",
+      "prior": "180,104",
+      "indent_level": 0
+    }
+  ]
+}

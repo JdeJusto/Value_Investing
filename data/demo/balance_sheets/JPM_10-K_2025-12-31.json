@@ -1,0 +1,233 @@
+{
+  "ticker": "JPM",
+  "form_type": "10-K",
+  "filing_date": "2026-02-13",
+  "period_end": "2025-12-31",
+  "accession_number": "000162828026008131",
+  "source": "fallback",
+  "periods": [
+    "2025",
+    "2024"
+  ],
+  "extraction_warnings": [
+    "no balance-sheet anchor matched; selected the table containing 'Total assets' and 'Total liabilities'"
+  ],
+  "lines": [
+    {
+      "label": "Assets",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Cash and due from banks",
+      "current": "$21,742",
+      "prior": "$23,372",
+      "indent_level": 0
+    },
+    {
+      "label": "Deposits with banks",
+      "current": "321,596",
+      "prior": "445,945",
+      "indent_level": 0
+    },
+    {
+      "label": "Federal funds sold and securities purchased under resale agreements (included $ 327,018 and $ 286,771 at fair value)",
+      "current": "336,426",
+      "prior": "295,001",
+      "indent_level": 0
+    },
+    {
+      "label": "Securities borrowed (included $ 98,111 and $ 83,962 at fair value)",
+      "current": "286,191",
+      "prior": "219,546",
+      "indent_level": 0
+    },
+    {
+      "label": "Trading assets (included assets pledged of $ 165,927 and $ 136,070)",
+      "current": "802,873",
+      "prior": "637,784",
+      "indent_level": 0
+    },
+    {
+      "label": "Available-for-sale securities (amortized cost of $ 507,226 and $ 411,045 ; included assets pledged of $ 7,735 and $ 10,162)",
+      "current": "507,198",
+      "prior": "406,852",
+      "indent_level": 0
+    },
+    {
+      "label": "Held-to-maturity securities",
+      "current": "270,134",
+      "prior": "274,468",
+      "indent_level": 0
+    },
+    {
+      "label": "Investment securities, net of allowance for credit losses",
+      "current": "777,332",
+      "prior": "681,320",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans (included $ 70,684 and $ 41,350 at fair value)",
+      "current": "1,493,429",
+      "prior": "1,347,988",
+      "indent_level": 0
+    },
+    {
+      "label": "Allowance for loan losses",
+      "current": "(25,765)",
+      "prior": "(24,345)",
+      "indent_level": 0
+    },
+    {
+      "label": "Loans, net of allowance for loan losses",
+      "current": "1,467,664",
+      "prior": "1,323,643",
+      "indent_level": 0
+    },
+    {
+      "label": "Accrued interest and accounts receivable",
+      "current": "111,599",
+      "prior": "101,223",
+      "indent_level": 0
+    },
+    {
+      "label": "Premises and equipment",
+      "current": "36,244",
+      "prior": "32,223",
+      "indent_level": 0
+    },
+    {
+      "label": "Goodwill, MSRs and other intangible assets",
+      "current": "64,458",
+      "prior": "64,560",
+      "indent_level": 0
+    },
+    {
+      "label": "Other assets (included $ 15,849 and $ 15,122 at fair value and assets pledged of $ 11,984 and $ 6,288)",
+      "current": "198,775",
+      "prior": "178,197",
+      "indent_level": 0
+    },
+    {
+      "label": "Total assets (a)",
+      "current": "$4,424,900",
+      "prior": "$4,002,814",
+      "indent_level": 0
+    },
+    {
+      "label": "Liabilities",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Deposits (included $ 20,930 and $ 33,768 at fair value)",
+      "current": "$2,559,320",
+      "prior": "$2,406,032",
+      "indent_level": 0
+    },
+    {
+      "label": "Federal funds purchased and securities loaned or sold under repurchase agreements (included $ 360,194 and $ 226,329 at fair value)",
+      "current": "442,396",
+      "prior": "296,835",
+      "indent_level": 0
+    },
+    {
+      "label": "Short-term borrowings (included $ 32,460 and $ 26,521 at fair value)",
+      "current": "64,776",
+      "prior": "52,893",
+      "indent_level": 0
+    },
+    {
+      "label": "Trading liabilities",
+      "current": "216,019",
+      "prior": "192,883",
+      "indent_level": 0
+    },
+    {
+      "label": "Accounts payable and other liabilities (included $ 6,660 and $ 5,893 at fair value)",
+      "current": "316,794",
+      "prior": "280,672",
+      "indent_level": 0
+    },
+    {
+      "label": "Beneficial interests issued by consolidated VIEs (included $ 5 and $ 1 at fair value)",
+      "current": "27,951",
+      "prior": "27,323",
+      "indent_level": 0
+    },
+    {
+      "label": "Long-term debt (included $ 134,559 and $ 100,780 at fair value)",
+      "current": "435,206",
+      "prior": "401,418",
+      "indent_level": 0
+    },
+    {
+      "label": "Total liabilities (a)",
+      "current": "4,062,462",
+      "prior": "3,658,056",
+      "indent_level": 0
+    },
+    {
+      "label": "Commitments and contingencies (refer to Notes 28, 29 and 30)",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Stockholders’ equity",
+      "current": null,
+      "prior": null,
+      "indent_level": 0
+    },
+    {
+      "label": "Preferred stock ($ 1 par value; authorized 200,000,000 shares: issued 2,005,375 and 2,005,375 shares)",
+      "current": "20,045",
+      "prior": "20,050",
+      "indent_level": 0
+    },
+    {
+      "label": "Common stock ($ 1 par value; authorized 9,000,000,000 shares; issued 4,104,933,895 shares)",
+      "current": "4,105",
+      "prior": "4,105",
+      "indent_level": 0
+    },
+    {
+      "label": "Additional paid-in capital",
+      "current": "91,114",
+      "prior": "90,911",
+      "indent_level": 0
+    },
+    {
+      "label": "Retained earnings",
+      "current": "416,055",
+      "prior": "376,166",
+      "indent_level": 0
+    },
+    {
+      "label": "Accumulated other comprehensive losses",
+      "current": "(4,290)",
+      "prior": "(12,456)",
+      "indent_level": 0
+    },
+    {
+      "label": "Treasury stock, at cost (1,408,661,319 and 1,307,313,494 shares)",
+      "current": "(164,591)",
+      "prior": "(134,018)",
+      "indent_level": 0
+    },
+    {
+      "label": "Total stockholders’ equity",
+      "current": "362,438",
+      "prior": "344,758",
+      "indent_level": 0
+    },
+    {
+      "label": "Total liabilities and stockholders’ equity",
+      "current": "$4,424,900",
+      "prior": "$4,002,814",
+      "indent_level": 0
+    }
+  ]
+}

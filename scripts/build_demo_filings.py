@@ -98,3 +98,86 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# ---------------------------------------------------------------------------
+# Balance-sheet fixtures (parsed from the real documents)
+# ---------------------------------------------------------------------------
+BALANCE_SHEET_TICKERS = ("AAPL", "KO", "JNJ", "JPM")
+
+
+def build_balance_sheets() -> int:
+    """Fetch each ticker's latest 10-K and snapshot the parsed balance sheet."""
+    import json as _json
+    import sys
+    from pathlib import Path as _Path
+
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    from backend.services.balance_sheet_parser import BalanceSheetParser
+    from backend.services.filing_fetcher import FilingFetcher
+    from backend.services.filing_service import FilingService
+
+    target_dir = PROJECT_ROOT / "data" / "demo" / "balance_sheets"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    service = FilingService()
+    fetcher = FilingFetcher()
+    parser = BalanceSheetParser()
+    written = 0
+
+    for ticker in BALANCE_SHEET_TICKERS:
+        filings = service.list_filings(ticker, form_types=["10-K"])
+        if not filings:
+            print(f"{ticker}: no 10-K in the database, skipped")
+            continue
+        record = filings[0]
+        html = fetcher.fetch_html(
+            record.cik, record.accession_number, record.primary_document
+        )
+        if html is None:
+            print(f"{ticker}: could not fetch {record.accession_number}, skipped")
+            continue
+        sheet = parser.parse(
+            html,
+            filing_date=record.filing_date,
+            period_end=record.period_of_report,
+            form_type=record.form_type,
+        )
+        if sheet is None:
+            print(f"{ticker}: parser found no balance sheet, skipped")
+            continue
+        period = (
+            record.period_of_report.isoformat()
+            if record.period_of_report
+            else "unknown"
+        )
+        payload = {
+            "ticker": ticker,
+            "form_type": record.form_type,
+            "filing_date": record.filing_date.isoformat(),
+            "period_end": period,
+            "accession_number": record.accession_number,
+            "source": sheet.source,
+            "periods": list(sheet.header_periods),
+            "extraction_warnings": sheet.extraction_warnings,
+            "lines": [
+                {
+                    "label": line.label,
+                    "current": line.current,
+                    "prior": line.prior,
+                    "indent_level": line.indent_level,
+                }
+                for line in sheet.lines
+            ],
+        }
+        target = target_dir / f"{ticker}_{record.form_type}_{period}.json"
+        target.write_text(
+            _json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        written += 1
+        print(f"{ticker}: {len(sheet.lines)} lines ({sheet.source}) -> {target.name}")
+    return written
+
+
+if __name__ == "__main__":
+    raise SystemExit(0 if build_balance_sheets() >= 0 else 1)
