@@ -111,7 +111,7 @@ def test_default_output_is_truncated_at_1000_words(capsys):
     out = capsys.readouterr().out
     assert "[first 1000 words of 2,100]" in out
     assert "... (truncated; use --full" in out
-    match = re.search(r"\[first 1000 words of 2,100\]\n\n(.*?)\n\n\.\.\. \(truncated", out, re.S)
+    match = re.search(r"\[first 1000 words of 2,100\]\n\n(.*?)\n\n\.\.\. \(truncated", out, re.DOTALL)
     assert match is not None
     assert len(match.group(1).split()) == 1000
 
