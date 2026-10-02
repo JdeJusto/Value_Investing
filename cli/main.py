@@ -49,6 +49,7 @@ def main():
         data_status,
         dcf,
         debug,
+        filings,
         historical_valuation,
         load_data,
         momentum,
@@ -78,6 +79,7 @@ def main():
     watchlist.register(sub)
     debug.register(sub)
     sql_analysis.register(sub)
+    filings.register(sub)
     register_methodologies(sub)
 
     if len(sys.argv) == 1:
