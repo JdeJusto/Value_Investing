@@ -49,6 +49,7 @@ def main():
         data_status,
         dcf,
         debug,
+        filing_balance_sheet,
         filings,
         historical_valuation,
         load_data,
@@ -80,6 +81,7 @@ def main():
     debug.register(sub)
     sql_analysis.register(sub)
     filings.register(sub)
+    filing_balance_sheet.register(sub)
     register_methodologies(sub)
 
     if len(sys.argv) == 1:
