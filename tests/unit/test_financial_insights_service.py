@@ -8,6 +8,8 @@ from pathlib import Path
 
 from backend.services.financial_insights_service import (
     FinancialInsightsService,
+    _cagr,
+    _trend,
     insight_rows,
     report_from_payload,
     report_to_payload,
@@ -27,6 +29,19 @@ def _report(facts, ticker="TEST", company_name="Test Co."):
 
 def _metric(report, name):
     return next(insight for insight in report.metrics if insight.metric == name)
+
+
+def _fact(concept: str, year: int, value: str) -> dict:
+    return {
+        "concept": concept,
+        "fiscal_year": year,
+        "fiscal_period": "FY",
+        "value": value,
+        "unit": "USD",
+        "period_end": f"{year}-12-31",
+        "namespace": "us-gaap",
+        "frame": "",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +150,75 @@ def test_cagr_is_none_when_the_base_is_not_positive():
     # 2019 gross profit is -5, so the 5-year base is not positive.
     assert gross_profit.cagr_5y is None
     assert gross_profit.cagr_5y_display == "—"
+
+
+def test_cagr_is_none_for_non_positive_endpoints():
+    series = {
+        2020: 100.0,
+        2021: 110.0,
+        2022: 120.0,
+        2023: 130.0,
+        2024: 140.0,
+        2025: 150.0,
+    }
+    assert isinstance(_cagr(series, 5), float)  # normal positive case
+    assert _cagr({**series, 2020: 0.0}, 5) is None  # base == 0
+    assert _cagr({**series, 2020: -100.0}, 5) is None  # base < 0
+    assert _cagr({**series, 2025: -150.0}, 5) is None  # latest < 0 (complex)
+    assert _cagr({**series, 2025: 0.0}, 5) is None  # latest == 0
+
+
+def test_metric_with_negative_latest_does_not_raise():
+    """Regression (BA/WFC/INTC): positive base, negative latest year.
+
+    Before the guard, ``(latest / base) ** (1 / span)`` was complex and the
+    trend comparison raised ``TypeError: '>' not supported between
+    instances of 'complex' and 'int'``.
+    """
+    facts = [
+        _fact("NetIncomeLoss", year, value)
+        for year, value in (
+            (2020, "100"),
+            (2021, "90"),
+            (2022, "80"),
+            (2023, "70"),
+            (2024, "60"),
+            (2025, "-10"),
+        )
+    ]
+    report = _report(facts)  # must not raise
+    net_income = _metric(report, "net_income")
+    assert net_income.cagr_5y is None
+    assert net_income.cagr_5y_display == "—"
+    assert net_income.trend in {"growing", "stable", "declining"}
+    assert net_income.yoy_display.startswith("-")  # 60 -> -10
+
+
+def test_turnaround_with_a_loss_base_falls_back_to_yoy():
+    facts = [
+        _fact("NetIncomeLoss", year, value)
+        for year, value in (
+            (2020, "-50"),
+            (2021, "10"),
+            (2022, "20"),
+            (2023, "30"),
+            (2024, "40"),
+            (2025, "50"),
+        )
+    ]
+    report = _report(facts)
+    net_income = _metric(report, "net_income")
+    assert net_income.cagr_5y is None  # the base year is a loss
+    assert net_income.trend == "growing"  # falls back to the +25% YoY
+
+
+def test_trend_defends_against_a_complex_cagr():
+    """Belt-and-braces: a complex value must never crash the comparisons."""
+    assert _trend("currency", 1 + 2j, 5.0, {2024: 1.0, 2025: 2.0}) in {
+        "growing",
+        "stable",
+        "declining",
+    }
 
 
 def test_yoy_is_none_when_the_prior_year_is_zero():

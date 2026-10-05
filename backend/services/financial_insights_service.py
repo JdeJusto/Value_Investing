@@ -285,7 +285,10 @@ def _cagr(series: dict[int, float], window: int) -> float | None:
     """Compound annual growth over ``window`` years (B3.3).
 
     Uses the oldest value within the window; requires a span of at least
-    ``window - 1`` years and a positive base.
+    ``window - 1`` years and **strictly positive** endpoints. A negative
+    ratio would make ``ratio ** (1 / span)`` a complex number in Python 3
+    (e.g. a loss year), so non-positive base/latest return ``None`` and the
+    trend falls back to the YoY change.
     """
     if not series:
         return None
@@ -298,9 +301,13 @@ def _cagr(series: dict[int, float], window: int) -> float | None:
     if span < window - 1:
         return None
     base = series[base_year]
-    if base <= 0:
+    latest = series[latest_year]
+    if base <= 0 or latest <= 0:
         return None
-    return ((series[latest_year] / base) ** (1 / span) - 1) * 100
+    result = ((latest / base) ** (1 / span) - 1) * 100
+    # Belt and braces: with positive endpoints the result is real, but a
+    # complex value must never reach the trend comparisons.
+    return result if isinstance(result, float) else None
 
 
 def _average_5y(series: dict[int, float]) -> float | None:
@@ -330,6 +337,10 @@ def _trend(
     kind: str, cagr_5y: float | None, yoy: float | None, series: dict[int, float]
 ) -> str:
     """B3.5 trend; percent-kind metrics fall back to their YoY (in pp)."""
+    if cagr_5y is not None and not isinstance(cagr_5y, (int, float)):
+        # Safety net: the _cagr guard never returns a complex, but a future
+        # regression must not crash the comparisons below.
+        cagr_5y = None
     if cagr_5y is not None:
         if cagr_5y > 5 or (
             cagr_5y > 0
