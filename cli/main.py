@@ -53,6 +53,7 @@ def main():
         filing_section,
         filing_statement,
         filings,
+        financial_alerts,
         historical_valuation,
         load_data,
         momentum,
@@ -86,6 +87,7 @@ def main():
     filing_balance_sheet.register(sub)
     filing_statement.register(sub)
     filing_section.register(sub)
+    financial_alerts.register(sub)
     register_methodologies(sub)
 
     if len(sys.argv) == 1:
