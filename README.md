@@ -320,6 +320,18 @@ under `data/raw/filings/` (HTML) and the matching JSON parse cache. In the
 UI the Filings tab lists every filing, previews the statement you pick, and
 shows Risk Factors / MD&A with an explicit Load button.
 
+### Full financial statements
+
+The Analysis page has a **Financials** tab that shows every fact stored in
+Financial-DataBase for the company, grouped by statement type (Balance Sheet,
+Income Statement, Cash Flow, Other) and organized by fiscal year. Rows
+preserve the original filing format and are searchable and exportable to CSV.
+
+This reads the raw XBRL facts, not just the mapped VO fields — you see the
+complete picture as filed. Filter by fiscal period (FY/Q1–Q4), the last N
+years (up to 20), and unit (USD, shares, USD/shares, pure); concepts the
+classifier cannot place land in "Other" so nothing is hidden.
+
 ### Portfolio
 
 ```bash

@@ -217,3 +217,18 @@ to the raw HTML under `data/raw/filings/`
 No LLM is used; the user reads the source directly. See
 `docs/narrative_extraction.md` for the strategy and design notes.
 
+## Financials view
+
+The Analysis page's Financials tab reads *all* facts from
+`financial_facts` via `FinancialsViewService`
+(`backend/services/financials_view_service.py`; one SQL pass through
+`FinancialDatabaseRepository.list_all_facts`), classifies each XBRL concept
+into a statement type — curated repository mappings first, then family
+heuristics — and renders one row per concept with one column per fiscal
+year. Concepts the classifier cannot place go into an "Other" bucket so
+nothing is hidden; values preserve the filing convention ("$29,943",
+"(7,172)"). The demo bundle ships capped fixtures
+(`data/demo/financials/`, built by `scripts/build_demo_financials.py`).
+The sidebar reserves a placeholder for the future deterministic alerts
+panel (see `docs/backlog.md`).
+
