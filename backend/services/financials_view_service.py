@@ -265,12 +265,13 @@ def filter_rows(
     return kept
 
 
-def _dedupe_facts(facts: list[dict], years: set[int]) -> dict[tuple[str, int], dict]:
+def dedupe_facts(facts: list[dict], years: set[int]) -> dict[tuple[str, int], dict]:
     """One fact per (concept, fiscal_year): the latest ``period_end`` wins.
 
     FDB stores the comparative years embedded in each filing under the same
     fiscal-year bucket (FY2025 also carries period_end 2024-09-28), so the
-    newest period_end is the value as of that year's own year-end.
+    newest period_end is the value as of that year's own year-end. Shared by
+    the Financials view and the insights panel so both read the same values.
     """
     ordered = sorted(
         facts,
@@ -337,25 +338,45 @@ class FinancialsViewService:
             self._repo = build_financial_repository()
         return self._repo
 
+    def fetch_facts(
+        self,
+        ticker: str,
+        fiscal_period: str = "FY",
+        max_years: int = DEFAULT_MAX_YEARS,
+    ) -> list[dict]:
+        """The raw fact rows the view (and the insights) read: one query."""
+        repo = self._repository()
+        if repo is None or not hasattr(repo, "list_all_facts"):
+            return []
+        return repo.list_all_facts(
+            ticker.upper().strip(),
+            (fiscal_period or "FY").upper(),
+            max(1, min(int(max_years or DEFAULT_MAX_YEARS), MAX_YEARS_CAP)),
+        )
+
     def build(
         self,
         ticker: str,
         fiscal_period: str = "FY",
         max_years: int = DEFAULT_MAX_YEARS,
+        facts: list[dict] | None = None,
     ) -> FinancialsView | None:
-        """Full view, or ``None`` when the company has no stored facts."""
+        """Full view, or ``None`` when the company has no stored facts.
+
+        ``facts`` lets a caller that already fetched the rows (the UI loader,
+        the demo-fixture script) build both the view and the insights from a
+        single query; when omitted the repository is read here.
+        """
         ticker = (ticker or "").upper().strip()
         if not ticker:
             return None
         period = (fiscal_period or "FY").upper()
         years_cap = max(1, min(int(max_years or DEFAULT_MAX_YEARS), MAX_YEARS_CAP))
-        if is_demo():
+        if facts is None and is_demo():
             return self._demo_view(ticker, period, years_cap)
 
-        repo = self._repository()
-        if repo is None or not hasattr(repo, "list_all_facts"):
-            return None
-        facts = repo.list_all_facts(ticker, period, years_cap)
+        if facts is None:
+            facts = self.fetch_facts(ticker, period, years_cap)
         if not facts:
             return None
 
@@ -370,7 +391,7 @@ class FinancialsViewService:
         if not years:
             return None
 
-        latest = _dedupe_facts(facts, set(years))
+        latest = dedupe_facts(facts, set(years))
         by_concept: dict[str, dict[int, dict]] = {}
         for (concept, year), fact in latest.items():
             by_concept.setdefault(concept, {})[year] = fact
