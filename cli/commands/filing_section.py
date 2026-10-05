@@ -12,11 +12,6 @@ from __future__ import annotations
 from backend.app.cli import add_demo_argument
 from cli.formatters import print_header, red, yellow
 
-_SOURCE_LABELS = {
-    "toc_anchor": "TOC anchor",
-    "text_search": "Text search",
-}
-
 
 def register(subparsers):
     p = subparsers.add_parser(
@@ -57,6 +52,7 @@ def _run(args):
     from backend.services.filing_service import DEFAULT_FORM_TYPES, FilingService
     from backend.services.narrative_extractor import (
         INCORPORATION_WARNING,
+        SOURCE_LABELS,
         SectionType,
         load_narrative_section,
     )
@@ -98,7 +94,7 @@ def _run(args):
 
     print()
     print(f"  Word count : {section.word_count:,}")
-    print(f"  Source     : {_SOURCE_LABELS.get(section.source, section.source)}")
+    print(f"  Source     : {SOURCE_LABELS.get(section.source, section.source)}")
     print(f"  Title      : {section.title}")
 
     if any(w == INCORPORATION_WARNING for w in section.extraction_warnings):

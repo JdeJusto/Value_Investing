@@ -25,6 +25,7 @@ from backend.portfolio.allocation import (
     sector_exposure,
 )
 from backend.portfolio.performance import portfolio_performance
+from backend.services.narrative_extractor import SOURCE_LABELS
 from backend.services.screener_filters import is_investable_company
 from backend.valuation.dcf import DCFValuation
 
@@ -866,12 +867,6 @@ def render_statement_preview(
     }
 
 
-_SOURCE_LABELS = {
-    "toc_anchor": "TOC anchor",
-    "text_search": "Text search",
-}
-
-
 def render_narrative_preview(record: Any, section_type: Any, loader) -> dict[str, Any]:
     """Pure view-model for the Filings tab's narrative preview.
 
@@ -913,7 +908,7 @@ def render_narrative_preview(record: Any, section_type: Any, loader) -> dict[str
         "text": section.text,
         "word_count": section.word_count,
         "source": section.source,
-        "source_label": _SOURCE_LABELS.get(section.source, section.source),
+        "source_label": SOURCE_LABELS.get(section.source, section.source),
         "title": section.title,
         "warnings": list(section.extraction_warnings),
         "message": None,

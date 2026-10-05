@@ -53,6 +53,12 @@ INCORPORATION_WARNING = (
     "may be in another section, an exhibit, or another document."
 )
 
+#: Human labels for the extraction sources (CLI captions, UI previews).
+SOURCE_LABELS: dict[str, str] = {
+    "toc_anchor": "TOC anchor",
+    "text_search": "Text search",
+}
+
 
 class SectionType(str, Enum):
     RISK_FACTORS = "risk_factors"
