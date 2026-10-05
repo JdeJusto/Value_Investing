@@ -61,13 +61,11 @@ Phase E (file splits, pure moves — tests unchanged):
 
 ## Remaining split candidates (future)
 
-- `ui_adapter.py` (921): the portfolio block (`PortfolioView` + actions,
-  ~400 lines) can move to `portfolio_adapter.py`; it shares `DASH` and
-  `fmt_or_dash` with the kept part, so first extract those to a small
-  `ui_format.py` to avoid an import cycle, then split.
-- The repository class (1873) needs mixin-style splits (lookup /
-  normalization / reads); single-class files (`price_service`, `dcf`,
-  methodology classes) need concern-based mixins.
+- `ui_adapter.py` is now 683 lines (general adapter + reports parsing +
+  screener helpers); the reports/screener helpers could move to their own
+  modules in a later pass.
+- The repository facade is thin (160); single-class files
+  (`price_service`, `dcf`, methodology classes) need concern-based mixins.
 - `backend/config/settings.py` vs `backend/core/config.py` overlap
   (DEFAULT_* constants) — not a pure move (different APIs); consolidate
   deliberately in a future session.
@@ -128,7 +126,24 @@ Targets: facade < 400 lines, each mixin < 500.
 - Quickdraw: open a real issue (missing docstring), fix it, close it
   within 5 minutes.
 
-- [ ] PR #1: split ui_adapter
-- [ ] PR #2: split financial_database_repository
-- [ ] PR #3: FDB small contribution
-- [ ] Issue + close: Quickdraw
+- [x] PR #1: split ui_adapter
+- [x] PR #2: split financial_database_repository
+- [x] PR #3: FDB small contribution
+- [x] Issue + close: Quickdraw
+
+## Executed in v0.10.2 (via PRs)
+
+- **PR #20** — `ui_adapter.py` 916 → 683: `ui_format.py` (DASH/fmt_or_dash,
+  20 lines) and `portfolio_adapter.py` (250 lines) extracted; `ui_adapter`
+  re-exports the moved names (`# noqa: F401` pattern). New coverage in
+  `tests/unit/test_portfolio_adapter.py` (co-authored commit).
+- **PR #21** — `financial_database_repository.py` 1873 → 160: per-concern
+  mixins in `backend/repositories/fdb_mixins/` (facts 408, normalization
+  470, shares 338, fiscal year 175, filings 130, lookups 209, helpers 73);
+  the module keeps the connection/cache core and composes them. Pure move,
+  tests unchanged.
+- **PR #3 (Financial-DataBase)** — `financial-database --version` reported
+  a hardcoded `0.3.0`; it now reads `__version__` and the
+  release-consistency suite covers the CLI.
+- **Issue #22** — docstrings for the alert notifier helpers (`lab`,
+  `console_only`), fixed and closed in 5 seconds.

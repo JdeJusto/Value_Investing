@@ -246,16 +246,21 @@ skipped, never fired. Thresholds and rationale: `docs/financial_alerts.md`.
 The sidebar panel (`st.error/warning/info`) and the `financial-alerts` CLI
 (exit 1 on CRITICAL) consume the same report.
 
-## Module layout notes (v0.10.0)
+## Module layout notes (v0.10.2)
 
 - XBRL concept maps and priority rankings live in
-  `backend/repositories/fdb_concept_mapping.py`; the repository and the
-  view/insights services import them from there.
+  `backend/repositories/fdb_concept_mapping.py`.
+- The repository is a facade over `backend/repositories/fdb_mixins/`
+  (facts, normalization, shares, fiscal year, filings, lookups + shared
+  helpers); it keeps the connection/cache core.
+- UI adapters: `ui_format.py` (tiny display helpers),
+  `portfolio_adapter.py` (portfolio view-models), `ui_adapter.py` (general
+  adapter; re-exports the moved portfolio names for compatibility).
 - The read-only Financial-DataBase freshness gateway lives in
   `backend/services/fdb_gateway.py`.
 - CLI verdict/confidence colors are shared from `cli/formatters.py`
   (`verdict_color`, `confidence_color`); `dcf.py` keeps its DCF-specific
   verdict map.
-- The duplication audit and the remaining split candidates (repository
-  mixins, `ui_adapter` portfolio block) are in `docs/refactor_audit.md`.
+- The duplication audit and the remaining split candidates are in
+  `docs/refactor_audit.md`.
 
