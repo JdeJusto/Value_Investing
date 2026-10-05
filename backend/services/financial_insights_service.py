@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from backend.repositories.financial_database_repository import (
+from backend.repositories.fdb_concept_mapping import (
     BALANCE_SHEET_CONCEPTS,
     CASH_FLOW_FIELD_PRIORITY,
     DEBT_CURRENT_PRIORITY,
