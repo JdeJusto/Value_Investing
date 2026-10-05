@@ -53,7 +53,7 @@ the CLI and the Raw tab are the full-precision references).
 
 ```python
 abbreviate_number(value, unit="USD", decimals=2)  # with $ / sh suffix
-abbreviate_value(value, unit, decimals=2)         # no currency symbol
+abbreviate_value(value, unit, decimals=2)  # no currency symbol
 ```
 
 The existing `format_fact_value` / `format_metric_value` / `fmt_or_dash`
