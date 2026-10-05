@@ -107,6 +107,14 @@ def main() -> None:
         "Six book methodologies + DCF for one ticker; comma-separated list for a quick compare.",
     )
     ticker = st.text_input("Ticker", value="AAPL", max_chars=10, key="an_ticker")
+    if is_demo():
+        if ticker.strip() and not is_demo_ticker(ticker):
+            st.warning(_demo_unsupported_message(ticker.strip().upper()))
+        else:
+            st.caption(
+                f"Demo mode: available tickers are **{', '.join(DEMO_TICKERS)}**. "
+                "Any other ticker will show an error."
+            )
     multi = st.text_input(
         "Multi-ticker compare (comma-separated, optional)",
         placeholder="AAPL, MSFT, KO",
@@ -124,10 +132,37 @@ def main() -> None:
         st.info("Enter a ticker and press Analyze.")
         return
     if mode == "multi":
+        if is_demo():
+            supported = [name for name in names if is_demo_ticker(name)]
+            dropped = [name for name in names if not is_demo_ticker(name)]
+            if dropped:
+                st.caption(
+                    "Demo mode: ignoring tickers without fixtures: "
+                    + ", ".join(dropped)
+                )
+            if not supported:
+                st.warning(
+                    "None of the requested tickers are in the demo bundle. "
+                    f"Demo mode includes: {', '.join(DEMO_TICKERS)}. "
+                    "To analyze other tickers, run the app without `VI_DEMO=1` "
+                    "and with access to Financial-DataBase."
+                )
+                return
+            names = supported
         for name in names:
             _render_compact(name)
     else:
         _render_single(names[0])
+
+
+def _demo_unsupported_message(ticker: str) -> str:
+    """Actionable guidance for a ticker outside the demo bundle."""
+    return (
+        f"Ticker `{ticker}` is not in the demo bundle. "
+        f"Demo mode includes: {', '.join(DEMO_TICKERS)}. "
+        "To analyze other tickers, run the app without `VI_DEMO=1` "
+        "and with access to Financial-DataBase."
+    )
 
 
 def _render_missing_fundamentals(ticker: str) -> None:
@@ -138,12 +173,7 @@ def _render_missing_fundamentals(ticker: str) -> None:
     (report the bug), production + no data (check Financial-DataBase).
     """
     if is_demo() and not is_demo_ticker(ticker):
-        st.warning(
-            f"Ticker `{ticker}` is not in the demo bundle. "
-            f"Demo mode includes: {', '.join(DEMO_TICKERS)}. "
-            "To analyze other tickers, run the app without `VI_DEMO=1` "
-            "and with access to Financial-DataBase."
-        )
+        st.warning(_demo_unsupported_message(ticker))
     elif is_demo():
         st.error(
             f"Demo fixture for `{ticker}` exists but returned no data. "
