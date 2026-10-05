@@ -27,6 +27,7 @@ from backend.portfolio.allocation import (
 from backend.portfolio.performance import portfolio_performance
 from backend.services.narrative_extractor import SOURCE_LABELS
 from backend.services.screener_filters import is_investable_company
+from backend.services.ui_format import DASH, fmt_or_dash
 from backend.valuation.dcf import DCFValuation
 
 #: Human labels for the DCF variants. Mirrors ``cli/commands/dcf.py`` on
@@ -46,17 +47,6 @@ BASE_LABELS = {
     "ddm_financial_two_stage": "Dividend per share",
     "hyper_growth": "Normalized FCF base",
 }
-
-DASH = "—"
-
-
-def fmt_or_dash(value: Any, digits: int = 2, percent: bool = False) -> str:
-    """Format a number for display; ``None`` becomes an em dash, never 0."""
-    if value is None:
-        return DASH
-    if percent:
-        return f"{value:.{digits}%}"
-    return f"{value:,.{digits}f}"
 
 
 def fmt_money_short(value: Any) -> str:
