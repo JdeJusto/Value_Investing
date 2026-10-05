@@ -53,7 +53,7 @@ def _portfolio_summary() -> None:
     )
     portfolio = load_portfolio(path)
     if portfolio is None:
-        st.error(f"No se pudo leer la cartera en {path}.")
+        st.error(f"Could not read the portfolio at {path}.")
         return
     tickers = tuple(sorted({p.ticker for p in portfolio.positions if p.is_open}))
     sectors = load_sector_map(tickers) if tickers else {}

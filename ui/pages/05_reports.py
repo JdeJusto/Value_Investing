@@ -45,7 +45,7 @@ def main() -> None:
         cutoff = time.time() - days * 86400
         entries = [entry for entry in entries if entry["mtime"] >= cutoff]
         if not entries:
-            st.warning(f"No hay reports en los últimos {days} días.")
+            st.warning(f"No reports in the last {days} days.")
             return
 
     labels = [

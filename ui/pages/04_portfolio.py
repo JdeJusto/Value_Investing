@@ -52,7 +52,7 @@ def main() -> None:
     )
     portfolio = load_portfolio(path)
     if portfolio is None:
-        st.error(f"No se pudo leer la cartera en {path}.")
+        st.error(f"Could not read the portfolio at {path}.")
         return
     _render_flash()
     tabs = st.tabs(["Positions", "Performance"])
@@ -71,7 +71,7 @@ def _view(portfolio):
 def _positions_tab(portfolio, path: str) -> None:
     view = _view(portfolio)
     if view.is_empty:
-        st.info("No hay posiciones todavía. Añade la primera con el formulario.")
+        st.info("No positions yet — add your first one with the form below.")
     else:
         st.dataframe(view.positions, width="stretch", hide_index=True)
         _render_position_actions(portfolio, path)
@@ -83,7 +83,7 @@ def _positions_tab(portfolio, path: str) -> None:
 def _performance_tab(portfolio) -> None:
     view = _view(portfolio)
     if view.is_empty:
-        st.info("Sin posiciones: no hay rendimiento que mostrar.")
+        st.info("No positions — nothing to show in performance.")
         return
     metric_row(
         [

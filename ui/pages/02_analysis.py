@@ -15,6 +15,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
+from backend.services.demo_mode import DEMO_TICKERS, is_demo, is_demo_ticker
 from backend.services.financial_statement_parser import load_financial_statement
 from backend.services.ui_adapter import (
     fmt_money_short,
@@ -74,7 +75,6 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
     changes on a SEC sync. Demo mode reads the pinned fixtures instead.
     """
     from backend.services.alert_service import AlertService, load_demo_alerts
-    from backend.services.demo_mode import is_demo
     from backend.services.financial_insights_service import (
         FinancialInsightsService,
         load_demo_insights,
@@ -130,10 +130,37 @@ def main() -> None:
         _render_single(names[0])
 
 
+def _render_missing_fundamentals(ticker: str) -> None:
+    """Mode-aware guidance when a ticker has no fundamentals.
+
+    Three distinct situations so the user always knows what to do:
+    demo + unsupported ticker (list the bundle), demo + broken fixture
+    (report the bug), production + no data (check Financial-DataBase).
+    """
+    if is_demo() and not is_demo_ticker(ticker):
+        st.warning(
+            f"Ticker `{ticker}` is not in the demo bundle. "
+            f"Demo mode includes: {', '.join(DEMO_TICKERS)}. "
+            "To analyze other tickers, run the app without `VI_DEMO=1` "
+            "and with access to Financial-DataBase."
+        )
+    elif is_demo():
+        st.error(
+            f"Demo fixture for `{ticker}` exists but returned no data. "
+            "This is a bug — please report it."
+        )
+    else:
+        st.warning(
+            f"No fundamentals found for `{ticker}`. "
+            "Verify the ticker is listed on a supported exchange and "
+            "that Financial-DataBase has data for it."
+        )
+
+
 def _render_single(ticker: str) -> None:
     rows = load_fundamentals(ticker)
     if not rows:
-        st.error(f"No hay fundamentales para {ticker}.")
+        _render_missing_fundamentals(ticker)
         return
     quote = load_quote(ticker)
     _price_header(ticker, rows, quote)
@@ -379,7 +406,7 @@ def _filings(ticker: str) -> None:
 def _render_compact(ticker: str) -> None:
     rows = load_fundamentals(ticker)
     if not rows:
-        st.warning(f"{ticker}: sin fundamentales.")
+        _render_missing_fundamentals(ticker)
         return
     quote = load_quote(ticker)
     view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
