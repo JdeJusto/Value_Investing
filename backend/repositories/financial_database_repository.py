@@ -1417,6 +1417,60 @@ class FinancialDatabaseRepository(FinancialRepository):
             cur.execute(sql, tuple(params))
             return [dict(row) for row in cur.fetchall()]
 
+    def list_all_facts(
+        self,
+        ticker: str,
+        fiscal_period: str = "FY",
+        max_years: int | None = None,
+    ) -> list[dict]:
+        """Every stored fact for a ticker as flat dicts (no VO mapping).
+
+        Unlike ``list_years`` (which normalizes facts into the mapped
+        statement fields), this returns *all* XBRL concepts in the company's
+        history for the requested fiscal period, so the Financials view can
+        show the complete picture as stored. Rows carry ``{concept,
+        fiscal_year, fiscal_period, value, unit, period_end, namespace,
+        frame}``; ``value`` stays numeric (callers format for display).
+
+        ``max_years`` pushes the history cap into SQL (newest N fiscal
+        years), matching ``list_years``. A broken listing degrades to [].
+        """
+        ticker = ticker.upper()
+        try:
+            company_id = self._get_company_id_by_ticker(ticker)
+            if not company_id:
+                return []
+            sql = """
+                SELECT
+                    f.concept,
+                    f.fiscal_year,
+                    f.fiscal_period,
+                    f.value,
+                    f.unit,
+                    f.period_end,
+                    f.namespace,
+                    f.frame
+                FROM financial_facts f
+                WHERE f.company_id = %s
+                  AND UPPER(f.fiscal_period) = %s
+            """
+            params: list = [company_id, fiscal_period.upper()]
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                if max_years is not None:
+                    min_year = self._min_fiscal_year(cur, company_id, max_years)
+                    if min_year is not None:
+                        sql += " AND f.fiscal_year >= %s"
+                        params.append(min_year)
+                sql += (
+                    " ORDER BY f.concept ASC, f.fiscal_year DESC,"
+                    " f.period_end DESC NULLS LAST"
+                )
+                cur.execute(sql, tuple(params))
+                return [dict(row) for row in cur.fetchall()]
+        except Exception:  # noqa: BLE001 — a broken listing degrades to no facts
+            return []
+
     @staticmethod
     def _min_fiscal_year(cur, company_id: str, max_years: int) -> int | None:
         """Oldest fiscal year a ``max_years`` cap should read (newest N)."""
