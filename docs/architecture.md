@@ -223,12 +223,30 @@ The Analysis page's Financials tab reads *all* facts from
 `financial_facts` via `FinancialsViewService`
 (`backend/services/financials_view_service.py`; one SQL pass through
 `FinancialDatabaseRepository.list_all_facts`), classifies each XBRL concept
-into a statement type — curated repository mappings first, then family
-heuristics — and renders one row per concept with one column per fiscal
-year. Concepts the classifier cannot place go into an "Other" bucket so
-nothing is hidden; values preserve the filing convention ("$29,943",
-"(7,172)"). The demo bundle ships capped fixtures
+into a statement type — curated mappings from
+`backend/repositories/fdb_concept_mapping.py` first, then family heuristics —
+and renders one row per concept with one column per fiscal year. Concepts
+the classifier cannot place go into an "Other" bucket so nothing is hidden;
+values preserve the filing convention ("$29,943", "(7,172)"). The same facts
+read also feeds `FinancialInsightsService`
+(`backend/services/financial_insights_service.py`), which derives the
+Summary panel: latest value, YoY, 5/10-year CAGR, trend and stability per
+metric (percent-kind metrics report their YoY in percentage points). No
+second source, no LLM. The demo bundle ships capped fixtures
 (`data/demo/financials/`, built by `scripts/build_demo_financials.py`).
 The sidebar reserves a placeholder for the future deterministic alerts
 panel (see `docs/backlog.md`).
+
+## Module layout notes (v0.10.0)
+
+- XBRL concept maps and priority rankings live in
+  `backend/repositories/fdb_concept_mapping.py`; the repository and the
+  view/insights services import them from there.
+- The read-only Financial-DataBase freshness gateway lives in
+  `backend/services/fdb_gateway.py`.
+- CLI verdict/confidence colors are shared from `cli/formatters.py`
+  (`verdict_color`, `confidence_color`); `dcf.py` keeps its DCF-specific
+  verdict map.
+- The duplication audit and the remaining split candidates (repository
+  mixins, `ui_adapter` portfolio block) are in `docs/refactor_audit.md`.
 

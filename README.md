@@ -332,6 +332,21 @@ complete picture as filed. Filter by fiscal period (FY/Q1–Q4), the last N
 years (up to 20), and unit (USD, shares, USD/shares, pure); concepts the
 classifier cannot place land in "Other" so nothing is hidden.
 
+### Financial insights
+
+The Financials tab opens with a **Summary** panel computed from the same
+facts as the tables (no LLM, no second source). For every key metric —
+revenue, gross/operating/net income, EPS, assets, liabilities, equity, cash,
+debt, operating cash flow, capex, free cash flow, dividends, and the derived
+margins, ROE/ROA, debt-to-equity and FCF conversion — it shows:
+
+| Metric | Latest | YoY | 5y CAGR | Trend | Stability |
+| --- | --- | --- | --- | --- | --- |
+| Revenue | $416,161,000,000 | +6.4% | +8.7% | growing | volatile |
+| Net Margin | 26.9% | +2.9pp | +42.3% | growing | volatile |
+
+The panel is searchable and exportable to CSV like the statement tables.
+
 ### Portfolio
 
 ```bash
