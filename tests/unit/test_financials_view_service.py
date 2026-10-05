@@ -51,8 +51,8 @@ def test_build_populates_every_bucket():
     assert view.ticker == "AAPL"
     assert view.company_name == "Apple Inc."
     assert view.fiscal_period == "FY"
-    assert len(view.balance_sheet) == 13
-    assert len(view.income_statement) == 8
+    assert len(view.balance_sheet) == 15
+    assert len(view.income_statement) == 9
     assert len(view.cash_flow) == 4
     assert len(view.other) == 2
 

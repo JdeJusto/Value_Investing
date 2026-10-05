@@ -55,6 +55,10 @@ class MetricInsight:
     yoy_display: str = "—"
     cagr_5y_display: str = "—"
     cagr_10y_display: str = "—"
+    #: Raw per-year values behind the statistics (fiscal_year -> value).
+    series: dict[int, float] = field(default_factory=dict)
+    #: Percentage-point change for percent-kind metrics (else None).
+    yoy_pp: float | None = None
 
 
 @dataclass
@@ -103,6 +107,12 @@ _METRIC_SPECS: tuple[_MetricSpec, ...] = (
         concepts=_field_concepts(INCOME_STATEMENT_CONCEPTS, "operating_income"),
     ),
     _MetricSpec(
+        "operating_expenses",
+        "Operating Expenses",
+        "currency",
+        concepts=_field_concepts(INCOME_STATEMENT_CONCEPTS, "operating_expense"),
+    ),
+    _MetricSpec(
         "net_income",
         "Net Income",
         "currency",
@@ -143,12 +153,27 @@ _METRIC_SPECS: tuple[_MetricSpec, ...] = (
         concepts=_field_concepts(BALANCE_SHEET_CONCEPTS, "cash_and_equivalents"),
     ),
     _MetricSpec(
+        "inventory",
+        "Inventory",
+        "currency",
+        concepts=_field_concepts(BALANCE_SHEET_CONCEPTS, "inventory"),
+    ),
+    _MetricSpec(
         "long_term_debt",
         "Long-Term Debt",
         "currency",
         concepts=tuple(DEBT_NONCURRENT_PRIORITY),
     ),
     _MetricSpec("total_debt", "Total Debt", "currency", special="total_debt"),
+    _MetricSpec(
+        "diluted_shares",
+        "Diluted Shares Outstanding",
+        "shares",
+        concepts=(
+            "WeightedAverageNumberOfDilutedSharesOutstanding",
+            "WeightedAverageNumberOfSharesOutstandingDiluted",
+        ),
+    ),
     # Cash flow.
     _MetricSpec(
         "operating_cash_flow",
@@ -212,7 +237,7 @@ _METRIC_SPECS: tuple[_MetricSpec, ...] = (
 )
 
 
-def _format_value(kind: str, value: float | None) -> str:
+def format_metric_value(kind: str, value: float | None) -> str:
     """Statement-convention formatting, shared with the Financials tables."""
     if value is None:
         return "—"
@@ -450,12 +475,12 @@ class FinancialInsightsService:
         return MetricInsight(
             metric=spec.metric,
             label=spec.label,
-            latest_value=_format_value(spec.kind, latest),
+            latest_value=format_metric_value(spec.kind, latest),
             latest_year=latest_year,
             yoy_change_pct=yoy,
             cagr_5y=cagr_5y,
             cagr_10y=cagr_10y,
-            average_5y=_format_value(spec.kind, average),
+            average_5y=format_metric_value(spec.kind, average),
             trend=_trend(spec.kind, cagr_5y, yoy, series),
             stability=_stability(series),
             direction_changed=_direction_changed(series),
@@ -468,6 +493,8 @@ class FinancialInsightsService:
             ),
             cagr_5y_display=_format_change(cagr_5y, "%"),
             cagr_10y_display=_format_change(cagr_10y, "%"),
+            series=dict(series),
+            yoy_pp=pp if spec.kind == "percent" else None,
         )
 
 
