@@ -589,6 +589,13 @@ def _financials(ticker: str) -> None:
         "Source: Financial-DataBase (SEC EDGAR) · Fiscal period: "
         f"{view.fiscal_period} · Values preserve the original filing format."
     )
+    # Reserved space for the future deterministic alerts panel (see
+    # docs/backlog.md): the sidebar stays free next to the Financials tab.
+    with st.sidebar.expander("Alerts (coming soon)"):
+        st.write(
+            "Real-time alerts (low cash, margin collapse, debt spike) will "
+            "appear here in a future version."
+        )
 
 
 def _raw(ticker: str) -> None:

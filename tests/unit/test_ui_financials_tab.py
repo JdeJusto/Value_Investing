@@ -144,3 +144,18 @@ def test_demo_fixtures_are_capped():
         assert len(payload["years"]) == 10
         assert "Demo fixture" in payload["note"]
         assert path.stat().st_size < 40 * 1024
+
+
+def test_each_subtab_has_a_csv_download(monkeypatch):
+    at = _run(monkeypatch)
+    buttons = at.get("download_button")
+    assert len(buttons) >= 4  # one per statement sub-tab
+
+
+def test_alerts_placeholder_is_reserved(monkeypatch):
+    at = _run(monkeypatch)
+    alerts = next(
+        expander for expander in at.expander if expander.label == "Alerts (coming soon)"
+    )
+    text = " ".join(markdown.value for markdown in alerts.markdown)
+    assert "Real-time alerts" in text
