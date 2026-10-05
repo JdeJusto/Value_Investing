@@ -81,6 +81,24 @@ def test_normalize_rows_keeps_numeric_columns():
     assert normalized[1]["A"] is None
 
 
+def test_no_deprecated_use_container_width_in_the_ui():
+    """Streamlit removes ``use_container_width`` after 2025-12-31.
+
+    The replacement is ``width='stretch'``/``width='content'`` (>= 1.49);
+    this static guard keeps the deprecated parameter from coming back.
+    """
+    root = Path(__file__).resolve().parents[2]
+    hits = [
+        f"{path.relative_to(root)}:{number}"
+        for path in (root / "ui").rglob("*.py")
+        for number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), 1
+        )
+        if "use_container_width" in line
+    ]
+    assert hits == [], f"deprecated use_container_width: {hits}"
+
+
 # ---------------------------------------------------------------------------
 # Daily report parsing (Home)
 # ---------------------------------------------------------------------------

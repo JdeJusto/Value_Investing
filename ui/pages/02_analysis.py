@@ -236,7 +236,7 @@ def _filings(ticker: str) -> None:
     event = st.dataframe(
         frame,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         on_select="rerun",
         selection_mode="single-row",
         column_config={
@@ -291,7 +291,7 @@ def _filings(ticker: str) -> None:
                         st.markdown(f"[Open it on SEC EDGAR]({preview['sec_url']})")
                 else:
                     st.dataframe(
-                        preview["table_rows"], hide_index=True, use_container_width=True
+                        preview["table_rows"], hide_index=True, width="stretch"
                     )
                     st.caption(preview["caption"])
                     if preview["warnings"]:
