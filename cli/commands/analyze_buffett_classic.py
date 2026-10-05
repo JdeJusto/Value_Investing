@@ -5,12 +5,11 @@ from __future__ import annotations
 from backend.app.cli import add_demo_argument, add_refresh_arguments
 from cli.formatters import (
     dim,
-    green,
     print_header,
     print_key_value,
     print_section,
     red,
-    yellow,
+    verdict_color,
 )
 
 
@@ -29,16 +28,6 @@ def register(subparsers):
     add_refresh_arguments(p)
     add_demo_argument(p)
     p.set_defaults(func=_run)
-
-
-def _verdict_color(verdict: str):
-    return {
-        "BUY": green,
-        "WATCH": yellow,
-        "HOLD": lambda t: t,
-        "AVOID": red,
-        "INSUFFICIENT_DATA": dim,
-    }.get(verdict, lambda t: t)(verdict)
 
 
 def _run(args):
@@ -65,7 +54,7 @@ def _run(args):
     result = methodology.evaluate(args.ticker, rows, prices)
 
     print_header(f"Buffett classic analysis — {args.ticker}")
-    print_key_value("Verdict", _verdict_color(result.verdict.value))
+    print_key_value("Verdict", verdict_color(result.verdict.value))
     print_key_value("Score", f"{result.score:.2f}" if result.score is not None else "—")
     print_key_value("Confidence", result.confidence.value)
 

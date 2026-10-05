@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from backend.app.cli import add_demo_argument
-from cli.formatters import bold, dim, print_header, print_section
+from cli.formatters import bold, dim, print_header, print_section, verdict_color
 
 
 def register(subparsers):
@@ -25,17 +25,6 @@ def register(subparsers):
     )
     add_demo_argument(p)
     p.set_defaults(func=_run)
-
-
-def _verdict_color(verdict: str):
-    from cli.formatters import green, red, yellow
-
-    return {
-        "BUY": green,
-        "WATCH": yellow,
-        "AVOID": red,
-        "INSUFFICIENT_DATA": dim,
-    }.get(verdict, lambda t: t)(verdict)
 
 
 def _run(args):
@@ -74,7 +63,7 @@ def _run(args):
         score = "—" if result.score is None else f"{result.score:.1f}"
         print(
             f"  {result.methodology:<18} "
-            f"{_verdict_color(result.verdict.value):<18} "
+            f"{verdict_color(result.verdict.value):<18} "
             f"{score:<8} "
             f"{result.confidence.value:<10}"
         )

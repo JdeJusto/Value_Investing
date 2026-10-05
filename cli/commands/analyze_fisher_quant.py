@@ -10,6 +10,7 @@ from cli.formatters import (
     print_key_value,
     print_section,
     red,
+    verdict_color,
     yellow,
 )
 
@@ -44,16 +45,6 @@ _STATUS_COLORS = {
 }
 
 
-def _verdict_color(verdict: str):
-    return {
-        "BUY": green,
-        "WATCH": yellow,
-        "HOLD": lambda t: t,
-        "AVOID": red,
-        "INSUFFICIENT_DATA": dim,
-    }.get(verdict, lambda t: t)(verdict)
-
-
 def _run(args):
     from backend.app.cli import build_financial_repository, refresh_analysis_inputs
     from backend.methodologies.registry import discover, registry
@@ -80,7 +71,7 @@ def _run(args):
     print_header(f"Fisher quantitative subset — {args.ticker}")
     print_key_value("Ticker", args.ticker.upper())
     print_key_value("Methodology", result.methodology)
-    print_key_value("Verdict", _verdict_color(result.verdict.value))
+    print_key_value("Verdict", verdict_color(result.verdict.value))
     print_key_value("Score", f"{result.score:.2f}" if result.score is not None else "—")
     print_key_value("Confidence", result.confidence.value)
 

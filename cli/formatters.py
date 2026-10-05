@@ -35,6 +35,24 @@ def dim(text: str) -> str:
     return f"{Colors.DIM}{text}{Colors.RESET}"
 
 
+def verdict_color(verdict: str) -> str:
+    """Method verdict -> terminal color (identity for HOLD/unknown)."""
+    return {
+        "BUY": green,
+        "WATCH": yellow,
+        "HOLD": lambda text: text,
+        "AVOID": red,
+        "INSUFFICIENT_DATA": dim,
+    }.get(verdict, lambda text: text)(verdict)
+
+
+def confidence_color(confidence: str) -> str:
+    """Confidence level -> terminal color (identity for unknown)."""
+    return {"HIGH": green, "MEDIUM": yellow, "LOW": red}.get(
+        confidence, lambda text: text
+    )(confidence)
+
+
 def fmt_pct(value: float | None, decimals: int = 1) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return dim("N/A")

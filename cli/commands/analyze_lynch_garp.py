@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from backend.app.cli import add_demo_argument, add_refresh_arguments
 from cli.formatters import (
+    confidence_color,
     dim,
     green,
     print_header,
     print_key_value,
     print_section,
     red,
+    verdict_color,
     yellow,
 )
 
@@ -29,22 +31,6 @@ def register(subparsers):
     add_refresh_arguments(p)
     add_demo_argument(p)
     p.set_defaults(func=_run)
-
-
-def _verdict_color(verdict: str):
-    return {
-        "BUY": green,
-        "WATCH": yellow,
-        "HOLD": lambda t: t,
-        "AVOID": red,
-        "INSUFFICIENT_DATA": dim,
-    }.get(verdict, lambda t: t)(verdict)
-
-
-def _confidence_color(confidence: str):
-    return {"HIGH": green, "MEDIUM": yellow, "LOW": red}.get(confidence, lambda t: t)(
-        confidence
-    )
 
 
 def _rule_color(outcome: str):
@@ -87,10 +73,10 @@ def _run(args):
     result = methodology.evaluate(ticker, rows, _Prices(price, market_cap))
 
     print_header(f"Lynch GARP analysis — {ticker}")
-    print_key_value("Verdict", _verdict_color(result.verdict.value))
+    print_key_value("Verdict", verdict_color(result.verdict.value))
     score = "—" if result.score is None else f"{result.score:.2f}"
     print_key_value("Score", score)
-    print_key_value("Confidence", _confidence_color(result.confidence.value))
+    print_key_value("Confidence", confidence_color(result.confidence.value))
     category = (result.metrics or {}).get("lynch_category_label")
     if category:
         print_key_value("Category", category)
