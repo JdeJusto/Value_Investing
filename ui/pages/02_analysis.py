@@ -64,6 +64,18 @@ def _load_narrative_cached(record_key: tuple, section_value: str) -> dict:
     )
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
+    """Cached full-facts view keyed by (ticker, period, years).
+
+    One SQL pass over the company's facts on the first visit; renders within
+    the TTL reuse it. The underlying data only changes on a SEC sync.
+    """
+    from backend.services.financials_view_service import FinancialsViewService
+
+    return FinancialsViewService().build(ticker, fiscal_period, max_years)
+
+
 def main() -> None:
     page_header(
         "Analysis",
@@ -102,7 +114,17 @@ def _render_single(ticker: str) -> None:
     with st.spinner(f"Evaluando metodologías y DCF para {ticker}..."):
         view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
         dcf = run_dcf(ticker, rows, get_price_service())
-    tabs = st.tabs(["Overview", "Methodologies", "DCF", "Historical", "Filings", "Raw"])
+    tabs = st.tabs(
+        [
+            "Overview",
+            "Methodologies",
+            "DCF",
+            "Historical",
+            "Filings",
+            "Financials",
+            "Raw",
+        ]
+    )
     with tabs[0]:
         _overview(rows, quote, view)
     with tabs[1]:
@@ -114,6 +136,8 @@ def _render_single(ticker: str) -> None:
     with tabs[4]:
         _filings(ticker)
     with tabs[5]:
+        _financials(ticker)
+    with tabs[6]:
         _raw(ticker)
 
 
@@ -482,6 +506,89 @@ def _historical(ticker: str) -> None:
         if fcf_rows:
             st.caption("FCF Yield por ejercicio (%)")
             st.line_chart(fcf_rows, x="Ejercicio", y="FCF Yield %")
+
+
+def _financials(ticker: str) -> None:
+    """Every FDB fact for the company: one row per concept, one column/year."""
+    from backend.services.financials_view_service import filter_rows, table_rows
+
+    st.caption(
+        "Fiscal data from Financial-DataBase — every fact stored for the "
+        "company (all XBRL concepts), not just the mapped fields."
+    )
+    col1, col2 = st.columns([2, 2])
+    with col1:
+        period = st.radio(
+            "Fiscal period",
+            ["FY", "Q1", "Q2", "Q3", "Q4"],
+            horizontal=True,
+            key=f"financials_period_{ticker}",
+        )
+    with col2:
+        max_years = int(
+            st.number_input(
+                "Show last N years",
+                min_value=1,
+                max_value=20,
+                value=10,
+                step=1,
+                key=f"financials_years_{ticker}",
+            )
+        )
+
+    view = _load_financials_cached(ticker, period, max_years)
+    if view is None:
+        st.info(
+            "No financial facts stored for this company (or the demo fixture "
+            "does not cover this period)."
+        )
+        return
+
+    all_rows = view.balance_sheet + view.income_statement + view.cash_flow + view.other
+    units = sorted({row.unit for row in all_rows if row.unit})
+    col3, col4 = st.columns([2, 3])
+    with col3:
+        selected_units = set(
+            st.multiselect(
+                "Unit",
+                units,
+                default=units,
+                key=f"financials_units_{ticker}",
+            )
+        )
+    with col4:
+        query = st.text_input(
+            "Search concepts",
+            placeholder="e.g. cash, revenue, NetIncomeLoss",
+            key=f"financials_search_{ticker}",
+        )
+
+    st.caption(
+        f"{len(all_rows)} concepts across {len(view.years)} years · "
+        f"{view.unmatched_count} in Other"
+    )
+    for warning in view.extraction_warnings:
+        st.caption(warning)
+
+    buckets = [
+        ("Balance Sheet", view.balance_sheet),
+        ("Income Statement", view.income_statement),
+        ("Cash Flow", view.cash_flow),
+        ("Other", view.other),
+    ]
+    sub_tabs = st.tabs([label for label, _ in buckets])
+    for sub_tab, (label, bucket) in zip(sub_tabs, buckets):
+        with sub_tab:
+            rows = filter_rows(bucket, query=query, units=selected_units)
+            dataframe_with_download(
+                table_rows(rows, view.years),
+                f"{ticker}_{label.lower().replace(' ', '_')}.csv",
+                f"financials_{label}_{ticker}",
+            )
+    st.caption(
+        "Source: Financial-DataBase (SEC EDGAR) · Fiscal period: "
+        f"{view.fiscal_period} · Values preserve the original filing format."
+    )
 
 
 def _raw(ticker: str) -> None:
