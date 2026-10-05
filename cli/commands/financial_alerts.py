@@ -106,10 +106,7 @@ def _run(args):
         f"Skipped: {report.rules_skipped} (insufficient data)"
     )
     print()
-    print(
-        "  Data source: Financial-DataBase (SEC EDGAR) · "
-        f"Fiscal period: {period}"
-    )
+    print(f"  Data source: Financial-DataBase (SEC EDGAR) · Fiscal period: {period}")
 
     if any(alert.severity == "CRITICAL" for alert in report.alerts):
         raise SystemExit(1)

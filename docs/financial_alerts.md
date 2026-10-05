@@ -68,13 +68,14 @@ Sorting: CRITICAL → WARNING → INFO; within a severity, by `rule_id`.
 ```python
 @dataclass(frozen=True)
 class Alert:
-    rule_id: str                # "low_cash_runway"
-    severity: str               # "INFO" | "WARNING" | "CRITICAL"
-    title: str                  # short human label
-    message: str                # one-sentence explanation
-    evidence: dict[str, str]    # formatted numbers that triggered it
-    metric_hint: str | None     # "revenue", "net_margin", ...
-    period: str                 # "FY2025"
+    rule_id: str  # "low_cash_runway"
+    severity: str  # "INFO" | "WARNING" | "CRITICAL"
+    title: str  # short human label
+    message: str  # one-sentence explanation
+    evidence: dict[str, str]  # formatted numbers that triggered it
+    metric_hint: str | None  # "revenue", "net_margin", ...
+    period: str  # "FY2025"
+
 
 @dataclass
 class AlertsReport:
@@ -82,7 +83,7 @@ class AlertsReport:
     company_name: str
     alerts: list[Alert]
     rules_evaluated: int
-    rules_skipped: int          # missing data — never a false positive
+    rules_skipped: int  # missing data — never a false positive
     warnings: list[str]
 ```
 
