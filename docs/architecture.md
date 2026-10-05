@@ -237,6 +237,15 @@ second source, no LLM. The demo bundle ships capped fixtures
 The sidebar reserves a placeholder for the future deterministic alerts
 panel (see `docs/backlog.md`).
 
+## Financial alerts
+
+`AlertService` (`backend/services/alert_service.py`) runs ten deterministic
+rules over the `InsightsReport` (same facts as the tables — no second read)
+and returns alerts with formatted evidence; a rule with missing data is
+skipped, never fired. Thresholds and rationale: `docs/financial_alerts.md`.
+The sidebar panel (`st.error/warning/info`) and the `financial-alerts` CLI
+(exit 1 on CRITICAL) consume the same report.
+
 ## Module layout notes (v0.10.0)
 
 - XBRL concept maps and priority rankings live in

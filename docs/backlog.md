@@ -82,19 +82,19 @@ closed. This file now tracks what remains.
   migrates to Ubuntu 26. Workflows are pinned to `ubuntu-24.04` (done);
   review and test on `ubuntu-26.04` when available.
 
-## Planned: real-time financial alerts
+## Shipped: real-time financial alerts (v0.10.1)
 
-When analyzing a company, show a panel of alerts based on the financials:
+Ten deterministic rules over the FDB facts (see `docs/financial_alerts.md`):
+low cash runway (CRITICAL); margin collapse, debt spike, inventory buildup,
+negative FCF streak, dividend cut (WARNING); revenue decline, earnings
+quality, EPS dilution, strong FCF conversion (INFO). UI sidebar panel +
+`financial-alerts` CLI (exit 1 on CRITICAL).
 
-- Low cash relative to operating expenses (< 6 months of runway)
-- Margin collapse (gross margin dropped > 5 pp YoY)
-- Debt spike (total debt / equity increased > 30% YoY)
-- Inventory buildup (inventory growth > 2x revenue growth)
-- Negative free cash flow for 2+ consecutive years
+Remaining follow-ups:
 
-The alerts panel slots in next to the Financials tab (its sidebar
-placeholder ships now). No LLM, no external service — deterministic rules
-over the FDB facts.
+- **User-configurable thresholds** (a config file overriding the constants
+  in `alert_service.py`).
+- **External notifications** (email/Telegram/desktop) for CRITICAL alerts.
 
 ## Pre-publish checklist
 

@@ -347,6 +347,24 @@ margins, ROE/ROA, debt-to-equity and FCF conversion — it shows:
 
 The panel is searchable and exportable to CSV like the statement tables.
 
+### Financial alerts
+
+Deterministic rules over the same facts flag solvency and quality issues
+(and positives) with the evidence that triggered them — no LLM:
+
+```bash
+# Show financial alerts for a company
+python main.py financial-alerts AAPL
+python main.py financial-alerts AAPL --severity CRITICAL
+```
+
+The same alerts appear in the Analysis sidebar: 🔴 CRITICAL (low cash
+runway), 🟠 WARNING (margin collapse, debt spike, inventory buildup,
+negative FCF streak, dividend cut) and 🔵 INFO (revenue decline, earnings
+quality, EPS dilution, strong FCF conversion). The CLI exits 1 when a
+CRITICAL fires, so shell chains can react:
+`python main.py financial-alerts AAPL || notify-send "Alert"`.
+
 ### Portfolio
 
 ```bash
