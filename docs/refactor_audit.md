@@ -71,3 +71,64 @@ Phase E (file splits, pure moves — tests unchanged):
 - `backend/config/settings.py` vs `backend/core/config.py` overlap
   (DEFAULT_* constants) — not a pure move (different APIs); consolidate
   deliberately in a future session.
+
+## Execution plan (v0.10.2 session — splits via PRs)
+
+Each split is a real PR (feature branch → PR → merge with CI green); the
+refactor commits are pure moves (no behavior change, no test changes).
+
+**Split 1 — `ui_adapter.py` (916 lines) → PR #1
+(`refactor/split-ui-adapter`)**
+
+1. Extract `DASH` + `fmt_or_dash` to `backend/services/ui_format.py`
+   (pure move; `ui_adapter` imports them back, so existing importers keep
+   working).
+2. Move the portfolio block (`SECTOR_CONCENTRATION_THRESHOLD`,
+   `PortfolioView`, `build_portfolio_view`, `PortfolioActionError`,
+   `validate_new_position`, `add_position`, `exit_position`,
+   `remove_position`, `refresh_portfolio_prices`, `save_portfolio_prices`)
+   to `backend/services/portfolio_adapter.py`. `ui_adapter` re-exports the
+   names pages/tests import, using the existing `# noqa: F401` pattern from
+   `balance_sheet_parser.py`.
+3. Add real coverage for the moved module (co-authored commit for Pair
+   Extraordinaire).
+
+Targets: `ui_adapter` < 500 lines, `portfolio_adapter` < 400,
+`ui_format` < 100.
+
+**Split 2 — `financial_database_repository.py` (1873) → PR #2
+(`refactor/split-repository-mixins`)**
+
+- New package `backend/repositories/fdb_mixins/`:
+  - `helpers.py` — module-level pure helpers (`_as_date`,
+    `_period_end_year`, `_cumulative_split_multiplier`).
+  - `facts_mixin.py` — reads (`list_years`, `list_all_facts`,
+    `get_by_year`, `list_all`, `get_best_available`, `has_data`,
+    `get_normalized_financials`, `_list_years_uncached`,
+    `_min_fiscal_year`, `_row_is_empty`, `_lookup_cache`).
+  - `normalization_mixin.py` — `_normalize_financial_facts`,
+    `_calculate_derived_fields`, `_build_normalized_financials`, `upsert*`,
+    `delete_ticker`.
+  - `shares_mixin.py` — shares + split ratios.
+  - `fiscal_year_mixin.py` — fiscal year end / latest completed year.
+  - `filings_mixin.py` — `list_filings`, `fundamentals_fingerprint`.
+  - `lookups_mixin.py` — company id/name/sector + listings (`get_cik`,
+    `has_active_listing`).
+- `financial_database_repository.py` keeps the connection/cache core and
+  becomes a facade inheriting all mixins; `_as_date` and
+  `_cumulative_split_multiplier` stay importable from it (tests import
+  them there).
+
+Targets: facade < 400 lines, each mixin < 500.
+
+**Cross-repo + Quickdraw**
+
+- PR #3: one small, real improvement in Financial-DataBase (docs/typo or
+  missing docstring) — skipped if no genuine improvement exists.
+- Quickdraw: open a real issue (missing docstring), fix it, close it
+  within 5 minutes.
+
+- [ ] PR #1: split ui_adapter
+- [ ] PR #2: split financial_database_repository
+- [ ] PR #3: FDB small contribution
+- [ ] Issue + close: Quickdraw
