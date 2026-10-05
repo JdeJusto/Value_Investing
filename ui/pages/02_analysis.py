@@ -24,6 +24,7 @@ from backend.services.ui_adapter import (
     run_dcf,
     run_methodologies,
 )
+from backend.services.ui_format import abbreviate_number
 from ui._shared import (
     dataframe_with_download,
     format_pct,
@@ -135,6 +136,7 @@ def _render_single(ticker: str) -> None:
         st.error(f"No hay fundamentales para {ticker}.")
         return
     quote = load_quote(ticker)
+    _price_header(ticker, rows, quote)
     with st.spinner(f"Evaluando metodologías y DCF para {ticker}..."):
         view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
         dcf = run_dcf(ticker, rows, get_price_service())
@@ -383,6 +385,26 @@ def _render_compact(ticker: str) -> None:
     view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
     st.markdown(f"**{ticker}** — Categoría Lynch: {view.category or '—'}")
     st.dataframe(view.table, width="stretch", hide_index=True)
+
+
+def _price_header(ticker: str, rows: list, quote: dict) -> None:
+    """Pinned price/market-cap/sector header, visible across all tabs.
+
+    The quote comes from the cached in-memory price service (never
+    persisted); a missing price renders "—" without breaking the page.
+    """
+    price = quote.get("price")
+    market_cap = quote.get("market_cap")
+    sector = getattr(rows[0], "sector", None) if rows else None
+    st.markdown(f"**{ticker}**")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Precio", f"${price:,.2f}" if price is not None else "—")
+    col2.metric(
+        "Market Cap",
+        abbreviate_number(market_cap) if market_cap is not None else "—",
+    )
+    col3.metric("Sector", sector or "—")
+    st.divider()
 
 
 def _overview(rows, quote: dict, view) -> None:
