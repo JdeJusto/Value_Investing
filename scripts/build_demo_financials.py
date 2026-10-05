@@ -19,6 +19,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from backend.app.cli import build_financial_repository
+from backend.services.financial_insights_service import (
+    FinancialInsightsService,
+    report_to_payload,
+)
 from backend.services.financials_view_service import (
     CONCEPT_LABELS,
     FinancialsRow,
@@ -28,13 +32,13 @@ from backend.services.financials_view_service import (
 TICKERS = ("AAPL", "KO", "JNJ", "JPM")
 MAX_YEARS = 10
 #: Per-statement quotas: guarantees every sub-tab has content while keeping
-#: each fixture under the ~30 KB demo cap (~40 concepts × 10 years). The
-#: whole demo bundle stays below its 500 KB guard (test_demo_mode).
+#: each fixture under the ~30 KB demo cap and the whole demo bundle below
+#: its 500 KB guard (test_demo_mode) together with the insights fixtures.
 QUOTAS = {
-    "balance_sheet": 14,
-    "income_statement": 10,
-    "cash_flow": 10,
-    "other": 6,
+    "balance_sheet": 12,
+    "income_statement": 8,
+    "cash_flow": 8,
+    "other": 4,
 }
 TARGET = REPO_ROOT / "data" / "demo" / "financials"
 
@@ -63,10 +67,15 @@ def _top(rows: list[FinancialsRow], limit: int) -> list[FinancialsRow]:
     )[:limit]
 
 
-def build_fixture(ticker: str, service: FinancialsViewService) -> dict | None:
-    view = service.build(ticker, "FY", MAX_YEARS)
+def build_fixture(
+    ticker: str, service: FinancialsViewService
+) -> tuple[dict | None, dict | None]:
+    """(view payload, insights payload) from a single facts read."""
+    facts = service.fetch_facts(ticker, "FY", MAX_YEARS)
+    view = service.build(ticker, "FY", MAX_YEARS, facts=facts)
     if view is None:
-        return None
+        return None, None
+    report = FinancialInsightsService(facts, ticker, view.company_name).build()
     kept = {
         "balance_sheet": _top(view.balance_sheet, QUOTAS["balance_sheet"]),
         "income_statement": _top(view.income_statement, QUOTAS["income_statement"]),
@@ -80,7 +89,7 @@ def build_fixture(ticker: str, service: FinancialsViewService) -> dict | None:
         + len(view.other)
     )
     kept_rows = sum(len(rows) for rows in kept.values())
-    return {
+    payload = {
         "ticker": view.ticker,
         "company_name": view.company_name,
         "fiscal_period": "FY",
@@ -95,19 +104,25 @@ def build_fixture(ticker: str, service: FinancialsViewService) -> dict | None:
         "other": [_row_payload(row) for row in kept["other"]],
         "unmatched_count": len(kept["other"]),
     }
+    return payload, report_to_payload(report)
 
 
 def main() -> int:
     service = FinancialsViewService(build_financial_repository())
     TARGET.mkdir(parents=True, exist_ok=True)
     for ticker in TICKERS:
-        payload = build_fixture(ticker, service)
-        if payload is None:
+        payload, insights = build_fixture(ticker, service)
+        if payload is None or insights is None:
             print(f"{ticker}: no facts stored, skipped")
             continue
         target = TARGET / f"{ticker}.json"
         target.write_text(
             json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        insights_target = TARGET / f"{ticker}_insights.json"
+        insights_target.write_text(
+            json.dumps(insights, separators=(",", ":"), ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         rows = sum(
@@ -119,7 +134,10 @@ def main() -> int:
                 "other",
             )
         )
-        print(f"{ticker}: {rows} rows, {target.stat().st_size / 1024:.1f} KB")
+        print(
+            f"{ticker}: {rows} rows, {target.stat().st_size / 1024:.1f} KB view"
+            f" + {insights_target.stat().st_size / 1024:.1f} KB insights"
+        )
     return 0
 
 

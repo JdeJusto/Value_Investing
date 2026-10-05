@@ -14,7 +14,7 @@
     2018,
     2017
   ],
-  "note": "Demo fixture: top 40 of 601 concepts by year coverage, 10 most recent fiscal years.",
+  "note": "Demo fixture: top 32 of 601 concepts by year coverage, 10 most recent fiscal years.",
   "balance_sheet": [
     {
       "concept": "CommonStockSharesOutstanding",
@@ -197,38 +197,6 @@
         "2017": "$86,656,000,000"
       },
       "unit": "USD"
-    },
-    {
-      "concept": "ContinuingInvolvementWithTransferredFinancialAssetsPrincipalAmountOutstanding",
-      "label": "Continuing Involvement With Transferred Financial Assets Principal Amount Outstanding",
-      "values": {
-        "2025": "$306,687,000,000",
-        "2024": "$266,202,000,000",
-        "2023": "$235,493,000,000",
-        "2022": "$229,986,000,000",
-        "2021": "$216,745,000,000",
-        "2020": "$182,272,000,000",
-        "2019": "$186,912,000,000",
-        "2018": "$183,040,000,000",
-        "2017": "$182,763,000,000"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "DeferredIncomeTaxLiabilities",
-      "label": "Deferred Income Tax Liabilities",
-      "values": {
-        "2025": "$10,243,000,000",
-        "2024": "$5,425,000,000",
-        "2023": "$7,762,000,000",
-        "2022": "$10,552,000,000",
-        "2021": "$14,024,000,000",
-        "2020": "$16,662,000,000",
-        "2019": "$15,487,000,000",
-        "2018": "$13,551,000,000",
-        "2017": "$12,241,000,000"
-      },
-      "unit": "USD"
     }
   ],
   "income_statement": [
@@ -357,38 +325,6 @@
         "2019": "$1,100,000,000",
         "2018": "$1,200,000,000",
         "2017": "$1,700,000,000"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "BrokerageCommissionsRevenue",
-      "label": "Brokerage Commissions Revenue",
-      "values": {
-        "2025": "$3,726,000,000",
-        "2024": "$3,119,000,000",
-        "2023": "$2,820,000,000",
-        "2022": "$2,831,000,000",
-        "2021": "$3,046,000,000",
-        "2020": "$2,959,000,000",
-        "2019": "$2,439,000,000",
-        "2018": "$2,505,000,000",
-        "2017": "$2,239,000,000"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "DividendsPreferredStock",
-      "label": "Dividends Preferred Stock",
-      "values": {
-        "2025": "$1,099,000,000",
-        "2024": "$1,259,000,000",
-        "2023": "$1,501,000,000",
-        "2022": "$1,595,000,000",
-        "2021": "$1,600,000,000",
-        "2020": "$1,583,000,000",
-        "2019": "$1,587,000,000",
-        "2018": "$1,551,000,000",
-        "2017": "$1,663,000,000"
       },
       "unit": "USD"
     }
@@ -521,38 +457,6 @@
         "2017": "$57,022,000,000"
       },
       "unit": "USD"
-    },
-    {
-      "concept": "IncreaseDecreaseInFederalFundsPurchasedAndSecuritiesSoldUnderAgreementsToRepurchaseNet",
-      "label": "Increase Decrease In Federal Funds Purchased And Securities Sold Under Agreements To Repurchase Net",
-      "values": {
-        "2025": "$145,535,000,000",
-        "2024": "$80,288,000,000",
-        "2023": "$13,801,000,000",
-        "2022": "$8,455,000,000",
-        "2021": "($20,799,000,000)",
-        "2020": "$31,528,000,000",
-        "2019": "$1,347,000,000",
-        "2018": "$23,415,000,000",
-        "2017": "($6,739,000,000)"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "IncreaseDecreaseInFinancialInstrumentsUsedInOperatingActivities",
-      "label": "Increase Decrease In Financial Instruments Used In Operating Activities",
-      "values": {
-        "2025": "$156,461,000,000",
-        "2024": "$95,729,000,000",
-        "2023": "$74,091,000,000",
-        "2022": "$31,449,000,000",
-        "2021": "($85,710,000,000)",
-        "2020": "$148,749,000,000",
-        "2019": "$652,000,000",
-        "2018": "$38,371,000,000",
-        "2017": "($5,673,000,000)"
-      },
-      "unit": "USD"
     }
   ],
   "other": [
@@ -619,39 +523,7 @@
         "2017": "$319,702,076,316"
       },
       "unit": "USD"
-    },
-    {
-      "concept": "IncomeTaxesPaidNet",
-      "label": "Income Taxes Paid, Net",
-      "values": {
-        "2025": "$5,309,000,000",
-        "2024": "$11,715,000,000",
-        "2023": "$9,908,000,000",
-        "2022": "$4,355,000,000",
-        "2021": "$18,737,000,000",
-        "2020": "$7,661,000,000",
-        "2019": "$5,624,000,000",
-        "2018": "$3,542,000,000",
-        "2017": "$4,325,000,000"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "ShareBasedCompensation",
-      "label": "Share-Based Compensation",
-      "values": {
-        "2025": "$3,614,000,000",
-        "2024": "$3,504,000,000",
-        "2023": "$3,117,000,000",
-        "2022": "$2,794,000,000",
-        "2021": "$2,929,000,000",
-        "2020": "$2,451,000,000",
-        "2019": "$2,256,000,000",
-        "2018": "$2,322,000,000",
-        "2017": "$2,070,000,000"
-      },
-      "unit": "USD"
     }
   ],
-  "unmatched_count": 6
+  "unmatched_count": 4
 }

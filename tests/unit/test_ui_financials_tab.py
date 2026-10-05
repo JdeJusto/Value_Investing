@@ -152,6 +152,56 @@ def test_each_subtab_has_a_csv_download(monkeypatch):
     assert len(buttons) >= 4  # one per statement sub-tab
 
 
+def _summary_frame(at):
+    summary = next(expander for expander in at.expander if expander.label == "Summary")
+    return summary.dataframe[0].value
+
+
+def test_summary_panel_renders_with_the_insight_columns(monkeypatch):
+    at = _run(monkeypatch)
+    frame = _summary_frame(at)
+    assert list(frame.columns) == [
+        "Metric",
+        "Latest",
+        "YoY",
+        "5y CAGR",
+        "Trend",
+        "Stability",
+    ]
+    assert "Revenue" in set(frame["Metric"])
+    assert any("Computed from Financial-DataBase facts" in c.value for c in at.caption)
+
+
+def test_summary_panel_loads_demo_insights(monkeypatch):
+    at = _run(monkeypatch)
+    frame = _summary_frame(at)
+    revenue = frame[frame["Metric"] == "Revenue"].iloc[0]
+    assert revenue["Trend"] == "growing"
+    assert str(revenue["Latest"]).startswith("$")
+    assert revenue["Stability"] in {"stable", "volatile"}
+
+
+def test_summary_has_a_csv_download(monkeypatch):
+    at = _run(monkeypatch)
+    buttons = at.get("download_button")
+    assert len(buttons) >= 5  # four statement tables + the summary
+
+
+def test_summary_csv_export_reflects_the_insight_rows(monkeypatch):
+    from backend.services.financial_insights_service import (
+        insight_rows,
+        load_demo_insights,
+    )
+    from ui._shared import rows_to_csv
+
+    monkeypatch.setenv("VI_DEMO", "1")
+    report = load_demo_insights("AAPL")
+    assert report is not None
+    csv_text = rows_to_csv(insight_rows(report))
+    assert "Metric,Latest,YoY,5y CAGR,Trend,Stability" in csv_text
+    assert "Revenue" in csv_text
+
+
 def test_alerts_placeholder_is_reserved(monkeypatch):
     at = _run(monkeypatch)
     alerts = next(

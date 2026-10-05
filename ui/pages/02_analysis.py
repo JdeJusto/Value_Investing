@@ -66,14 +66,33 @@ def _load_narrative_cached(record_key: tuple, section_value: str) -> dict:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
-    """Cached full-facts view keyed by (ticker, period, years).
+    """Cached (view, insights) pair keyed by (ticker, period, years).
 
-    One SQL pass over the company's facts on the first visit; renders within
-    the TTL reuse it. The underlying data only changes on a SEC sync.
+    One fact read feeds both the tables and the Summary panel — no second
+    source. Renders within the TTL reuse it; the data only changes on a SEC
+    sync. Demo mode reads both pinned fixtures instead of the database.
     """
+    from backend.services.demo_mode import is_demo
+    from backend.services.financial_insights_service import (
+        FinancialInsightsService,
+        load_demo_insights,
+    )
     from backend.services.financials_view_service import FinancialsViewService
 
-    return FinancialsViewService().build(ticker, fiscal_period, max_years)
+    service = FinancialsViewService()
+    if is_demo():
+        return (
+            service.build(ticker, fiscal_period, max_years),
+            load_demo_insights(ticker),
+        )
+    facts = service.fetch_facts(ticker, fiscal_period, max_years)
+    view = service.build(ticker, fiscal_period, max_years, facts=facts)
+    report = (
+        FinancialInsightsService(facts, ticker, view.company_name).build()
+        if view is not None and facts
+        else None
+    )
+    return view, report
 
 
 def main() -> None:
@@ -536,7 +555,7 @@ def _financials(ticker: str) -> None:
             )
         )
 
-    view = _load_financials_cached(ticker, period, max_years)
+    view, report = _load_financials_cached(ticker, period, max_years)
     if view is None:
         st.info(
             "No financial facts stored for this company (or the demo fixture "
@@ -569,6 +588,20 @@ def _financials(ticker: str) -> None:
     )
     for warning in view.extraction_warnings:
         st.caption(warning)
+
+    if report is not None:
+        from backend.services.financial_insights_service import insight_rows
+
+        with st.expander("Summary", expanded=True):
+            dataframe_with_download(
+                insight_rows(report),
+                f"{ticker}_insights.csv",
+                f"financials_insights_{ticker}",
+            )
+        st.caption(
+            f"Computed from Financial-DataBase facts · {view.fiscal_period} "
+            f"data · Last {len(view.years)} years"
+        )
 
     buckets = [
         ("Balance Sheet", view.balance_sheet),
