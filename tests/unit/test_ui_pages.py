@@ -91,9 +91,7 @@ def test_no_deprecated_use_container_width_in_the_ui():
     hits = [
         f"{path.relative_to(root)}:{number}"
         for path in (root / "ui").rglob("*.py")
-        for number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), 1
-        )
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
         if "use_container_width" in line
     ]
     assert hits == [], f"deprecated use_container_width: {hits}"
