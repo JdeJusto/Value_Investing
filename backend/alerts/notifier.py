@@ -33,6 +33,7 @@ class ConsoleNotifier(Notifier):
 
 
 def lab(alert_type: str) -> str:
+    """Color the alert-type label with its ANSI color (no-op when unknown)."""
     colors = {
         "BUY_SIGNAL": "\033[92m",
         "SELL_WARNING": "\033[91m",
@@ -50,4 +51,5 @@ def notify_all(alerts: list[Alert], notifiers: list[Notifier]) -> None:
 
 
 def console_only(alerts: list[Alert]) -> None:
+    """Dispatch the alerts to the console only (the default CLI channel)."""
     notify_all(alerts, [ConsoleNotifier()])
