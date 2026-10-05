@@ -91,6 +91,29 @@ def test_low_cash_runway_is_critical_with_months_of_evidence():
     assert "6 months" in alert.message
 
 
+def test_low_cash_runway_counts_short_term_investments():
+    # MSFT-like: little cash but large short-term investments -> no alert.
+    facts = [
+        _fact("CashAndCashEquivalentsAtCarryingValue", 2024, "100"),
+        _fact("ShortTermInvestments", 2024, "500"),
+        _fact("OperatingExpenses", 2024, "500"),
+    ]
+    report = _build(facts)
+    assert not _fired(report, "low_cash_runway")  # liquid 600 -> 14.4 months
+
+
+def test_low_cash_runway_evidence_includes_investments_when_present():
+    facts = [
+        _fact("CashAndCashEquivalentsAtCarryingValue", 2024, "50"),
+        _fact("ShortTermInvestments", 2024, "30"),
+        _fact("OperatingExpenses", 2024, "500"),
+    ]
+    report = _build(facts)
+    alert = _fired(report, "low_cash_runway")[0]
+    assert alert.evidence["Short-term investments"] == "$30"
+    assert alert.evidence["Runway"] == "1.9 months"
+
+
 def test_margin_collapse_reports_the_pp_change():
     report = _build(_load("alerts_edge_cases.json"))
     alerts = _fired(report, "margin_collapse")

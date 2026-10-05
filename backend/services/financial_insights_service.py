@@ -159,6 +159,16 @@ _METRIC_SPECS: tuple[_MetricSpec, ...] = (
         concepts=_field_concepts(BALANCE_SHEET_CONCEPTS, "inventory"),
     ),
     _MetricSpec(
+        "short_term_investments",
+        "Short-Term Investments",
+        "currency",
+        concepts=(
+            "ShortTermInvestments",
+            "MarketableSecuritiesCurrent",
+            "AvailableForSaleSecuritiesCurrent",
+        ),
+    ),
+    _MetricSpec(
         "long_term_debt",
         "Long-Term Debt",
         "currency",

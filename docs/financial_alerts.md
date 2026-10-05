@@ -24,7 +24,7 @@ percent-kind metrics).
 
 | # | rule_id | Severity | Condition | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | `low_cash_runway` | CRITICAL | `cash / (operating_expenses / 12) < 6` months | cash, opex, runway |
+| 1 | `low_cash_runway` | CRITICAL | `(cash + short-term investments) / (operating_expenses / 12) < 6` months | liquid assets, opex, runway |
 | 2 | `margin_collapse` | WARNING | gross or net margin dropped **> 5 pp** YoY | current, prior, Δpp |
 | 3 | `debt_spike` | WARNING | D/E up **> 30%** YoY, or debt up **> 50%** with equity flat (≤10%) | ratios / growth |
 | 4 | `inventory_buildup` | WARNING | inventory growth **> 10%** and **> 2× revenue growth** | both growths |
@@ -41,6 +41,9 @@ Rationale: the first five come from `docs/backlog.md` (the original plan);
 useful than one that also highlights what is working.
 
 Tuning notes:
+- Rule 1 measures **liquid assets** (cash + short-term investments): a
+  cash-only measure false-fired CRITICAL on MSFT ($21B cash but $64B in
+  short-term investments). When no investments are stored, liquid = cash.
 - Rule 4 requires inventory growth above **10%** (and above 2× revenue
   growth): real data showed a small inventory tick against a small revenue
   dip (TSLA +3.1% vs −2.9%) is not a buildup worth alerting on.

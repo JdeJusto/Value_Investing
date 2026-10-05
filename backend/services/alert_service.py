@@ -136,9 +136,26 @@ def _rule_low_cash_runway(report: InsightsReport, period: str) -> list[Alert] | 
     year, cash_value, opex_value = common
     if opex_value <= 0:
         return None
-    runway = cash_value / (opex_value / 12)
+    # Liquid assets = cash + short-term investments for the same year. A
+    # cash-only measure false-fires on companies that keep their liquidity
+    # in marketable securities (MSFT: $21B cash, $64B short-term investments).
+    investments = _metric(report, "short_term_investments")
+    investments_value = 0.0
+    if investments is not None and year in investments.series:
+        investments_value = max(investments.series[year], 0.0)
+    liquid = cash_value + investments_value
+    runway = liquid / (opex_value / 12)
     if runway >= MIN_CASH_RUNWAY_MONTHS:
         return []
+    evidence = {
+        "Cash": format_metric_value(cash.kind, cash_value),
+    }
+    if investments_value:
+        evidence["Short-term investments"] = format_metric_value(
+            investments.kind, investments_value
+        )
+    evidence["Operating expenses"] = format_metric_value(opex.kind, opex_value)
+    evidence["Runway"] = f"{runway:.1f} months"
     return [
         Alert(
             rule_id="low_cash_runway",
@@ -146,13 +163,9 @@ def _rule_low_cash_runway(report: InsightsReport, period: str) -> list[Alert] | 
             title="Low cash runway",
             message=(
                 f"Less than {MIN_CASH_RUNWAY_MONTHS:.0f} months of operating "
-                "expenses in cash."
+                "expenses covered by liquid assets."
             ),
-            evidence={
-                "Cash": format_metric_value(cash.kind, cash_value),
-                "Operating expenses": format_metric_value(opex.kind, opex_value),
-                "Runway": f"{runway:.1f} months",
-            },
+            evidence=evidence,
             metric_hint="cash",
             period=_period(year, period),
         )
