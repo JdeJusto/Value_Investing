@@ -66,12 +66,13 @@ def _load_narrative_cached(record_key: tuple, section_value: str) -> dict:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
-    """Cached (view, insights) pair keyed by (ticker, period, years).
+    """Cached (view, insights, alerts) keyed by (ticker, period, years).
 
-    One fact read feeds both the tables and the Summary panel — no second
-    source. Renders within the TTL reuse it; the data only changes on a SEC
-    sync. Demo mode reads both pinned fixtures instead of the database.
+    One fact read feeds the tables, the Summary panel and the sidebar alerts
+    — no second source. Renders within the TTL reuse it; the data only
+    changes on a SEC sync. Demo mode reads the pinned fixtures instead.
     """
+    from backend.services.alert_service import AlertService, load_demo_alerts
     from backend.services.demo_mode import is_demo
     from backend.services.financial_insights_service import (
         FinancialInsightsService,
@@ -84,15 +85,15 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
         return (
             service.build(ticker, fiscal_period, max_years),
             load_demo_insights(ticker),
+            load_demo_alerts(ticker),
         )
     facts = service.fetch_facts(ticker, fiscal_period, max_years)
     view = service.build(ticker, fiscal_period, max_years, facts=facts)
-    report = (
-        FinancialInsightsService(facts, ticker, view.company_name).build()
-        if view is not None and facts
-        else None
-    )
-    return view, report
+    if view is None or not facts:
+        return view, None, None
+    report = FinancialInsightsService(facts, ticker, view.company_name).build()
+    alerts = AlertService(facts).build(ticker, view.company_name, fiscal_period)
+    return view, report, alerts
 
 
 def main() -> None:
@@ -555,7 +556,7 @@ def _financials(ticker: str) -> None:
             )
         )
 
-    view, report = _load_financials_cached(ticker, period, max_years)
+    view, report, alerts = _load_financials_cached(ticker, period, max_years)
     if view is None:
         st.info(
             "No financial facts stored for this company (or the demo fixture "
@@ -622,13 +623,34 @@ def _financials(ticker: str) -> None:
         "Source: Financial-DataBase (SEC EDGAR) · Fiscal period: "
         f"{view.fiscal_period} · Values preserve the original filing format."
     )
-    # Reserved space for the future deterministic alerts panel (see
-    # docs/backlog.md): the sidebar stays free next to the Financials tab.
-    with st.sidebar.expander("Alerts (coming soon)"):
-        st.write(
-            "Real-time alerts (low cash, margin collapse, debt spike) will "
-            "appear here in a future version."
-        )
+    # Deterministic alerts (same facts as the tables/insights) in the sidebar,
+    # always visible while the user browses the Financials tab.
+    _alerts_sidebar(alerts)
+
+
+def _alerts_sidebar(alerts) -> None:
+    """Render the alerts report in the sidebar (no custom HTML/CSS)."""
+    with st.sidebar.expander("Alerts", expanded=True):
+        if alerts is None:
+            st.caption("No alerts available for this company.")
+            return
+        if not alerts.alerts:
+            st.success("No alerts.")
+        for alert in alerts.alerts:
+            evidence = " · ".join(
+                f"{key}: {value}" for key, value in alert.evidence.items()
+            )
+            body = f"{alert.title}\n\n{alert.message}"
+            if evidence:
+                body += f"\n\n{evidence}"
+            if alert.severity == "CRITICAL":
+                st.error(f"🔴 CRITICAL — {body}")
+            elif alert.severity == "WARNING":
+                st.warning(f"🟠 WARNING — {body}")
+            else:
+                st.info(f"🔵 INFO — {body}")
+        if alerts.rules_skipped:
+            st.caption(f"{alerts.rules_skipped} rules skipped (insufficient data).")
 
 
 def _raw(ticker: str) -> None:

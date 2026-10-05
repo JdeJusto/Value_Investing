@@ -1,0 +1,1 @@
+{"ticker":"JNJ","company_name":"JOHNSON & JOHNSON","rules_evaluated":10,"rules_skipped":2,"warnings":[],"alerts":[{"rule_id":"inventory_buildup","severity":"WARNING","title":"Inventory buildup","message":"Inventory grew 14.0% vs revenue +6.0% YoY.","evidence":{"Inventory growth":"+14.0%","Revenue growth":"+6.0%"},"metric_hint":"inventory","period":"FY2025"}]}

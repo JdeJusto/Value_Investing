@@ -184,3 +184,23 @@ def test_report_carries_ticker_and_company():
     report = _build(_load("alerts_edge_cases.json"), "DWN", "Declining Co.")
     assert report.ticker == "DWN"
     assert report.company_name == "Declining Co."
+
+
+def test_demo_alerts_payload_roundtrip_and_loader(monkeypatch, tmp_path):
+    import backend.services.alert_service as module
+
+    report = _build(_load("alerts_edge_cases.json"), "DWN", "Declining Co.")
+    payload = module.alerts_to_payload(report)
+    restored = module.alerts_from_payload(payload)
+    assert restored.ticker == "DWN"
+    assert restored.rules_skipped == report.rules_skipped
+    assert len(restored.alerts) == len(report.alerts)
+    assert restored.alerts[0].evidence == report.alerts[0].evidence
+
+    demo = tmp_path / "financials"
+    demo.mkdir()
+    (demo / "DWN_alerts.json").write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(module, "DEMO_ROOT", tmp_path)
+    loaded = module.load_demo_alerts("DWN")
+    assert loaded is not None and loaded.alerts
+    assert module.load_demo_alerts("ZZZZ") is None

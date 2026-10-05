@@ -202,10 +202,72 @@ def test_summary_csv_export_reflects_the_insight_rows(monkeypatch):
     assert "Revenue" in csv_text
 
 
-def test_alerts_placeholder_is_reserved(monkeypatch):
+def test_sidebar_shows_the_alerts_panel(monkeypatch):
     at = _run(monkeypatch)
-    alerts = next(
-        expander for expander in at.expander if expander.label == "Alerts (coming soon)"
+    labels = [expander.label for expander in at.sidebar.expander]
+    assert "Alerts" in labels
+    assert "Alerts (coming soon)" not in labels
+    # The AAPL demo fixture fires nothing: the panel says so.
+    assert any("No alerts" in success.value for success in at.sidebar.success)
+
+
+def test_sidebar_shows_an_alert_from_the_service(monkeypatch):
+    import streamlit
+
+    import backend.services.alert_service as alert_module
+    from backend.services.alert_service import Alert, AlertsReport
+
+    streamlit.cache_data.clear()  # force the loader to re-run under the mock
+    fake = AlertsReport(
+        ticker="AAPL",
+        company_name="Apple Inc.",
+        alerts=[
+            Alert(
+                rule_id="low_cash_runway",
+                severity="CRITICAL",
+                title="Low cash runway",
+                message="Less than 6 months of operating expenses in cash.",
+                evidence={"Cash": "$1,200,000,000", "Runway": "4.2 months"},
+                metric_hint="cash",
+                period="FY2025",
+            )
+        ],
+        rules_evaluated=10,
+        rules_skipped=2,
     )
-    text = " ".join(markdown.value for markdown in alerts.markdown)
-    assert "Real-time alerts" in text
+    monkeypatch.setattr(alert_module, "load_demo_alerts", lambda ticker: fake)
+
+    at = _run(monkeypatch)
+    assert not at.exception, at.exception
+    assert at.sidebar.error, "the CRITICAL alert must render as an error block"
+    assert any("Low cash runway" in block.value for block in at.sidebar.error)
+    assert any("4.2 months" in block.value for block in at.sidebar.error)
+    captions = " ".join(caption.value for caption in at.sidebar.caption)
+    assert "2 rules skipped" in captions
+
+
+def _run_ticker(monkeypatch, ticker: str):
+    monkeypatch.setenv("VI_DEMO", "1")
+    at = AppTest.from_file(str(PAGE), default_timeout=120)
+    at.run()
+    next(field for field in at.text_input if field.label == "Ticker").set_value(ticker)
+    next(button for button in at.button if button.label == "Analyze").click()
+    at.run()
+    assert not at.exception, at.exception
+    return at
+
+
+def test_demo_alerts_fixture_renders_for_jpm(monkeypatch):
+    at = _run_ticker(monkeypatch, "JPM")
+    assert at.sidebar.info, "JPM's demo fixture carries one INFO alert"
+    assert any("Earnings quality warning" in block.value for block in at.sidebar.info)
+    captions = " ".join(caption.value for caption in at.sidebar.caption)
+    assert "4 rules skipped" in captions
+
+
+def test_alerts_fixtures_are_capped():
+    for ticker in ("AAPL", "KO", "JNJ", "JPM"):
+        path = DEMO_FINANCIALS / f"{ticker}_alerts.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        assert path.stat().st_size < 3 * 1024
+        assert "alerts" in payload and "rules_skipped" in payload

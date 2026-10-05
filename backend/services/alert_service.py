@@ -10,9 +10,11 @@ thresholds, severity mapping and rationale.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from backend.services.demo_mode import DEMO_ROOT
 from backend.services.financial_insights_service import (
     FinancialInsightsService,
     InsightsReport,
@@ -524,3 +526,65 @@ class AlertService:
             rules_skipped=skipped,
             warnings=list(report.warnings),
         )
+
+
+def alerts_to_payload(report: AlertsReport) -> dict:
+    """Serialize the report for the demo fixture."""
+    return {
+        "ticker": report.ticker,
+        "company_name": report.company_name,
+        "rules_evaluated": report.rules_evaluated,
+        "rules_skipped": report.rules_skipped,
+        "warnings": list(report.warnings),
+        "alerts": [
+            {
+                "rule_id": alert.rule_id,
+                "severity": alert.severity,
+                "title": alert.title,
+                "message": alert.message,
+                "evidence": dict(alert.evidence),
+                "metric_hint": alert.metric_hint,
+                "period": alert.period,
+            }
+            for alert in report.alerts
+        ],
+    }
+
+
+def alerts_from_payload(payload: dict) -> AlertsReport:
+    """Rebuild the demo report from its pinned fixture."""
+    alerts = [
+        Alert(
+            rule_id=str(row.get("rule_id") or ""),
+            severity=str(row.get("severity") or "INFO"),
+            title=str(row.get("title") or ""),
+            message=str(row.get("message") or ""),
+            evidence={
+                str(key): str(value)
+                for key, value in (row.get("evidence") or {}).items()
+            },
+            metric_hint=row.get("metric_hint"),
+            period=str(row.get("period") or ""),
+        )
+        for row in payload.get("alerts", [])
+    ]
+    return AlertsReport(
+        ticker=str(payload.get("ticker") or ""),
+        company_name=str(payload.get("company_name") or ""),
+        alerts=alerts,
+        rules_evaluated=int(payload.get("rules_evaluated") or 0),
+        rules_skipped=int(payload.get("rules_skipped") or 0),
+        warnings=list(payload.get("warnings") or []),
+    )
+
+
+def load_demo_alerts(ticker: str) -> AlertsReport | None:
+    """The pinned alerts fixture for demo mode, or None when absent."""
+    path = DEMO_ROOT / "financials" / f"{ticker.upper().strip()}_alerts.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return alerts_from_payload(payload)

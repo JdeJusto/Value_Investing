@@ -19,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from backend.app.cli import build_financial_repository
+from backend.services.alert_service import AlertService, alerts_to_payload
 from backend.services.financial_insights_service import (
     FinancialInsightsService,
     report_to_payload,
@@ -69,13 +70,14 @@ def _top(rows: list[FinancialsRow], limit: int) -> list[FinancialsRow]:
 
 def build_fixture(
     ticker: str, service: FinancialsViewService
-) -> tuple[dict | None, dict | None]:
-    """(view payload, insights payload) from a single facts read."""
+) -> tuple[dict | None, dict | None, dict | None]:
+    """(view payload, insights payload, alerts payload) from one facts read."""
     facts = service.fetch_facts(ticker, "FY", MAX_YEARS)
     view = service.build(ticker, "FY", MAX_YEARS, facts=facts)
     if view is None:
-        return None, None
+        return None, None, None
     report = FinancialInsightsService(facts, ticker, view.company_name).build()
+    alerts = AlertService(facts).build(ticker, view.company_name, "FY")
     kept = {
         "balance_sheet": _top(view.balance_sheet, QUOTAS["balance_sheet"]),
         "income_statement": _top(view.income_statement, QUOTAS["income_statement"]),
@@ -104,15 +106,15 @@ def build_fixture(
         "other": [_row_payload(row) for row in kept["other"]],
         "unmatched_count": len(kept["other"]),
     }
-    return payload, report_to_payload(report)
+    return payload, report_to_payload(report), alerts_to_payload(alerts)
 
 
 def main() -> int:
     service = FinancialsViewService(build_financial_repository())
     TARGET.mkdir(parents=True, exist_ok=True)
     for ticker in TICKERS:
-        payload, insights = build_fixture(ticker, service)
-        if payload is None or insights is None:
+        payload, insights, alerts = build_fixture(ticker, service)
+        if payload is None or insights is None or alerts is None:
             print(f"{ticker}: no facts stored, skipped")
             continue
         target = TARGET / f"{ticker}.json"
@@ -123,6 +125,11 @@ def main() -> int:
         insights_target = TARGET / f"{ticker}_insights.json"
         insights_target.write_text(
             json.dumps(insights, separators=(",", ":"), ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        alerts_target = TARGET / f"{ticker}_alerts.json"
+        alerts_target.write_text(
+            json.dumps(alerts, separators=(",", ":"), ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         rows = sum(
@@ -137,6 +144,7 @@ def main() -> int:
         print(
             f"{ticker}: {rows} rows, {target.stat().st_size / 1024:.1f} KB view"
             f" + {insights_target.stat().st_size / 1024:.1f} KB insights"
+            f" + {alerts_target.stat().st_size / 1024:.1f} KB alerts"
         )
     return 0
 

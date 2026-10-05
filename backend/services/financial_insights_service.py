@@ -524,7 +524,6 @@ def report_to_payload(report: InsightsReport) -> dict[str, Any]:
                 "metric": insight.metric,
                 "label": insight.label,
                 "latest_value": insight.latest_value,
-                "latest_year": insight.latest_year,
                 "yoy_display": insight.yoy_display,
                 "cagr_5y_display": insight.cagr_5y_display,
                 "trend": insight.trend,
