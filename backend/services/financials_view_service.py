@@ -171,7 +171,7 @@ def classify_concept(concept: str) -> str:
     # Balance sheet name heuristics.
     if concept.startswith("Assets") or "Asset" in concept:
         return "balance_sheet"
-    if concept.startswith("Liabilities"):
+    if "Liabilities" in concept:
         return "balance_sheet"
     if concept.startswith(("StockholdersEquity", "Equity")):
         return "balance_sheet"

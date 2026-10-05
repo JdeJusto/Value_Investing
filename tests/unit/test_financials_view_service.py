@@ -210,6 +210,7 @@ def test_classify_concept_uses_mappings_then_heuristics():
     assert classify_concept("IncreaseDecreaseInOtherOperatingAssets") == "cash_flow"
     assert classify_concept("AmortizationOfIntangibleAssets") == "income_statement"
     assert classify_concept("DeferredTaxAssetsNet") == "balance_sheet"
+    assert classify_concept("OtherLiabilitiesNoncurrent") == "balance_sheet"
     # Nothing matches -> other (never dropped).
     assert classify_concept("EntityPublicFloat") == "other"
     assert classify_concept("EffectiveIncomeTaxRateContinuingOperations") == "other"

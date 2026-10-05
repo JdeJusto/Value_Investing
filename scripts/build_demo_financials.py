@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from backend.app.cli import build_financial_repository
 from backend.services.financials_view_service import (
+    CONCEPT_LABELS,
     FinancialsRow,
     FinancialsViewService,
 )
@@ -27,12 +28,13 @@ from backend.services.financials_view_service import (
 TICKERS = ("AAPL", "KO", "JNJ", "JPM")
 MAX_YEARS = 10
 #: Per-statement quotas: guarantees every sub-tab has content while keeping
-#: each fixture under the ~30 KB demo cap (~60 concepts × 10 years).
+#: each fixture under the ~30 KB demo cap (~40 concepts × 10 years). The
+#: whole demo bundle stays below its 500 KB guard (test_demo_mode).
 QUOTAS = {
-    "balance_sheet": 20,
-    "income_statement": 15,
-    "cash_flow": 15,
-    "other": 10,
+    "balance_sheet": 14,
+    "income_statement": 10,
+    "cash_flow": 10,
+    "other": 6,
 }
 TARGET = REPO_ROOT / "data" / "demo" / "financials"
 
@@ -49,9 +51,15 @@ def _row_payload(row: FinancialsRow) -> dict:
 
 
 def _top(rows: list[FinancialsRow], limit: int) -> list[FinancialsRow]:
-    """Most-covered concepts first (years present), then alphabetical."""
+    """Iconic (curated-label) concepts first, then most-covered, then alpha."""
     return sorted(
-        rows, key=lambda row: (-len(row.values), row.label.lower(), row.concept)
+        rows,
+        key=lambda row: (
+            0 if row.concept in CONCEPT_LABELS else 1,
+            -len(row.values),
+            row.label.lower(),
+            row.concept,
+        ),
     )[:limit]
 
 
