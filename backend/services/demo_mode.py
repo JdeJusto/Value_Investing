@@ -27,10 +27,45 @@ DEMO_REPORTS = DEMO_ROOT / "reports"
 
 BANNER = "Demo mode — data is preloaded; no external services are used."
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_FIXTURE_DIR = _REPO_ROOT / "data" / "demo" / "fundamentals"
+
+#: Fallback when the checkout (and therefore ``data/``) is not available,
+#: e.g. an installed package: keep the bundle's tickers explicit.
+_STATIC_DEMO_TICKERS: tuple[str, ...] = (
+    "AAPL",
+    "JNJ",
+    "JPM",
+    "KO",
+    "MSFT",
+    "PLD",
+    "TSLA",
+    "XOM",
+)
+
+
+def _discover_demo_tickers() -> tuple[str, ...]:
+    """Tickers with pinned fixtures, derived from the bundle filenames.
+
+    Deriving the list keeps it from drifting from ``data/demo/fundamentals``;
+    the static tuple is only the fallback when that directory is absent.
+    """
+    found = tuple(sorted(path.stem.upper() for path in _FIXTURE_DIR.glob("*.json")))
+    return found or _STATIC_DEMO_TICKERS
+
+
+#: Every ticker with pinned fundamentals in the demo bundle.
+DEMO_TICKERS: tuple[str, ...] = _discover_demo_tickers()
+
 
 def is_demo() -> bool:
     """True when the process runs against the offline demo bundle."""
     return os.environ.get("VI_DEMO") == "1"
+
+
+def is_demo_ticker(ticker: str) -> bool:
+    """True when ``ticker`` has a pinned fixture in the demo bundle."""
+    return ticker.strip().upper() in DEMO_TICKERS
 
 
 def enable_demo() -> None:

@@ -9,11 +9,11 @@ from backend.repositories.json_financial_repository import JsonFinancialReposito
 from backend.services.demo_mode import (
     DEMO_FUNDAMENTALS,
     DEMO_REPORTS,
+    DEMO_TICKERS,
     DemoPriceService,
+    is_demo_ticker,
     load_demo_prices,
 )
-
-DEMO_TICKERS = ["AAPL", "JNJ", "JPM", "KO", "MSFT", "PLD", "TSLA", "XOM"]
 
 
 def test_bundle_is_complete_and_small():
@@ -24,7 +24,24 @@ def test_bundle_is_complete_and_small():
 
 
 def test_bundle_covers_the_eight_tickers():
-    assert sorted(load_demo_prices()) == DEMO_TICKERS
+    assert sorted(load_demo_prices()) == list(DEMO_TICKERS)
+
+
+def test_demo_tickers_is_non_empty_and_sorted():
+    assert DEMO_TICKERS
+    assert list(DEMO_TICKERS) == sorted(DEMO_TICKERS)
+
+
+def test_demo_tickers_match_the_fixture_filenames():
+    fixture_dir = Path("data/demo/fundamentals")
+    expected = tuple(sorted(path.stem.upper() for path in fixture_dir.glob("*.json")))
+    assert DEMO_TICKERS == expected
+
+
+def test_is_demo_ticker_supports_the_bundle_case_insensitively():
+    assert is_demo_ticker("AAPL") is True
+    assert is_demo_ticker("aapl") is True
+    assert is_demo_ticker("META") is False
 
 
 def test_demo_repository_reads_ten_years(monkeypatch):
