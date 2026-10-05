@@ -147,6 +147,28 @@ def test_max_years_caps_the_window():
     assert 2023 not in assets.values
 
 
+def test_build_with_abbreviate_formats_large_values():
+    view = FinancialsViewService(_Repo(_facts())).build(
+        "AAPL", "FY", DEFAULT_MAX_YEARS, abbreviate=True
+    )
+    assert view is not None
+    assets = next(row for row in view.balance_sheet if row.concept == "Assets")
+    assert assets.values[2025] == "$364.98B"
+    # Shares keep the suffix; the default mode still shows full precision.
+    shares = next(
+        row
+        for row in view.balance_sheet
+        if row.concept == "EntityCommonStockSharesOutstanding"
+    )
+    assert shares.values[2025] == "14.78B sh"
+    full = next(
+        row
+        for row in _view().balance_sheet
+        if row.concept == "EntityCommonStockSharesOutstanding"
+    )
+    assert full.values[2025] == "14,776,353,000"
+
+
 def test_empty_facts_return_none():
     assert FinancialsViewService(_Repo([])).build("AAPL") is None
 

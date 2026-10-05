@@ -122,10 +122,12 @@ def _period(year: int, fiscal_period: str) -> str:
 # rules — each returns None when its data is missing (skipped), else the
 # alerts that fired (possibly none)
 # ---------------------------------------------------------------------------
-AlertRule = Callable[[InsightsReport, str], list[Alert] | None]
+AlertRule = Callable[[InsightsReport, str, bool], list[Alert] | None]
 
 
-def _rule_low_cash_runway(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_low_cash_runway(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     cash = _metric(report, "cash")
     opex = _metric(report, "operating_expenses")
     if cash is None or opex is None:
@@ -148,13 +150,15 @@ def _rule_low_cash_runway(report: InsightsReport, period: str) -> list[Alert] | 
     if runway >= MIN_CASH_RUNWAY_MONTHS:
         return []
     evidence = {
-        "Cash": format_metric_value(cash.kind, cash_value),
+        "Cash": format_metric_value(cash.kind, cash_value, abbreviate),
     }
     if investments_value:
         evidence["Short-term investments"] = format_metric_value(
-            investments.kind, investments_value
+            investments.kind, investments_value, abbreviate
         )
-    evidence["Operating expenses"] = format_metric_value(opex.kind, opex_value)
+    evidence["Operating expenses"] = format_metric_value(
+        opex.kind, opex_value, abbreviate
+    )
     evidence["Runway"] = f"{runway:.1f} months"
     return [
         Alert(
@@ -172,7 +176,9 @@ def _rule_low_cash_runway(report: InsightsReport, period: str) -> list[Alert] | 
     ]
 
 
-def _rule_margin_collapse(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_margin_collapse(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     fired: list[Alert] = []
     evaluated = False
     for name in ("gross_margin", "net_margin"):
@@ -191,9 +197,9 @@ def _rule_margin_collapse(report: InsightsReport, period: str) -> list[Alert] | 
                 message=f"{margin.label} dropped {abs(margin.yoy_pp):.1f} pp YoY.",
                 evidence={
                     "Current": format_metric_value(
-                        margin.kind, margin.series.get(margin.latest_year)
+                        margin.kind, margin.series.get(margin.latest_year), abbreviate
                     ),
-                    "Prior": format_metric_value(margin.kind, prior),
+                    "Prior": format_metric_value(margin.kind, prior, abbreviate),
                     "Change": f"{margin.yoy_pp:+.1f}pp",
                 },
                 metric_hint=name,
@@ -203,7 +209,9 @@ def _rule_margin_collapse(report: InsightsReport, period: str) -> list[Alert] | 
     return fired if evaluated else None
 
 
-def _rule_debt_spike(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_debt_spike(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     ratio = _metric(report, "debt_to_equity")
     if ratio is None:
         return None
@@ -265,7 +273,9 @@ def _rule_debt_spike(report: InsightsReport, period: str) -> list[Alert] | None:
     return []
 
 
-def _rule_inventory_buildup(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_inventory_buildup(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     inventory = _metric(report, "inventory")
     revenue = _metric(report, "revenue")
     if inventory is None or revenue is None:
@@ -306,7 +316,7 @@ def _rule_inventory_buildup(report: InsightsReport, period: str) -> list[Alert] 
 
 
 def _rule_negative_fcf_streak(
-    report: InsightsReport, period: str
+    report: InsightsReport, period: str, abbreviate: bool
 ) -> list[Alert] | None:
     fcf = _metric(report, "free_cash_flow")
     if fcf is None or not fcf.series:
@@ -321,7 +331,7 @@ def _rule_negative_fcf_streak(
     if streak < FCF_NEGATIVE_YEARS:
         return []
     values = ", ".join(
-        format_metric_value(fcf.kind, value) for _, value in run[:streak]
+        format_metric_value(fcf.kind, value, abbreviate) for _, value in run[:streak]
     )
     return [
         Alert(
@@ -336,7 +346,9 @@ def _rule_negative_fcf_streak(
     ]
 
 
-def _rule_revenue_decline(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_revenue_decline(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     revenue = _metric(report, "revenue")
     if revenue is None or not revenue.series:
         return None
@@ -353,7 +365,7 @@ def _rule_revenue_decline(report: InsightsReport, period: str) -> list[Alert] | 
         return []
     yoys = ", ".join(f"{growth:.1f}%" for growth in declines)
     values = ", ".join(
-        format_metric_value(revenue.kind, value)
+        format_metric_value(revenue.kind, value, abbreviate)
         for _, value in run[: len(declines) + 1]
     )
     return [
@@ -369,7 +381,9 @@ def _rule_revenue_decline(report: InsightsReport, period: str) -> list[Alert] | 
     ]
 
 
-def _rule_earnings_quality(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_earnings_quality(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     net_income = _metric(report, "net_income")
     ocf = _metric(report, "operating_cash_flow")
     if net_income is None or ocf is None:
@@ -387,8 +401,12 @@ def _rule_earnings_quality(report: InsightsReport, period: str) -> list[Alert] |
             title="Earnings quality warning",
             message="Net income is positive but operating cash flow is negative.",
             evidence={
-                "Net income": format_metric_value(net_income.kind, net_income_value),
-                "Operating cash flow": format_metric_value(ocf.kind, ocf_value),
+                "Net income": format_metric_value(
+                    net_income.kind, net_income_value, abbreviate
+                ),
+                "Operating cash flow": format_metric_value(
+                    ocf.kind, ocf_value, abbreviate
+                ),
             },
             metric_hint="net_income",
             period=_period(year, period),
@@ -396,7 +414,9 @@ def _rule_earnings_quality(report: InsightsReport, period: str) -> list[Alert] |
     ]
 
 
-def _rule_eps_dilution(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_eps_dilution(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     shares = _metric(report, "diluted_shares")
     if shares is None:
         return None
@@ -415,8 +435,12 @@ def _rule_eps_dilution(report: InsightsReport, period: str) -> list[Alert] | Non
             title="EPS dilution",
             message=f"Diluted shares outstanding grew {growth:.1f}% YoY.",
             evidence={
-                "Current shares": format_metric_value(shares.kind, pair[0][1]),
-                "Prior shares": format_metric_value(shares.kind, pair[1][1]),
+                "Current shares": format_metric_value(
+                    shares.kind, pair[0][1], abbreviate
+                ),
+                "Prior shares": format_metric_value(
+                    shares.kind, pair[1][1], abbreviate
+                ),
                 "Growth": f"{growth:+.1f}%",
             },
             metric_hint="diluted_shares",
@@ -425,7 +449,9 @@ def _rule_eps_dilution(report: InsightsReport, period: str) -> list[Alert] | Non
     ]
 
 
-def _rule_dividend_cut(report: InsightsReport, period: str) -> list[Alert] | None:
+def _rule_dividend_cut(
+    report: InsightsReport, period: str, abbreviate: bool
+) -> list[Alert] | None:
     dividends = _metric(report, "dividends_paid")
     if dividends is None:
         return None
@@ -445,8 +471,8 @@ def _rule_dividend_cut(report: InsightsReport, period: str) -> list[Alert] | Non
             title="Dividend cut",
             message=f"Dividends paid dropped {abs(change):.1f}% YoY.",
             evidence={
-                "Current": format_metric_value(dividends.kind, current),
-                "Prior": format_metric_value(dividends.kind, prior),
+                "Current": format_metric_value(dividends.kind, current, abbreviate),
+                "Prior": format_metric_value(dividends.kind, prior, abbreviate),
                 "Change": f"{change:+.1f}%",
             },
             metric_hint="dividends_paid",
@@ -456,7 +482,7 @@ def _rule_dividend_cut(report: InsightsReport, period: str) -> list[Alert] | Non
 
 
 def _rule_strong_fcf_conversion(
-    report: InsightsReport, period: str
+    report: InsightsReport, period: str, abbreviate: bool
 ) -> list[Alert] | None:
     fcf = _metric(report, "free_cash_flow")
     net_income = _metric(report, "net_income")
@@ -518,12 +544,15 @@ class AlertService:
         ticker: str,
         company_name: str,
         fiscal_period: str = "FY",
+        abbreviate: bool = False,
     ) -> AlertsReport:
-        report = FinancialInsightsService(self._facts, ticker, company_name).build()
+        report = FinancialInsightsService(self._facts, ticker, company_name).build(
+            abbreviate
+        )
         alerts: list[Alert] = []
         skipped = 0
         for _, rule in RULES:
-            outcome = rule(report, fiscal_period)
+            outcome = rule(report, fiscal_period, abbreviate)
             if outcome is None:
                 skipped += 1
             else:

@@ -26,6 +26,7 @@ from backend.repositories.fdb_concept_mapping import (
 )
 from backend.services.demo_mode import DEMO_ROOT
 from backend.services.financials_view_service import dedupe_facts, format_fact_value
+from backend.services.ui_format import abbreviate_number
 
 #: How many of the newest values the 5-year average/stability window uses.
 _WINDOW = 5
@@ -247,10 +248,20 @@ _METRIC_SPECS: tuple[_MetricSpec, ...] = (
 )
 
 
-def format_metric_value(kind: str, value: float | None) -> str:
-    """Statement-convention formatting, shared with the Financials tables."""
+def format_metric_value(
+    kind: str, value: float | None, abbreviate: bool = False
+) -> str:
+    """Statement-convention formatting, shared with the Financials tables.
+
+    ``abbreviate`` switches currency/per-share/share kinds to the K/M/B/T
+    display (``$416.16B``); percent/ratio values are already short and keep
+    their formatting. The default keeps full precision.
+    """
     if value is None:
         return "—"
+    if abbreviate and kind in ("currency", "per_share", "shares"):
+        unit = {"currency": "USD", "per_share": "USD/shares", "shares": "shares"}[kind]
+        return abbreviate_number(value, unit)
     if kind == "currency":
         return format_fact_value(Decimal(str(value)), "USD")
     if kind == "per_share":
@@ -406,7 +417,8 @@ class FinancialInsightsService:
         self._ticker = ticker
         self._company_name = company_name
 
-    def build(self) -> InsightsReport:
+    def build(self, abbreviate: bool = False) -> InsightsReport:
+        """Derive the metric report; ``abbreviate`` is a display mode."""
         by_concept: dict[str, dict[int, float]] = {}
         years: set[int] = set()
         for (concept, year), fact in dedupe_facts(
@@ -423,7 +435,7 @@ class FinancialInsightsService:
         for spec in _METRIC_SPECS:
             series = self._series_for(spec, by_concept, series_by_metric)
             series_by_metric[spec.metric] = series
-            metrics.append(self._insight(spec, series))
+            metrics.append(self._insight(spec, series, abbreviate))
 
         warnings: list[str] = []
         if not self._facts:
@@ -483,7 +495,9 @@ class FinancialInsightsService:
             }
         return self._concept_series(spec.concepts, by_concept)
 
-    def _insight(self, spec: _MetricSpec, series: dict[int, float]) -> MetricInsight:
+    def _insight(
+        self, spec: _MetricSpec, series: dict[int, float], abbreviate: bool = False
+    ) -> MetricInsight:
         ordered = sorted(series.items(), reverse=True)
         latest_year = ordered[0][0] if ordered else None
         latest = ordered[0][1] if ordered else None
@@ -496,12 +510,12 @@ class FinancialInsightsService:
         return MetricInsight(
             metric=spec.metric,
             label=spec.label,
-            latest_value=format_metric_value(spec.kind, latest),
+            latest_value=format_metric_value(spec.kind, latest, abbreviate),
             latest_year=latest_year,
             yoy_change_pct=yoy,
             cagr_5y=cagr_5y,
             cagr_10y=cagr_10y,
-            average_5y=format_metric_value(spec.kind, average),
+            average_5y=format_metric_value(spec.kind, average, abbreviate),
             trend=_trend(spec.kind, cagr_5y, yoy, series),
             stability=_stability(series),
             direction_changed=_direction_changed(series),

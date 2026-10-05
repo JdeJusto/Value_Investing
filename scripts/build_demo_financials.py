@@ -73,11 +73,13 @@ def build_fixture(
 ) -> tuple[dict | None, dict | None, dict | None]:
     """(view payload, insights payload, alerts payload) from one facts read."""
     facts = service.fetch_facts(ticker, "FY", MAX_YEARS)
-    view = service.build(ticker, "FY", MAX_YEARS, facts=facts)
+    view = service.build(ticker, "FY", MAX_YEARS, facts=facts, abbreviate=True)
     if view is None:
         return None, None, None
-    report = FinancialInsightsService(facts, ticker, view.company_name).build()
-    alerts = AlertService(facts).build(ticker, view.company_name, "FY")
+    report = FinancialInsightsService(facts, ticker, view.company_name).build(
+        abbreviate=True
+    )
+    alerts = AlertService(facts).build(ticker, view.company_name, "FY", abbreviate=True)
     kept = {
         "balance_sheet": _top(view.balance_sheet, QUOTAS["balance_sheet"]),
         "income_statement": _top(view.income_statement, QUOTAS["income_statement"]),

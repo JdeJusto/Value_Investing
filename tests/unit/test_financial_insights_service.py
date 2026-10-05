@@ -221,6 +221,20 @@ def test_trend_defends_against_a_complex_cagr():
     }
 
 
+def test_abbreviate_mode_formats_large_values_but_not_percentages():
+    report = FinancialInsightsService(
+        _load("aapl_facts.json"), "AAPL", "Apple Inc."
+    ).build(abbreviate=True)
+    assert _metric(report, "net_income").latest_value == "$112.01B"
+    assert _metric(report, "revenue").latest_value == "$416.16B"
+    assert _metric(report, "net_margin").latest_value == "26.9%"  # unchanged
+    # The default mode keeps full precision.
+    assert (
+        _report(_load("aapl_facts.json")).metrics[0].latest_value
+        != report.metrics[0].latest_value
+    )
+
+
 def test_yoy_is_none_when_the_prior_year_is_zero():
     report = _report(_load("insights_edge_cases.json"))
     dividends = _metric(report, "dividends_paid")

@@ -209,6 +209,21 @@ def test_report_carries_ticker_and_company():
     assert report.company_name == "Declining Co."
 
 
+def test_abbreviate_mode_formats_the_evidence():
+    facts = [
+        _fact("CashAndCashEquivalentsAtCarryingValue", 2024, "1200000000"),
+        _fact("OperatingExpenses", 2024, "3400000000"),
+    ]
+    report = AlertService(facts).build("T", "T", abbreviate=True)
+    alert = _fired(report, "low_cash_runway")[0]
+    assert alert.evidence["Cash"] == "$1.20B"
+    assert alert.evidence["Operating expenses"] == "$3.40B"
+    assert alert.evidence["Runway"] == "4.2 months"
+    # The default mode keeps full precision (CLI behavior).
+    full = _build(facts)
+    assert _fired(full, "low_cash_runway")[0].evidence["Cash"] == "$1,200,000,000"
+
+
 def test_demo_alerts_payload_roundtrip_and_loader(monkeypatch, tmp_path):
     import backend.services.alert_service as module
 

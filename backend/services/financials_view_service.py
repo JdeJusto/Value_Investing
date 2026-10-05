@@ -24,6 +24,7 @@ from backend.repositories.fdb_concept_mapping import (
     INCOME_STATEMENT_CONCEPTS,
 )
 from backend.services.demo_mode import DEMO_ROOT, is_demo
+from backend.services.ui_format import abbreviate_number
 
 #: Default history window and its hard cap (the UI offers 1..20 years).
 DEFAULT_MAX_YEARS = 15
@@ -360,12 +361,14 @@ class FinancialsViewService:
         fiscal_period: str = "FY",
         max_years: int = DEFAULT_MAX_YEARS,
         facts: list[dict] | None = None,
+        abbreviate: bool = False,
     ) -> FinancialsView | None:
         """Full view, or ``None`` when the company has no stored facts.
 
         ``facts`` lets a caller that already fetched the rows (the UI loader,
         the demo-fixture script) build both the view and the insights from a
-        single query; when omitted the repository is read here.
+        single query; when omitted the repository is read here. ``abbreviate``
+        is a display mode (K/M/B/T); the default keeps full precision.
         """
         ticker = (ticker or "").upper().strip()
         if not ticker:
@@ -406,7 +409,11 @@ class FinancialsViewService:
             year_facts = by_concept[concept]
             unit = _concept_unit(year_facts)
             values = {
-                year: format_fact_value(year_facts[year].get("value"), unit)
+                year: (
+                    abbreviate_number(year_facts[year].get("value"), unit)
+                    if abbreviate
+                    else format_fact_value(year_facts[year].get("value"), unit)
+                )
                 for year in years
                 if year in year_facts
             }

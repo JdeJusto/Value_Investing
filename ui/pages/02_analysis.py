@@ -88,11 +88,15 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
             load_demo_alerts(ticker),
         )
     facts = service.fetch_facts(ticker, fiscal_period, max_years)
-    view = service.build(ticker, fiscal_period, max_years, facts=facts)
+    view = service.build(ticker, fiscal_period, max_years, facts=facts, abbreviate=True)
     if view is None or not facts:
         return view, None, None
-    report = FinancialInsightsService(facts, ticker, view.company_name).build()
-    alerts = AlertService(facts).build(ticker, view.company_name, fiscal_period)
+    report = FinancialInsightsService(facts, ticker, view.company_name).build(
+        abbreviate=True
+    )
+    alerts = AlertService(facts).build(
+        ticker, view.company_name, fiscal_period, abbreviate=True
+    )
     return view, report, alerts
 
 

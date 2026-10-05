@@ -202,6 +202,34 @@ def test_summary_csv_export_reflects_the_insight_rows(monkeypatch):
     assert "Revenue" in csv_text
 
 
+def test_summary_and_tables_show_abbreviated_values(monkeypatch):
+    at = _run(monkeypatch)
+    frame = _summary_frame(at)
+    revenue = frame[frame["Metric"] == "Revenue"].iloc[0]
+    assert revenue["Latest"] == "$416.16B"
+    cells = [
+        str(value)
+        for financial_frame in _financial_frames(at)
+        for column in financial_frame.columns
+        if str(column).startswith("FY")
+        for value in financial_frame[column]
+    ]
+    assert any(cell.endswith("B") for cell in cells)
+    assert not any("416161000000" in cell for cell in cells)
+
+
+def test_raw_tab_keeps_full_precision(monkeypatch):
+    at = _run(monkeypatch)
+    raw = next(
+        element.value
+        for element in at.dataframe
+        if "Métrica" in list(element.value.columns)
+    )
+    values = [str(value) for value in raw["Valor"]]
+    assert any("," in value for value in values)  # thousands separators
+    assert not any(value.endswith(("K", "M", "B", "T")) for value in values)
+
+
 def test_sidebar_shows_the_alerts_panel(monkeypatch):
     at = _run(monkeypatch)
     labels = [expander.label for expander in at.sidebar.expander]
