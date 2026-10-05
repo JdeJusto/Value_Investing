@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.2] - 2026-10-05
 
-### Fixed
+### Changed
 
 - Split ui_adapter and financial_database_repository for modularity
 
