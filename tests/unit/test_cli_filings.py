@@ -109,7 +109,7 @@ def test_since_flag_parses_the_date(monkeypatch, capsys):
 def test_invalid_since_does_not_query(monkeypatch, capsys):
     _run("AAPL", "--since", "not-a-date")
     assert _Recorder.last == {}
-    assert "Fecha inválida" in capsys.readouterr().out
+    assert "Invalid date" in capsys.readouterr().out
 
 
 def test_open_flag_uses_the_browser(monkeypatch, capsys):
@@ -119,7 +119,7 @@ def test_open_flag_uses_the_browser(monkeypatch, capsys):
     )
     _run("AAPL", "--open")
     assert opened == [_record().sec_url]
-    assert "Abriendo 10-K 2024-11-01" in capsys.readouterr().out
+    assert "Opening 10-K 2024-11-01" in capsys.readouterr().out
 
 
 def test_open_passes_the_document_url_when_available(monkeypatch, capsys):
@@ -133,13 +133,13 @@ def test_open_passes_the_document_url_when_available(monkeypatch, capsys):
     assert opened[0].endswith(".htm")  # the primary document, not the index
 
     out = capsys.readouterr().out
-    assert "Abriendo 10-K 2024-11-01" in out
+    assert "Opening 10-K 2024-11-01" in out
 
 
 def test_empty_state_is_clear(monkeypatch, capsys):
     _Recorder.records = []
     _run("AAPL")
-    assert "No hay filings que coincidan" in capsys.readouterr().out
+    assert "No filings match the filters" in capsys.readouterr().out
 
 
 def test_urls_flag_prints_the_raw_url(monkeypatch, capsys):

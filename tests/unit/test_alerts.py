@@ -225,5 +225,5 @@ class TestRankIntegration:
         assert rank_score(strong) >= 75.0
 
     def test_trigger_label_human(self):
-        assert trigger_label("MARGIN_EXPANSION") == "expansion de margen bruto"
+        assert trigger_label("MARGIN_EXPANSION") == "gross margin expansion"
         assert trigger_label(None) is None

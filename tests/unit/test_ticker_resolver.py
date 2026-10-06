@@ -98,4 +98,4 @@ def test_analyze_full_valid_ticker_continues(monkeypatch, capsys):
     )
     main()  # must not raise SystemExit
     out = capsys.readouterr().out
-    assert "Sin datos suficientes" in out
+    assert "Not enough data for" in out

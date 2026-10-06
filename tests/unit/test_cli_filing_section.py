@@ -143,7 +143,7 @@ def test_failure_prints_warning_and_sec_url(monkeypatch, capsys):
     monkeypatch.setattr(narr_module, "load_narrative_section", lambda *a, **k: None)
     _run("filing-section", "AAPL")
     out = capsys.readouterr().out
-    assert "No se pudo extraer Risk Factors" in out
+    assert "Could not extract Risk Factors" in out
     assert "https://www.sec.gov/Archives/edgar/data/320193" in out
 
 

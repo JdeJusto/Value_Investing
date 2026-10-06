@@ -212,8 +212,8 @@ class TestAnalyzeFullDcf:
         assert "DCF Valuation (supplementary, not-from-canon)" in out
         assert "Intrinsic value/share" in out
         assert "NOT part of any book-derived methodology" in out
-        assert out.index("DCF Valuation") < out.index("5) Valoracion historica")
-        assert "6) Riesgos" in out
+        assert out.index("DCF Valuation") < out.index("5) Historical valuation")
+        assert "6) Risks / anomalies / triggers" in out
 
     def test_analyze_full_dcf_disabled(self, monkeypatch, capsys):
         """--no-dcf removes the section while the rest of the report stays."""
@@ -221,8 +221,8 @@ class TestAnalyzeFullDcf:
         out = capsys.readouterr().out
         assert "DCF Valuation" not in out
         assert "not-from-canon" not in out
-        assert "5) Valoracion historica" in out
-        assert "6) Riesgos" in out
+        assert "5) Historical valuation" in out
+        assert "6) Risks / anomalies / triggers" in out
 
     def test_analyze_full_dcf_config_disables_section(self, monkeypatch, capsys):
         """config dcf.in_analyze_full=false hides it without --no-dcf."""
@@ -243,8 +243,8 @@ class TestAnalyzeFullDcf:
         assert "Negative FCF" in out
         assert "cash-burning companies" in out
         assert "Intrinsic value/share" not in out
-        assert "5) Valoracion historica" in out
-        assert "6) Riesgos" in out
+        assert "5) Historical valuation" in out
+        assert "6) Risks / anomalies / triggers" in out
 
     def test_analyze_full_dcf_unavailable_degrades(self, monkeypatch, capsys):
         """A raising DCF path prints 'DCF unavailable' and never stops the
@@ -269,8 +269,8 @@ class TestAnalyzeFullDcf:
         analyze_full._run(Namespace(tickers=["AAPL"], no_prices=False))
         out = capsys.readouterr().out
         assert "DCF unavailable" in out
-        assert "5) Valoracion historica" in out
-        assert "6) Riesgos" in out
+        assert "5) Historical valuation" in out
+        assert "6) Risks / anomalies / triggers" in out
 
     def test_render_dcf_section_shows_values_and_assumptions(self, capsys):
         analyze_full.render_dcf_section(_success_result())
@@ -287,7 +287,7 @@ class TestAnalyzeFullDcf:
         out = capsys.readouterr().out
         assert "INSUFFICIENT_DATA" in out
         assert "Negative FCF" in out
-        assert "Faltan" in out
+        assert "Missing" in out
         assert "NOT part of any book-derived methodology" in out
 
 

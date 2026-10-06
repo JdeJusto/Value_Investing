@@ -111,7 +111,7 @@ def test_raw_flag_prints_plain_rows(capsys):
 def test_no_match_prints_a_message(monkeypatch, capsys):
     _Service.records = []
     _run("AAPL")
-    assert "No hay filings de AAPL" in capsys.readouterr().out
+    assert "No filings for AAPL" in capsys.readouterr().out
 
 
 def test_parser_failure_shows_the_sec_url(monkeypatch, capsys):
@@ -122,5 +122,5 @@ def test_parser_failure_shows_the_sec_url(monkeypatch, capsys):
     )
     _run("AAPL")
     out = capsys.readouterr().out
-    assert "No se pudo extraer el balance sheet" in out
+    assert "Could not extract the balance sheet" in out
     assert "Original: https://www.sec.gov" in out

@@ -150,7 +150,7 @@ def test_severity_filter_limits_the_display_but_not_the_exit_code(capsys):
 def test_invalid_severity_is_reported_without_running(capsys):
     _run("financial-alerts", "AAPL", "--severity", "BOGUS")
     out = capsys.readouterr().out
-    assert "Severidad inválida: BOGUS" in out
+    assert "Invalid severity: BOGUS" in out
     assert _ViewService.last == {}
 
 
@@ -165,7 +165,7 @@ def test_missing_facts_prints_a_clear_message(capsys):
     _ViewService.facts = []
     _run("financial-alerts", "ZZZZ")
     out = capsys.readouterr().out
-    assert "No hay facts financieros almacenados para ZZZZ." in out
+    assert "No stored financial facts for ZZZZ." in out
 
 
 def test_demo_mode_reads_the_fixture(monkeypatch, capsys):
@@ -206,4 +206,4 @@ def test_demo_mode_without_a_fixture(monkeypatch, capsys):
     monkeypatch.setenv("VI_DEMO", "1")
     monkeypatch.setattr(alert_module, "load_demo_alerts", lambda ticker: None)
     _run("financial-alerts", "ZZZZ")
-    assert "No hay fixture de alerts" in capsys.readouterr().out
+    assert "No alerts fixture for" in capsys.readouterr().out

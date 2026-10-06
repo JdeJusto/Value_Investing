@@ -93,7 +93,7 @@ def test_momentum_multiple_tickers_renders_table_without_typeerror(
 ):
     _run("AAPL", "MSFT", "KO")
     out = capsys.readouterr().out
-    assert "Momentum fundamental" in out
+    assert "Fundamental momentum" in out
     assert "AAPL" in out
     assert "MSFT" in out
     assert "KO" in out
@@ -102,14 +102,14 @@ def test_momentum_multiple_tickers_renders_table_without_typeerror(
 def test_momentum_single_ticker_renders(fake_services, capsys):
     _run("AAPL")
     out = capsys.readouterr().out
-    assert "Momentum fundamental" in out
+    assert "Fundamental momentum" in out
     assert "AAPL" in out
 
 
 def test_momentum_without_tickers_uses_universe(fake_services, capsys):
     _run()
     out = capsys.readouterr().out
-    assert "Momentum fundamental" in out
+    assert "Fundamental momentum" in out
     assert "AAPL" in out and "MSFT" in out and "KO" in out
 
 
@@ -125,4 +125,4 @@ def test_momentum_no_services_does_not_crash(monkeypatch, capsys):
     )
     _run("AAPL", "MSFT")
     out = capsys.readouterr().out
-    assert "Sin datos para evaluar" in out
+    assert "No data to evaluate" in out

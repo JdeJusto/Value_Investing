@@ -63,7 +63,7 @@ class TestAnalyzeFullSections:
     def test_section_price_renders_n_a_when_missing(self, capsys):
         analyze_full._section_price(None, None, None, None, None, None, None, False)
         out = capsys.readouterr().out
-        assert "Precio" in out
+        assert "Price" in out
         assert "N/A" in out
 
     def test_section_price_marks_no_prices_mode(self, capsys):
@@ -81,14 +81,14 @@ class TestAnalyzeFullSections:
     def test_section_risks_lists_anomalies_and_sources(self, capsys):
         analyze_full._section_risks(_analysis_dict())
         out = capsys.readouterr().out
-        assert "Anomalia" in out
+        assert "Anomaly:" in out
         assert "Margen bruto cayo" in out
-        assert "Fuente: MIXED" in out
+        assert "Source: MIXED" in out
 
     def test_section_risks_no_anomalies_when_empty(self, capsys):
         analyze_full._section_risks(_analysis_dict(anomalies=[]))
         out = capsys.readouterr().out
-        assert "Sin anomalias" in out
+        assert "No anomalies detected." in out
 
 
 class TestAnalyzeFullRunner:
@@ -123,7 +123,7 @@ class TestAnalyzeFullRunner:
         monkeypatch.setattr(analyze_full, "build_screener_service", lambda: Empty())
         analyze_full._run(self._args())
         out = capsys.readouterr().out
-        assert "Sin datos suficientes" in out
+        assert "Not enough data for" in out
 
     def test_runner_renders_all_sections(self, monkeypatch, capsys):
         row = ScreenerRow(
@@ -161,13 +161,13 @@ class TestAnalyzeFullRunner:
         out = capsys.readouterr().out
         assert "1) Company overview" in out
         assert "Apple Inc." in out
-        assert "2) Precio y valoracion" in out
+        assert "2) Real-time price and valuation" in out
         assert "$1,000" in out or "$1" in out
-        assert "3) Metricas fundamentales" in out
-        assert "4) Calidad de la empresa" in out
-        assert "5) Valoracion historica" in out
+        assert "3) Fundamental metrics" in out
+        assert "4) Company quality" in out
+        assert "5) Historical valuation" in out
         assert "tabla historica fake" in out
-        assert "6) Riesgos" in out
+        assert "6) Risks / anomalies / triggers" in out
 
 
 class TestAnalyzeFullMockedPrice:
@@ -239,13 +239,13 @@ class TestAnalyzeFullMockedPrice:
 
         out = capsys.readouterr().out
         prices.get_current_price.assert_called_once_with("AAPL")
-        assert "2) Precio y valoracion" in out
+        assert "2) Real-time price and valuation" in out
         # 200.0 * 5e9 = 1e12 market cap -> P/E 10.0, FCF yield 9.0%, EV/EBIT 8.9
         assert "$200.00" in out
         assert "PER" in out and "10.0" in out
         assert "9.0%" in out
         assert "EV/EBIT" in out and "8.9" in out
-        assert "6) Riesgos" in out
+        assert "6) Risks / anomalies / triggers" in out
 
     def test_runner_no_prices_never_calls_price_service(self, monkeypatch, capsys):
         """With --no-prices the PriceService is never consulted and section 2
