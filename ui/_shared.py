@@ -137,7 +137,7 @@ def dataframe_with_download(
 ) -> None:
     """Sortable dataframe plus a CSV download button for the same rows."""
     if not rows:
-        st.info("Sin filas que mostrar.")
+        st.info("No rows to display.")
         return
     rows = normalize_rows(rows)
     kwargs: dict[str, Any] = {"width": "stretch", "hide_index": True}
@@ -145,7 +145,7 @@ def dataframe_with_download(
         kwargs["height"] = height
     st.dataframe(rows, **kwargs)
     st.download_button(
-        "Descargar CSV",
+        "Download CSV",
         data=rows_to_csv(rows).encode("utf-8"),
         file_name=filename,
         mime="text/csv",

@@ -92,7 +92,7 @@ def _refresh_prices(portfolio, path: str) -> None:
             portfolio, prices, JsonPortfolioRepository(path)
         )
         st.session_state.pop("home_prices", None)
-        st.success(f"Precios guardados en la cartera ({updated} posiciones).")
+        st.success(f"Prices saved to the portfolio ({updated} positions).")
         st.rerun()
     if not prices:
         return
