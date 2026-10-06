@@ -15,6 +15,9 @@ def main():
             "  main.py screener --per-max 15 --roe-min 12 --top 10\n"
             '  main.py screener --search "apple"\n'
             "  main.py company AAPL\n"
+            "  main.py consensus AAPL\n"
+            "  main.py consensus-ranking --universe sp500 --top 10\n"
+            "  main.py consensus-by-category --universe sp500\n"
             "  main.py analyze AAPL MSFT GOOGL\n"
             "  main.py buffett-analysis AAPL\n"
             "  main.py load-data AAPL\n"
@@ -46,6 +49,9 @@ def main():
         backtest,
         buffett_analysis,
         company,
+        consensus,
+        consensus_by_category,
+        consensus_ranking,
         data_status,
         dcf,
         debug,
@@ -67,6 +73,9 @@ def main():
 
     screener.register(sub)
     company.register(sub)
+    consensus.register(sub)
+    consensus_ranking.register(sub)
+    consensus_by_category.register(sub)
     analyze.register(sub)
     analyze_full.register(sub)
     buffett_analysis.register(sub)
