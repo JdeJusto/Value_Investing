@@ -256,6 +256,19 @@ skipped, never fired. Thresholds and rationale: `docs/financial_alerts.md`.
 The sidebar panel (`st.error/warning/info`) and the `financial-alerts` CLI
 (exit 1 on CRITICAL) consume the same report.
 
+## Consensus screener
+
+`ConsensusService` (`backend/services/consensus_service.py`) reads the
+precomputed `data/consensus/consensus_<date>.json` written by
+`scripts/compute_consensus_rankings.py` (weekly model) and exposes the
+ranking lenses: top by consensus (BUYs desc, score desc), best per Lynch
+category, the disagreement zone (3-5 BUYs and 3-5 AVOIDs) and the full
+verdict matrix. Companies where every methodology returned
+INSUFFICIENT_DATA are data holes and are excluded from every ranking. The UI
+page is `ui/pages/06_consensus.py`; demo mode reads the pinned
+`data/demo/consensus/consensus_demo.json`. Design and output format:
+`docs/consensus_screener.md`.
+
 ## Module layout notes (v0.10.2)
 
 - XBRL concept maps and priority rankings live in

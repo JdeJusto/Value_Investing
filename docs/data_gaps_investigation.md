@@ -132,8 +132,36 @@ components into totals and is deliberately avoided.
   unsafe because many filers tag it per instrument.
 - `InterestPaidNet` (4,711 companies, cash-paid interest) was not added to
   `interest_expense` to avoid mixing accrual and cash concepts.
-- Suggested follow-up: a periodic mapping-coverage audit script that lists
-  high-coverage FDB concepts missing from the curated mapping.
+
+## Systematic coverage batch (2026-10-06)
+
+The COLD case was generalized with `scripts/audit_concept_coverage.py`
+(top 300 concepts, >= 50 companies). Before the batch: 42/300 concepts mapped
+and 12 actionable concepts unmapped. The 17-concept batch added:
+
+- **Bank revenue**: `RevenuesNetOfInterestExpense` plus
+  `InterestIncomeOperating` / `InterestAndDividendIncomeOperating` (gross
+  interest is netted with interest expense to reconstruct the bank top line).
+- **Income fallbacks**: `GeneralAndAdministrativeExpense` (sga),
+  `OtherNonoperatingIncomeExpense` (non-operating),
+  `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterest...`
+  (pretax), `IncomeLossFromContinuingOperations` (net income, last).
+- **Unclassified balance sheets**: `LiabilitiesAndStockholdersEquity`
+  (total-assets identity fallback), `AccountsReceivableNet`,
+  `AccountsPayableAndAccruedLiabilitiesCurrent`,
+  `WeightedAverageNumberOfDilutedSharesOutstanding`,
+  `WeightedAverageNumberOfShareOutstandingBasicAndDiluted`,
+  `LongTermDebtCurrent` (current debt portion).
+- **PP&E**: `PropertyPlantAndEquipmentGross` minus accumulated depreciation
+  derives `net_ppe` when no net tag is filed.
+- **Buybacks**: `PaymentsForRepurchaseOfCommonStock`,
+  `StockRepurchasedDuringPeriodValue`.
+
+Companies that gain coverage (filed only the new tag): repurchase +3,240,
+sga +3,092, non-operating +1,430, current debt +1,022, accounts payable +536,
+accounts receivable +301, pretax +162, net PP&E +20, shares +12. After the
+batch the audit reports **actionable coverage 100%** (54/300 concepts mapped,
+0 actionable unmapped, 246 informational note/disclosure tags).
 
 ## Periodic coverage audit
 

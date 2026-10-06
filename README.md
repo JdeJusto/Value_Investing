@@ -172,6 +172,12 @@ What you are seeing:
 For the multi-framework view use `compare-methodologies KO --demo`: the eight
 verdicts side by side plus the disagreement summary.
 
+The **Consensus** page aggregates those eight verdicts across a whole
+universe: top picks by number of BUYs, best companies per Lynch category, the
+disagreement zone and the full verdict matrix. Generate the rankings with
+`python -m scripts.compute_consensus_rankings --universe sp500`; see
+[docs/consensus_screener.md](docs/consensus_screener.md).
+
 ## UI
 
 | Home | Analysis |
@@ -186,14 +192,16 @@ verdicts side by side plus the disagreement summary.
 |---------|
 | ![Reports](assets/ui_reports.png) |
 
-Captured from the five-page Streamlit app running in demo mode
-(`VI_DEMO=1 ./run_ui.sh`).
+Captured from the Streamlit app running in demo mode
+(`VI_DEMO=1 ./run_ui.sh`). The screenshots predate the **Consensus** page
+(`ui/pages/06_consensus.py`), which adds the universe-wide verdict view.
 
 ## What it does
 
 - Loads and normalizes company fundamentals from SEC filings, Yahoo Finance, or the companion Financial-DataBase.
 - Calculates financial ratios, DCF valuations, company-quality and moat assessments, and explainable scores.
 - Screens companies, ranks opportunities, and generates fundamental alerts.
+- Aggregates the eight methodology verdicts into consensus rankings (top picks, best per Lynch category, disagreement zone).
 - Tracks portfolios and runs deterministic, historical backtests.
 - Provides a CLI, a Streamlit analysis UI, and a FastAPI + React web application.
 
@@ -409,6 +417,13 @@ VI_DEMO=1 ./run_ui.sh
 python main.py compare-methodologies <TICKER>
 ```
 
+**See what the frameworks like across a universe**
+
+```bash
+python -m scripts.compute_consensus_rankings --universe sp500
+VI_DEMO=1 ./run_ui.sh   # Consensus page
+```
+
 **Track a position**
 
 ```bash
@@ -458,6 +473,7 @@ data/         local repository data, cache, and reports
 - [Daily workflow](docs/runbook_daily.md)
 - [Scoring methodology](docs/scoring_methodology.md) and [validation](docs/scoring_validation.md)
 - [Cross-source validation methodology](docs/validation_methodology.md)
+- [Consensus screener](docs/consensus_screener.md)
 - [Data gaps investigation](docs/data_gaps_investigation.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 
