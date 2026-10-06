@@ -120,10 +120,7 @@ def _filter_panel() -> dict:
         basis = (
             "initial estimate"
             if estimate["is_initial"]
-            else (
-                f"based on {estimate['per_ticker']:.1f} s/ticker "
-                "from the last run"
-            )
+            else (f"based on {estimate['per_ticker']:.1f} s/ticker from the last run")
         )
         st.caption(
             f"Estimated runtime: {estimate['text']} for {int(max_tickers)} "
