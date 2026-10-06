@@ -68,6 +68,41 @@ def test_load_file_reads_a_pinned_fixture_name(tmp_path):
     assert len(report.companies) == 9
 
 
+def test_v1_file_loads_without_prices(tmp_path):
+    service = _loaded(tmp_path)
+    report = service._report
+    assert report is not None
+    assert report.version == 1
+    assert report.prices_available is False
+    assert report.prices_snapshot == {}
+    assert all(company.price is None for company in report.companies)
+    assert all(not company.prices_available for company in report.companies)
+
+
+def test_v2_file_loads_the_prices_snapshot(tmp_path):
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["version"] = 2
+    payload["date"] = datetime.now(UTC).date().isoformat()
+    payload["prices_available"] = True
+    payload["prices_snapshot"] = {"AAPL": 250.0}
+    payload["companies"]["AAPL"]["price"] = 250.0
+    payload["companies"]["AAPL"]["prices_available"] = True
+    path = tmp_path / f"consensus_{payload['date']}.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = ConsensusService(directory=tmp_path).load_latest()
+    assert report is not None
+    assert report.version == 2
+    assert report.prices_available is True
+    assert report.prices_snapshot == {"AAPL": 250.0}
+    aapl = next(company for company in report.companies if company.ticker == "AAPL")
+    assert aapl.price == 250.0
+    assert aapl.prices_available is True
+    msft = next(company for company in report.companies if company.ticker == "MSFT")
+    assert msft.price is None
+    assert msft.prices_available is False
+
+
 def test_missing_file_returns_none_with_a_warning(tmp_path, caplog):
     with caplog.at_level(logging.WARNING):
         report = ConsensusService(directory=tmp_path).load_latest()

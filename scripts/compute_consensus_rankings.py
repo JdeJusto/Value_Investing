@@ -18,6 +18,7 @@ import argparse
 import csv
 import io
 import json
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
@@ -27,7 +28,10 @@ from typing import Any
 from backend.app.cli import build_financial_repository
 from backend.methodologies.registry import discover
 from backend.services.consensus_service import CONSENSUS_VERSION
+from backend.services.price_service import _snapshot_price, get_price_service
 from backend.services.ui_adapter import parse_universe_tickers, run_methodologies
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_UNIVERSE_PATH = Path("config/universe.csv")
 DEFAULT_OUTPUT_DIR = Path("data/consensus")
@@ -73,7 +77,92 @@ def read_universe(
     return tickers, names
 
 
-def build_company_consensus(ticker: str, name: str, view: Any) -> dict[str, Any]:
+def prefetch_prices(
+    service: Any, tickers: list[str]
+) -> tuple[dict[str, float], dict[str, float], bool]:
+    """Batch price/market-cap snapshot for the universe (never persisted).
+
+    Returns ``(prices, market_caps, available)``. The Yahoo preflight is
+    probed first: when Yahoo is down the whole prefetch is skipped instead of
+    hammering every ticker. Snapshot failures degrade to the existing
+    per-ticker batch fetch; if that also fails the run continues without
+    prices and the JSON records ``prices_available: false``.
+    """
+    probe = getattr(service, "yahoo_available", None)
+    if callable(probe):
+        try:
+            health = probe(force=True)
+        except Exception:  # noqa: BLE001 — a broken probe never fails the run
+            health = None
+        if health is not None and not getattr(health, "available", True):
+            logger.warning(
+                "Yahoo preflight unavailable (%s): skipping the price prefetch; "
+                "consensus verdicts degrade to the no-price path",
+                getattr(health, "reason", "unknown"),
+            )
+            return {}, {}, False
+
+    snapshots: dict = {}
+    fetch_snapshots = getattr(service, "get_market_snapshots", None)
+    if callable(fetch_snapshots):
+        try:
+            snapshots = (
+                fetch_snapshots(
+                    tickers, batch_size=20, delay=0.1, workers=6, preflight=True
+                )
+                or {}
+            )
+        except Exception:
+            logger.warning("market snapshot prefetch failed", exc_info=True)
+            snapshots = {}
+
+    prices: dict[str, float] = {}
+    market_caps: dict[str, float] = {}
+    for ticker, snapshot in snapshots.items():
+        if not isinstance(snapshot, dict):
+            continue
+        price = _snapshot_price(snapshot)
+        if price is None:
+            continue
+        key = str(ticker).upper()
+        prices[key] = float(price)
+        cap = snapshot.get("marketCap")
+        if cap is not None:
+            try:
+                market_caps[key] = float(cap)
+            except (TypeError, ValueError):
+                pass
+
+    if not prices:
+        fetch_current = getattr(service, "get_current_prices", None)
+        if callable(fetch_current):
+            try:
+                raw = fetch_current(tickers, batch_size=25, delay=0.5) or {}
+            except Exception:  # noqa: BLE001 — no prices is a valid outcome
+                raw = {}
+            prices = {
+                str(ticker).upper(): float(price)
+                for ticker, price in raw.items()
+                if price is not None
+            }
+
+    logger.info(
+        "price prefetch: %d/%d prices, %d market caps",
+        len(prices),
+        len(tickers),
+        len(market_caps),
+    )
+    return prices, market_caps, bool(prices)
+
+
+def build_company_consensus(
+    ticker: str,
+    name: str,
+    view: Any,
+    *,
+    price: float | None = None,
+    prices_available: bool = False,
+) -> dict[str, Any]:
     """Pure aggregation: a methodologies view -> one JSON company row."""
     verdicts: dict[str, str] = {}
     category = "UNKNOWN"
@@ -98,7 +187,17 @@ def build_company_consensus(ticker: str, name: str, view: Any) -> dict[str, Any]
         "insufficient_count": insufficient_count,
         "consensus_score": buy_count - avoid_count,
         "lynch_category": category,
+        "price": price,
+        "prices_available": prices_available,
     }
+
+
+def write_report(output_dir: Path, output_date: str, payload: dict) -> Path:
+    """Write (idempotently) ``consensus_<date>.json`` and return its path."""
+    output = output_dir / f"consensus_{output_date}.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return output
 
 
 def _rank_key(row: dict[str, Any]) -> tuple:
@@ -133,6 +232,16 @@ def print_summary(companies: dict[str, dict[str, Any]], seconds: float) -> None:
             f"  {ticker:6s} buys={row['buy_count']} avoids={row['avoid_count']} "
             f"score={row['consensus_score']:+d} category={row['lynch_category']}{flag}"
         )
+    categorized = sum(
+        1
+        for row in companies.values()
+        if row["lynch_category"] not in ("UNKNOWN", "Unclassified")
+    )
+    if companies:
+        print(
+            f"\nLynch category populated: {categorized}/{len(companies)} "
+            f"({categorized / len(companies) * 100:.0f}%)"
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -166,6 +275,21 @@ def main(argv: list[str] | None = None) -> int:
     discover()
 
     start = time.time()
+    price_service = get_price_service()
+    configure = getattr(price_service, "configure", None)
+    if callable(configure):
+        from backend.services.yahoo_health import check_yahoo_availability
+
+        configure(health_fn=check_yahoo_availability)
+    prices, market_caps, prices_available = prefetch_prices(price_service, tickers)
+    if prices_available:
+        print(
+            f"prices: {len(prices)}/{len(tickers)} fetched "
+            f"({len(market_caps)} market caps)"
+        )
+    else:
+        print("prices: unavailable — evaluating without prices")
+
     rows_by_ticker: dict[str, list] = {}
     for index, ticker in enumerate(tickers, 1):
         try:
@@ -184,14 +308,24 @@ def main(argv: list[str] | None = None) -> int:
     companies: dict[str, dict[str, Any]] = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
-            pool.submit(run_methodologies, ticker, rows, None, None): ticker
+            pool.submit(
+                run_methodologies,
+                ticker,
+                rows,
+                prices.get(ticker),
+                market_caps.get(ticker),
+            ): ticker
             for ticker, rows in rows_by_ticker.items()
         }
         for done, future in enumerate(as_completed(futures), 1):
             ticker = futures[future]
             view = future.result()
             companies[ticker] = build_company_consensus(
-                ticker, names.get(ticker, ticker), view
+                ticker,
+                names.get(ticker, ticker),
+                view,
+                price=prices.get(ticker),
+                prices_available=ticker in prices,
             )
             if done % 25 == 0 or done == len(futures):
                 print(f"  evaluated {done}/{len(futures)} tickers")
@@ -200,11 +334,11 @@ def main(argv: list[str] | None = None) -> int:
         "version": CONSENSUS_VERSION,
         "date": output_date,
         "universe": args.universe,
+        "prices_available": prices_available,
+        "prices_snapshot": {ticker: prices[ticker] for ticker in sorted(prices)},
         "companies": {ticker: companies[ticker] for ticker in sorted(companies)},
     }
-    output = args.output_dir / f"consensus_{output_date}.json"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    output = write_report(args.output_dir, output_date, payload)
     print(f"wrote {output}")
     print_summary(companies, time.time() - start)
     return 0

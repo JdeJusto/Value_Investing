@@ -9,14 +9,15 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 #: Output schema version written by the computation script.
-CONSENSUS_VERSION = 1
+#: v1 = verdicts only; v2 adds ``prices_available`` / ``prices_snapshot``.
+CONSENSUS_VERSION = 2
 #: A file older than this is refused (stale rankings mislead).
 STALE_AFTER_DAYS = 30
 #: The six Lynch buckets shown on the page, in canonical order.
@@ -42,6 +43,10 @@ class CompanyConsensus:
     avoid_count: int
     insufficient_count: int
     consensus_score: int
+    #: Price at computation time (v2 files); None for v1 files.
+    price: float | None = None
+    #: True when the computation had a price for this ticker.
+    prices_available: bool = False
 
     @property
     def is_data_hole(self) -> bool:
@@ -51,11 +56,14 @@ class CompanyConsensus:
 
 @dataclass
 class ConsensusReport:
-    """A loaded consensus file."""
+    """A loaded consensus file (v1 or v2)."""
 
     date: str
     universe: str
     companies: list[CompanyConsensus]
+    version: int = 1
+    prices_available: bool = False
+    prices_snapshot: dict[str, float] = field(default_factory=dict)
 
 
 def default_consensus_dir() -> Path:
@@ -152,6 +160,7 @@ class ConsensusService:
                 str(key): str(value)
                 for key, value in (row.get("verdicts") or {}).items()
             }
+            price = row.get("price")
             companies.append(
                 CompanyConsensus(
                     ticker=ticker,
@@ -162,12 +171,22 @@ class ConsensusService:
                     avoid_count=int(row.get("avoid_count") or 0),
                     insufficient_count=int(row.get("insufficient_count") or 0),
                     consensus_score=int(row.get("consensus_score") or 0),
+                    price=float(price) if price is not None else None,
+                    prices_available=bool(row.get("prices_available")),
                 )
             )
+        snapshot = {
+            str(ticker): float(price)
+            for ticker, price in (payload.get("prices_snapshot") or {}).items()
+            if price is not None
+        }
         return ConsensusReport(
             date=str(payload.get("date") or ""),
             universe=str(payload.get("universe") or ""),
             companies=companies,
+            version=int(payload.get("version") or 1),
+            prices_available=bool(payload.get("prices_available")),
+            prices_snapshot=snapshot,
         )
 
     # ------------------------------------------------------------------
