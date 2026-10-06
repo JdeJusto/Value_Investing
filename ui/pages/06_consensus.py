@@ -26,15 +26,38 @@ from backend.services.consensus_service import (
 from ui._shared import dataframe_with_download, page_header
 
 _PAGE_CAPTION = (
-    "Aggregates verdicts from all 8 book methodologies. The best companies "
-    "have the most BUY verdicts; the disagreement zone shows where judgment "
-    "matters most."
+    "Aggregates verdicts from all 8 book methodologies. The default ranking "
+    "sorts by consensus score (BUYs minus AVOIDs); the disagreement zone "
+    "shows where judgment matters most."
 )
 _MISSING = (
     "No consensus data available. Run "
     "`python -m scripts.compute_consensus_rankings --universe sp500` "
     "to generate it."
 )
+
+#: UI sort lenses. Score first: with 8 strict rules, 2-3 BUYs is common and
+#: the AVOID count is what breaks the ties.
+_SORT_KEYS = {
+    "Consensus score": lambda company: (
+        -company.consensus_score,
+        -company.buy_count,
+        company.avoid_count,
+        company.ticker,
+    ),
+    "BUYs": lambda company: (
+        -company.buy_count,
+        -company.consensus_score,
+        company.avoid_count,
+        company.ticker,
+    ),
+    "AVOIDs": lambda company: (
+        -company.avoid_count,
+        -company.buy_count,
+        company.ticker,
+    ),
+}
+_TOP_N = 20
 
 
 def _available_reports(directory: Path) -> list[dict]:
@@ -70,7 +93,7 @@ def _rank_rows(companies: list[CompanyConsensus]) -> list[dict]:
             "Category": company.lynch_category,
             "BUYs": company.buy_count,
             "AVOIDs": company.avoid_count,
-            "Score": company.consensus_score,
+            "Consensus score": company.consensus_score,
             "Verdicts": _compact(company),
         }
         for rank, company in enumerate(companies, 1)
@@ -110,9 +133,16 @@ def main() -> None:
         st.warning(f"Consensus file for {date} could not be read.")
         return
 
-    top = service.top_by_consensus(20)
+    sort_by = st.radio(
+        "Sort by",
+        list(_SORT_KEYS),
+        horizontal=True,
+        key=f"consensus_sort_{report.date}",
+    )
+    top = service.top_by_consensus(10_000)
     if categories:
         top = [company for company in top if company.lynch_category in categories]
+    top = sorted(top, key=_SORT_KEYS[sort_by])[:_TOP_N]
     st.subheader("Top by consensus")
     dataframe_with_download(
         _rank_rows(top),
