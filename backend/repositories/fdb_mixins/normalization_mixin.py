@@ -15,6 +15,7 @@ from backend.domain.value_objects.financials_normalized import (
 from backend.repositories.fdb_concept_mapping import (
     _COMMON_ONLY_DIVIDEND_CONCEPTS,
     BALANCE_SHEET_CONCEPTS,
+    BANK_INTEREST_INCOME_CONCEPTS,
     CASH_FLOW_CONCEPT_RANK,
     CASH_FLOW_CONCEPTS,
     DEBT_CURRENT_RANK,
@@ -130,6 +131,8 @@ class NormalizationMixin:
         # when no net-revenue tag is filed.
         bank_interest = None
         bank_noninterest = None
+        # Gross interest income (bank/insurance filers without the net tag).
+        interest_income_gross = None
         # REIT rental income (see the value-based override below).
         rental_income = None
         # R&D filed under the ExcludingAcquiredInProcessCost tag (JNJ keeps
@@ -225,6 +228,11 @@ class NormalizationMixin:
                 bank_interest = value
             elif concept == "NoninterestIncome" and bank_noninterest is None:
                 bank_noninterest = value
+            elif (
+                concept in BANK_INTEREST_INCOME_CONCEPTS
+                and interest_income_gross is None
+            ):
+                interest_income_gross = value
             elif concept == "OperatingLeaseLeaseIncome" and rental_income is None:
                 rental_income = value
 
@@ -283,6 +291,15 @@ class NormalizationMixin:
         # it clobbered by a smaller or non-positive reconstructed total; a
         # small incidental interest+non-interest pair must not shadow a
         # manufacturer's real sales either (e.g. 7M pair vs 1,000M Revenues).
+        if bank_interest is None and interest_income_gross is not None:
+            # Filers that only report gross interest income: net it with the
+            # interest expense so the reconstruction sees a net-interest
+            # component, exactly like the InterestIncomeExpenseNet path.
+            interest_expense = income_data.get("interest_expense")
+            if interest_expense is not None and interest_expense != 0:
+                net_interest = interest_income_gross - abs(float(interest_expense))
+                if net_interest > 0:
+                    bank_interest = net_interest
         if bank_interest is not None and bank_noninterest is not None:
             bank_total = bank_interest + bank_noninterest
             current_rev = income_data.get("revenue")
@@ -337,6 +354,18 @@ class NormalizationMixin:
         ):
             cash_flow["free_cash_flow"] = (
                 cash_flow["operating_cash_flow"] - cash_flow["capital_expenditure"]
+            )
+
+        # Net PP&E identity for filers that only tag gross PP&E and accumulated
+        # depreciation (never overrides a filed net figure).
+        balance = statements["balance"]
+        if (
+            balance.get("net_ppe") is None
+            and balance.get("ppe_gross") is not None
+            and balance.get("ppe_accumulated_depreciation") is not None
+        ):
+            balance["net_ppe"] = balance["ppe_gross"] - abs(
+                float(balance["ppe_accumulated_depreciation"])
             )
 
         return statements

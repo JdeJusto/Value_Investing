@@ -236,3 +236,139 @@ def test_long_term_debt_wins_over_secured_debt():
         ]
     )
     assert normalized["balance"]["total_debt"] == 4_140_235_000
+
+
+# ---------------------------------------------------------------------------
+# Systematic coverage batch: banks, unclassified balance sheets, fallbacks
+# ---------------------------------------------------------------------------
+def test_bank_gross_interest_plus_noninterest_reconstructs_revenue():
+    income = _income(
+        _fact("InterestIncomeOperating", 100_000),
+        _fact("InterestExpense", 40_000),
+        _fact("NoninterestIncome", 30_000),
+    )
+    assert income["revenue"] == 90_000
+
+
+def test_bank_net_interest_pair_reconstructs_revenue():
+    income = _income(
+        _fact("InterestIncomeExpenseNet", 60_000),
+        _fact("NoninterestIncome", 30_000),
+    )
+    assert income["revenue"] == 90_000
+
+
+def test_net_ppe_derived_from_gross_minus_accumulated():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("PropertyPlantAndEquipmentGross", 1_000_000),
+            _fact(
+                "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment",
+                400_000,
+            ),
+        ]
+    )
+    derived = FinancialDatabaseRepository()._calculate_derived_fields(normalized)
+    assert derived["balance"]["net_ppe"] == 600_000
+
+
+def test_filed_net_ppe_is_not_overridden():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("PropertyPlantAndEquipmentNet", 500_000),
+            _fact("PropertyPlantAndEquipmentGross", 1_000_000),
+            _fact(
+                "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment",
+                400_000,
+            ),
+        ]
+    )
+    derived = FinancialDatabaseRepository()._calculate_derived_fields(normalized)
+    assert derived["balance"]["net_ppe"] == 500_000
+
+
+def test_diluted_shares_word_order_tag_maps():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [_fact("WeightedAverageNumberOfDilutedSharesOutstanding", 123_000)]
+    )
+    assert normalized["balance"]["shares_outstanding"] == 123_000
+
+
+def test_liabilities_and_equity_maps_to_total_assets():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [_fact("LiabilitiesAndStockholdersEquity", 500_000)]
+    )
+    assert normalized["balance"]["total_assets"] == 500_000
+
+
+def test_unclassified_balance_sheet_receivable_and_payable_map():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("AccountsReceivableNet", 100_000),
+            _fact("AccountsPayableAndAccruedLiabilitiesCurrent", 80_000),
+        ]
+    )
+    assert normalized["balance"]["accounts_receivable"] == 100_000
+    assert normalized["balance"]["accounts_payable"] == 80_000
+
+
+def test_long_term_debt_current_counts_toward_total_debt():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [_fact("LongTermDebtCurrent", 50_000)]
+    )
+    assert normalized["balance"]["total_debt"] == 50_000
+
+
+def test_repurchase_fallback_tags_map():
+    for tag in (
+        "PaymentsForRepurchaseOfCommonStock",
+        "StockRepurchasedDuringPeriodValue",
+    ):
+        normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+            [_fact(tag, 10_000)]
+        )
+        assert normalized["cash_flow"]["repurchase_of_stock"] == 10_000, tag
+
+
+def test_general_and_administrative_fills_sga_when_absent():
+    income = _income(_fact("GeneralAndAdministrativeExpense", 100))
+    assert income["sga"] == 100
+
+
+def test_sga_wins_over_general_and_administrative():
+    income = _income(
+        _fact("SellingGeneralAndAdministrativeExpense", 120),
+        _fact("GeneralAndAdministrativeExpense", 100),
+    )
+    assert income["sga"] == 120
+
+
+def test_other_nonoperating_maps_and_broader_tag_wins():
+    income = _income(_fact("OtherNonoperatingIncomeExpense", 50))
+    assert income["non_operating_income_expense"] == 50
+    income = _income(
+        _fact("NonoperatingIncomeExpense", 70),
+        _fact("OtherNonoperatingIncomeExpense", 50),
+    )
+    assert income["non_operating_income_expense"] == 70
+
+
+def test_pretax_minority_variant_maps():
+    income = _income(
+        _fact(
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterest"
+            "AndIncomeLossFromEquityMethodInvestments",
+            -100,
+        )
+    )
+    assert income["pretax_income"] == -100
+
+
+def test_continuing_operations_net_income_fallback():
+    income = _income(_fact("IncomeLossFromContinuingOperations", 100))
+    assert income["net_income"] == 100
+    income = _income(
+        _fact("NetIncomeLoss", 90),
+        _fact("IncomeLossFromContinuingOperations", 100),
+    )
+    assert income["net_income"] == 90

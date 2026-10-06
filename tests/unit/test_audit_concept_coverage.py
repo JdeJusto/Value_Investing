@@ -22,6 +22,9 @@ SAMPLE = [
 def test_mapped_concepts_include_core_and_recent_aliases():
     mapped = mapped_concepts()
     assert {"Revenues", "NetIncomeLoss", "SecuredDebt"} <= mapped
+    # Batch added after the first audit run.
+    assert "WeightedAverageNumberOfDilutedSharesOutstanding" in mapped
+    assert "LongTermDebtCurrent" in mapped
     assert "EntityPublicFloat" not in mapped
 
 
@@ -48,12 +51,9 @@ def test_render_markdown_reports_actionable_and_informational_counts():
         generated="2026-10-06",
     )
     assert "Active listed companies with facts: **6,736**" in report
-    assert "Mapped: **2**" in report
-    assert "Unmapped with a proposed field (actionable): **1**" in report
-    assert (
-        "| `WeightedAverageNumberOfDilutedSharesOutstanding` | 5,489 | 20,000 | "
-        "shares_outstanding |" in report
-    )
+    assert "Mapped: **3**" in report
+    assert "Unmapped with a proposed field (actionable): **0**" in report
+    assert "| _(none)_ | | | |" in report
     assert "EntityPublicFloat" in report
     assert "`StockholdersEquityNoteStockSplitConversionRatio`" in report
 

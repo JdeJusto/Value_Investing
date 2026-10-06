@@ -18,6 +18,15 @@ _SPLIT_RATIO_CONCEPTS = (
 )
 
 
+#: Bank/insurance gross-interest-revenue tags. The normalizer nets them with
+#: interest expense to reconstruct a bank's net-interest component, mirroring
+#: the InterestIncomeExpenseNet path for filers that only report the gross tag.
+BANK_INTEREST_INCOME_CONCEPTS = (
+    "InterestIncomeOperating",
+    "InterestAndDividendIncomeOperating",
+)
+
+
 # Concept mapping from Financial-DataBase XBRL concepts to Value Investing fields
 # This maps common XBRL concepts to the financial statement fields we use
 INCOME_STATEMENT_CONCEPTS = {
@@ -31,6 +40,8 @@ INCOME_STATEMENT_CONCEPTS = {
     # IFRS 15 tag used by 20-F/40-F filers (e.g. SOPHiA GENETICS); stored by
     # Financial-DataBase under the IFRS concept name.
     "RevenueFromContractsWithCustomers": "revenue",
+    # Bank top line: total revenues net of interest expense.
+    "RevenuesNetOfInterestExpense": "revenue",
     "SalesRevenueGoodsNet": "revenue",
     "SalesRevenueServicesNet": "revenue",
     # REITs file their rental income here when no 'Revenues' tag is present
@@ -58,6 +69,8 @@ INCOME_STATEMENT_CONCEPTS = {
     # _normalize_financial_facts keeps the more complete figure.
     "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost": "research_development",
     "SellingGeneralAndAdministrativeExpense": "sga",
+    # Fallback for filers that only break out G&A (no combined SG&A tag).
+    "GeneralAndAdministrativeExpense": "sga",
     # Operating Income
     "OperatingIncomeLoss": "operating_income",
     "OperatingIncome": "operating_income",
@@ -68,6 +81,8 @@ INCOME_STATEMENT_CONCEPTS = {
     "EBITDA": "ebitda",
     # Non-operating Income/Expense
     "NonoperatingIncomeExpense": "non_operating_income_expense",
+    # Fallback for filers that only tag the "other nonoperating" line.
+    "OtherNonoperatingIncomeExpense": "non_operating_income_expense",
     # Interest Expense
     "InterestExpense": "interest_expense",
     "InterestExpenseNonoperating": "interest_expense",
@@ -79,12 +94,16 @@ INCOME_STATEMENT_CONCEPTS = {
     "PretaxIncome": "pretax_income",
     # The standard US-GAAP pretax line for most filers (COLD, AAPL, ...)
     "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest": "pretax_income",
+    # Pretax variant used by filers with equity-method/minority interests.
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments": "pretax_income",
     # Net Income
     "NetIncomeLossAvailableToCommonStockholdersBasic": "net_income",
     "NetIncomeLossAvailableToCommonStockholdersDiluted": "net_income",
     "NetIncomeLoss": "net_income",
     "NetIncome": "net_income",
     "ProfitLoss": "net_income",
+    # Last-resort fallback for filers that tag continuing operations only.
+    "IncomeLossFromContinuingOperations": "net_income",
     # Preferred dividends (income statement). The DDM subtracts them from the
     # total dividend base for financials whose only cash tag is the total
     # PaymentsOfDividends (JPM, C, GS, MS...); common-only tags are preferred
@@ -111,6 +130,8 @@ INCOME_FIELD_PRIORITY = {
         # IFRS 15 revenue (20-F/40-F filers); after the US-GAAP tags so a
         # filer reporting both prefers the domestic tag.
         "RevenueFromContractsWithCustomers",
+        # Bank top line (net interest + noninterest); only some banks file it.
+        "RevenuesNetOfInterestExpense",
         # REIT rental income; ranked last so explicit revenue tags win, with a
         # value-based override in _normalize_financial_facts for REITs whose
         # rental income is the whole top line (e.g. CPT).
@@ -118,6 +139,20 @@ INCOME_FIELD_PRIORITY = {
         "OperatingLeaseIncome",
         "RentalRevenue",
         "RealEstateRevenueNet",
+    ],
+    "pretax_income": [
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "IncomeLossBeforeIncomeTaxes",
+        "PretaxIncome",
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+    ],
+    "sga": [
+        "SellingGeneralAndAdministrativeExpense",
+        "GeneralAndAdministrativeExpense",
+    ],
+    "non_operating_income_expense": [
+        "NonoperatingIncomeExpense",
+        "OtherNonoperatingIncomeExpense",
     ],
     "interest_expense": [
         # The plain tag is consistently the expense line; Nonoperating is the
@@ -137,6 +172,7 @@ INCOME_FIELD_PRIORITY = {
         "NetIncomeLoss",
         "NetIncome",
         "ProfitLoss",
+        "IncomeLossFromContinuingOperations",
     ],
 }
 INCOME_CONCEPT_RANK = {
@@ -208,6 +244,13 @@ CASH_FLOW_FIELD_PRIORITY = {
         "PaymentsOfOrdinaryDividends",
         "DividendsPaid",
     ],
+    "repurchase_of_stock": [
+        "PaymentsForRepurchaseOfEquity",
+        "RepurchaseOfCommonStock",
+        # Fallbacks for filers that only tag the repurchase at cost.
+        "PaymentsForRepurchaseOfCommonStock",
+        "StockRepurchasedDuringPeriodValue",
+    ],
 }
 CASH_FLOW_CONCEPT_RANK = {
     concept: rank
@@ -229,6 +272,8 @@ DEBT_CURRENT_PRIORITY = [
     "CommercialPaper",
     "LongTermDebtAndCapitalLeaseObligationsCurrent",
     "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
+    # Current portion of long-term debt; last so a broader current-debt tag wins.
+    "LongTermDebtCurrent",
 ]
 DEBT_NONCURRENT_PRIORITY = [
     "LongTermDebtAndCapitalLeaseObligations",
@@ -252,11 +297,15 @@ BALANCE_SHEET_CONCEPTS = {
     # Total Assets
     "Assets": "total_assets",
     "AssetsTotal": "total_assets",
+    # Accounting identity fallback (liabilities + equity = assets).
+    "LiabilitiesAndStockholdersEquity": "total_assets",
     # Current Assets
     "AssetsCurrent": "current_assets",
     "CashAndCashEquivalentsAtCarryingValue": "cash_and_equivalents",
     "CashAndCashEquivalents": "cash_and_equivalents",
     "AccountsReceivableNetCurrent": "accounts_receivable",
+    # Unclassified balance sheets (banks, REITs) use the non-current variant.
+    "AccountsReceivableNet": "accounts_receivable",
     "InventoryNet": "inventory",
     # Total Liabilities
     "Liabilities": "total_liabilities",
@@ -264,6 +313,8 @@ BALANCE_SHEET_CONCEPTS = {
     # Current Liabilities
     "LiabilitiesCurrent": "current_liabilities",
     "AccountsPayableCurrent": "accounts_payable",
+    # Combined payable+accrued line used by unclassified balance sheets.
+    "AccountsPayableAndAccruedLiabilitiesCurrent": "accounts_payable",
     # Long Term Liabilities
     "LongTermLiabilities": "long_term_liabilities",
     # Total Debt (approximation)
@@ -279,6 +330,10 @@ BALANCE_SHEET_CONCEPTS = {
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": "cash_and_equivalents",
     # Net property, plant and equipment (Greenblatt's ROC denominator)
     "PropertyPlantAndEquipmentNet": "net_ppe",
+    # Gross - accumulated depreciation identity, used only when no net tag is
+    # filed (derived in _calculate_derived_fields).
+    "PropertyPlantAndEquipmentGross": "ppe_gross",
+    "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment": "ppe_accumulated_depreciation",
     # Working Capital (calculated as Current Assets - Current Liabilities)
     # We'll calculate this separately since it's not typically stored directly
     # Retained Earnings
@@ -292,6 +347,10 @@ BALANCE_SHEET_CONCEPTS = {
     "WeightedAverageNumberOfSharesOutstandingBasic": "shares_outstanding",
     "WeightedAverageNumberOfSharesOutstanding": "shares_outstanding",
     "WeightedAverageNumberOfSharesOutstandingDiluted": "shares_outstanding",
+    # Most filers tag the diluted average with this word order (5,489 companies).
+    "WeightedAverageNumberOfDilutedSharesOutstanding": "shares_outstanding",
+    # Combined basic+diluted tag; last-resort fallback.
+    "WeightedAverageNumberOfShareOutstandingBasicAndDiluted": "shares_outstanding",
     # Point-in-time share counts (cover page / balance sheet). Financial-DataBase
     # stores these for most filers, and they are the only per-year share count
     # that survives when the weighted-average concepts are absent — without
@@ -331,6 +390,9 @@ CASH_FLOW_CONCEPTS = {
     # Repurchase of Stock
     "PaymentsForRepurchaseOfEquity": "repurchase_of_stock",
     "RepurchaseOfCommonStock": "repurchase_of_stock",
+    # Fallbacks for filers that only tag the repurchased value at cost.
+    "PaymentsForRepurchaseOfCommonStock": "repurchase_of_stock",
+    "StockRepurchasedDuringPeriodValue": "repurchase_of_stock",
     # Working Capital Change (we'll calculate this)
 }
 

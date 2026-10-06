@@ -37,6 +37,7 @@ from pathlib import Path
 from backend.repositories.fdb_concept_mapping import (
     _SPLIT_RATIO_CONCEPTS,
     BALANCE_SHEET_CONCEPTS,
+    BANK_INTEREST_INCOME_CONCEPTS,
     CASH_FLOW_CONCEPTS,
     DEBT_CURRENT_PRIORITY,
     DEBT_NONCURRENT_PRIORITY,
@@ -48,7 +49,9 @@ DEFAULT_OUTPUT = Path("docs/concept_coverage_audit.md")
 
 #: Concepts the normalization reads outside the statement maps (bank revenue
 #: reconstruction + split ratios).
-SPECIAL_CONCEPTS = frozenset({"InterestIncomeExpenseNet", "NoninterestIncome"})
+SPECIAL_CONCEPTS = frozenset(
+    {"InterestIncomeExpenseNet", "NoninterestIncome"}
+) | frozenset(BANK_INTEREST_INCOME_CONCEPTS)
 
 #: High-coverage concepts with a clear target field that the mapping does not
 #: cover yet. Every entry is a candidate for the next mapping batch; the gate

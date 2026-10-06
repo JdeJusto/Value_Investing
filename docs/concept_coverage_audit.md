@@ -8,28 +8,17 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 - Active listed companies with facts: **6,736**
 - Concepts in the top-300 sample: **300**
 - High-coverage concepts (>= 50 companies): **300**
-- Mapped: **42**
-- Unmapped with a proposed field (actionable): **12**
+- Mapped: **54**
+- Unmapped with a proposed field (actionable): **0**
 - Unmapped informational (note/disclosure tags): **246**
-- Raw coverage: **14.0%**
-- Actionable coverage: **77.8%**
+- Raw coverage: **18.0%**
+- Actionable coverage: **100.0%**
 
 ## Actionable unmapped concepts
 
 | Concept | Companies | Facts | Proposed field |
 | --- | ---: | ---: | --- |
-| `LiabilitiesAndStockholdersEquity` | 5,912 | 454,456 | total_assets (accounting identity fallback) |
-| `WeightedAverageNumberOfDilutedSharesOutstanding` | 5,489 | 563,925 | shares_outstanding |
-| `AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment` | 4,715 | 225,868 | net_ppe via gross - accumulated depreciation |
-| `PropertyPlantAndEquipmentGross` | 4,453 | 184,961 | net_ppe via gross - accumulated depreciation |
-| `GeneralAndAdministrativeExpense` | 3,982 | 327,036 | sga (fallback after SG&A) |
-| `OtherNonoperatingIncomeExpense` | 3,862 | 324,977 | non_operating_income_expense (fallback) |
-| `PaymentsForRepurchaseOfCommonStock` | 3,379 | 189,491 | repurchase_of_stock (fallback) |
-| `LongTermDebtCurrent` | 2,473 | 106,736 | total_debt (current portion) |
-| `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` | 2,465 | 203,640 | pretax_income (fallback) |
-| `WeightedAverageNumberOfShareOutstandingBasicAndDiluted` | 2,350 | 106,553 | shares_outstanding (fallback) |
-| `StockRepurchasedDuringPeriodValue` | 2,224 | 56,877 | repurchase_of_stock (fallback) |
-| `IncomeLossFromContinuingOperations` | 1,708 | 91,999 | net_income (last fallback) |
+| _(none)_ | | | |
 
 ## Informational unmapped concepts by bucket
 
@@ -78,7 +67,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `NetIncomeLoss` | 5,950 | 866,912 | ✓ |
 | `NetCashProvidedByUsedInOperatingActivities` | 5,941 | 439,429 | ✓ |
 | `NetCashProvidedByUsedInFinancingActivities` | 5,930 | 428,706 | ✗ |
-| `LiabilitiesAndStockholdersEquity` | 5,912 | 454,456 | ✗ |
+| `LiabilitiesAndStockholdersEquity` | 5,912 | 454,456 | ✓ |
 | `StockholdersEquity` | 5,819 | 716,460 | ✓ |
 | `RetainedEarningsAccumulatedDeficit` | 5,796 | 435,268 | ✓ |
 | `NetCashProvidedByUsedInInvestingActivities` | 5,758 | 404,728 | ✗ |
@@ -87,7 +76,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `EarningsPerShareBasic` | 5,544 | 658,951 | ✗ |
 | `WeightedAverageNumberOfSharesOutstandingBasic` | 5,527 | 581,065 | ✓ |
 | `EarningsPerShareDiluted` | 5,496 | 643,542 | ✗ |
-| `WeightedAverageNumberOfDilutedSharesOutstanding` | 5,489 | 563,925 | ✗ |
+| `WeightedAverageNumberOfDilutedSharesOutstanding` | 5,489 | 563,925 | ✓ |
 | `IncomeTaxExpenseBenefit` | 5,301 | 586,299 | ✓ |
 | `EntityPublicFloat` | 5,138 | 61,567 | ✗ |
 | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` | 5,136 | 380,163 | ✓ |
@@ -109,7 +98,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `EffectiveIncomeTaxRateContinuingOperations` | 4,754 | 242,603 | ✗ |
 | `ProfitLoss` | 4,749 | 382,190 | ✓ |
 | `OperatingLeaseLiability` | 4,727 | 101,951 | ✗ |
-| `AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment` | 4,715 | 225,868 | ✗ |
+| `AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment` | 4,715 | 225,868 | ✓ |
 | `InterestPaidNet` | 4,678 | 216,350 | ✗ |
 | `NumberOfReportableSegments` | 4,653 | 74,412 | ✗ |
 | `StockIssuedDuringPeriodValueNewIssues` | 4,643 | 107,064 | ✗ |
@@ -118,7 +107,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `LesseeOperatingLeaseLiabilityPaymentsDueNextTwelveMonths` | 4,527 | 55,395 | ✗ |
 | `LesseeOperatingLeaseLiabilityPaymentsDueYearTwo` | 4,515 | 62,000 | ✗ |
 | `LesseeOperatingLeaseLiabilityUndiscountedExcessAmount` | 4,464 | 62,931 | ✗ |
-| `PropertyPlantAndEquipmentGross` | 4,453 | 184,961 | ✗ |
+| `PropertyPlantAndEquipmentGross` | 4,453 | 184,961 | ✓ |
 | `IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate` | 4,444 | 86,082 | ✗ |
 | `InterestExpense` | 4,427 | 396,116 | ✓ |
 | `ComprehensiveIncomeNetOfTax` | 4,397 | 462,393 | ✗ |
@@ -140,10 +129,10 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `DeferredTaxAssetsNet` | 4,100 | 75,456 | ✗ |
 | `OperatingLeaseLiabilityNoncurrent` | 4,080 | 145,235 | ✗ |
 | `AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount` | 4,061 | 265,588 | ✗ |
-| `GeneralAndAdministrativeExpense` | 3,982 | 327,036 | ✗ |
+| `GeneralAndAdministrativeExpense` | 3,982 | 327,036 | ✓ |
 | `PreferredStockParOrStatedValuePerShare` | 3,915 | 215,953 | ✗ |
 | `EffectiveIncomeTaxRateReconciliationStateAndLocalIncomeTaxes` | 3,888 | 72,400 | ✗ |
-| `OtherNonoperatingIncomeExpense` | 3,862 | 324,977 | ✗ |
+| `OtherNonoperatingIncomeExpense` | 3,862 | 324,977 | ✓ |
 | `LesseeOperatingLeaseLiabilityPaymentsDueYearFive` | 3,834 | 33,163 | ✗ |
 | `NumberOfOperatingSegments` | 3,819 | 53,828 | ✗ |
 | `CurrentIncomeTaxExpenseBenefit` | 3,813 | 113,551 | ✗ |
@@ -180,7 +169,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `LongTermDebt` | 3,458 | 119,075 | ✓ |
 | `AccruedLiabilitiesCurrent` | 3,404 | 182,227 | ✗ |
 | `CurrentStateAndLocalTaxExpenseBenefit` | 3,394 | 94,467 | ✗ |
-| `PaymentsForRepurchaseOfCommonStock` | 3,379 | 189,491 | ✗ |
+| `PaymentsForRepurchaseOfCommonStock` | 3,379 | 189,491 | ✓ |
 | `ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice` | 3,372 | 130,829 | ✗ |
 | `GrossProfit` | 3,343 | 358,752 | ✓ |
 | `NetIncomeLossAvailableToCommonStockholdersBasic` | 3,319 | 246,335 | ✓ |
@@ -259,9 +248,9 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `EarningsPerShareBasicAndDiluted` | 2,489 | 137,974 | ✗ |
 | `ContractWithCustomerLiabilityCurrent` | 2,487 | 86,893 | ✗ |
 | `DeferredIncomeTaxLiabilitiesNet` | 2,480 | 88,440 | ✗ |
-| `LongTermDebtCurrent` | 2,473 | 106,736 | ✗ |
+| `LongTermDebtCurrent` | 2,473 | 106,736 | ✓ |
 | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign` | 2,468 | 60,184 | ✗ |
-| `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` | 2,465 | 203,640 | ✗ |
+| `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` | 2,465 | 203,640 | ✓ |
 | `StockIssuedDuringPeriodSharesNewIssues` | 2,460 | 31,289 | ✗ |
 | `SellingGeneralAndAdministrativeExpense` | 2,455 | 275,067 | ✓ |
 | `StockIssuedDuringPeriodValueShareBasedCompensation` | 2,455 | 114,502 | ✗ |
@@ -276,7 +265,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `DeferredTaxAssetsTaxDeferredExpenseCompensationAndBenefitsShareBasedCompensationCost` | 2,375 | 41,297 | ✗ |
 | `DeferredIncomeTaxAssetsNet` | 2,365 | 75,706 | ✗ |
 | `NetIncomeLossAttributableToNoncontrollingInterest` | 2,359 | 196,599 | ✗ |
-| `WeightedAverageNumberOfShareOutstandingBasicAndDiluted` | 2,350 | 106,553 | ✗ |
+| `WeightedAverageNumberOfShareOutstandingBasicAndDiluted` | 2,350 | 106,553 | ✓ |
 | `OtherComprehensiveIncomeLossForeignCurrencyTransactionAndTranslationAdjustmentNetOfTax` | 2,345 | 181,139 | ✗ |
 | `RepaymentsOfLongTermDebt` | 2,343 | 119,983 | ✗ |
 | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive` | 2,325 | 24,657 | ✗ |
@@ -295,7 +284,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `StockIssuedDuringPeriodValueConversionOfConvertibleSecurities` | 2,239 | 24,279 | ✗ |
 | `NetCashProvidedByUsedInInvestingActivitiesContinuingOperations` | 2,229 | 64,535 | ✗ |
 | `NetCashProvidedByUsedInFinancingActivitiesContinuingOperations` | 2,226 | 62,022 | ✗ |
-| `StockRepurchasedDuringPeriodValue` | 2,224 | 56,877 | ✗ |
+| `StockRepurchasedDuringPeriodValue` | 2,224 | 56,877 | ✓ |
 | `StockIssuedDuringPeriodValueAcquisitions` | 2,212 | 21,378 | ✗ |
 | `EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognized` | 2,209 | 35,990 | ✗ |
 | `IncrementalCommonSharesAttributableToShareBasedPaymentArrangements` | 2,206 | 181,139 | ✗ |
@@ -369,7 +358,7 @@ Read-only: no Financial-DataBase or Value Investing data is written.
 | `ClassOfWarrantOrRightExercisePriceOfWarrantsOrRights1` | 1,718 | 21,177 | ✗ |
 | `ProceedsFromPaymentsForOtherFinancingActivities` | 1,715 | 96,138 | ✗ |
 | `TaxesPayableCurrent` | 1,713 | 48,010 | ✗ |
-| `IncomeLossFromContinuingOperations` | 1,708 | 91,999 | ✗ |
+| `IncomeLossFromContinuingOperations` | 1,708 | 91,999 | ✓ |
 | `GainLossOnDispositionOfAssets1` | 1,704 | 43,980 | ✗ |
 | `IncomeTaxPaidStateAndLocalAfterRefundReceived` | 1,704 | 3,188 | ✗ |
 | `RestrictedCash` | 1,702 | 37,727 | ✗ |
