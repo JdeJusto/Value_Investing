@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1728%20passed-10A77A?style=for-the-badge" alt="1,728 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1738%20passed-10A77A?style=for-the-badge" alt="1,738 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
   <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
@@ -22,11 +22,18 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a></p>
 
+> **What makes this different**
+>
+> Most tools give you one score. This one runs **eight book methodologies in
+> parallel** and shows where they agree and disagree. Disagreement is
+> information, not a bug.
+
 Value Investing runs eight independent investment frameworks against the same financial facts. It shows what each method concludes, where they disagree, and the rules behind those conclusions. Use the offline demo to explore the interface, or connect the companion Financial-DataBase for SEC-derived fundamentals.
 
 ## Table of contents
 
 - [Screenshots](#screenshots)
+- [Workflows](#workflows)
 - [Features](#features)
 - [The 8 methodologies](#the-8-methodologies)
 - [DCF valuation](#dcf-valuation)
@@ -44,6 +51,7 @@ Value Investing runs eight independent investment frameworks against the same fi
 - [Star History](#star-history)
 - [Acknowledgments](#acknowledgments)
 
+<a id="screenshots"></a>
 ## Screenshots
 
 Captured at a 1600 × 1000 browser viewport. The demo screenshots use pinned data; the screener screenshot uses the live local Financial-DataBase and a Yahoo price snapshot.
@@ -72,17 +80,23 @@ The DCF is labeled `not-from-canon`: it is a practical valuation, not a book rul
 
 ![AAPL financial insights summary and balance-sheet facts by fiscal year](assets/screenshot_financials.png)
 
+See the [financial display conventions](docs/number_formatting.md) and the [Financials view architecture](docs/architecture.md#financials-view).
+
 ### Filings — SEC source documents
 
 ![AAPL SEC filings with filing dates, periods, accessions, and SEC links](assets/screenshot_filings.png)
 
 Select a filing in the app to load its statement preview; this capture shows the populated filings list and source links.
 
+See the [filing extraction status](docs/filings_extraction.md) and [narrative extraction notes](docs/narrative_extraction.md).
+
 ### Consensus — agreement across the universe
 
 ![Consensus ranking with the top table and six Lynch-category sections](assets/screenshot_consensus.png)
 
 This is the offline demo snapshot: eight pinned demo tickers plus synthetic sample rows to demonstrate the ranking layout.
+
+See the [consensus screener design](docs/consensus_screener.md).
 
 ### Screener — Technology companies with WATCH verdicts
 
@@ -131,6 +145,26 @@ DCF Valuation (supplementary, not-from-canon)
                        Verdict : OVERVALUED
 ```
 
+<a id="workflows"></a>
+## Workflows
+
+**Browse the platform**
+
+![UI navigation through Home, Analysis, Consensus, and Portfolio](assets/ui_navigation.gif)
+
+**Portfolio workflow from the terminal**
+
+![Portfolio view, add, and performance commands](assets/portfolio_workflow.gif)
+
+**Financial statements with insights**
+
+![Financials tab switching between statement views](assets/financials_tab.gif)
+
+**Consensus across categories and disagreement**
+
+![Consensus ranking, Lynch categories, and disagreement zone](assets/consensus_screener.gif)
+
+<a id="features"></a>
 ## Features
 
 - **Eight methodologies, side by side.** Each framework evaluates the same company independently.
@@ -144,6 +178,9 @@ DCF Valuation (supplementary, not-from-canon)
 - **Deterministic analysis.** No LLM is used for rules, verdicts, insights, or alerts.
 - **Prices are never written to a database.** Yahoo quotes are fetched on demand and cached in memory; consensus snapshots are report artifacts.
 
+See [financial alert rules](docs/financial_alerts.md), [data-gap findings](docs/data_gaps_investigation.md), and the [concept coverage audit](docs/concept_coverage_audit.md).
+
+<a id="the-8-methodologies"></a>
 ## The 8 methodologies
 
 | Methodology | Source | Family | What it looks for |
@@ -157,15 +194,21 @@ DCF Valuation (supplementary, not-from-canon)
 | `marks` | *The Most Important Thing* (2011) | `CYCLE_AWARE_VALUE` | Cycle position, resilience, leverage, and margin of safety |
 | `greenblatt` | *The Little Book That Beats the Market* (2005) | `MAGIC_FORMULA` | Return on capital and earnings yield ranking |
 
+See the [methodology decisions](docs/methodology_decisions.md), [scoring methodology](docs/scoring_methodology.md), and [scoring validation](docs/scoring_validation.md).
+
+<a id="dcf-valuation"></a>
 ## DCF valuation
 
 The DCF is a supplementary valuation labeled **`not-from-canon`**. It lives outside the methodology registry and never changes a book-derived verdict or composite score. Five evaluation routes cover standard FCF, REIT FFO, two-stage and single-stage financial DDM, and hyper-growth companies. Missing or unsuitable inputs produce `INSUFFICIENT_DATA` rather than fabricated values.
 
 See [the DCF design notes](backend/valuation/README.md) for assumptions, formulas, and variant behavior.
 
+<a id="quick-start-30-seconds"></a>
 ## Quick start (30 seconds)
 
 Try the pinned offline bundle without PostgreSQL, SEC access, or Yahoo:
+
+![The analyze-full demo in the terminal](assets/analyze-full.gif)
 
 ```bash
 git clone https://github.com/JdeJusto/Value_Investing.git
@@ -180,6 +223,7 @@ VI_DEMO=1 ./run_ui.sh   # http://localhost:8501
 
 Demo mode contains eight pinned tickers: AAPL, MSFT, KO, JNJ, JPM, XOM, PLD, and TSLA. It uses no external services.
 
+<a id="installation"></a>
 ## Installation
 
 Requirements: Python 3.13+ and Pipenv. A reachable Financial-DataBase PostgreSQL instance is recommended for the full SEC-derived data set. Local JSON fallback paths and the offline demo are available without it.
@@ -193,6 +237,7 @@ source .venv/bin/activate
 
 Before SEC requests, set `SEC_USER_AGENT` to a descriptive application name and real contact address. Set `SEC_EMAIL` and `SEC_NAME` for the direct `edgartools` provider. Do not commit `.env` or credentials. See [`.env.example`](.env.example) for all settings.
 
+<a id="usage"></a>
 ## Usage
 
 ### CLI
@@ -212,6 +257,8 @@ Consensus commands read the latest precomputed report. Refresh it with:
 ```bash
 python -m scripts.compute_consensus_rankings --universe sp500
 ```
+
+For the full workflow, see the [daily runbook](docs/runbook_daily.md).
 
 ### Streamlit UI
 
@@ -233,6 +280,8 @@ python main.py filing-section AAPL --type risk_factors --word-limit 500
 
 The Filings tab links to SEC source documents and can load statement or narrative previews. Parsed documents are cached locally under `data/raw/filings/`.
 
+See [filing extraction](docs/filings_extraction.md) and [narrative extraction](docs/narrative_extraction.md).
+
 ### Portfolio and daily workflow
 
 ```bash
@@ -242,10 +291,16 @@ The Filings tab links to SEC source documents and can load statement or narrativ
 python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 ```
 
+See the [daily runbook](docs/runbook_daily.md) for refresh, resume, and reporting options.
+
+<a id="data-engine"></a>
 ## Data engine
 
 The app can read SEC-derived fundamentals from the companion [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase) PostgreSQL project. Value Investing treats it as a read-only source; targeted refreshes are delegated to its CLI when configured. Local JSON storage is a fallback. Yahoo Finance provides on-demand prices, which are cached in memory and never written to a database. Consensus price snapshots are report files, not a database price store.
 
+See [data sources](docs/data-sources.md), the [data-gap investigation](docs/data_gaps_investigation.md), and the [validation methodology](docs/validation_methodology.md). Browse the full [documentation index](docs/README.md).
+
+<a id="architecture"></a>
 ## Architecture
 
 ```mermaid
@@ -267,6 +322,9 @@ flowchart TB
 
 The domain uses plain Python objects; providers and repositories live at the edges. Each methodology receives the same normalized fundamentals and price interface. The DCF remains separate from book verdicts. More detail: [architecture](docs/architecture.md) and [consensus design](docs/consensus_screener.md).
 
+Additional reviews: [full platform audit](docs/full_platform_audit_2026-09-24.md) and [refactor audit](docs/refactor_audit.md).
+
+<a id="roadmap"></a>
 ## Roadmap
 
 - [x] Eight independent book methodologies and separate DCF variants
@@ -276,6 +334,9 @@ The domain uses plain Python objects; providers and repositories live at the edg
 - [ ] Real-time alert notifications
 - [ ] Broader documented methodology coverage
 
+See the [engineering backlog](docs/backlog.md) for follow-up items.
+
+<a id="faq"></a>
 ## FAQ
 
 **Why eight methodologies instead of one composite score?**
@@ -302,6 +363,7 @@ It is the recommended source for full SEC fundamentals. Local JSON fallback path
 
 No. Analysis rules, verdicts, insights, and alerts are deterministic.
 
+<a id="tests"></a>
 ## Tests
 
 ```bash
@@ -310,24 +372,29 @@ ruff check .
 ruff format --check .
 ```
 
-The last release run had **1,728 passed and 2 skipped**. The tests badge is static and should be updated when the test count changes. Coverage is not currently measured, so there is no coverage badge.
+The test-count badge is refreshed by the release script. Coverage is not currently measured, so there is no coverage badge.
 
+<a id="contributing"></a>
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and [Security](SECURITY.md). The UI, CLI, and documentation are in English.
 
+<a id="contributors"></a>
 ## Contributors
 
 See the [GitHub contributors graph](https://github.com/JdeJusto/Value_Investing/graphs/contributors). Contributions are welcome.
 
+<a id="license"></a>
 ## License
 
 [MIT](LICENSE). The license applies to this repository's code, not to data supplied by external providers.
 
+<a id="star-history"></a>
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=JdeJusto/Value_Investing&type=Date)](https://star-history.com/#JdeJusto/Value_Investing&Date)
 
+<a id="acknowledgments"></a>
 ## Acknowledgments
 
 - The authors whose books inform the documented investment rules.
