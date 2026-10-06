@@ -68,11 +68,13 @@ def build_portfolio_view(portfolio: Any, sectors: dict | None = None) -> Portfol
         )
     exposure = sector_exposure(portfolio, sectors, top=50)
     warnings = [
-        f"{finding['ticker']} pesa {finding['weight']:.1%} de la cartera (umbral 25%)"
+        f"{finding['ticker']} weighs {finding['weight']:.1%} of the portfolio "
+        "(threshold 25%)"
         for finding in overconcentration(portfolio)
     ]
     warnings += [
-        f"El sector {row['sector']} pesa {row['weight']:.1%} de la cartera (umbral 40%)"
+        f"Sector {row['sector']} weighs {row['weight']:.1%} of the portfolio "
+        "(threshold 40%)"
         for row in exposure
         if row["sector"] != "N/A" and row["weight"] > SECTOR_CONCENTRATION_THRESHOLD
     ]
@@ -117,18 +119,18 @@ def validate_new_position(
     """
     normalized = (ticker or "").strip().upper()
     if not normalized:
-        raise PortfolioActionError("El ticker es obligatorio.")
+        raise PortfolioActionError("Ticker is required.")
     if ticker_checker is not None and not ticker_checker(normalized):
         raise PortfolioActionError(
-            f"El ticker {normalized} no existe en la base de datos."
+            f"Ticker {normalized} does not exist in the database."
         )
     if shares is None or shares <= 0:
-        raise PortfolioActionError("Las acciones deben ser mayores que 0.")
+        raise PortfolioActionError("Shares must be greater than 0.")
     if price is None or price <= 0:
-        raise PortfolioActionError("El precio debe ser mayor que 0.")
+        raise PortfolioActionError("Price must be greater than 0.")
     reference = today or datetime.now(UTC).date()
     if entry_date is not None and entry_date > reference:
-        raise PortfolioActionError("La fecha de entrada no puede ser futura.")
+        raise PortfolioActionError("Entry date cannot be in the future.")
     return normalized
 
 
@@ -168,20 +170,20 @@ def exit_position(
     """Validated exit; returns the closed position (realized PnL recorded)."""
     normalized = (ticker or "").strip().upper()
     if not normalized:
-        raise PortfolioActionError("El ticker es obligatorio.")
+        raise PortfolioActionError("Ticker is required.")
     if price is None or price <= 0:
-        raise PortfolioActionError("El precio de salida debe ser mayor que 0.")
+        raise PortfolioActionError("Exit price must be greater than 0.")
     if portfolio is not None:
         position = portfolio.position(normalized)
         if position is None:
-            raise PortfolioActionError(f"No hay posición abierta para {normalized}.")
+            raise PortfolioActionError(f"No open position for {normalized}.")
         if position.quantity <= 0:
             raise PortfolioActionError(
-                f"{normalized} no tiene acciones; usa Remove en lugar de Exit."
+                f"{normalized} has no shares; use Remove instead of Exit."
             )
     closed = service.exit(normalized, price)
     if closed is None:
-        raise PortfolioActionError(f"No hay posición abierta para {normalized}.")
+        raise PortfolioActionError(f"No open position for {normalized}.")
     return closed
 
 
@@ -189,14 +191,14 @@ def remove_position(service: Any, ticker: str, portfolio: Any = None):
     """Validated remove (no PnL recorded); returns the removed position."""
     normalized = (ticker or "").strip().upper()
     if not normalized:
-        raise PortfolioActionError("El ticker es obligatorio.")
+        raise PortfolioActionError("Ticker is required.")
     if portfolio is not None and not any(
         p.ticker.upper() == normalized for p in portfolio.positions
     ):
-        raise PortfolioActionError(f"No hay posición para {normalized}.")
+        raise PortfolioActionError(f"No position for {normalized}.")
     removed = service.remove(normalized)
     if removed is None:
-        raise PortfolioActionError(f"No hay posición para {normalized}.")
+        raise PortfolioActionError(f"No position for {normalized}.")
     return removed
 
 

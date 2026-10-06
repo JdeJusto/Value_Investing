@@ -483,7 +483,7 @@ def apply_numeric_filters(
 def validate_screener_range(mcap_min: float, mcap_max: float) -> str | None:
     """Error message when the market-cap range is impossible, else None."""
     if mcap_max and mcap_min > mcap_max:
-        return "El market cap mínimo no puede superar el máximo."
+        return "Minimum market cap cannot exceed the maximum."
     return None
 
 
