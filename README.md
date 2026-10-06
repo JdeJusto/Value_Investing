@@ -458,7 +458,13 @@ data/         local repository data, cache, and reports
 - [Daily workflow](docs/runbook_daily.md)
 - [Scoring methodology](docs/scoring_methodology.md) and [validation](docs/scoring_validation.md)
 - [Cross-source validation methodology](docs/validation_methodology.md)
+- [Data gaps investigation](docs/data_gaps_investigation.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
+
+## Language
+
+The UI and documentation are in English. Financial terminology follows
+standard US conventions.
 
 ## Releasing
 

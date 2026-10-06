@@ -195,11 +195,16 @@ Add a **DCF variant**:
 
 Statements are parsed by `FinancialStatementParser`
 (`backend/services/financial_statement_parser.py`) with three supported types:
-`BALANCE_SHEET`, `INCOME_STATEMENT` and `CASH_FLOW` (per-type anchors and
-required label pairs live in `STATEMENT_SIGNATURES`). The parser tries HTML
-anchors first (legacy filings) and falls back to the largest table matching
-the type's label pair — modern filings carry no anchors, so the fallback is
-the working path. Parsed statements are cached as JSON next to the raw HTML
+`BALANCE_SHEET`, `INCOME_STATEMENT` and `CASH_FLOW` (per-type anchors,
+statement titles and required label pairs live in `STATEMENT_SIGNATURES`).
+The parser tries HTML anchors first (legacy filings) and falls back to the
+largest table matching the type's label pair — modern filings carry no
+anchors, so the fallback is the working path. Among matching tables, one that
+carries the statement title (e.g. "Statements of Operations") wins so an
+accidental pair match on another statement cannot be selected (COLD's balance
+sheet matches "net earnings" + "revenue" by accident). Required pairs also
+cover parenthesised bottom lines such as "Net (loss) income". Parsed
+statements are cached as JSON next to the raw HTML
 (`<doc>.<statement_type>.json`, versioned by `PARSER_VERSION`);
 `backend/services/balance_sheet_parser.py` is a v0.6.0 compatibility shim.
 
@@ -231,7 +236,12 @@ values preserve the filing convention ("$29,943", "(7,172)"). The same facts
 read also feeds `FinancialInsightsService`
 (`backend/services/financial_insights_service.py`), which derives the
 Summary panel: latest value, YoY, 5/10-year CAGR, trend and stability per
-metric (percent-kind metrics report their YoY in percentage points). No
+metric (percent-kind metrics report their YoY in percentage points). Gross
+Profit falls back to the `revenue - cogs` identity when the filer files no
+`GrossProfit` tag, mirroring the repository. The curated mapping covers the
+common statement aliases, including REIT tags such as `SecuredDebt`,
+`CostsAndExpenses`, `OperatingLeaseIncome` / `RealEstateRevenueNet`
+(`docs/data_gaps_investigation.md`). No
 second source, no LLM. The demo bundle ships capped fixtures
 (`data/demo/financials/`, built by `scripts/build_demo_financials.py`).
 The sidebar reserves a placeholder for the future deterministic alerts
