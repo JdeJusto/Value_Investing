@@ -170,8 +170,13 @@ def build_company_consensus(
         methodology = str(detail.get("methodology") or "")
         if methodology in METHODOLOGY_KEYS:
             verdicts[methodology] = str(detail.get("verdict") or "INSUFFICIENT_DATA")
-        if methodology == "lynch_garp" and detail.get("category"):
-            category = str(detail["category"])
+        if methodology == "lynch_garp":
+            # Prefer the canonical enum key (metrics["lynch_category"]); the
+            # detail's ``category`` is the human label fallback.
+            metrics = detail.get("metrics") or {}
+            category = str(
+                metrics.get("lynch_category") or detail.get("category") or "UNKNOWN"
+            )
     for key in METHODOLOGY_KEYS:  # deterministic schema: always eight keys
         verdicts.setdefault(key, "INSUFFICIENT_DATA")
     buy_count = sum(1 for verdict in verdicts.values() if verdict == "BUY")

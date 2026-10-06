@@ -30,6 +30,28 @@ LYNCH_CATEGORIES = (
     "ASSET_PLAY",
 )
 
+#: Human label prefixes (lynch_garp CATEGORY_LABELS) -> canonical key. Older
+#: consensus files stored the label; the service normalizes them on read.
+_CATEGORY_LABEL_PREFIXES = {
+    "slow grower": "SLOW_GROWER",
+    "stalwart": "STALWART",
+    "fast grower": "FAST_GROWER",
+    "cyclical": "CYCLICAL",
+    "turnaround": "TURNAROUND",
+    "asset play": "ASSET_PLAY",
+}
+
+
+def normalize_lynch_category(value: str) -> str:
+    """Map a stored category (canonical key or human label) to a key."""
+    if value.strip().upper().replace(" ", "_") in LYNCH_CATEGORIES:
+        return value.strip().upper().replace(" ", "_")
+    lowered = value.strip().lower()
+    for prefix, category in _CATEGORY_LABEL_PREFIXES.items():
+        if lowered.startswith(prefix):
+            return category
+    return "UNKNOWN"
+
 
 @dataclass(frozen=True)
 class CompanyConsensus:
@@ -165,7 +187,9 @@ class ConsensusService:
                 CompanyConsensus(
                     ticker=ticker,
                     name=str(row.get("name") or ticker),
-                    lynch_category=str(row.get("lynch_category") or "UNKNOWN"),
+                    lynch_category=normalize_lynch_category(
+                        str(row.get("lynch_category") or "UNKNOWN")
+                    ),
                     verdicts=verdicts,
                     buy_count=int(row.get("buy_count") or 0),
                     avoid_count=int(row.get("avoid_count") or 0),

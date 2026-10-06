@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from backend.services.consensus_service import (
     LYNCH_CATEGORIES,
     ConsensusService,
+    normalize_lynch_category,
 )
 from scripts.compute_consensus_rankings import build_company_consensus
 
@@ -101,6 +102,31 @@ def test_v2_file_loads_the_prices_snapshot(tmp_path):
     msft = next(company for company in report.companies if company.ticker == "MSFT")
     assert msft.price is None
     assert msft.prices_available is False
+
+
+def test_normalize_lynch_category_handles_keys_and_labels():
+    assert normalize_lynch_category("STALWART") == "STALWART"
+    assert (
+        normalize_lynch_category("Stalwart (large-cap, moderate growth)") == "STALWART"
+    )
+    assert normalize_lynch_category("Fast Grower (aggressive growth)") == "FAST_GROWER"
+    assert normalize_lynch_category("Unclassified") == "UNKNOWN"
+    assert normalize_lynch_category("") == "UNKNOWN"
+
+
+def test_human_label_categories_group_under_the_canonical_bucket(tmp_path):
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["date"] = datetime.now(UTC).date().isoformat()
+    payload["companies"]["AAPL"]["lynch_category"] = (
+        "Stalwart (large-cap, moderate growth)"
+    )
+    path = tmp_path / f"consensus_{payload['date']}.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    service = ConsensusService(directory=tmp_path)
+    assert service.load_latest() is not None
+    grouped = service.best_per_lynch_category(5)
+    assert "AAPL" in [company.ticker for company in grouped["STALWART"]]
 
 
 def test_missing_file_returns_none_with_a_warning(tmp_path, caplog):

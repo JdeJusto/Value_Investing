@@ -50,8 +50,10 @@ def _view(category: str = "STALWART") -> SimpleNamespace:
     details = [
         {"methodology": name, "verdict": "BUY"} for name in consensus.METHODOLOGY_KEYS
     ]
-    # METHODOLOGY_KEYS[-2] is lynch_garp.
-    details[-2]["category"] = category
+    # METHODOLOGY_KEYS[-2] is lynch_garp: the canonical key lives in metrics,
+    # the human label in category.
+    details[-2]["category"] = "Stalwart (large-cap, moderate growth)"
+    details[-2]["metrics"] = {"lynch_category": category}
     return SimpleNamespace(details=details)
 
 
