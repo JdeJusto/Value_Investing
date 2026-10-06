@@ -317,3 +317,34 @@ def test_demo_insights_loader_reads_the_fixture(monkeypatch, tmp_path):
     assert report is not None
     assert report.ticker == "TEST"
     assert module.load_demo_insights("ZZZZ") is None
+
+
+# ---------------------------------------------------------------------------
+# gross profit derivation (REIT/COLD case: no GrossProfit tag filed)
+# ---------------------------------------------------------------------------
+def test_gross_profit_derived_from_revenue_minus_cogs_when_tag_absent():
+    report = _report(
+        [
+            _fact("Revenues", 2024, "2601846000"),
+            _fact("CostOfRevenue", 2024, "1762460000"),
+        ]
+    )
+    assert _metric(report, "gross_profit").latest_value == "$839,386,000"
+    assert _metric(report, "gross_margin").latest_value == "32.3%"
+
+
+def test_filed_gross_profit_is_authoritative_in_insights():
+    report = _report(
+        [
+            _fact("Revenues", 2024, "2601846000"),
+            _fact("CostOfRevenue", 2024, "1762460000"),
+            _fact("GrossProfit", 2024, "900000000"),
+        ]
+    )
+    assert _metric(report, "gross_profit").latest_value == "$900,000,000"
+
+
+def test_no_derived_gross_profit_without_a_cost_line():
+    report = _report([_fact("Revenues", 2024, "2601846000")])
+    assert _metric(report, "gross_profit").latest_value == "—"
+    assert _metric(report, "gross_margin").latest_value == "—"

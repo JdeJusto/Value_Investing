@@ -100,6 +100,7 @@ _METRIC_SPECS: tuple[_MetricSpec, ...] = (
         "Gross Profit",
         "currency",
         concepts=_field_concepts(INCOME_STATEMENT_CONCEPTS, "gross_profit"),
+        special="gross_profit",
     ),
     _MetricSpec(
         "operating_income",
@@ -476,6 +477,19 @@ class FinancialInsightsService:
             ocf = series_by_metric.get("operating_cash_flow", {})
             capex = series_by_metric.get("capital_expenditure", {})
             return {year: ocf[year] - capex[year] for year in ocf if year in capex}
+        if spec.special == "gross_profit":
+            # Same identity as the repository normalization: a filed
+            # GrossProfit tag wins, otherwise revenue - cogs when both exist.
+            filed = self._concept_series(spec.concepts, by_concept)
+            revenue = series_by_metric.get("revenue", {})
+            cogs = self._concept_series(
+                _field_concepts(INCOME_STATEMENT_CONCEPTS, "cogs"), by_concept
+            )
+            derived = {
+                year: revenue[year] - cogs[year] for year in revenue if year in cogs
+            }
+            derived.update(filed)
+            return derived
         if spec.special == "total_debt":
             current = self._concept_series(tuple(DEBT_CURRENT_PRIORITY), by_concept)
             noncurrent = self._concept_series(
