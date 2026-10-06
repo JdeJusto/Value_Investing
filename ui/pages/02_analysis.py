@@ -41,9 +41,9 @@ from ui.services import (
 )
 
 DCF_DISCLAIMER = (
-    "**not-from-canon** — el DCF no es parte de ninguna metodología de libro "
-    "y no compite con sus veredictos. Es una aproximación de valoración, "
-    "sensible a los supuestos de WACC y crecimiento."
+    "**not-from-canon** — the DCF is not part of any book methodology and "
+    "does not compete with their verdicts. It is a valuation approximation, "
+    "sensitive to WACC and growth assumptions."
 )
 MAX_MULTI_TICKERS = 8
 
@@ -194,7 +194,7 @@ def _render_single(ticker: str) -> None:
         return
     quote = load_quote(ticker)
     _price_header(ticker, rows, quote)
-    with st.spinner(f"Evaluando metodologías y DCF para {ticker}..."):
+    with st.spinner(f"Evaluating methodologies and DCF for {ticker}..."):
         view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
         dcf = run_dcf(ticker, rows, get_price_service())
     tabs = st.tabs(
@@ -440,7 +440,7 @@ def _render_compact(ticker: str) -> None:
         return
     quote = load_quote(ticker)
     view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
-    st.markdown(f"**{ticker}** — Categoría Lynch: {view.category or '—'}")
+    st.markdown(f"**{ticker}** — Lynch category: {view.category or '—'}")
     st.dataframe(view.table, width="stretch", hide_index=True)
 
 
@@ -455,7 +455,7 @@ def _price_header(ticker: str, rows: list, quote: dict) -> None:
     sector = getattr(rows[0], "sector", None) if rows else None
     st.markdown(f"**{ticker}**")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Precio", f"${price:,.2f}" if price is not None else "—")
+    col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
     col2.metric(
         "Market Cap",
         abbreviate_number(market_cap) if market_cap is not None else "—",
@@ -468,18 +468,19 @@ def _overview(rows, quote: dict, view) -> None:
     latest = rows[0]
     metric_row(
         [
-            ("Precio", fmt_or_dash(quote["price"])),
+            ("Price", fmt_or_dash(quote["price"])),
             ("Market Cap", fmt_money_short(quote["market_cap"])),
             ("Sector", latest.sector or "—"),
-            ("Categoría Lynch", view.category or "—"),
+            ("Lynch category", view.category or "—"),
         ]
     )
     st.caption(
-        f"Último ejercicio: FY{latest.fiscal_year} · {len(rows)} años de fundamentales"
+        f"Latest fiscal year: FY{latest.fiscal_year} · "
+        f"{len(rows)} years of fundamentals"
     )
-    st.subheader("Resumen de desacuerdos")
+    st.subheader("Disagreement summary")
     if view.agreement:
-        st.info("Todas las metodologías registradas coinciden en esta empresa.")
+        st.info("All recorded methodologies agree on this company.")
     else:
         for line in view.family_lines:
             st.markdown(f"- {line}")
@@ -504,12 +505,12 @@ def _methodologies(view) -> None:
                 ]
             )
             if detail.get("category"):
-                st.caption(f"Categoría Lynch: {detail['category']}")
+                st.caption(f"Lynch category: {detail['category']}")
             outcomes = detail.get("rule_outcomes") or {}
             if outcomes:
                 st.dataframe(
                     [
-                        {"Regla": rule_id, "Resultado": outcome}
+                        {"Rule": rule_id, "Outcome": outcome}
                         for rule_id, outcome in outcomes.items()
                     ],
                     width="stretch",
@@ -524,8 +525,8 @@ def _methodologies(view) -> None:
                 st.dataframe(
                     [
                         {
-                            "Métrica": key,
-                            "Valor": (
+                            "Metric": key,
+                            "Value": (
                                 "—"
                                 if value is None
                                 else str(value)
@@ -547,34 +548,34 @@ def _methodologies(view) -> None:
 
 def _dcf_panel(dcf) -> None:
     st.warning(DCF_DISCLAIMER)
-    st.caption(f"Variante: **{dcf.variant_label}**")
+    st.caption(f"Variant: **{dcf.variant_label}**")
     if dcf.is_insufficient:
         st.metric("Verdict", "INSUFFICIENT_DATA")
         for reason in dcf.reasons:
             st.markdown(f"- {reason}")
         if dcf.missing_inputs:
-            st.caption("Faltan: " + ", ".join(dcf.missing_inputs))
+            st.caption("Missing: " + ", ".join(dcf.missing_inputs))
         return
     metric_row(
         [
-            ("Valor intrínseco", fmt_or_dash(dcf.intrinsic_value_per_share)),
-            ("Precio actual", fmt_or_dash(dcf.current_price)),
-            ("Margen de seguridad", format_pct(dcf.margin_of_safety)),
+            ("Intrinsic value", fmt_or_dash(dcf.intrinsic_value_per_share)),
+            ("Current price", fmt_or_dash(dcf.current_price)),
+            ("Margin of safety", format_pct(dcf.margin_of_safety)),
             ("Verdict", dcf.verdict),
         ]
     )
-    with st.expander("Supuestos"):
+    with st.expander("Assumptions"):
         st.markdown(
             f"- {dcf.discount_label}: {format_pct(dcf.discount_rate)}\n"
             f"- {dcf.base_text}: {fmt_or_dash(dcf.base_value)}\n"
-            f"- Crecimiento años 1-5: {format_pct(dcf.growth_1_5)}\n"
-            f"- Crecimiento años 6-10: {format_pct(dcf.growth_6_10)}\n"
-            f"- Crecimiento terminal: {format_pct(dcf.terminal_growth)}"
+            f"- Growth years 1-5: {format_pct(dcf.growth_1_5)}\n"
+            f"- Growth years 6-10: {format_pct(dcf.growth_6_10)}\n"
+            f"- Terminal growth: {format_pct(dcf.terminal_growth)}"
         )
     if dcf.sensitivity_rows:
-        st.markdown("**Sensibilidad (valor intrínseco por acción)**")
+        st.markdown("**Sensitivity (intrinsic value per share)**")
         st.dataframe(dcf.sensitivity_rows, width="stretch", hide_index=True)
-    with st.expander("Notas"):
+    with st.expander("Notes"):
         for reason in dcf.reasons:
             st.markdown(f"- {reason}")
 
@@ -582,33 +583,33 @@ def _dcf_panel(dcf) -> None:
 def _historical(ticker: str) -> None:
     data = load_historical_valuation(ticker)
     if not data:
-        st.info("Sin datos históricos de valoración para este ticker.")
+        st.info("No historical valuation data for this ticker.")
         return
     pe_rows = [
-        {"Ejercicio": row["fiscal_year"], "P/E": row["pe_ratio"]}
+        {"Fiscal year": row["fiscal_year"], "P/E": row["pe_ratio"]}
         for row in sorted(data, key=lambda r: r["fiscal_year"])
         if row.get("pe_ratio") is not None
     ]
     fcf_rows = [
         {
-            "Ejercicio": row["fiscal_year"],
+            "Fiscal year": row["fiscal_year"],
             "FCF Yield %": (row["fcf_yield"] or 0.0) * 100.0,
         }
         for row in sorted(data, key=lambda r: r["fiscal_year"])
         if row.get("fcf_yield") is not None
     ]
     if not pe_rows and not fcf_rows:
-        st.info("Sin precios históricos suficientes para el gráfico.")
+        st.info("Not enough historical prices for the chart.")
         return
     col1, col2 = st.columns(2)
     with col1:
         if pe_rows:
-            st.caption("P/E por ejercicio")
-            st.line_chart(pe_rows, x="Ejercicio", y="P/E")
+            st.caption("P/E by fiscal year")
+            st.line_chart(pe_rows, x="Fiscal year", y="P/E")
     with col2:
         if fcf_rows:
-            st.caption("FCF Yield por ejercicio (%)")
-            st.line_chart(fcf_rows, x="Ejercicio", y="FCF Yield %")
+            st.caption("FCF yield by fiscal year (%)")
+            st.line_chart(fcf_rows, x="Fiscal year", y="FCF Yield %")
 
 
 def _financials(ticker: str) -> None:
@@ -742,15 +743,15 @@ def _raw(ticker: str) -> None:
     try:
         result = get_analysis_service().analyze(ticker)
     except Exception as exc:  # noqa: BLE001 — analytics failure must not crash the page
-        st.error(f"El análisis de métricas falló: {exc}")
+        st.error(f"Metrics analysis failed: {exc}")
         return
     if not result:
-        st.info("Sin métricas de analytics para este ticker.")
+        st.info("No analytics metrics for this ticker.")
         return
     rows = [
         {
-            "Métrica": key,
-            "Valor": _format_metric(value),
+            "Metric": key,
+            "Value": _format_metric(value),
         }
         for key, value in sorted(result.items())
         if not isinstance(value, (dict, list))
