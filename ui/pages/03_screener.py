@@ -107,26 +107,26 @@ def _filter_panel() -> dict:
             verdicts = st.multiselect("Verdict", VERDICTS)
             categories = st.multiselect("Lynch category", CATEGORIES)
             include_funds = st.checkbox(
-                "Incluir fondos y SPACs",
+                "Include funds and SPACs",
                 value=False,
                 help=(
-                    "Por defecto se excluyen los vehículos sin ingresos "
-                    "operativos (fondos, trusts, ETFs, SPACs)."
+                    "By default, vehicles without operating revenue "
+                    "(funds, trusts, ETFs, SPACs) are excluded."
                 ),
             )
         estimate = screener_estimate(
             int(max_tickers), st.session_state.get("screener_speed_s")
         )
         basis = (
-            "estimación inicial"
+            "initial estimate"
             if estimate["is_initial"]
             else (
-                f"basada en {estimate['per_ticker']:.1f} s/ticker "
-                "de la última ejecución"
+                f"based on {estimate['per_ticker']:.1f} s/ticker "
+                "from the last run"
             )
         )
         st.caption(
-            f"Rendimiento estimado: {estimate['text']} para {int(max_tickers)} "
+            f"Estimated runtime: {estimate['text']} for {int(max_tickers)} "
             f"tickers ({basis})."
         )
     return {
@@ -164,7 +164,7 @@ def _run(filters: dict) -> None:
         return
     tickers = _universe_tickers(tuple(filters["universes"]))
     if not tickers:
-        st.warning("El universo seleccionado está vacío (¿config/universe.csv?).")
+        st.warning("The selected universe is empty (config/universe.csv?).")
         return
 
     sectors: dict[str, str | None] = {}
@@ -179,13 +179,13 @@ def _run(filters: dict) -> None:
         "max_tickers"
     ]:
         st.warning(
-            "El filtro de verdict/categoría se aplica solo a los primeros "
-            f"{filters['max_tickers']} tickers tras los filtros SQL "
-            f"({candidates} candidatos). Aumenta 'Max tickers' para cubrir más."
+            "The verdict/category filter applies only to the first "
+            f"{filters['max_tickers']} tickers after the SQL filters "
+            f"({candidates} candidates). Increase 'Max tickers' to cover more."
         )
     tickers = tickers[: filters["max_tickers"]]
     if not tickers:
-        st.warning("Ningún ticker pasa los filtros de universo/sector.")
+        st.warning("No ticker passes the universe/sector filters.")
         return
 
     progress = st.progress(0.0, text=f"Screening {len(tickers)} tickers...")
@@ -193,12 +193,12 @@ def _run(filters: dict) -> None:
     def callback(current, total, ticker):
         progress.progress(
             min(current / max(total, 1), 1.0),
-            text=f"Analizando {ticker} ({current}/{total})",
+            text=f"Analyzing {ticker} ({current}/{total})",
         )
 
     start = time.time()
     rows = _screen_cached(tuple(tickers), callback)
-    progress.progress(1.0, text=f"Completado: {len(rows)} filas")
+    progress.progress(1.0, text=f"Completed: {len(rows)} rows")
     rows = apply_numeric_filters(
         rows,
         mcap_min=filters["mcap_min"],
@@ -276,12 +276,12 @@ def _results() -> None:
     rows = st.session_state["sc_rows"]
     meta = st.session_state.get("sc_meta", {})
     st.caption(
-        f"Candidatos tras filtros SQL: {meta.get('candidates')} · "
-        f"screened: {meta.get('screened')} · metodología: "
-        f"{meta.get('methodology')} · filas: {len(rows)}"
+        f"Candidates after SQL filters: {meta.get('candidates')} · "
+        f"screened: {meta.get('screened')} · methodology: "
+        f"{meta.get('methodology')} · rows: {len(rows)}"
     )
     if not rows:
-        st.warning("Ningún resultado con los filtros actuales.")
+        st.warning("No results with the current filters.")
         return
     counts: dict[str, int] = {}
     for row in rows:
@@ -293,7 +293,7 @@ def _results() -> None:
     )
     display = rows[:DISPLAY_CAP]
     if len(rows) > DISPLAY_CAP:
-        st.caption(f"Mostrando las primeras {DISPLAY_CAP} filas de {len(rows)}.")
+        st.caption(f"Showing the first {DISPLAY_CAP} rows of {len(rows)}.")
     dataframe_with_download(display, "screener_results.csv", "screener_results")
 
 
