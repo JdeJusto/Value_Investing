@@ -93,7 +93,7 @@ def test_search_filters_the_visible_rows(monkeypatch):
     frames = _financial_frames(at)
     assert len(frames) == 1  # only the income statement has a match
     assert list(frames[0]["Concept"]) == ["NetIncomeLoss"]
-    assert any("Sin filas" in info.value for info in at.info)
+    assert any("No rows" in info.value for info in at.info)
 
 
 def test_unit_filter_hides_rare_units(monkeypatch):
@@ -223,9 +223,9 @@ def test_raw_tab_keeps_full_precision(monkeypatch):
     raw = next(
         element.value
         for element in at.dataframe
-        if "Métrica" in list(element.value.columns)
+        if "Metric" in list(element.value.columns)
     )
-    values = [str(value) for value in raw["Valor"]]
+    values = [str(value) for value in raw["Value"]]
     assert any("," in value for value in values)  # thousands separators
     assert not any(value.endswith(("K", "M", "B", "T")) for value in values)
 

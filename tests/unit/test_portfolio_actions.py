@@ -52,25 +52,25 @@ def test_add_with_valid_inputs_creates_position(tmp_path):
 
 def test_add_with_invalid_ticker_raises(tmp_path):
     service = _service(tmp_path)
-    with pytest.raises(PortfolioActionError, match="no existe"):
+    with pytest.raises(PortfolioActionError, match="does not exist"):
         add_position(service, "NOPE", 10, 100.0, ticker_checker=_checker())
 
 
 def test_add_with_non_positive_shares_raises(tmp_path):
     service = _service(tmp_path)
-    with pytest.raises(PortfolioActionError, match="acciones"):
+    with pytest.raises(PortfolioActionError, match="Shares"):
         add_position(service, "AAPL", 0, 100.0, ticker_checker=_checker())
 
 
 def test_add_with_non_positive_price_raises(tmp_path):
     service = _service(tmp_path)
-    with pytest.raises(PortfolioActionError, match="precio"):
+    with pytest.raises(PortfolioActionError, match="Price"):
         add_position(service, "AAPL", 1, 0.0, ticker_checker=_checker())
 
 
 def test_add_with_future_date_raises(tmp_path):
     service = _service(tmp_path)
-    with pytest.raises(PortfolioActionError, match="futura"):
+    with pytest.raises(PortfolioActionError, match="future"):
         add_position(
             service,
             "AAPL",
@@ -103,7 +103,7 @@ def test_exit_computes_realized_pnl(tmp_path):
 
 def test_exit_without_open_position_raises(tmp_path):
     service = _service(tmp_path)
-    with pytest.raises(PortfolioActionError, match="abierta"):
+    with pytest.raises(PortfolioActionError, match="No open position"):
         exit_position(service, "AAPL", 100.0)
 
 
@@ -127,7 +127,7 @@ def test_remove_without_exit_records_no_pnl(tmp_path):
 
 def test_remove_missing_position_raises(tmp_path):
     service = _service(tmp_path)
-    with pytest.raises(PortfolioActionError, match="No hay posición"):
+    with pytest.raises(PortfolioActionError, match="No position"):
         remove_position(service, "AAPL")
 
 

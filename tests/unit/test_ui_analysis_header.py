@@ -36,8 +36,8 @@ def test_header_shows_price_market_cap_and_sector(monkeypatch):
 
     at = _run(monkeypatch)
     metrics = _header_metrics(at)
-    assert list(metrics) == ["Precio", "Market Cap", "Sector"]
-    assert metrics["Precio"] == "$340.00"  # demo AAPL price
+    assert list(metrics) == ["Price", "Market Cap", "Sector"]
+    assert metrics["Price"] == "$340.00"  # demo AAPL price
     assert metrics["Market Cap"].endswith("T")  # abbreviated
     assert metrics["Sector"]  # from the VO (or "—")
 
@@ -60,7 +60,7 @@ def test_header_survives_a_missing_quote(monkeypatch):
     )
     at = _run(monkeypatch)
     metrics = _header_metrics(at)
-    assert metrics["Precio"] == "—"
+    assert metrics["Price"] == "—"
     assert metrics["Market Cap"] == "—"
     # The rest of the page still renders.
     assert any(tab.label == "Financials" for tab in at.tabs)
@@ -71,7 +71,7 @@ def test_header_is_pinned_above_the_tabs(monkeypatch):
     # The header metrics come before every tab's content in the element tree
     # (the Overview repeats the same labels later; the header is first).
     assert [metric.label for metric in at.metric[:3]] == [
-        "Precio",
+        "Price",
         "Market Cap",
         "Sector",
     ]
