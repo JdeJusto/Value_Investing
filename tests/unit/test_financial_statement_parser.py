@@ -113,3 +113,53 @@ def test_jnj_income_statement_uses_net_earnings_and_sales_to_customers():
     assert "Net earnings" in labels
     sales = next(line for line in statement.lines if line.label == "Sales to customers")
     assert sales.current.replace(" ", "") == "$94,193"
+
+
+def test_income_statement_with_net_loss_income_label_beats_a_bigger_balance_sheet():
+    """COLD: the balance sheet matches a required pair by accident and is
+    larger; the real income statement says "Statements of Operations" and its
+    bottom line is "Net (loss) income", which no pair used to recognise."""
+    balance_sheet = (
+        "<table>"
+        "<tr><td>Condensed Consolidated Balance Sheets</td></tr>"
+        "<tr><td>Net earnings</td><td>$10</td></tr>"
+        "<tr><td>Revenues</td><td>$100</td></tr>"
+        "<tr><td>Total assets</td><td>$500</td></tr>"
+        "<tr><td>Total liabilities</td><td>$200</td></tr>"
+        "<tr><td>Filler detail that makes this table the biggest one</td></tr>"
+        "</table>"
+    )
+    income_statement = (
+        "<table>"
+        "<tr><td>Condensed Consolidated Statements of Operations</td></tr>"
+        "<tr><td>Revenues:</td><td>$2,601,846</td></tr>"
+        "<tr><td>Total costs and expenses</td><td>2,594,612</td></tr>"
+        "<tr><td>Net (loss) income</td><td>(115,300)</td></tr>"
+        "</table>"
+    )
+    statement = FinancialStatementParser().parse(
+        f"<html><body>{balance_sheet}{income_statement}</body></html>",
+        StatementType.INCOME_STATEMENT,
+    )
+    assert statement is not None
+    labels = [line.label for line in statement.lines]
+    assert "Net (loss) income" in labels
+    assert "Condensed Consolidated Balance Sheets" not in labels
+
+
+def test_without_a_statement_title_the_largest_matching_table_still_wins():
+    """The title preference is a tie-breaker; the historical rule stays."""
+    small = (
+        "<table><tr><td>Revenues</td><td>$1</td></tr>"
+        "<tr><td>Net income</td><td>$1</td></tr></table>"
+    )
+    big = (
+        "<table><tr><td>Revenues</td><td>$2</td></tr>"
+        "<tr><td>Net income</td><td>$2</td></tr>"
+        "<tr><td>Extra detail</td><td>x</td></tr></table>"
+    )
+    statement = FinancialStatementParser().parse(
+        f"<html><body>{small}{big}</body></html>", StatementType.INCOME_STATEMENT
+    )
+    assert statement is not None
+    assert "Extra detail" in [line.label for line in statement.lines]

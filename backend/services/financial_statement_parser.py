@@ -27,7 +27,7 @@ from typing import Any
 
 #: Bump when the parser logic changes in a way that alters the output; every
 #: JSON cache with a different version is ignored and re-parsed.
-PARSER_VERSION = 1
+PARSER_VERSION = 2
 
 _CURRENCY = {"$", "€", "£", "¥", "usd"}
 _WS = re.compile(r"\s+")
@@ -63,7 +63,8 @@ class StatementType(str, Enum):
         }[self]
 
 
-#: Per-type anchors (legacy filings) and required label pairs (fallback).
+#: Per-type anchors (legacy filings), statement titles (modern filings) and
+#: required label pairs (fallback).
 STATEMENT_SIGNATURES: dict[StatementType, dict[str, Any]] = {
     StatementType.BALANCE_SHEET: {
         "anchors": [
@@ -74,6 +75,10 @@ STATEMENT_SIGNATURES: dict[StatementType, dict[str, Any]] = {
             "balance_sheets",
             "balance_sheet",
             "s_bs",
+        ],
+        "titles": [
+            "balance sheets",
+            "balance sheet",
         ],
         "required_pairs": [
             ["total assets", "total liabilities"],
@@ -90,12 +95,26 @@ STATEMENT_SIGNATURES: dict[StatementType, dict[str, Any]] = {
             "statements_of_operations",
             "income_statement",
         ],
+        "titles": [
+            "statements of operations",
+            "statement of operations",
+            "statements of income",
+            "statement of income",
+            "statements of earnings",
+            "statement of earnings",
+        ],
         "required_pairs": [
             ["net income", "revenue"],
             ["net income", "total revenue"],
             ["net income", "net sales"],
             ["net income", "total net sales"],
             ["net loss", "revenue"],
+            # Filers that label the bottom line "Net (loss) income" (COLD and
+            # other loss-making quarters) contain neither "net income" nor
+            # "net loss" as a contiguous phrase.
+            ["net (loss) income", "revenue"],
+            ["net (loss) income", "total revenue"],
+            ["net (loss) income", "net sales"],
             # JNJ (and other filers) label the bottom line "Net earnings".
             ["net earnings", "revenue"],
             ["net earnings", "total revenue"],
@@ -112,6 +131,10 @@ STATEMENT_SIGNATURES: dict[StatementType, dict[str, Any]] = {
             "consolidated_statements_of_cash_flows",
             "statements_of_cash_flows",
             "cash_flow_statement",
+        ],
+        "titles": [
+            "statements of cash flows",
+            "statement of cash flows",
         ],
         "required_pairs": [
             ["net cash", "operating activities"],
@@ -283,20 +306,37 @@ class FinancialStatementParser:
 
     @staticmethod
     def _table_from_content(soup: Any, statement_type: StatementType) -> Any:
-        """Largest table whose text contains one of the required pairs."""
+        """Largest table whose text contains one of the required pairs.
+
+        A statement title (``titles`` in the signature) wins over raw size:
+        a balance sheet can contain a required pair by accident (COLD's
+        balance sheet carries "net earnings" and "revenue", so the income
+        signature used to select it), while only the real income statement
+        says "statements of operations".
+        """
+        signature = STATEMENT_SIGNATURES[statement_type]
+        titles = tuple(title.lower() for title in signature.get("titles", ()))
         best = None
         best_size = 0
+        best_titled = None
+        best_titled_size = 0
         for table in soup.find_all("table"):
             text = table.get_text(" ", strip=True).lower()
             if not any(
                 all(needle in text for needle in pair)
-                for pair in STATEMENT_SIGNATURES[statement_type]["required_pairs"]
+                for pair in signature["required_pairs"]
             ):
                 continue
             size = len(text)
             if size > best_size:
                 best, best_size = table, size
-        return best
+            if (
+                titles
+                and any(title in text for title in titles)
+                and size > best_titled_size
+            ):
+                best_titled, best_titled_size = table, size
+        return best_titled if best_titled is not None else best
 
     def _lines_from_table(self, table: Any) -> tuple[list[StatementLine], tuple]:
         lines: list[StatementLine] = []
