@@ -265,9 +265,11 @@ ranking lenses: top by consensus (BUYs desc, score desc), best per Lynch
 category, the disagreement zone (3-5 BUYs and 3-5 AVOIDs) and the full
 verdict matrix. Companies where every methodology returned
 INSUFFICIENT_DATA are data holes and are excluded from every ranking. The UI
-page is `ui/pages/06_consensus.py`; demo mode reads the pinned
-`data/demo/consensus/consensus_demo.json`. Design and output format:
-`docs/consensus_screener.md`.
+page is `ui/pages/06_consensus.py`; the CLI entry points are
+`consensus <ticker>`, `consensus-ranking` and `consensus-by-category`
+(`cli/commands/consensus*.py`), which only read the JSON. Demo mode reads the
+pinned `data/demo/consensus/consensus_demo.json`. Design, price prefetch and
+v2 output format: `docs/consensus_screener.md`.
 
 ## Module layout notes (v0.10.2)
 

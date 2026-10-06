@@ -25,32 +25,43 @@ The computation is expensive (8 methodologies x N companies), so the primary
 model is **weekly precompute**:
 
 1. `scripts/compute_consensus_rankings.py --universe sp500` reads the
-   universe, fetches fundamentals from Financial-DataBase (sequential reads),
-   evaluates the eight methodologies (bounded `ThreadPoolExecutor`, 4
-   workers) and writes `data/consensus/consensus_<date>.json`.
+   universe and prefetches one Yahoo price/market-cap snapshot
+   (`PriceService.get_market_snapshots`, bounded workers, preflight first —
+   when Yahoo is down the whole prefetch is skipped instead of hammering
+   every ticker, and the run continues without prices). Fundamentals then
+   come from Financial-DataBase (sequential reads); the eight methodologies
+   are evaluated with a bounded `ThreadPoolExecutor` (4 workers) receiving
+   each company's price and market cap, and the result is written to
+   `data/consensus/consensus_<date>.json`.
 2. `ConsensusService` reads the JSON for the UI/CLI and derives rankings.
 3. Ad-hoc runs use the same script with `--universe`, `--limit` and
    `--date`; rerunning a date overwrites cleanly (idempotent).
 
 A file older than 30 days is treated as stale (the service refuses it and the
-UI shows the empty state). Financial-DataBase is only read; no prices are
-fetched — price-dependent criteria degrade to their no-price path, which keeps
-the computation deterministic and network-free.
+UI shows the empty state). Financial-DataBase is only read; prices are fetched
+but **never persisted** — the snapshot lives only inside the consensus JSON
+(a report artifact, not a data store). When the snapshot fails entirely,
+`prices_available` is `false` and the price-dependent criteria degrade to
+their no-price path.
 
 ## Output format
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "date": "2026-10-06",
   "universe": "sp500",
+  "prices_available": true,
+  "prices_snapshot": {
+    "AAPL": 332.89
+  },
   "companies": {
     "AAPL": {
       "name": "Apple Inc.",
       "verdicts": {
-        "buffett_classic": "WATCH",
         "buffett_clark": "BUY",
-        "fisher_quantitative_subset": "BUY",
+        "buffett_classic": "BUY",
+        "fisher_quantitative_subset": "WATCH",
         "graham": "AVOID",
         "graham_dodd": "AVOID",
         "greenblatt": "HOLD",
@@ -61,15 +72,20 @@ the computation deterministic and network-free.
       "avoid_count": 4,
       "insufficient_count": 0,
       "consensus_score": -2,
-      "lynch_category": "STALWART"
+      "lynch_category": "STALWART",
+      "price": 332.89,
+      "prices_available": true
     }
   }
 }
 ```
 
-`consensus_score = buy_count - avoid_count`. HOLD/WATCH/INSUFFICIENT do not
-add to either side. `lynch_category` comes from the `lynch_garp`
-methodology's category label (`UNKNOWN` when it does not apply, e.g. banks).
+Schema v1 (verdicts only) is still readable: missing prices default to
+`None`/`false`. `consensus_score = buy_count - avoid_count`. HOLD/WATCH/
+INSUFFICIENT do not add to either side. `lynch_category` stores the canonical
+Lynch key (`STALWART`, `FAST_GROWER`, ...; `UNKNOWN` when the category does
+not apply, e.g. banks); the service also normalizes the human labels written
+by earlier files.
 
 ## Ranking logic
 
@@ -86,12 +102,13 @@ methodology's category label (`UNKNOWN` when it does not apply, e.g. banks).
 
 ## CLI and UI
 
-- **CLI (follow-up)**: `consensus <ticker>`, `consensus-ranking --universe`,
-  `consensus-by-category --universe`. The JSON file is the source for all
-  three.
+- **CLI**: `consensus <ticker>`, `consensus-ranking --universe sp500 --top 20
+  [--by buys|avoid|score]` and `consensus-by-category --universe sp500
+  [--per-category N]`. All three read the JSON (no recomputation) and accept
+  `--universe`, `--date`, `--demo` and `--csv <path>`.
 - **UI**: page `06_consensus.py` with a universe/date/category filter, the
   top-by-consensus table (CSV download), the six Lynch-category blocks, the
-  disagreement zone and the full verdict matrix (BUY green / AVOID red).
+  disagreement zone and the full verdict matrix.
 
 ## Demo mode
 

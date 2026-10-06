@@ -287,17 +287,20 @@ source .venv/bin/activate   # python3.13+ venv
 ./vi analyze-fisher-quant AAPL
 ./vi analyze-lynch-garp AAPL
 ./vi compare-methodologies AAPL     # all methodologies side by side
+./vi consensus AAPL                 # one ticker's aggregated verdicts
+./vi consensus-ranking --top 20     # universe ranking by BUYs
+./vi consensus-by-category          # top companies per Lynch category
 ./vi dcf AAPL                       # not-from-canon DCF (REIT/DDM/hyper-growth variants)
 ./vi analyze-full AAPL              # consolidated 6-section report
 ```
 
-### Streamlit UI (5 pages)
+### Streamlit UI (6 pages)
 
 ```bash
-./run_ui.sh                 # Home · Analysis · Screener · Portfolio · Reports
+./run_ui.sh                 # Home · Analysis · Screener · Portfolio · Reports · Consensus
 ```
 
-Do **not** run `python -m ui.app`: the app is launched with Streamlit (`streamlit run ui/app.py`, which `run_ui.sh` wraps). Pages are `ui/pages/01_home.py` … `05_reports.py`; data loading is cached in memory and prices are never persisted (the only price write is the explicit "Save prices to portfolio" button).
+Do **not** run `python -m ui.app`: the app is launched with Streamlit (`streamlit run ui/app.py`, which `run_ui.sh` wraps). Pages are `ui/pages/01_home.py` … `06_consensus.py`; data loading is cached in memory and prices are never persisted (the only price write is the explicit "Save prices to portfolio" button).
 
 ### Filings and statements
 
@@ -420,7 +423,11 @@ python main.py compare-methodologies <TICKER>
 **See what the frameworks like across a universe**
 
 ```bash
-python -m scripts.compute_consensus_rankings --universe sp500
+python -m scripts.compute_consensus_rankings --universe sp500   # precompute (prefetches prices)
+python main.py consensus AAPL                                   # one ticker's verdicts
+python main.py consensus-ranking --universe sp500 --top 20      # top by BUYs
+python main.py consensus-ranking --by avoid --top 10            # most-rejected
+python main.py consensus-by-category --per-category 5           # per Lynch category
 VI_DEMO=1 ./run_ui.sh   # Consensus page
 ```
 
