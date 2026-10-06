@@ -173,10 +173,30 @@ For the multi-framework view use `compare-methodologies KO --demo`: the eight
 verdicts side by side plus the disagreement summary.
 
 The **Consensus** page aggregates those eight verdicts across a whole
-universe: top picks by number of BUYs, best companies per Lynch category, the
-disagreement zone and the full verdict matrix. Generate the rankings with
+universe: rankings by consensus score (BUYs minus AVOIDs), best companies per
+Lynch category, the disagreement zone, the full verdict matrix, and an inline
+consensus entry on the Analysis page. Generate the rankings with
 `python -m scripts.compute_consensus_rankings --universe sp500`; see
 [docs/consensus_screener.md](docs/consensus_screener.md).
+
+### How to read the consensus
+
+The eight book methodologies are intentionally strict. In a fully priced
+market, most companies score 0 BUYs, and even excellent businesses rarely
+accumulate more than 3 BUYs (measured on the S&P 500: ~37% of companies have
+1+ BUYs at current prices and ~2% reach 3 BUYs). Treat the tiers as:
+
+- **3 BUYs** — top of the universe; the best the current rule set can
+  identify.
+- **2 BUYs** — high conviction; worth serious research.
+- **1 BUY** — a single framework sees value; cross-check with the
+  disagreement zone.
+- **0 BUYs** — the majority of the universe; not necessarily bad, but not
+  cheap or high-quality enough to trigger any framework.
+
+The **consensus score** (BUYs minus AVOIDs) is often more informative than
+the BUY count alone: it captures how many frameworks actively reject the
+company, which is why the consensus tables default to sorting by it.
 
 ## UI
 
