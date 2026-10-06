@@ -3,160 +3,160 @@ import math
 
 def interpret_roe(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.15:
-        return "Bueno (>15%)"
+        return "Good (>15%)"
     if val > 0.08:
-        return "Aceptable (8-15%)"
-    return "Malo (<8%)"
+        return "Acceptable (8-15%)"
+    return "Poor (<8%)"
 
 
 def interpret_pb(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val < 1.0:
-        return "Muy barato (<1)"
+        return "Very cheap (<1)"
     if val < 1.5:
-        return "Bueno (<1.5)"
+        return "Good (<1.5)"
     if val < 3.0:
         return "Normal (1.5-3)"
-    return "Caro (>3)"
+    return "Expensive (>3)"
 
 
 def interpret_fcf_yield(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.06:
-        return "Bueno (>6%)"
+        return "Good (>6%)"
     if val > 0.03:
-        return "Aceptable (3-6%)"
-    return "Bajo (<3%)"
+        return "Acceptable (3-6%)"
+    return "Low (<3%)"
 
 
 def interpret_op_margin(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.20:
-        return "Excelente (>20%)"
+        return "Excellent (>20%)"
     if val > 0.10:
         return "Normal (10-20%)"
-    return "Bajo (<10%)"
+    return "Low (<10%)"
 
 
 def interpret_net_margin(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.15:
-        return "Bueno (>15%)"
+        return "Good (>15%)"
     if val > 0.05:
-        return "Aceptable (5-15%)"
-    return "Bajo (<5%)"
+        return "Acceptable (5-15%)"
+    return "Low (<5%)"
 
 
 def interpret_roic(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.12:
-        return "Bueno (>12%)"
+        return "Good (>12%)"
     if val > 0.06:
         return "Normal (6-12%)"
-    return "Malo (<6%)"
+    return "Poor (<6%)"
 
 
 def interpret_inc_roic(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.10:
-        return "Creando valor (>10%)"
+        return "Creating value (>10%)"
     if val > 0:
-        return "Positivo pero bajo"
-    return "Destruyendo valor"
+        return "Positive but low"
+    return "Destroying value"
 
 
 def interpret_ev_ebit(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val < 10:
-        return "Barato (<10x)"
+        return "Cheap (<10x)"
     if val < 18:
-        return "Razonable (10-18x)"
-    return "Caro (>18x)"
+        return "Reasonable (10-18x)"
+    return "Expensive (>18x)"
 
 
 def interpret_owner_earnings(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     return f"{val:,.0f} USD"
 
 
 def interpret_piotroski(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val >= 8:
-        return "Muy fuerte (8-9)"
+        return "Very strong (8-9)"
     if val >= 5:
         return "Normal (5-7)"
-    return "Debil (<5)"
+    return "Weak (<5)"
 
 
 def interpret_altman_z(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 2.99:
-        return "Zona segura"
+        return "Safe zone"
     if val > 1.8:
-        return "Zona gris"
-    return "Riesgo de quiebra"
+        return "Grey zone"
+    return "Bankruptcy risk"
 
 
 def interpret_net_debt_ebitda(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val < 1:
-        return "Muy bajo riesgo"
+        return "Very low risk"
     if val < 3:
-        return "Aceptable (1-3)"
-    return "Endeudado (>3)"
+        return "Acceptable (1-3)"
+    return "Leveraged (>3)"
 
 
 def interpret_interest_coverage(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 5:
-        return "Seguro (>5x)"
+        return "Safe (>5x)"
     if val > 2:
-        return "Riesgo moderado (2-5x)"
-    return "Alto riesgo (<2x)"
+        return "Moderate risk (2-5x)"
+    return "High risk (<2x)"
 
 
 def interpret_gm_stability(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val < 0.03:
-        return "Muy estable (<3%)"
+        return "Very stable (<3%)"
     if val < 0.08:
-        return "Algo variable (3-8%)"
-    return "Volatil (>8%)"
+        return "Somewhat variable (3-8%)"
+    return "Volatile (>8%)"
 
 
 def interpret_fcf_conversion(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.8:
-        return "Excelente (>80%)"
+        return "Excellent (>80%)"
     if val > 0.5:
         return "Normal (50-80%)"
-    return "Debil (<50%)"
+    return "Weak (<50%)"
 
 
 def interpret_croic(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.10:
-        return "Bueno (>10%)"
+        return "Good (>10%)"
     if val > 0.04:
-        return "Aceptable (4-10%)"
-    return "Bajo (<4%)"
+        return "Acceptable (4-10%)"
+    return "Low (<4%)"
 
 
 def interpret_acquirers_multiple(val):
@@ -165,18 +165,18 @@ def interpret_acquirers_multiple(val):
 
 def interpret_dcf_value(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     return f"{val:,.0f} USD"
 
 
 def interpret_shareholder_yield(val):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "Sin datos"
+        return "No data"
     if val > 0.04:
-        return "Alto (>4%)"
+        return "High (>4%)"
     if val > 0.02:
-        return "Moderado (2-4%)"
-    return "Bajo (<2%)"
+        return "Moderate (2-4%)"
+    return "Low (<2%)"
 
 
 INTERPRETERS = {

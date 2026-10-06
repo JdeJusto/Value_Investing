@@ -5,14 +5,14 @@ SELL_WARNING_MIN_DROP = 10.0
 SELL_WARNING_HIGH_DROP = 15.0
 
 TRIGGER_LABELS = {
-    "MARGIN_EXPANSION": "expansion de margen bruto",
-    "MARGIN_COMPRESSION": "compresion de margen bruto",
-    "REVENUE_ACCELERATION": "aceleracion de ingresos",
-    "REVENUE_DECELERATION": "desaceleracion de ingresos",
-    "ROIC_IMPROVEMENT": "mejora de ROIC",
-    "ROIC_DETERIORATION": "deterioro de ROIC",
-    "FCF_SURGE": "salto de free cash flow",
-    "FCF_DECLINE": "caida de free cash flow",
+    "MARGIN_EXPANSION": "gross margin expansion",
+    "MARGIN_COMPRESSION": "gross margin compression",
+    "REVENUE_ACCELERATION": "revenue acceleration",
+    "REVENUE_DECELERATION": "revenue deceleration",
+    "ROIC_IMPROVEMENT": "ROIC improvement",
+    "ROIC_DETERIORATION": "ROIC deterioration",
+    "FCF_SURGE": "free cash flow surge",
+    "FCF_DECLINE": "free cash flow decline",
 }
 
 BUY_SIGNAL = "BUY_SIGNAL"

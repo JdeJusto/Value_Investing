@@ -133,9 +133,11 @@ def detect_anomalies(
 def anomaly_summary(anomalies: list[dict]) -> str:
     """One-line summary for reporting: number and strongest anomaly."""
     if not anomalies:
-        return "sin anomalias en el ultimo ejercicio"
+        return "no anomalies in the latest fiscal year"
     strongest = anomalies[0]
+    count = len(anomalies)
+    label = "anomaly" if count == 1 else "anomalies"
     return (
-        f"{len(anomalies)} anomalia(s); la mas fuerte: {strongest['metric']} "
+        f"{count} {label}; strongest: {strongest['metric']} "
         f"{strongest['direction'].lower()} (z={strongest.get('zscore', 'n/a')})"
     )

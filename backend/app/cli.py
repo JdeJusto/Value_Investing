@@ -171,8 +171,8 @@ def add_demo_argument(parser) -> None:
         "--demo",
         action="store_true",
         help=(
-            "Modo demo offline: datos predefinidos de 8 tickers, sin "
-            "PostgreSQL, SEC ni Yahoo (ver README)"
+            "Offline demo mode: preloaded data for 8 tickers, no "
+            "PostgreSQL, SEC or Yahoo (see README)"
         ),
     )
 
@@ -187,19 +187,19 @@ def add_refresh_arguments(parser) -> None:
     group.add_argument(
         "--refresh",
         action="store_true",
-        help="Forzar sincronizacion SEC de los tickers analizados (ignora antiguedad)",
+        help="Force SEC sync for the analyzed tickers (ignores freshness)",
     )
     group.add_argument(
         "--no-refresh",
         action="store_true",
-        help="No sincronizar datos SEC antes del analisis (usa los datos existentes)",
+        help="Do not sync SEC data before the analysis (use existing data)",
     )
     parser.add_argument(
         "--freshness-hours",
         type=int,
         default=None,
         metavar="N",
-        help="Antiguedad maxima (horas) para considerar datos frescos (default: 168)",
+        help="Maximum age (hours) to consider data fresh (default: 168)",
     )
 
 
@@ -267,17 +267,15 @@ def _print_refresh_summary(result, *, universe_wide: bool = False) -> None:
     pieces = []
     if result.refreshed:
         n = len(result.refreshed)
-        pieces.append(green(f"{n} sincronizado{'s' if n > 1 else ''} con SEC"))
+        pieces.append(green(f"{n} synced with SEC"))
     if result.skipped:
-        pieces.append(dim(f"{len(result.skipped)} sin tocar"))
+        pieces.append(dim(f"{len(result.skipped)} untouched"))
     if sync_failures:
-        pieces.append(red(f"{len(sync_failures)} con fallo"))
+        pieces.append(red(f"{len(sync_failures)} failed"))
     if getattr(result, "sec_skipped_reason", None):
-        pieces.append(yellow("SEC no disponible — refresh SEC omitido"))
+        pieces.append(yellow("SEC unavailable — SEC refresh skipped"))
     if universe_wide:
-        pieces.append(
-            dim("universo amplio: refresh acotado (usa --refresh para forzar)")
-        )
+        pieces.append(dim("universe-wide: bounded refresh (use --refresh to force)"))
     if not pieces:
         return
     print("  " + " · ".join(pieces))
@@ -433,7 +431,7 @@ def cmd_analyze(args):
     tickers = get_tickers()
     results = []
 
-    print("\nAnalizando...\n")
+    print("\nAnalyzing...\n")
     for t in tickers:
         print(f"-> {t}")
         try:
@@ -442,13 +440,13 @@ def cmd_analyze(args):
                 results.append(result)
                 print_analysis(result)
             else:
-                print(f"  Sin datos suficientes para {t}")
+                print(f"  Not enough data for {t}")
         except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
-            print(f"  Error analizando {t}: {e}")
+            print(f"  Error analyzing {t}: {e}")
             continue
 
     if not results:
-        print("\nNo se pudo extraer datos para ningun ticker.")
+        print("\nCould not extract data for any ticker.")
         return
 
     import pandas as pd
@@ -458,9 +456,9 @@ def cmd_analyze(args):
     os.makedirs(output_dir, exist_ok=True)
     csv_filename = os.path.join(output_dir, "analisis_completo.csv")
     df.to_csv(csv_filename, index=False)
-    print(f"\nResultados guardados en {csv_filename}")
+    print(f"\nResults saved to {csv_filename}")
     print("\n" + "=" * 80)
-    print("RANKING FINAL (por score)")
+    print("FINAL RANKING (by score)")
     print("=" * 80)
     for i, row in df.iterrows():
         ticker = row["ticker"]
@@ -468,7 +466,7 @@ def cmd_analyze(args):
         if score is not None:
             print(f"{i + 1}. {ticker} : {score:.4f}")
         else:
-            print(f"{i + 1}. {ticker} : sin score")
+            print(f"{i + 1}. {ticker} : no score")
     print(f"\nTop pick: {df.iloc[0]['ticker']}")
 
 
@@ -508,19 +506,17 @@ def cmd_screener(args):
                         )
                     )
             except (IndexError, ValueError) as e:
-                print(f"  Error en filtro '{f}': {e}")
+                print(f"  Filter error '{f}': {e}")
                 return
 
     tickers = args.tickers.split(",") if args.tickers else None
 
+    print(f"\nRunning screener over {len(tickers) if tickers else '~150'} tickers...")
     print(
-        f"\nEjecutando screener sobre {len(tickers) if tickers else '~150'} tickers..."
-    )
-    print(
-        "Filtros: "
+        "Filters: "
         + (
             " ".join(f"{f.field} {f.operator.value} {f.value}" for f in filters)
-            or "(ninguno)"
+            or "(none)"
         )
     )
     print()
@@ -540,16 +536,16 @@ def cmd_screener(args):
     )
     elapsed = time.time() - start
 
-    print(f"\n\nResultados: {len(results)} empresas en {elapsed:.1f}s\n")
+    print(f"\n\nResults: {len(results)} companies in {elapsed:.1f}s\n")
 
     if not results:
-        print("  Ninguna empresa cumple los filtros.")
+        print("  No company passes the filters.")
         return
 
     header = " ".join(
         [
             f"{'Ticker':>6}",
-            f"{'Nombre':<28}",
+            f"{'Name':<28}",
             f"{'Price':>8}",
             f"{'PER':>8}",
             f"{'P/B':>8}",
@@ -598,33 +594,31 @@ def cmd_screener(args):
             for r in results
         ]
         pd.DataFrame(rows).to_csv(path, index=False)
-        print(f"\nResultados guardados en {path}")
+        print(f"\nResults saved to {path}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Value Investing - Backend de Analisis Fundamental"
+        description="Value Investing - Fundamental Analysis Backend"
     )
-    sub = parser.add_subparsers(dest="command", help="Comandos disponibles")
+    sub = parser.add_subparsers(dest="command", help="Available commands")
 
     p_analyze = sub.add_parser(
-        "analyze", help="Analizar uno o varios tickers (modo clasico)"
+        "analyze", help="Analyze one or more tickers (classic mode)"
     )
     p_analyze.set_defaults(func=cmd_analyze)
 
-    p_screener = sub.add_parser("screener", help="Stock screener con filtros")
+    p_screener = sub.add_parser("screener", help="Stock screener with filters")
     p_screener.add_argument(
-        "--tickers", type=str, default=None, help="Tickers separados por coma"
+        "--tickers", type=str, default=None, help="Comma-separated tickers"
     )
-    p_screener.add_argument("--top", type=int, default=30, help="Maximo de resultados")
-    p_screener.add_argument(
-        "--save", action="store_true", help="Guardar resultados en CSV"
-    )
+    p_screener.add_argument("--top", type=int, default=30, help="Max results")
+    p_screener.add_argument("--save", action="store_true", help="Save results to CSV")
     p_screener.add_argument(
         "--filter",
         action="append",
         default=[],
-        help='Filtros: "per < 15", "pb between 1 1.5", "roe > 0.15", "fcf > 1000000"',
+        help='Filters: "per < 15", "pb between 1 1.5", "roe > 0.15", "fcf > 1000000"',
     )
     p_screener.set_defaults(func=cmd_screener)
 
