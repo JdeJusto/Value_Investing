@@ -99,6 +99,11 @@ info "4/9  Lint y formato (ruff)"
 "$RUFF_BIN" format --check . || fail "ruff format --check no pasa."
 ok "lint y formato OK"
 
+# --- 4b README test-count badges ---------------------------------------------
+info "4b/9 Actualizando el badge del conteo de tests"
+"$PYTHON_BIN" -m scripts.update_badges || fail "No se pudieron actualizar los badges de tests."
+ok "badges de tests actualizados"
+
 # --- 5. Versión nueva --------------------------------------------------------
 info "5/9  Calculando la versión nueva"
 CURRENT="$(sed -n 's/^__version__ = "\([0-9]\+\.[0-9]\+\.[0-9]\+\)"/\1/p' "$VERSION_FILE" | head -1)"
@@ -168,6 +173,8 @@ fi
 # --- 8. Commit y tag ---------------------------------------------------------
 info "8/9  Commit y tag anotado"
 git add "$VERSION_FILE" "$CHANGELOG"
+git add README.md
+[ -f README.es.md ] && git add README.es.md
 [ -f pyproject.toml ] && git add pyproject.toml
 [ -f Pipfile ] && git add Pipfile
 for README in README.md README.es.md; do
