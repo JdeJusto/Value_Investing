@@ -179,6 +179,18 @@ def actionable_coverage(mapped: int, actionable_unmapped: int) -> float:
     return mapped / total * 100.0
 
 
+def gate_failed(
+    coverage: float,
+    actionable_unmapped: int,
+    min_coverage: float,
+    fail_if_unmapped: int | None,
+) -> bool:
+    """True when the periodic coverage gate must exit 1."""
+    if coverage < min_coverage:
+        return True
+    return fail_if_unmapped is not None and actionable_unmapped > fail_if_unmapped
+
+
 def load_top_concepts(top: int, db_url: str) -> list[tuple[str, int, int]]:
     """Top concepts by distinct active-listing companies (read-only)."""
     import psycopg2
@@ -411,10 +423,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.no_gate:
         return 0
-    failed = coverage < args.min_coverage
-    if args.fail_if_unmapped is not None and proposed > args.fail_if_unmapped:
-        failed = True
-    return 1 if failed else 0
+    return (
+        1
+        if gate_failed(coverage, proposed, args.min_coverage, args.fail_if_unmapped)
+        else 0
+    )
 
 
 if __name__ == "__main__":

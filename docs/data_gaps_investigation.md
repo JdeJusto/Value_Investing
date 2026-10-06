@@ -134,3 +134,24 @@ components into totals and is deliberately avoided.
   `interest_expense` to avoid mixing accrual and cash concepts.
 - Suggested follow-up: a periodic mapping-coverage audit script that lists
   high-coverage FDB concepts missing from the curated mapping.
+
+## Periodic coverage audit
+
+Run periodically to detect new XBRL concepts that Financial-DataBase gains
+while the mapping does not cover them yet:
+
+```bash
+python -m scripts.audit_concept_coverage --top 300 --min-companies 50
+```
+
+The script is read-only, prints the sample table and writes the full report
+to `docs/concept_coverage_audit.md`. It exits 0 when *actionable* coverage
+(concepts with a known target field) is >= 95% and, when given,
+`--fail-if-unmapped N` holds; `--no-gate` reports without enforcing.
+Informational note/disclosure concepts have no target field and are reported
+but not gated.
+
+Latest run (2026-10-06, after the 17-concept batch): **54/300 concepts mapped,
+actionable coverage 100%, 246 informational note/disclosure tags**.
+
+Recommended cadence: monthly, or after each large `sec sync` run.

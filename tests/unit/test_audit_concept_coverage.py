@@ -6,6 +6,7 @@ from scripts.audit_concept_coverage import (
     PROPOSED_FIELD,
     actionable_coverage,
     classify,
+    gate_failed,
     mapped_concepts,
     render_markdown,
 )
@@ -39,6 +40,16 @@ def test_classify_buckets_by_name():
 def test_actionable_coverage_is_the_mapped_share():
     assert actionable_coverage(42, 17) == 42 / 59 * 100
     assert actionable_coverage(0, 0) == 100.0
+
+
+def test_gate_fails_below_min_coverage():
+    assert gate_failed(94.9, 0, 95.0, None) is True
+    assert gate_failed(95.0, 0, 95.0, None) is False
+
+
+def test_gate_fails_when_unmapped_exceeds_the_cap():
+    assert gate_failed(100.0, 3, 95.0, 2) is True
+    assert gate_failed(100.0, 2, 95.0, 2) is False
 
 
 def test_render_markdown_reports_actionable_and_informational_counts():
