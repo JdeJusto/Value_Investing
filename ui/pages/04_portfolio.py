@@ -76,7 +76,7 @@ def _positions_tab(portfolio, path: str) -> None:
         st.dataframe(view.positions, width="stretch", hide_index=True)
         _render_position_actions(portfolio, path)
         _render_refresh_prices(portfolio, path)
-    st.subheader("Añadir posición")
+    st.subheader("Add position")
     _render_add_form(portfolio, path)
 
 
@@ -95,28 +95,28 @@ def _performance_tab(portfolio) -> None:
             ("PnL realizado", fmt_money_short(view.totals["realized_pnl"])),
         ]
     )
-    st.subheader("Exposición sectorial")
+    st.subheader("Sector exposure")
     if view.sector_exposure:
         st.bar_chart(
             [
-                {"Sector": row["sector"], "Peso %": row["weight"] * 100.0}
+                {"Sector": row["sector"], "Weight %": row["weight"] * 100.0}
                 for row in view.sector_exposure
             ],
             x="Sector",
-            y="Peso %",
+            y="Weight %",
         )
     else:
-        st.info("Sin datos de sector para las posiciones.")
-    st.subheader("Riesgo de concentración")
+        st.info("No sector data for the positions.")
+    st.subheader("Concentration risk")
     if view.warnings:
         for warning in view.warnings:
             st.warning(warning)
     else:
-        st.success("Sin sobreconcentración por posición o sector.")
+        st.success("No overconcentration by position or sector.")
     risk = view.risk
     metric_row(
         [
-            ("Mayor posición", format_pct(risk.get("largest_position_weight"))),
+            ("Largest position", format_pct(risk.get("largest_position_weight"))),
             ("Top-5", format_pct(risk.get("top_n_share"))),
             ("HHI", fmt_or_dash(risk.get("hhi"), digits=3)),
         ]
@@ -136,7 +136,7 @@ def _render_refresh_prices(portfolio, path: str) -> None:
         st.session_state["pf_quotes"] = quotes
     quotes = st.session_state.get("pf_quotes")
     if not quotes:
-        st.caption("Precios en memoria; guardar es un paso aparte.")
+        st.caption("Prices are in memory; saving is a separate step.")
         return
     rows = []
     for position in portfolio.positions:
@@ -177,7 +177,7 @@ def _render_refresh_prices(portfolio, path: str) -> None:
                 position.current_price = quotes[position.ticker]
         repository.save(current)
         st.session_state.pop("pf_quotes", None)
-        _flash("Precios guardados en la cartera.")
+        _flash("Prices saved to the portfolio.")
         st.rerun()
 
 
@@ -224,15 +224,15 @@ def _render_add_form(portfolio, path: str) -> None:
                 prefill = float(quote["price"])
     with st.form("pf_add"):
         col1, col2 = st.columns(2)
-        shares = col1.number_input("Acciones", min_value=0.0, value=0.0, step=1.0)
+        shares = col1.number_input("Shares", min_value=0.0, value=0.0, step=1.0)
         price = col2.number_input(
-            "Precio", min_value=0.0, value=float(prefill), step=0.01
+            "Price", min_value=0.0, value=float(prefill), step=0.01
         )
-        thesis = st.text_input("Tesis (opcional)")
+        thesis = st.text_input("Thesis (optional)")
         col3, col4 = st.columns(2)
-        signal = col3.selectbox("Señal", SIGNALS)
-        entry_date = col4.date_input("Fecha de entrada", value=datetime.now(UTC).date())
-        submitted = st.form_submit_button("Añadir posición", type="primary")
+        signal = col3.selectbox("Signal", SIGNALS)
+        entry_date = col4.date_input("Entry date", value=datetime.now(UTC).date())
+        submitted = st.form_submit_button("Add position", type="primary")
     if not submitted:
         return
     try:
@@ -249,19 +249,19 @@ def _render_add_form(portfolio, path: str) -> None:
     except PortfolioActionError as exc:
         st.error(str(exc))
     else:
-        _flash(f"Posición añadida: {ticker}")
+        _flash(f"Position added: {ticker}")
         st.rerun()
 
 
 def _render_position_actions(portfolio, path: str) -> None:
-    st.subheader("Acciones")
+    st.subheader("Actions")
     confirm = st.session_state.get("pf_confirm")
     if confirm:
         action, ticker = confirm
-        verb = "cerrar (Exit)" if action == "exit" else "eliminar (Remove)"
-        st.warning(f"¿Confirmar {verb} la posición {ticker}?")
+        verb = "close (Exit)" if action == "exit" else "remove (Remove)"
+        st.warning(f"Confirm {verb} position {ticker}?")
         col_yes, col_no = st.columns(2)
-        if col_yes.button("Confirmar", type="primary", key="pf_yes"):
+        if col_yes.button("Confirm", type="primary", key="pf_yes"):
             try:
                 if action == "exit":
                     position = portfolio.position(ticker)
@@ -272,18 +272,18 @@ def _render_position_actions(portfolio, path: str) -> None:
                     exit_position(
                         _portfolio_service(path), ticker, price, portfolio=portfolio
                     )
-                    _flash(f"Posición cerrada: {ticker} (PnL realizado registrado)")
+                    _flash(f"Position closed: {ticker} (realized PnL recorded)")
                 else:
                     remove_position(
                         _portfolio_service(path), ticker, portfolio=portfolio
                     )
-                    _flash(f"Posición eliminada: {ticker}")
+                    _flash(f"Position removed: {ticker}")
             except PortfolioActionError as exc:
                 st.error(str(exc))
             else:
                 st.session_state.pop("pf_confirm", None)
                 st.rerun()
-        if col_no.button("Cancelar", key="pf_no"):
+        if col_no.button("Cancel", key="pf_no"):
             st.session_state.pop("pf_confirm", None)
             st.rerun()
         return
