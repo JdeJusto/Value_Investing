@@ -96,7 +96,7 @@ def _build_filters(args) -> list[FilterCriteria]:
                     )
                 )
         except (IndexError, ValueError) as e:
-            print(f"  {red('ERROR:')} Filtro invalido: '{raw}' — {e}")
+            print(f"  {red('ERROR:')} Invalid filter: '{raw}' — {e}")
             sys.exit(1)
 
     if (
@@ -105,8 +105,8 @@ def _build_filters(args) -> list[FilterCriteria]:
         and args.pb_min > args.pb_max
     ):
         print(
-            f"  {red('ERROR:')} pb-min ({args.pb_min}) no puede ser mayor "
-            f"que pb-max ({args.pb_max})"
+            f"  {red('ERROR:')} pb-min ({args.pb_min}) cannot be greater "
+            f"than pb-max ({args.pb_max})"
         )
         sys.exit(1)
 
@@ -116,8 +116,8 @@ def _build_filters(args) -> list[FilterCriteria]:
         and args.pe_min > args.pe_max
     ):
         print(
-            f"  {red('ERROR:')} pe-min ({args.pe_min}) no puede ser mayor "
-            f"que pe-max ({args.pe_max})"
+            f"  {red('ERROR:')} pe-min ({args.pe_min}) cannot be greater "
+            f"than pe-max ({args.pe_max})"
         )
         sys.exit(1)
 
@@ -125,8 +125,8 @@ def _build_filters(args) -> list[FilterCriteria]:
 
 
 def _show_search_results(service, query: str):
-    print_header(f"Busqueda: '{query}'")
-    print("  Buscando tickers...", end=" ")
+    print_header(f"Search: '{query}'")
+    print("  Searching tickers...", end=" ")
     sys.stdout.flush()
     try:
         matches = service.search(query)
@@ -134,13 +134,13 @@ def _show_search_results(service, query: str):
         print(f"\n  {red('ERROR:')} {e}")
         return
 
-    print(f"{len(matches)} resultados\n")
+    print(f"{len(matches)} results\n")
 
     if not matches:
-        print("  No se encontraron resultados.")
+        print("  No results found.")
         return
 
-    headers = [("Ticker", 0), ("Empresa", 0)]
+    headers = [("Ticker", 0), ("Company", 0)]
     rows = []
     for t in matches:
         try:
@@ -168,7 +168,7 @@ def _run_screener(args):
     tickers = None
     universe = getattr(args, "universe", None)
     if universe and universe.lower() != "demo":
-        print(red(f"Universo desconocido: {universe} (usa 'demo' o --tickers)"))
+        print(red(f"Unknown universe: {universe} (use 'demo' or --tickers)"))
         return
     if (universe and universe.lower() == "demo") or (
         getattr(args, "demo", False) and not args.tickers and not args.search
@@ -182,14 +182,14 @@ def _run_screener(args):
         tickers = [t.strip().upper() for t in args.tickers.split(",")]
 
     if args.search:
-        print(f"  Buscando '{args.search}'... ", end="")
+        print(f"  Searching '{args.search}'... ", end="")
         sys.stdout.flush()
         try:
             matches = service.search(args.search)
         except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
             print(f"\n  {red('ERROR:')} {e}")
             return
-        print(f"{len(matches)} resultados")
+        print(f"{len(matches)} results")
         if not matches:
             return
         tickers = matches
@@ -210,15 +210,15 @@ def _run_screener(args):
     price_filters = [f for f in filters if f.field in _PRICE_BASED_FILTERS]
     if args.no_prices and price_filters:
         print(
-            f"  {yellow('AVISO:')} --no-prices con filtros de valoracion "
+            f"  {yellow('WARNING:')} --no-prices with valuation filters "
             f"({', '.join(f.field for f in price_filters)}). "
-            "Sin precio real, estas empresas se descartaran."
+            "Without a real price, these companies will be discarded."
         )
 
     total_tickers = len(tickers) if tickers else "~150"
-    filter_desc = ", ".join(str(f) for f in filters) if filters else "(sin filtros)"
-    mode = "sin precios reales" if args.no_prices else "precios en tiempo real"
-    print(f"  Tickers: {total_tickers}  |  Filtros: {filter_desc}  |  {mode}")
+    filter_desc = ", ".join(str(f) for f in filters) if filters else "(no filters)"
+    mode = "without real prices" if args.no_prices else "real-time prices"
+    print(f"  Tickers: {total_tickers}  |  Filters: {filter_desc}  |  {mode}")
     print()
 
     start = time.time()
@@ -238,16 +238,16 @@ def _run_screener(args):
     )
     elapsed = time.time() - start
 
-    print(f"\n\n  {green(str(len(results)))} resultados en {elapsed:.1f}s")
+    print(f"\n\n  {green(str(len(results)))} results in {elapsed:.1f}s")
 
     if not results:
-        print(f"\n  {yellow('Ninguna empresa cumple los filtros.')}")
+        print(f"\n  {yellow('No company passes the filters.')}")
         return
 
     headers = [
         ("Ticker", 0),
-        ("Empresa", 0),
-        ("Precio", 1),
+        ("Company", 0),
+        ("Price", 1),
         ("PER", 1),
         ("P/B", 1),
         ("ROE", 1),
@@ -323,17 +323,17 @@ def _run_screener(args):
                 for r in results
             ]
         ).to_csv(path, index=False)
-        print(f"  Resultados guardados en {green(path)}")
+        print(f"  Results saved to {green(path)}")
 
 
 def register(subparsers):
     p = subparsers.add_parser(
         "screener",
-        help="Stock screener con filtros fundamentales",
+        help="Stock screener with fundamental filters",
         description=(
-            "Busca empresas que cumplan criterios fundamentales. Dos motores: "
-            "datos de mercado (Yahoo/EDGAR) o el motor de calidad Buffett "
-            "(usa --filter en formato moat=STRONG min_score=80)."
+            "Finds companies that meet fundamental criteria. Two engines: "
+            "market data (Yahoo/EDGAR) or the Buffett quality engine "
+            "(use --filter in the format moat=STRONG min_score=80)."
         ),
         formatter_class=lambda prog: type(
             "HelpFormatter",
@@ -342,21 +342,21 @@ def register(subparsers):
         )(prog),
     )
     p.add_argument(
-        "--tickers", type=str, help="Tickers separados por coma (ej: AAPL,MSFT,GOOGL)"
+        "--tickers", type=str, help="Comma-separated tickers (e.g.: AAPL,MSFT,GOOGL)"
     )
     p.add_argument(
         "--universe",
         type=str,
-        help="Universo con nombre: 'demo' usa los 8 tickers del bundle offline",
+        help="Named universe: 'demo' uses the 8 tickers from the offline bundle",
     )
-    p.add_argument("--search", type=str, help="Buscar por ticker o nombre de empresa")
+    p.add_argument("--search", type=str, help="Search by ticker or company name")
     p.add_argument(
         "--pe-max",
         "--per-max",
         dest="pe_max",
         type=float,
         metavar="N",
-        help="PER maximo (ej: 15)",
+        help="Maximum PER (e.g.: 15)",
     )
     p.add_argument(
         "--pe-min",
@@ -364,61 +364,64 @@ def register(subparsers):
         dest="pe_min",
         type=float,
         metavar="N",
-        help="PER minimo",
+        help="Minimum PER",
     )
     p.add_argument(
-        "--ev-ebit-max", type=float, metavar="N", help="EV/EBIT maximo (ej: 20)"
+        "--ev-ebit-max", type=float, metavar="N", help="Maximum EV/EBIT (e.g.: 20)"
     )
-    p.add_argument("--pb-max", type=float, metavar="N", help="P/B maximo (ej: 1.5)")
-    p.add_argument("--pb-min", type=float, metavar="N", help="P/B minimo (ej: 1.0)")
+    p.add_argument("--pb-max", type=float, metavar="N", help="Maximum P/B (e.g.: 1.5)")
+    p.add_argument("--pb-min", type=float, metavar="N", help="Minimum P/B (e.g.: 1.0)")
     p.add_argument(
         "--no-prices",
         action="store_true",
-        help="No consultar precios en tiempo real (P/E, FCF yield y EV/EBIT pueden quedar en N/A)",
+        help="Do not fetch real-time prices (P/E, FCF yield and EV/EBIT may remain N/A)",
     )
     p.add_argument(
-        "--roe-min", type=float, metavar="N", help="ROE minimo en %% (ej: 15)"
+        "--roe-min", type=float, metavar="N", help="Minimum ROE in %% (e.g.: 15)"
     )
     p.add_argument(
-        "--roic-min", type=float, metavar="N", help="ROIC minimo en %% (ej: 10)"
+        "--roic-min", type=float, metavar="N", help="Minimum ROIC in %% (e.g.: 10)"
     )
     p.add_argument(
-        "--fcf-min", type=float, metavar="N", help="FCF minimo en USD (ej: 1000000)"
+        "--fcf-min", type=float, metavar="N", help="Minimum FCF in USD (e.g.: 1000000)"
     )
     p.add_argument(
         "--fcf-yield-min",
         type=float,
         metavar="N",
-        help="FCF Yield minimo en %% (ej: 5)",
+        help="Minimum FCF yield in %% (e.g.: 5)",
     )
     p.add_argument(
-        "--market-cap-min", type=float, metavar="N", help="Market Cap minimo en USD"
+        "--market-cap-min", type=float, metavar="N", help="Minimum Market Cap in USD"
     )
-    p.add_argument("--debt-to-equity-max", type=float, metavar="N", help="D/E maximo")
+    p.add_argument("--debt-to-equity-max", type=float, metavar="N", help="Maximum D/E")
     p.add_argument(
-        "--op-margin-min", type=float, metavar="N", help="Margen operativo minimo en %%"
+        "--op-margin-min",
+        type=float,
+        metavar="N",
+        help="Minimum operating margin in %%",
     )
     p.add_argument(
-        "--net-margin-min", type=float, metavar="N", help="Margen neto minimo en %%"
+        "--net-margin-min", type=float, metavar="N", help="Minimum net margin in %%"
     )
     p.add_argument(
         "--top",
         type=int,
         default=30,
         metavar="N",
-        help="Maximo de resultados (default: 30)",
+        help="Max results (default: 30)",
     )
     p.add_argument(
         "--filter",
         action="append",
         default=[],
-        metavar="'campo < valor'|'clave=valor'",
+        metavar="'field < value'|'key=value'",
         help=(
-            'Filtro raw: "per < 15" (motor mercado) o "moat=STRONG", '
-            '"min_score=80", "min_roic=0.12" (motor calidad Buffett)'
+            'Raw filter: "per < 15" (market engine) or "moat=STRONG", '
+            '"min_score=80", "min_roic=0.12" (Buffett quality engine)'
         ),
     )
-    p.add_argument("--save", action="store_true", help="Guardar resultados en CSV")
+    p.add_argument("--save", action="store_true", help="Save results to CSV")
     add_refresh_arguments(p)
     add_demo_argument(p)
     p.set_defaults(func=_run)
@@ -443,8 +446,8 @@ def _parse_investment_filters(raw_filters: list[str]) -> dict:
     for raw in raw_filters:
         if "=" not in raw:
             print(
-                f"  {red('ERROR:')} '{raw}' no es un filtro de calidad Buffett. "
-                "No se pueden mezclar filtros raw y de igualdad; usa uno u otro motor."
+                f"  {red('ERROR:')} '{raw}' is not a Buffett quality filter. "
+                "Raw and equality filters cannot be mixed; use one engine or the other."
             )
             sys.exit(1)
         key, _, value = raw.partition("=")
@@ -456,12 +459,12 @@ def _parse_investment_filters(raw_filters: list[str]) -> dict:
             "industry",
             "confidence",
         }:
-            print(f"  {red('ERROR:')} Filtro desconocido '{key}'.")
+            print(f"  {red('ERROR:')} Unknown filter '{key}'.")
             sys.exit(1)
         try:
             criteria[key] = float(value) if key in numeric_keys else value
         except ValueError:
-            print(f"  {red('ERROR:')} Valor invalido para '{key}': '{value}'")
+            print(f"  {red('ERROR:')} Invalid value for '{key}': '{value}'")
             sys.exit(1)
     return criteria
 
@@ -484,18 +487,18 @@ def _run_investment_screener(args) -> None:
             explicit=bool(args.tickers),
         )
 
-    mode = "" if args.no_prices else " (+ precios en tiempo real)"
-    print(f"  Motor: calidad Buffett{mode}  |  Filtros: {criteria or '(sin filtros)'}")
+    mode = "" if args.no_prices else " (+ real-time prices)"
+    print(f"  Engine: Buffett quality{mode}  |  Filters: {criteria or '(no filters)'}")
     if args.no_prices:
-        print(f"  {yellow('AVISO:')} --no-prices: sin P/E ni FCF yield en tiempo real.")
+        print(f"  {yellow('WARNING:')} --no-prices: no real-time P/E or FCF yield.")
     print()
 
     service = build_investment_screener(universe, no_prices=args.no_prices)
     results = service.top_n(args.top, **criteria)
-    print(f"\n  {green(str(len(results)))} resultados")
+    print(f"\n  {green(str(len(results)))} results")
 
     if not results:
-        print(f"\n  {yellow('Ninguna empresa cumple los filtros.')}")
+        print(f"\n  {yellow('No company passes the filters.')}")
         return
 
     headers = [
@@ -505,11 +508,11 @@ def _run_investment_screener(args) -> None:
         ("Ranking", 1),
         ("Moat", 0),
         ("Rating", 0),
-        ("Precio", 1),
+        ("Price", 1),
         ("PER", 1),
         ("FCF Yield", 1),
         ("EV/EBIT", 1),
-        ("Senal", 0),
+        ("Signal", 0),
     ]
     rows = []
     for r in results:
@@ -535,7 +538,7 @@ def _run_investment_screener(args) -> None:
         )
     print_table(headers, rows)
 
-    print(f"\n  {bold('Por que?')}")
+    print(f"\n  {bold('Why?')}")
     for r in results[:10]:
         reasons = r.reasons[:3]
         print(f"  {green(str(r.rank)):>3}. {bold(r.ticker)} — {'; '.join(reasons)}")
@@ -560,9 +563,9 @@ def _run(args):
         ]
         if any(v is not None for v in market_flags):
             print(
-                f"  {red('ERROR:')} No se pueden mezclar filtros de igualdad "
-                "(--filter moat=STRONG) con los filtros numericos "
-                "(--pe-max, --roe-min, ...). Usa solo un motor."
+                f"  {red('ERROR:')} Equality filters "
+                "(--filter moat=STRONG) cannot be mixed with numeric "
+                "filters (--pe-max, --roe-min, ...). Use only one engine."
             )
             sys.exit(1)
         _run_investment_screener(args)

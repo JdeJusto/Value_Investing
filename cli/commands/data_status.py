@@ -6,10 +6,10 @@ from cli.formatters import bold, dim, green, print_header, print_key_value, red
 def register(subparsers):
     p = subparsers.add_parser(
         "data-status",
-        help="Estado de calidad, frescura y consistencia de los datos",
+        help="Data quality, freshness and consistency status",
         description=(
-            "Muestra por ticker el origen de cada anio fiscal, la cobertura, "
-            "la calidad, la procedencia de los datos y si requieren refresco."
+            "Shows, per ticker, the source of each fiscal year, coverage, "
+            "quality, data provenance and whether a refresh is needed."
         ),
     )
     p.add_argument(
@@ -23,10 +23,10 @@ def register(subparsers):
 
 def _status_labels(row, available: bool) -> str:
     if is_stale(row):
-        return red("DESACTUALIZADO")
+        return red("STALE")
     if not available and row.is_complete:
-        return dim("no usado (origen alternativo)")
-    return green("frescos")
+        return dim("unused (alternative source)")
+    return green("fresh")
 
 
 def _run(args):
@@ -34,18 +34,16 @@ def _run(args):
 
     for raw_ticker in args.tickers:
         ticker = raw_ticker.upper().strip()
-        print_header(f"Estado de datos: {ticker}")
+        print_header(f"Data status: {ticker}")
 
         rows = repository.list_all(ticker)
         if not rows:
-            print(
-                f"  {red('Sin datos persistidos.')} Usa 'main.py load-data {ticker}'."
-            )
+            print(f"  {red('No persisted data.')} Use 'main.py load-data {ticker}'.")
             continue
 
         selected = {r.fiscal_year: r for r in repository.get_best_available(ticker)}
 
-        print(f"  {bold('Origen por anio fiscal')}")
+        print(f"  {bold('Source per fiscal year')}")
         for row in sorted(rows, key=lambda r: r.fiscal_year, reverse=True):
             source = row.source.value.upper()
             quality = (
@@ -59,13 +57,13 @@ def _run(args):
                 else dim("N/A")
             )
             derived = (
-                f" (+derivados: {', '.join(row.derived_metrics)})"
+                f" (+derived: {', '.join(row.derived_metrics)})"
                 if row.derived_metrics
                 else ""
             )
             print_key_value(
                 f"{row.fiscal_year} [{source}]",
-                f"calidad {quality} · cobertura {completeness}{derived} · "
+                f"quality {quality} · coverage {completeness}{derived} · "
                 f"{_status_labels(row, row.fiscal_year in selected)}",
             )
 
@@ -73,16 +71,16 @@ def _run(args):
         if selection:
             sources = sorted({row.source for row in selection})
             data_source = "MIXED" if len(sources) > 1 else sources[0].value.upper()
-            print_key_value("Seleccion analisis", data_source)
+            print_key_value("Analysis selection", data_source)
             for row in selection:
                 days = days_since_loaded(row)
                 print_key_value(
                     f"  {row.fiscal_year}",
-                    f"{row.source.value.upper()} · actualizado hace "
-                    f"{days if days is not None else 'N/A'} dias",
+                    f"{row.source.value.upper()} · updated "
+                    f"{days if days is not None else 'N/A'} days ago",
                 )
             print_key_value(
-                "Refresco necesario", "si" if needs_refresh(list(selection)) else "no"
+                "Refresh needed", "yes" if needs_refresh(list(selection)) else "no"
             )
 
         print()

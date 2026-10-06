@@ -58,7 +58,7 @@ def _run(args):
 
         # Check if we have any financial data
         if not repo.has_data(ticker):
-            print(f"  {red('Sin datos financieros para')} {ticker}")
+            print(f"  {red('No financial data for')} {ticker}")
             continue
 
         # Get historical valuation ratios
@@ -66,9 +66,9 @@ def _run(args):
         print(f"DEBUG: got {len(ratios)} ratios for {ticker}", file=sys.stderr)
 
         if not ratios:
-            print(f"  {yellow('No hay datos de valoración disponibles para')} {ticker}")
+            print(f"  {yellow('No valuation data available for')} {ticker}")
             print(
-                f"  {dim('Esto puede deberse a falta de datos de precios en Financial-DataBase')}"
+                f"  {dim('This may be due to missing price data in Financial-DataBase')}"
             )
             continue
 
@@ -80,9 +80,9 @@ def _run(args):
         if ratios:
             latest = ratios[0]  # Most recent year first
             print()
-            print_key_value("Último año fiscal", str(latest["fiscal_year"]))
+            print_key_value("Latest fiscal year", str(latest["fiscal_year"]))
             print_key_value(
-                "Precio de cierre",
+                "Closing price",
                 f"{latest['price']:.2f}" if latest["price"] is not None else "N/A",
             )
             print_key_value(

@@ -15,23 +15,23 @@ from cli.formatters import bold, green, print_header, red, yellow
 def register(subparsers):
     p = subparsers.add_parser(
         "alerts",
-        help="Evaluar senales de compra/venta y eventos",
+        help="Evaluate buy/sell signals and events",
         description=(
-            "Ejecuta el motor de alertas (BUY_SIGNAL, SELL_WARNING, "
-            "TRIGGER_EVENT) sobre el universo. Con --state JSON evalua "
-            "caidas de score respecto al estado anterior."
+            "Runs the alert engine (BUY_SIGNAL, SELL_WARNING, "
+            "TRIGGER_EVENT) over the universe. With --state JSON, evaluates "
+            "score drops versus the previous state."
         ),
     )
     p.add_argument(
         "--state",
         default=None,
-        help="JSON con analisis previos ({ticker: analysis}) para SELL_WARNING",
+        help="JSON with previous analyses ({ticker: analysis}) for SELL_WARNING",
     )
     p.add_argument(
         "tickers",
         type=str,
         nargs="*",
-        help="Tickers a evaluar (opcional: universo cargado)",
+        help="Tickers to evaluate (optional: loaded universe)",
     )
     add_refresh_arguments(p)
     p.set_defaults(func=_run)
@@ -44,10 +44,10 @@ def _load_state(path):
         with open(path, encoding="utf-8") as handle:
             return json.load(handle)
     except FileNotFoundError:
-        print(f"  {red('ERROR:')} No existe el archivo de estado '{path}'.")
+        print(f"  {red('ERROR:')} State file '{path}' not found.")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"  {red('ERROR:')} El archivo de estado '{path}' no es JSON valido.")
+        print(f"  {red('ERROR:')} The state file '{path}' is not valid JSON.")
         sys.exit(1)
 
 
@@ -63,27 +63,25 @@ def _run(args):
         if result is not None:
             analyses[ticker] = result
 
-    print_header(f"Alertas ({len(analyses)} empresas evaluadas)")
+    print_header(f"Alerts ({len(analyses)} companies evaluated)")
     alerts = run(analyses, previous)
     if not alerts:
-        print(
-            f"  {yellow('Sin alertas.')} La cartera se mantiene dentro de parametros."
-        )
+        print(f"  {yellow('No alerts.')} The portfolio stays within parameters.")
         print()
-        print(green("Listo."))
+        print(green("Done."))
         return
 
     for alert in alerts:
         reason = "; ".join(alert.reason) if alert.reason else "-"
         label = {
-            "BUY_SIGNAL": "COMPRA",
-            "SELL_WARNING": "VENTA",
-            "TRIGGER_EVENT": "EVENTO",
+            "BUY_SIGNAL": "BUY",
+            "SELL_WARNING": "SELL",
+            "TRIGGER_EVENT": "EVENT",
         }[alert.alert_type]
         print(
             f"  {bold(alert.ticker):<10} [{label}] {alert.alert_type} "
-            f"(confianza {alert.confidence}): {reason}"
+            f"(confidence {alert.confidence}): {reason}"
         )
 
     print()
-    print(green("Listo."))
+    print(green("Done."))

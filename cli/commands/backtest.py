@@ -20,34 +20,34 @@ MIN_YEARS = 3
 def register(subparsers):
     p = subparsers.add_parser(
         "backtest",
-        help="Backtesting sobre snapshots anuales (determinista)",
+        help="Backtesting over yearly snapshots (deterministic)",
         description=(
-            "Reconstruye analisis historicos desde el repo y simula una "
-            "cartera igual-ponderada con rebalanceo cada N anios. "
-            "Usa --prices TICKER,AÑO,PRECIO por linea para retornos reales."
+            "Rebuilds historical analyses from the repo and simulates an "
+            "equal-weighted portfolio with rebalancing every N years. "
+            "Use --prices TICKER,YEAR,PRICE per line for real returns."
         ),
     )
     p.add_argument(
         "--strategy",
         choices=("buffett", "momentum"),
         default="buffett",
-        help="Estrategia de seleccion (default: buffett)",
+        help="Selection strategy (default: buffett)",
     )
+    p.add_argument("--years", type=int, default=10, help="Use the last N fiscal years")
     p.add_argument(
-        "--years", type=int, default=10, help="Usar los ultimos N anios fiscales"
+        "--top", type=int, default=5, help="Number of holdings per portfolio"
     )
-    p.add_argument("--top", type=int, default=5, help="Numero de titulos por cartera")
-    p.add_argument("--rebalance", type=int, default=1, help="Rebalancear cada N anios")
+    p.add_argument("--rebalance", type=int, default=1, help="Rebalance every N years")
     p.add_argument(
         "--prices",
         default=None,
-        help="Archivo con precios historicos: 'TICKER,AÑO,PRECIO' por linea",
+        help="File with historical prices: 'TICKER,YEAR,PRICE' per line",
     )
     p.add_argument(
         "tickers",
         type=str,
         nargs="*",
-        help="Tickers a incluir (opcional: universo cargado)",
+        help="Tickers to include (optional: loaded universe)",
     )
     p.set_defaults(func=_run)
 
@@ -113,12 +113,12 @@ def _run(args):
 
     print_header(
         f"Backtest {args.strategy}: {len(snapshots)} snapshots, "
-        f"top-{args.top}, rebalance cada {args.rebalance} anio(s)"
+        f"top-{args.top}, rebalancing every {args.rebalance} year(s)"
     )
     if not snapshots:
         print(
-            f"  {yellow('Sin historico suficiente.')} Carga {MIN_YEARS}+ anios con "
-            "'main.py load-data TICKER' antes de backtestear."
+            f"  {yellow('Not enough history.')} Load {MIN_YEARS}+ years with "
+            "'main.py load-data TICKER' before backtesting."
         )
         return
 
@@ -131,7 +131,7 @@ def _run(args):
 
     metrics = [
         (
-            "CAGR (media geometrica)",
+            "CAGR (geometric mean)",
             fmt_pct(result["cagr"]) if result["cagr"] is not None else dim("N/A"),
         ),
         (
@@ -154,20 +154,20 @@ def _run(args):
                 else dim("N/A")
             ),
         ),
-        ("Periodos", str(result["periods"])),
+        ("Periods", str(result["periods"])),
     ]
-    print_table([("Metrica", 0), ("Valor", 0)], metrics)
+    print_table([("Metric", 0), ("Value", 0)], metrics)
 
-    print(f"\n  {bold('Seleccion en el primer periodo:')}")
+    print(f"\n  {bold('Selection in the first period:')}")
     if not result["selected_first_period"]:
-        print(f"  {dim('sin candidatos rankeables en el primer periodo')}")
+        print(f"  {dim('no rankable candidates in the first period')}")
     for ticker in result["selected_first_period"]:
         analysis = snapshots[0]["analyses"].get(ticker)
         rank = analysis.get("rank_score") if analysis else None
-        label = f"ranking {rank:.1f}" if rank is not None else "sin ranking"
+        label = f"ranking {rank:.1f}" if rank is not None else "unranked"
         print(f"  - {green(ticker):<10} {label}")
 
     print()
     if not prices:
-        print(dim("Sin --prices: retornos planos; solo mide la seleccion."))
-    print(green("Listo."))
+        print(dim("Without --prices: flat returns; it only measures selection."))
+    print(green("Done."))

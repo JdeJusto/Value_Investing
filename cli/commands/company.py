@@ -19,8 +19,8 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "company",
-        help="Informacion basica de una empresa",
-        description="Muestra nombre, precio y metricas principales de un ticker.",
+        help="Basic company information",
+        description="Shows name, price and key metrics for a ticker.",
     )
     p.add_argument("ticker", type=str, help="Ticker a consultar (ej: AAPL)")
     add_demo_argument(p)
@@ -31,7 +31,7 @@ def _run(args):
     ticker = args.ticker.upper().strip()
     service = build_analysis_service()
 
-    print_header(f"Informacion de {ticker}")
+    print_header(f"Information for {ticker}")
 
     try:
         name = service._market.get_company_name(ticker)
@@ -46,22 +46,22 @@ def _run(args):
     except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         mc = None
 
-    print_key_value("Nombre", name or dim("No disponible"))
-    print_key_value("Precio", fmt_dollar(price) if price else dim("No disponible"))
-    print_key_value("Market Cap", fmt_dollar(mc) if mc else dim("No disponible"))
+    print_key_value("Name", name or dim("Not available"))
+    print_key_value("Price", fmt_dollar(price) if price else dim("Not available"))
+    print_key_value("Market Cap", fmt_dollar(mc) if mc else dim("Not available"))
 
     try:
         result = service.analyze(ticker)
     except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
-        print(f"\n  {red('ERROR:')} No se pudo analizar {ticker}: {e}")
+        print(f"\n  {red('ERROR:')} Could not analyze {ticker}: {e}")
         return
 
     if result is None:
-        print(f"\n  {red('ERROR:')} Sin datos suficientes para {ticker}")
+        print(f"\n  {red('ERROR:')} Not enough data for {ticker}")
         return
 
     print()
-    print(f"  {bold('Metricas fundamentales')}")
+    print(f"  {bold('Fundamental metrics')}")
     dim_line = dim("─" * 60)
     print(f"  {dim_line}")
 
@@ -70,8 +70,8 @@ def _run(args):
         ("P/B", result.get("pb"), "fmt_ratio", 2),
         ("ROE", result.get("roe"), "fmt_pct", 1),
         ("ROIC", result.get("roic"), "fmt_pct", 1),
-        ("Margen Operativo", result.get("operating_margin"), "fmt_pct", 1),
-        ("Margen Neto", result.get("net_margin"), "fmt_pct", 1),
+        ("Operating margin", result.get("operating_margin"), "fmt_pct", 1),
+        ("Net margin", result.get("net_margin"), "fmt_pct", 1),
         ("FCF Yield", result.get("fcf_yield"), "fmt_pct", 1),
         ("EV/EBIT", result.get("ev_ebit"), "fmt_ratio", 1),
         (
@@ -88,7 +88,7 @@ def _run(args):
         ("Shareholder Yield", result.get("shareholder_yield"), "fmt_pct", 1),
         ("Croic", result.get("croic"), "fmt_pct", 1),
         ("DCF Value", result.get("dcf_value"), "fmt_dollar", 0),
-        ("Score Compuesto", result.get("score"), "fmt_ratio", 4),
+        ("Composite Score", result.get("score"), "fmt_ratio", 4),
     ]
 
     for label, val, fmt_type, decimals in metrics:

@@ -10,17 +10,16 @@ from cli.formatters import print_header, red
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze",
-        help="Analisis fundamental completo de uno o varios tickers",
+        help="Full fundamental analysis of one or more tickers",
         description=(
-            "Ejecuta el analisis completo (ratios, scoring, DCF) y "
-            "muestra resultados detallados."
+            "Runs the full analysis (ratios, scoring, DCF) and shows detailed results."
         ),
     )
     p.add_argument(
         "tickers",
         type=str,
         nargs="+",
-        help="Ticker(s) a analizar (ej: AAPL o AAPL MSFT GOOGL)",
+        help="Ticker(s) to analyze (e.g.: AAPL or AAPL MSFT GOOGL)",
     )
     add_refresh_arguments(p)
     p.set_defaults(func=_run)
@@ -33,7 +32,7 @@ def _run(args):
 
     for ticker in tickers:
         t = ticker
-        print_header(f"Analisis fundamental: {t}")
+        print_header(f"Fundamental analysis: {t}")
 
         try:
             result = service.analyze(t)
@@ -42,7 +41,7 @@ def _run(args):
             continue
 
         if result is None:
-            print(f"  {red('Sin datos suficientes para')} {t}")
+            print(f"  {red('Not enough data for')} {t}")
             continue
 
         _print_analysis(result)

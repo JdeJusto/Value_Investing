@@ -11,17 +11,18 @@ from cli.formatters import bold, green, print_header, red, yellow
 def register(subparsers):
     p = subparsers.add_parser(
         "anomalies",
-        help="Anomalias en los fundamentales del ultimo ejercicio",
+        help="Anomalies in the last fiscal year's fundamentals",
         description=(
-            "Compara el ultimo anio contra la media/desviacion historica (z-score) "
-            "y saltos anormales interanuales, marcando cada flag con severidad."
+            "Compares the latest year against the historical mean/deviation "
+            "(z-score) and abnormal year-over-year jumps, flagging each one "
+            "with its severity."
         ),
     )
     p.add_argument(
         "tickers",
         type=str,
         nargs="*",
-        help="Ticker(s) a inspeccionar (opcional: usa el universo cargado)",
+        help="Ticker(s) to inspect (optional: uses the loaded universe)",
     )
     add_refresh_arguments(p)
     p.set_defaults(func=_run)
@@ -50,14 +51,14 @@ def _run(args):
             continue
 
         total_flags += len(anomalies)
-        print_header(f"Anomalias: {ticker}")
+        print_header(f"Anomalies: {ticker}")
         print(f"  {anomaly_summary(anomalies)}")
         for anomaly in anomalies:
             detail = (
-                f"z={anomaly['zscore']:+.2f} (media {anomaly['mean']:,.0f}, "
-                f"desv {anomaly['stddev']:,.0f})"
+                f"z={anomaly['zscore']:+.2f} (mean {anomaly['mean']:,.0f}, "
+                f"std {anomaly['stddev']:,.0f})"
                 if anomaly["type"] == "zscore"
-                else f"cambio de {anomaly['change']:+.0%}"
+                else f"change of {anomaly['change']:+.0%}"
             )
             print(
                 f"  {_direction_symbol(anomaly['direction'])} "
@@ -67,6 +68,6 @@ def _run(args):
         print()
 
     if total_flags == 0:
-        print(f"  {green('Sin anomalias')} en el universo analizado.")
+        print(f"  {green('No anomalies')} in the analyzed universe.")
 
-    print(green("Listo."))
+    print(green("Done."))

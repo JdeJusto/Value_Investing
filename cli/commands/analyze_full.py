@@ -43,27 +43,27 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-full",
-        help="Informe consolidado de 6 secciones por ticker",
+        help="Consolidated 6-section report per ticker",
         description=(
-            "Analisis completo: overview, precio en tiempo real, metricas, "
-            "calidad Buffett, valoracion historica y riesgos."
+            "Full analysis: overview, real-time price, metrics, "
+            "Buffett quality, historical valuation and risks."
         ),
     )
     p.add_argument(
         "tickers",
         type=str,
         nargs="+",
-        help="Ticker(s) a analizar (ej: AAPL o AAPL MSFT)",
+        help="Ticker(s) to analyze (e.g.: AAPL or AAPL MSFT)",
     )
     p.add_argument(
         "--no-prices",
         action="store_true",
-        help="No consultar precios en tiempo real (la seccion 2 queda parcial)",
+        help="Do not fetch real-time prices (section 2 stays partial)",
     )
     p.add_argument(
         "--no-dcf",
         action="store_true",
-        help="Omitir la seccion DCF suplementaria (not-from-canon)",
+        help="Skip the supplementary DCF section (not-from-canon)",
     )
     add_refresh_arguments(p)
     add_demo_argument(p)
@@ -85,27 +85,27 @@ def _company_overview(ticker: str, name) -> tuple:
 
 
 def _print_section(ticker):
-    print_header(f"Analisis integral: {ticker}")
+    print_header(f"Comprehensive analysis: {ticker}")
 
 
 def _section_overview(row_input, sector, industry):
     print(bold("1) Company overview"))
     ov = [
         ("Ticker", row_input["ticker"]),
-        ("Nombre", row_input["name"] or dim("N/A")),
+        ("Name", row_input["name"] or dim("N/A")),
         ("Sector", sector or dim("N/A")),
-        ("Industria", industry or dim("N/A")),
+        ("Industry", industry or dim("N/A")),
     ]
     for label, value in ov:
         print(f"     {label:<14} {value}")
 
 
 def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, shares, no_prices):
-    print(bold("2) Precio y valoracion en tiempo real"))
+    print(bold("2) Real-time price and valuation"))
     if no_prices:
-        print(f"     {yellow('(--no-prices) Precio no consultado en tiempo real.')}")
+        print(f"     {yellow('(--no-prices) Price not fetched in real time.')}")
     vals = [
-        ("Precio", _fmt(price, fmt_dollar)),
+        ("Price", _fmt(price, fmt_dollar)),
         ("Shares outstanding", f"{shares:,}" if shares else dim("N/A")),
         ("Market Cap", _fmt(market_cap, fmt_dollar)),
         ("PER", _fmt(per, lambda v: fmt_ratio(v, 1))),
@@ -118,14 +118,14 @@ def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, shares, no_pr
 
 
 def _section_fundamentals(row_input):
-    print(bold("3) Metricas fundamentales"))
+    print(bold("3) Fundamental metrics"))
     vals = [
         ("ROE", _fmt(row_input.get("roe"), fmt_pct)),
         ("ROIC", _fmt(row_input.get("roic"), fmt_pct)),
-        ("Margen operativo", _fmt(row_input.get("operating_margin"), fmt_pct)),
-        ("Margen neto", _fmt(row_input.get("net_margin"), fmt_pct)),
-        ("Crecimiento ingresos", _fmt(row_input.get("revenue_growth"), fmt_pct)),
-        ("Deuda / Equity", _fmt(row_input.get("debt_to_equity"), fmt_ratio)),
+        ("Operating margin", _fmt(row_input.get("operating_margin"), fmt_pct)),
+        ("Net margin", _fmt(row_input.get("net_margin"), fmt_pct)),
+        ("Revenue growth", _fmt(row_input.get("revenue_growth"), fmt_pct)),
+        ("Debt / Equity", _fmt(row_input.get("debt_to_equity"), fmt_ratio)),
         ("Free Cash Flow", _fmt(row_input.get("fcf"), fmt_dollar)),
         ("Owner Earnings", _fmt(row_input.get("owner_earnings"), fmt_dollar)),
         ("CROIC", _fmt(row_input.get("croic"), fmt_pct)),
@@ -135,23 +135,23 @@ def _section_fundamentals(row_input):
 
 
 def _section_quality(row_input, quality):
-    print(bold("4) Calidad de la empresa"))
+    print(bold("4) Company quality"))
     composite = row_input.get("composite_score") or {}
     moat = row_input.get("moat_analysis") or {}
     vals = [
         ("Buffett score", _fmt(row_input.get("buffett_score"), lambda v: f"{v:.1f}")),
         ("Moat", moat.get("moat_type") or dim("N/A")),
         ("Rating", composite.get("rating") or dim("N/A")),
-        ("Confianza", composite.get("confidence") or dim("N/A")),
-        ("Score total", _fmt(composite.get("total_score"), lambda v: f"{v:.1f}")),
-        ("Valor DCF", _fmt(row_input.get("dcf_value"), fmt_dollar)),
-        ("Margen de seguridad", _fmt(row_input.get("dcf_margin_of_safety"), fmt_pct)),
+        ("Confidence", composite.get("confidence") or dim("N/A")),
+        ("Total score", _fmt(composite.get("total_score"), lambda v: f"{v:.1f}")),
+        ("DCF value", _fmt(row_input.get("dcf_value"), fmt_dollar)),
+        ("Margin of safety", _fmt(row_input.get("dcf_margin_of_safety"), fmt_pct)),
     ]
     if quality:
         vals.extend(
             [
-                ("ROIC medio", _fmt(quality.get("roic_mean"), fmt_pct)),
-                ("CAGR ingresos", _fmt(quality.get("revenue_cagr"), fmt_pct)),
+                ("Average ROIC", _fmt(quality.get("roic_mean"), fmt_pct)),
+                ("Revenue CAGR", _fmt(quality.get("revenue_cagr"), fmt_pct)),
             ]
         )
     for label, value in vals:
@@ -171,9 +171,9 @@ def render_dcf_section(result) -> None:
     if result.verdict == INSUFFICIENT_DATA:
         print_key_value("Verdict", dim(result.verdict))
         reason = "; ".join(result.reasons) if result.reasons else "-"
-        print_key_value("Razon", reason)
+        print_key_value("Reason", reason)
         if result.missing_inputs:
-            print_key_value("Faltan", ", ".join(result.missing_inputs))
+            print_key_value("Missing", ", ".join(result.missing_inputs))
     else:
         verdict_color = {
             "UNDERVALUED": green,
@@ -237,7 +237,7 @@ def _section_dcf(ticker, repo=None, price_service=None) -> None:
 
 
 def _section_historical(ticker):
-    print(bold("5) Valoracion historica"))
+    print(bold("5) Historical valuation"))
     service = HistoricalValuationService()
     try:
         table = service.format_valuation_table(ticker)
@@ -248,14 +248,14 @@ def _section_historical(ticker):
 
 
 def _section_risks(row_input):
-    print(bold("6) Riesgos / anomalias / triggers"))
+    print(bold("6) Risks / anomalies / triggers"))
     anomalies = row_input.get("anomalies") or []
     if not anomalies:
-        print("     Sin anomalias detectadas.")
+        print("     No anomalies detected.")
     else:
         for a in anomalies:
             desc = a if isinstance(a, str) else str(a)
-            print(f"     {red('Anomalia:')} {desc}")
+            print(f"     {red('Anomaly:')} {desc}")
 
     triggers = []
     try:
@@ -270,7 +270,7 @@ def _section_risks(row_input):
     if triggers:
         print(f"     {yellow('Trigger:')} {', '.join(triggers)}")
     else:
-        print("     Sin triggers activos.")
+        print("     No active triggers.")
 
     piotroski = row_input.get("piotroski_fscore")
     if piotroski is not None:
@@ -280,14 +280,14 @@ def _section_risks(row_input):
         print(f"     Altman Z-Score: {altman:.2f}")
     score = row_input.get("score")
     if score is not None:
-        print(f"     Score complejo: {score:.4f}")
+        print(f"     Composite score: {score:.4f}")
 
     confidence = (row_input.get("composite_score") or {}).get("confidence")
     source = row_input.get("data_source_used")
     quality = row_input.get("data_quality_score")
     print(
-        f"     Fuente: {source or 'N/A'}  |  Confianza datos: "
-        f"{confidence or 'N/A'}  |  Calidad: {fmt_pct(quality) if quality is not None else dim('N/A')}"
+        f"     Source: {source or 'N/A'}  |  Data confidence: "
+        f"{confidence or 'N/A'}  |  Quality: {fmt_pct(quality) if quality is not None else dim('N/A')}"
     )
 
 
@@ -305,7 +305,7 @@ def _run(args):
             continue
 
         if row is None:
-            print(f"\n{red(ticker)} — Sin datos suficientes para el analisis.")
+            print(f"\n{red(ticker)} — Not enough data for the analysis.")
             continue
 
         d = row.extra or {}
@@ -334,4 +334,4 @@ def _run(args):
             print()
             print("-" * 72)
         except Exception as e:  # noqa: BLE001
-            print(f"\n  {red('ERROR:')} generando informe de {ticker}: {e}")
+            print(f"\n  {red('ERROR:')} generating report for {ticker}: {e}")

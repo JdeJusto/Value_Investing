@@ -16,35 +16,35 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "debug",
-        help="Diagnostico del sistema y tests rapidos",
-        description="Verifica que todas las partes del sistema funcionan correctamente.",
+        help="System diagnostics and quick tests",
+        description="Verifies that all parts of the system work correctly.",
     )
     p.set_defaults(func=_run)
 
 
 def _run(args):
-    print_header("Diagnostico del Sistema", "═")
+    print_header("System Diagnostics", "═")
 
-    print(f"  {bold('1. Importaciones basicas')}")
+    print(f"  {bold('1. Basic imports')}")
     _test_imports()
     print(f"  {green('✓ OK')}")
 
-    print(f"\n  {bold('2. Filtros (FilterCriteria)')}")
+    print(f"\n  {bold('2. Filters (FilterCriteria)')}")
     _test_filters()
     print(f"  {green('✓ OK')}")
 
-    print(f"\n  {bold('3. Servicios')}")
+    print(f"\n  {bold('3. Services')}")
     _test_services()
     print(f"  {green('✓ OK')}")
 
     print(f"\n  {bold('4. Screener (3 tickers)')}")
     _test_screener()
 
-    print(f"\n  {bold('5. Tickers disponibles')}")
+    print(f"\n  {bold('5. Available tickers')}")
     _test_tickers()
 
     print_separator("═")
-    print(f"\n  {green('✓ Diagnostico completado')}")
+    print(f"\n  {green('✓ Diagnostics completed')}")
     print()
 
 
@@ -66,13 +66,13 @@ def _test_filters():
     from backend.domain.value_objects.filter_criteria import FilterCriteria
 
     tests = [
-        (FilterCriteria.lt("per", 15), 10, True, "per < 15 con 10"),
-        (FilterCriteria.lt("per", 15), 20, False, "per < 15 con 20"),
-        (FilterCriteria.gt("roe", 0.15), 0.20, True, "roe > 0.15 con 0.20"),
-        (FilterCriteria.gt("roe", 0.15), 0.10, False, "roe > 0.15 con 0.10"),
-        (FilterCriteria.between("pb", 1, 3), 2, True, "pb between 1-3 con 2"),
-        (FilterCriteria.between("pb", 1, 3), 5, False, "pb between 1-3 con 5"),
-        (FilterCriteria.lt("per", 15), None, False, "per < 15 con None"),
+        (FilterCriteria.lt("per", 15), 10, True, "per < 15 with 10"),
+        (FilterCriteria.lt("per", 15), 20, False, "per < 15 with 20"),
+        (FilterCriteria.gt("roe", 0.15), 0.20, True, "roe > 0.15 with 0.20"),
+        (FilterCriteria.gt("roe", 0.15), 0.10, False, "roe > 0.15 with 0.10"),
+        (FilterCriteria.between("pb", 1, 3), 2, True, "pb between 1-3 with 2"),
+        (FilterCriteria.between("pb", 1, 3), 5, False, "pb between 1-3 with 5"),
+        (FilterCriteria.lt("per", 15), None, False, "per < 15 with None"),
     ]
     passed = 0
     for criteria, value, expected, desc in tests:
@@ -81,7 +81,7 @@ def _test_filters():
         print(f"    {status} {desc}: {result}")
         if result == expected:
             passed += 1
-    print(f"    Filtros: {green(f'{passed}/{len(tests)} correctos')}")
+    print(f"    Filters: {green(f'{passed}/{len(tests)} correct')}")
 
 
 def _test_services():
@@ -91,8 +91,8 @@ def _test_services():
     assert a is not None
     s = build_screener_service()
     assert s is not None
-    print(f"    CompanyAnalysisService: {green('creado')}")
-    print(f"    StockScreenerService:   {green('creado')}")
+    print(f"    CompanyAnalysisService: {green('created')}")
+    print(f"    StockScreenerService:   {green('created')}")
 
 
 def _test_screener():
@@ -109,7 +109,7 @@ def _test_screener():
 
     if results:
         print(
-            f"    {green(f'{len(results)}/3')} tickers pasan filtros en {elapsed:.1f}s"
+            f"    {green(f'{len(results)}/3')} tickers pass filters in {elapsed:.1f}s"
         )
         for r in results:
             per_str = fmt_ratio(r.per, 1) if r.per else dim("N/A")
@@ -119,17 +119,17 @@ def _test_screener():
                 f"      {r.ticker:>6}  PER: {per_str:>6}  ROE: {roe_str:>6}  Score: {score_str}"
             )
     else:
-        print(f"    {yellow('Sin resultados para los tickers de prueba')}")
+        print(f"    {yellow('No results for the test tickers')}")
 
 
 def _test_tickers():
     from backend.providers.tickers import TICKERS
 
-    print(f"    {len(TICKERS)} tickers en lista estatica")
+    print(f"    {len(TICKERS)} tickers in static list")
     sample = ", ".join(TICKERS[:5])
-    print(f"    Primeros: {sample}")
+    print(f"    First: {sample}")
 
     from backend.providers.tickers import search_tickers
 
     results = search_tickers("AAPL")
-    print(f"    Busqueda 'AAPL': {len(results)} resultados")
+    print(f"    Search 'AAPL': {len(results)} results")

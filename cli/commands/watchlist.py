@@ -18,26 +18,26 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "watchlist",
-        help="Seguimiento de empresas bajo monitoreo",
+        help="Track companies under monitoring",
         description=(
-            "Gestiona una watchlist persistente (add/remove/status/list) "
-            "enriquecida con scores, senal y oportunidad, y exporta "
-            "resultados a CSV."
+            "Manages a persistent watchlist (add/remove/status/list) "
+            "enriched with scores, signal and opportunity, and exports "
+            "results to CSV."
         ),
     )
-    sub = p.add_subparsers(dest="action", title="Acciones", required=True)
+    sub = p.add_subparsers(dest="action", title="Actions", required=True)
 
-    add = sub.add_parser("add", help="Anade un ticker a la watchlist")
+    add = sub.add_parser("add", help="Add a ticker to the watchlist")
     add.add_argument("ticker", type=str)
-    add.add_argument("--note", type=str, default="", help="Razon del monitoreo")
+    add.add_argument("--note", type=str, default="", help="Reason for monitoring")
     add.set_defaults(func=_add)
 
-    remove = sub.add_parser("remove", help="Quita un ticker")
+    remove = sub.add_parser("remove", help="Remove a ticker")
     remove.add_argument("ticker", type=str)
     remove.set_defaults(func=_remove)
 
     status = sub.add_parser(
-        "status", help="Cambia el estado (MONITORING/BOUGHT/DISCARDED)"
+        "status", help="Change the status (MONITORING/BOUGHT/DISCARDED)"
     )
     status.add_argument("ticker", type=str)
     status.add_argument(
@@ -45,16 +45,14 @@ def register(subparsers):
     )
     status.set_defaults(func=_status)
 
-    sub.add_parser("list", help="Muestra la watchlist enriquecida").set_defaults(
-        func=_list
-    )
+    sub.add_parser("list", help="Show the enriched watchlist").set_defaults(func=_list)
 
-    export = sub.add_parser("export", help="Exporta la watchlist a CSV")
+    export = sub.add_parser("export", help="Export the watchlist to CSV")
     export.add_argument("path", type=str, nargs="?", default=None)
     export.add_argument(
         "--monitoring-only",
         action="store_true",
-        help="Solo items en estado MONITORING",
+        help="Only items in MONITORING status",
     )
     export.set_defaults(func=_export)
 
@@ -66,23 +64,23 @@ def register(subparsers):
 def _add(args):
     service = build_watchlist_service()
     item = service.add(args.ticker, note=args.note)
-    print(green(f"{item.ticker} agregado a la watchlist ({item.status})."))
+    print(green(f"{item.ticker} added to the watchlist ({item.status})."))
 
 
 def _remove(args):
     service = build_watchlist_service()
     removed = service.remove(args.ticker)
     if removed is None:
-        print(yellow(f"{args.ticker.upper()} no esta en la watchlist."))
+        print(yellow(f"{args.ticker.upper()} is not in the watchlist."))
         return
-    print(green(f"{removed.ticker} eliminado de la watchlist."))
+    print(green(f"{removed.ticker} removed from the watchlist."))
 
 
 def _status(args):
     service = build_watchlist_service()
     item = service.set_status(args.ticker, args.status)
     if item is None:
-        print(yellow(f"{args.ticker.upper()} no esta en la watchlist."))
+        print(yellow(f"{args.ticker.upper()} is not in the watchlist."))
         return
     print(green(f"{item.ticker} -> {item.status}."))
 
@@ -101,18 +99,18 @@ def _list(args):
 
     print_header(f"Watchlist ({len(rows)} items)")
     if not rows:
-        print(f"  {yellow('Vacia.')} Anade tickers con 'main.py watchlist add TICKER'.")
+        print(f"  {yellow('Empty.')} Add tickers with 'main.py watchlist add TICKER'.")
         return
 
     headers = [
         ("Ticker", 0),
-        ("Estado", 0),
+        ("Status", 0),
         ("Buffett", 1),
         ("Moat", 0),
         ("Ranking", 1),
-        ("Senal", 0),
+        ("Signal", 0),
         ("Trigger", 0),
-        ("Oportunidad", 0),
+        ("Opportunity", 0),
     ]
     table = []
     for row in rows:
@@ -136,11 +134,11 @@ def _list(args):
 
     noted = [r for r in rows if r["note"]]
     if noted:
-        print(f"\n  {bold('Notas')}")
+        print(f"\n  {bold('Notes')}")
         for row in noted:
             print(f"  - {bold(row['ticker'])}: {row['note']}")
     print()
-    print(green("Listo."))
+    print(green("Done."))
 
 
 def _export(args):
@@ -149,7 +147,7 @@ def _export(args):
     path = args.path or "data/watchlist.csv"
 
     if not rows:
-        print(yellow("Nada que exportar."))
+        print(yellow("Nothing to export."))
         return
 
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -159,4 +157,4 @@ def _export(args):
         writer.writeheader()
         writer.writerows(rows)
 
-    print(green(f"{len(rows)} filas exportadas a {path}"))
+    print(green(f"{len(rows)} rows exported to {path}"))

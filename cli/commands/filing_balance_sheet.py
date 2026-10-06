@@ -49,7 +49,7 @@ def _run(args):
             fiscal_years=[args.year] if args.year else None,
         )
     if not candidates:
-        print(yellow(f"No hay filings de {ticker} que coincidan con los filtros."))
+        print(yellow(f"No filings for {ticker} match the filters."))
         return
 
     record = candidates[0]  # newest first
@@ -63,7 +63,7 @@ def _run(args):
     print_header(header)
 
     if sheet is None:
-        print(red("No se pudo extraer el balance sheet de este documento."))
+        print(red("Could not extract the balance sheet from this document."))
         if record.sec_url:
             print(f"  Original: {record.sec_url}")
         return

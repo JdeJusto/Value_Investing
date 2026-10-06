@@ -25,17 +25,17 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "momentum",
-        help="Clasificacion por momentum fundamental",
+        help="Ranking by fundamental momentum",
         description=(
-            "Ordena por el factor de momentum (aceleracion de ingresos, "
-            "margenes, ROIC y FCF) con su trigger dominante."
+            "Sorts by the momentum factor (revenue acceleration, "
+            "margins, ROIC and FCF) with its dominant trigger."
         ),
     )
     p.add_argument(
         "tickers",
         type=str,
         nargs="*",
-        help="Ticker(s) a evaluar (opcional: usa el universo cargado)",
+        help="Ticker(s) to evaluate (optional: uses the loaded universe)",
     )
     add_refresh_arguments(p)
     p.set_defaults(func=_run)
@@ -77,10 +77,10 @@ def _run(args):
 
     rows.sort(key=lambda r: r["momentum"], reverse=True)
 
-    print_header(f"Momentum fundamental ({len(rows)} empresas)")
+    print_header(f"Fundamental momentum ({len(rows)} companies)")
     if not rows:
         print(
-            f"  {yellow('Sin datos para evaluar.')} Carga datos con 'main.py load-data TICKER'."
+            f"  {yellow('No data to evaluate.')} Load data with 'main.py load-data TICKER'."
         )
         return
 
@@ -89,7 +89,7 @@ def _run(args):
         ("Ticker", 0),
         ("Momentum", 1),
         ("Rev Δ", 0),
-        ("Margen Δ", 0),
+        ("Margin Δ", 0),
         ("ROIC Δ", 0),
         ("FCF Δ", 0),
         ("Trigger", 0),
@@ -112,14 +112,14 @@ def _run(args):
         )
     print_table(headers, table_rows)
 
-    print(f"\n  {bold('Por que?')}")
+    print(f"\n  {bold('Why?')}")
     for row in rows[:10]:
         reasons = momentum_reasons(row["item"])
         if not reasons:
-            reasons = [dim("sin movimientos significativos")]
+            reasons = [dim("no significant moves")]
         print(
             f"  {green(str(rows.index(row) + 1)):>3}. {bold(row['ticker'])} — {'; '.join(reasons)}"
         )
 
     print()
-    print(green("Listo."))
+    print(green("Done."))

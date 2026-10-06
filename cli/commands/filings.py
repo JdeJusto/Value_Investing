@@ -67,7 +67,7 @@ def _run(args):
         try:
             since = date.fromisoformat(args.since)
         except ValueError:
-            print(red(f"Fecha inválida: {args.since} (usa YYYY-MM-DD)"))
+            print(red(f"Invalid date: {args.since} (use YYYY-MM-DD)"))
             return
 
     name = None
@@ -87,15 +87,12 @@ def _run(args):
             limit=args.limit,
         )
     except Exception as exc:  # noqa: BLE001 — boundary catch-all (DB/network)
-        print(red(f"ERROR: no se pudieron leer los filings de {ticker}: {exc}"))
+        print(red(f"ERROR: could not read filings for {ticker}: {exc}"))
         return
 
     print_header(f"Filings — {ticker}" + (f" ({name})" if name else ""))
     if not records:
-        print(
-            "  No hay filings que coincidan con los filtros. Prueba --all o "
-            "un rango de fechas más amplio."
-        )
+        print("  No filings match the filters. Try --all or a wider date range.")
         return
 
     print(
@@ -131,6 +128,6 @@ def _run(args):
         if target:
             webbrowser.open(target)
             print(
-                f"  Abriendo {records[0].form_type} "
-                f"{records[0].filing_date.isoformat()} en el navegador…"
+                f"  Opening {records[0].form_type} "
+                f"{records[0].filing_date.isoformat()} in the browser…"
             )

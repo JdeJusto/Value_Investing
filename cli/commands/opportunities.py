@@ -9,16 +9,16 @@ from cli.formatters import bold, dim, green, print_header, print_key_value, yell
 def register(subparsers):
     p = subparsers.add_parser(
         "opportunities",
-        help="Oportunidades detectadas: quality barata, compounders, turnarounds",
+        help="Detected opportunities: cheap quality, compounders, turnarounds",
         description=(
-            "Analiza el universo cargado y muestra situaciones accionables "
-            "con su tipo, confianza y las razones de cada deteccion."
+            "Analyzes the loaded universe and shows actionable situations "
+            "with their type, confidence and the reasons behind each detection."
         ),
     )
     p.add_argument(
         "--tickers",
         type=str,
-        help="Tickers separados por coma (ej: AAPL,MSFT,GOOGL)",
+        help="Comma-separated tickers (e.g.: AAPL,MSFT,GOOGL)",
     )
     p.add_argument(
         "--type",
@@ -30,7 +30,7 @@ def register(subparsers):
             "TURNAROUNDS",
             "SPECIAL_SITUATIONS",
         ),
-        help="Filtrar por tipo de oportunidad",
+        help="Filter by opportunity type",
     )
     add_refresh_arguments(p)
     p.set_defaults(func=_run)
@@ -54,7 +54,7 @@ def _run(args):
     if universe:
         refresh_analysis_inputs(universe, args, explicit=True)
 
-    print_header("Oportunidades")
+    print_header("Opportunities")
     service = build_investment_screener(universe)
     opportunities = service.opportunities()
 
@@ -62,13 +62,11 @@ def _run(args):
         opportunities = [o for o in opportunities if o["type"] == args.opportunity_type]
 
     if not opportunities:
-        print(f"  {yellow('No se detectaron oportunidades en el universo actual.')}")
-        print(
-            "  Sugerencia: asegurate de tener datos cargados con 'main.py load-data TICKER'."
-        )
+        print(f"  {yellow('No opportunities detected in the current universe.')}")
+        print("  Hint: make sure you have data loaded with 'main.py load-data TICKER'.")
         return
 
-    print(f"  {green(str(len(opportunities)))} oportunidades detectadas\n")
+    print(f"  {green(str(len(opportunities)))} opportunities detected\n")
     for opportunity in opportunities:
         signal = opportunity.get("signal", "")
         print(
@@ -77,9 +75,9 @@ def _run(args):
             f"({dim(opportunity['confidence'])})"
         )
         print_key_value("  Ranking", f"{opportunity['rank_score']:.1f}")
-        print_key_value("  Senal", signal)
+        print_key_value("  Signal", signal)
         for reason in opportunity["reason"]:
             print(f"    - {reason}")
         print()
 
-    print(green("Listo."))
+    print(green("Done."))

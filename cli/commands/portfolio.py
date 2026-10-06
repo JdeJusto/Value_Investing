@@ -18,60 +18,60 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "portfolio",
-        help="Seguimiento de cartera: posiciones, PnL y asignacion",
+        help="Portfolio tracking: positions, PnL and allocation",
         description=(
-            "Gestiona posiciones (add/remove/exit), muestra valor, PnL "
-            "realizado y no realizado, y analiza concentracion de riesgo "
-            "y exposicion por sector."
+            "Manages positions (add/remove/exit), shows value, realized and "
+            "unrealized PnL, and analyzes risk concentration "
+            "and sector exposure."
         ),
     )
-    sub = p.add_subparsers(dest="action", title="Acciones", required=True)
+    sub = p.add_subparsers(dest="action", title="Actions", required=True)
 
-    add = sub.add_parser("add", help="Anade (o promedia) una posicion")
+    add = sub.add_parser("add", help="Add (or average) a position")
     add.add_argument("ticker", type=str)
     add.add_argument("quantity", type=float)
     add.add_argument("avg_price", type=float)
-    add.add_argument("--thesis", type=str, default="", help="Tesis de inversion")
+    add.add_argument("--thesis", type=str, default="", help="Investment thesis")
     add.add_argument(
         "--signal",
         dest="signal_at_entry",
         type=str,
         default="",
-        help="Senal en el momento de compra (ej: BUY)",
+        help="Signal at entry time (e.g.: BUY)",
     )
     add.add_argument(
         "--date",
         type=lambda s: datetime.fromisoformat(s),
         default=None,
-        help="Fecha de entrada ISO (default: hoy)",
+        help="ISO entry date (default: today)",
     )
     add_demo_argument(add)
     add.set_defaults(func=_add)
 
-    exit_ = sub.add_parser("exit", help="Cierra una posicion vendiendo")
+    exit_ = sub.add_parser("exit", help="Close a position by selling")
     exit_.add_argument("ticker", type=str)
     exit_.add_argument("price", type=float)
     exit_.add_argument(
         "--date",
         type=lambda s: datetime.fromisoformat(s),
         default=None,
-        help="Fecha de venta ISO (default: hoy)",
+        help="ISO exit date (default: today)",
     )
     add_demo_argument(exit_)
     exit_.set_defaults(func=_exit)
 
-    remove = sub.add_parser("remove", help="Borra una posicion sin registrar venta")
+    remove = sub.add_parser("remove", help="Delete a position without recording a sale")
     remove.add_argument("ticker", type=str)
     add_demo_argument(remove)
     remove.set_defaults(func=_remove)
 
-    view = sub.add_parser("view", help="Posiciones enriquecidas con puntuaciones")
+    view = sub.add_parser("view", help="Positions enriched with scores")
     add_demo_argument(view)
     view.set_defaults(func=_view)
 
     sub.add_parser(
         "performance",
-        help="Rentabilidad, PnL y analisis de asignacion de la cartera",
+        help="Portfolio returns, PnL and allocation analysis",
     ).set_defaults(func=_performance)
 
 
@@ -87,8 +87,8 @@ def _add(args):
     )
     print(
         green(
-            f"Posicion {position.ticker} registrada"
-            f" ({position.quantity} acciones a {position.avg_price:,.2f})"
+            f"Position {position.ticker} recorded"
+            f" ({position.quantity} shares at {position.avg_price:,.2f})"
         )
     )
 
@@ -97,11 +97,11 @@ def _exit(args):
     service = build_portfolio_service()
     position = service.exit(args.ticker, args.price)
     if position is None:
-        print(f"  {red('Sin posicion abierta para')} {args.ticker}")
+        print(f"  {red('No open position for')} {args.ticker}")
         return
     print(
-        green(f"Posicion {args.ticker} cerrada")
-        + f" — PnL realizado {position.realized_pnl:+,.2f}"
+        green(f"Position {args.ticker} closed")
+        + f" — Realized PnL {position.realized_pnl:+,.2f}"
     )
 
 
@@ -109,31 +109,31 @@ def _remove(args):
     service = build_portfolio_service()
     position = service.remove(args.ticker)
     if position is None:
-        print(f"  {red('Sin posicion para')} {args.ticker}")
+        print(f"  {red('No position for')} {args.ticker}")
         return
-    print(f"  {yellow('Posicion borrada:')} {args.ticker}")
+    print(f"  {yellow('Position removed:')} {args.ticker}")
 
 
 def _view(args):
     service = build_portfolio_service()
     positions = service.view()
-    print_header(f"Cartera ({len(positions)} posiciones)")
+    print_header(f"Portfolio ({len(positions)} positions)")
     if not positions:
         print(
-            f"  {yellow('Cartera vacia.')} Usa 'main.py portfolio add TICKER CANTIDAD PRECIO'."
+            f"  {yellow('Empty portfolio.')} Use 'main.py portfolio add TICKER QUANTITY PRICE'."
         )
         return
 
     headers = [
         ("Ticker", 0),
-        ("Cant.", 1),
-        ("Precio", 1),
-        ("Valor", 1),
-        ("Retorno", 1),
+        ("Qty", 1),
+        ("Price", 1),
+        ("Value", 1),
+        ("Return", 1),
         ("Buffett", 1),
         ("Moat", 0),
-        ("Senal", 0),
-        ("Oport.", 0),
+        ("Signal", 0),
+        ("Opp.", 0),
     ]
     rows = []
     for p in positions:
@@ -163,9 +163,9 @@ def _view(args):
         )
     print_table(headers, rows)
 
-    print(f"  {bold('Tesis')}")
+    print(f"  {bold('Thesis')}")
     for p in positions:
-        thesis = p["thesis"] or dim("(sin tesis)")
+        thesis = p["thesis"] or dim("(no thesis)")
         print(f"  - {bold(p['ticker'])}: {thesis}")
 
 
@@ -178,32 +178,32 @@ def _performance(args):
         if perf["total_return"] is not None
         else dim("N/A")
     )
-    print_header("Rendimiento de la cartera")
-    print_key_value("Valor de mercado", fmt_dollar(perf["market_value"]))
-    print_key_value("Coste", fmt_dollar(perf["cost_basis"]))
-    print_key_value("PnL no realizado", fmt_dollar(perf["unrealized_pnl"]))
-    print_key_value("PnL realizado", fmt_dollar(perf["realized_pnl"]))
-    print_key_value("PnL total", fmt_dollar(perf["total_pnl"]))
-    print_key_value("Retorno total", return_label)
+    print_header("Portfolio performance")
+    print_key_value("Market value", fmt_dollar(perf["market_value"]))
+    print_key_value("Cost basis", fmt_dollar(perf["cost_basis"]))
+    print_key_value("Unrealized PnL", fmt_dollar(perf["unrealized_pnl"]))
+    print_key_value("Realized PnL", fmt_dollar(perf["realized_pnl"]))
+    print_key_value("Total PnL", fmt_dollar(perf["total_pnl"]))
+    print_key_value("Total return", return_label)
 
     allocation = perf["allocation"]
     if allocation["overconcentrated"]:
-        print(f"  {red('Sobreconcentracion:')}")
+        print(f"  {red('Overconcentration:')}")
         for finding in allocation["overconcentrated"]:
             print(
                 f"    - {finding['ticker']}: {finding['weight']:.0%}"
-                f" (limite {finding['threshold']:.0%})"
+                f" (limit {finding['threshold']:.0%})"
             )
     else:
-        print(f"  {green('Sin sobreconcentracion.')}")
+        print(f"  {green('No overconcentration.')}")
 
     if allocation["sector_exposure"]:
-        print(f"  {bold('Exposicion por sector')}")
+        print(f"  {bold('Sector exposure')}")
         for exposure in allocation["sector_exposure"]:
             print(f"    - {exposure['sector']}: {exposure['weight']:.0%}")
 
     risk = allocation["risk"]
-    print(f"  {bold('Riesgo de concentracion')}")
-    print_key_value("Posicion mayor", f"{risk['largest_position_weight']:.0%}")
+    print(f"  {bold('Concentration risk')}")
+    print_key_value("Largest position", f"{risk['largest_position_weight']:.0%}")
     print_key_value("Top-5", f"{risk['top_n_share']:.0%}")
     print_key_value("HHI", f"{risk['hhi']:.3f}")

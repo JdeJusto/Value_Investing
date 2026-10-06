@@ -8,10 +8,10 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 def main():
     parser = argparse.ArgumentParser(
         prog="main.py",
-        description="Value Investing Platform — Analisis fundamental desde la terminal",
+        description="Value Investing Platform — fundamental analysis from the terminal",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Ejemplos:\n"
+            "Examples:\n"
             "  main.py screener --per-max 15 --roe-min 12 --top 10\n"
             '  main.py screener --search "apple"\n'
             "  main.py company AAPL\n"
@@ -28,18 +28,18 @@ def main():
             "  main.py opportunities\n"
             "  main.py anomalies AAPL\n"
             "  main.py momentum\n"
-            '  main.py portfolio add AAPL 10 180 --thesis "moat fuerte"\n'
+            '  main.py portfolio add AAPL 10 180 --thesis "strong moat"\n'
             "  main.py portfolio view\n"
             "  main.py portfolio performance\n"
             "  main.py backtest --strategy momentum --top 3\n"
-            "  main.py backtest --strategy buffett --prices precios.csv\n"
+            "  main.py backtest --strategy buffett --prices prices.csv\n"
             "  main.py alerts\n"
-            '  main.py watchlist add AAPL --note "pendiente de entry"\n'
+            '  main.py watchlist add AAPL --note "pending entry"\n'
             "  main.py watchlist list\n"
             "  main.py debug\n"
         ),
     )
-    sub = parser.add_subparsers(dest="command", title="Comandos")
+    sub = parser.add_subparsers(dest="command", title="Commands")
 
     from cli.commands import (
         alerts,

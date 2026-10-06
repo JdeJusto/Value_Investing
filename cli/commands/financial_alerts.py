@@ -47,7 +47,7 @@ def _parse_severities(raw: str | None) -> set[str] | None:
     severities = {part.strip().upper() for part in raw.split(",") if part.strip()}
     invalid = severities - set(_SEVERITY_ORDER)
     if invalid:
-        print(red(f"Severidad inválida: {', '.join(sorted(invalid))}"))
+        print(red(f"Invalid severity: {', '.join(sorted(invalid))}"))
         return set()
     return severities
 
@@ -66,13 +66,13 @@ def _run(args):
     if is_demo():
         report = load_demo_alerts(ticker)
         if report is None:
-            print(red(f"No hay fixture de alerts para {ticker} en modo demo."))
+            print(red(f"No alerts fixture for {ticker} in demo mode."))
             return
     else:
         service = FinancialsViewService()
         facts = service.fetch_facts(ticker, period)
         if not facts:
-            print(red(f"No hay facts financieros almacenados para {ticker}."))
+            print(red(f"No stored financial facts for {ticker}."))
             return
         view = service.build(ticker, period, facts=facts)
         report = AlertService(facts).build(
