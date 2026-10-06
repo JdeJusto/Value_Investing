@@ -211,7 +211,7 @@ def _render_single(ticker: str) -> None:
     with tabs[0]:
         _overview(rows, quote, view)
     with tabs[1]:
-        _methodologies(view)
+        _methodologies(ticker, view)
     with tabs[2]:
         _dcf_panel(dcf)
     with tabs[3]:
@@ -492,7 +492,52 @@ def _overview(rows, quote: dict, view) -> None:
             st.markdown(f"- {line}")
 
 
-def _methodologies(view) -> None:
+def _consensus_entry(ticker: str) -> None:
+    """Compact consensus view for ``ticker`` (JSON read only, no recompute)."""
+    from backend.services.consensus_service import ConsensusService
+
+    service = ConsensusService()
+    report = service.load_latest()
+    if report is None:
+        st.info(
+            "No consensus report available. Run: "
+            "`python -m scripts.compute_consensus_rankings --universe sp500`"
+        )
+        return
+    entry = next(
+        (
+            company
+            for company in report.companies
+            if company.ticker.upper() == ticker.upper()
+        ),
+        None,
+    )
+    if entry is None:
+        st.warning(
+            f"`{ticker}` is not in the latest consensus "
+            f"({report.universe}, {report.date})."
+        )
+        return
+
+    cols = st.columns(4)
+    cols[0].metric("BUYs", entry.buy_count)
+    cols[1].metric("AVOIDs", entry.avoid_count)
+    cols[2].metric("Score", entry.consensus_score)
+    cols[3].metric("Category", entry.lynch_category or "—")
+
+    st.markdown("**Verdicts per methodology**")
+    rows = [
+        {"Methodology": methodology, "Verdict": verdict}
+        for methodology, verdict in entry.verdicts.items()
+    ]
+    st.dataframe(rows, hide_index=True)
+    if entry.price is not None:
+        st.caption(f"Price at computation: ${entry.price:,.2f}")
+
+
+def _methodologies(ticker: str, view) -> None:
+    with st.expander("Consensus entry", expanded=False):
+        _consensus_entry(ticker)
     st.dataframe(view.table, width="stretch", hide_index=True)
     for detail in view.details:
         title = f"{detail['methodology']} — {detail['verdict']} ({detail['family']})"
