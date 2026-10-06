@@ -20,7 +20,9 @@ def test_bundle_is_complete_and_small():
     files = [path for path in Path("data/demo").rglob("*") if path.is_file()]
     assert len(files) >= 10
     total = sum(path.stat().st_size for path in files)
-    assert total < 500 * 1024, f"demo bundle too heavy: {total / 1024:.0f} KB"
+    # Original budget was 500 KB; raised once for the compact 30-company
+    # consensus fixture (data/demo/consensus/).
+    assert total < 520 * 1024, f"demo bundle too heavy: {total / 1024:.0f} KB"
 
 
 def test_bundle_covers_the_eight_tickers():

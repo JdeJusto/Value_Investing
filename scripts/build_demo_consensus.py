@@ -136,7 +136,11 @@ def build() -> dict:
 def main() -> None:
     payload = build()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    # Compact JSON: it is a generated machine fixture inside the size-capped
+    # demo bundle (see test_demo_mode.test_bundle_is_complete_and_small).
+    OUTPUT.write_text(
+        json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
     print(f"wrote {OUTPUT} ({len(payload['companies'])} companies)")
 
 
