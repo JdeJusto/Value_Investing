@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "universe": "sp500",
+  "companies": {
+    "AAPL": {
+      "name": "Apple Inc.",
+      "verdicts": {
+        "buffett_classic": "BUY",
+        "buffett_clark": "BUY",
+        "fisher_quantitative_subset": "WATCH",
+        "graham": "BUY",
+        "graham_dodd": "BUY",
+        "greenblatt": "HOLD",
+        "lynch_garp": "BUY",
+        "marks": "AVOID"
+      },
+      "buy_count": 5,
+      "avoid_count": 1,
+      "insufficient_count": 0,
+      "consensus_score": 4,
+      "lynch_category": "STALWART"
+    },
+    "COLD": {
+      "name": "Americold Realty Trust",
+      "verdicts": {
+        "buffett_classic": "AVOID",
+        "buffett_clark": "AVOID",
+        "fisher_quantitative_subset": "BUY",
+        "graham": "AVOID",
+        "graham_dodd": "AVOID",
+        "greenblatt": "BUY",
+        "lynch_garp": "WATCH",
+        "marks": "HOLD"
+      },
+      "buy_count": 2,
+      "avoid_count": 5,
+      "insufficient_count": 0,
+      "consensus_score": -3,
+      "lynch_category": "UNKNOWN"
+    },
+    "JNJ": {
+      "name": "Johnson & Johnson",
+      "verdicts": {
+        "buffett_classic": "BUY",
+        "buffett_clark": "AVOID",
+        "fisher_quantitative_subset": "BUY",
+        "graham": "AVOID",
+        "graham_dodd": "BUY",
+        "greenblatt": "HOLD",
+        "lynch_garp": "WATCH",
+        "marks": "AVOID"
+      },
+      "buy_count": 3,
+      "avoid_count": 3,
+      "insufficient_count": 0,
+      "consensus_score": 0,
+      "lynch_category": "STALWART"
+    },
+    "JPM": {
+      "name": "JPMorgan Chase & Co.",
+      "verdicts": {
+        "buffett_classic": "INSUFFICIENT_DATA",
+        "buffett_clark": "INSUFFICIENT_DATA",
+        "fisher_quantitative_subset": "INSUFFICIENT_DATA",
+        "graham": "INSUFFICIENT_DATA",
+        "graham_dodd": "INSUFFICIENT_DATA",
+        "greenblatt": "INSUFFICIENT_DATA",
+        "lynch_garp": "INSUFFICIENT_DATA",
+        "marks": "INSUFFICIENT_DATA"
+      },
+      "buy_count": 0,
+      "avoid_count": 0,
+      "insufficient_count": 8,
+      "consensus_score": 0,
+      "lynch_category": "UNKNOWN"
+    },
+    "KO": {
+      "name": "The Coca-Cola Company",
+      "verdicts": {
+        "buffett_classic": "AVOID",
+        "buffett_clark": "AVOID",
+        "fisher_quantitative_subset": "HOLD",
+        "graham": "BUY",
+        "graham_dodd": "AVOID",
+        "greenblatt": "WATCH",
+        "lynch_garp": "BUY",
+        "marks": "AVOID"
+      },
+      "buy_count": 2,
+      "avoid_count": 4,
+      "insufficient_count": 0,
+      "consensus_score": -2,
+      "lynch_category": "SLOW_GROWER"
+    },
+    "MSFT": {
+      "name": "Microsoft Corporation",
+      "verdicts": {
+        "buffett_classic": "BUY",
+        "buffett_clark": "BUY",
+        "fisher_quantitative_subset": "BUY",
+        "graham": "AVOID",
+        "graham_dodd": "BUY",
+        "greenblatt": "HOLD",
+        "lynch_garp": "HOLD",
+        "marks": "WATCH"
+      },
+      "buy_count": 4,
+      "avoid_count": 1,
+      "insufficient_count": 0,
+      "consensus_score": 3,
+      "lynch_category": "FAST_GROWER"
+    },
+    "PLD": {
+      "name": "Prologis, Inc.",
+      "verdicts": {
+        "buffett_classic": "BUY",
+        "buffett_clark": "BUY",
+        "fisher_quantitative_subset": "BUY",
+        "graham": "BUY",
+        "graham_dodd": "BUY",
+        "greenblatt": "BUY",
+        "lynch_garp": "AVOID",
+        "marks": "HOLD"
+      },
+      "buy_count": 6,
+      "avoid_count": 1,
+      "insufficient_count": 0,
+      "consensus_score": 5,
+      "lynch_category": "ASSET_PLAY"
+    },
+    "TSLA": {
+      "name": "Tesla, Inc.",
+      "verdicts": {
+        "buffett_classic": "AVOID",
+        "buffett_clark": "AVOID",
+        "fisher_quantitative_subset": "AVOID",
+        "graham": "AVOID",
+        "graham_dodd": "AVOID",
+        "greenblatt": "AVOID",
+        "lynch_garp": "HOLD",
+        "marks": "AVOID"
+      },
+      "buy_count": 0,
+      "avoid_count": 7,
+      "insufficient_count": 0,
+      "consensus_score": -7,
+      "lynch_category": "FAST_GROWER"
+    },
+    "XOM": {
+      "name": "Exxon Mobil Corporation",
+      "verdicts": {
+        "buffett_classic": "BUY",
+        "buffett_clark": "BUY",
+        "fisher_quantitative_subset": "AVOID",
+        "graham": "AVOID",
+        "graham_dodd": "BUY",
+        "greenblatt": "AVOID",
+        "lynch_garp": "BUY",
+        "marks": "AVOID"
+      },
+      "buy_count": 4,
+      "avoid_count": 4,
+      "insufficient_count": 0,
+      "consensus_score": 0,
+      "lynch_category": "CYCLICAL"
+    }
+  }
+}
