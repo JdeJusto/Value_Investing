@@ -1,518 +1,336 @@
-# Value Investing
+<p align="center">
+  <img src="assets/logo.png" alt="Value Investing logo" width="360">
+</p>
 
-[English](README.md) · [Español](README.es.md)
+<h1 align="center">Value Investing</h1>
 
-[![Version](https://img.shields.io/badge/version-0.12.2-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-1324%20passed-green)]()
+<p align="center">
+  <em>Terminal-first fundamental analysis with eight independent book frameworks,
+  transparent DCF valuation, and SEC filing data.</em>
+</p>
 
-A deterministic, explainable toolkit for fundamental stock analysis. It combines financial statements, transparent valuation and quality measures, screening, portfolio tracking, and backtesting through a command-line interface and web applications.
+<p align="center">
+  <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
+  <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1728%20passed-10A77A?style=for-the-badge" alt="1,728 tests passed"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
+  <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
+  <img src="https://img.shields.io/badge/database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL data source">
+  <img src="https://img.shields.io/badge/code%20style-Ruff-261230?style=for-the-badge" alt="Ruff checks and formatting">
+</p>
 
-> **Design principle:** “Fools admire complexity; geniuses admire simplicity.” Prefer clear rules, small components, and traceable data over complexity that does not add value.
+<p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a></p>
 
-## What's in 0.4
+Value Investing runs eight independent investment frameworks against the same financial facts. It shows what each method concludes, where they disagree, and the rules behind those conclusions. Use the offline demo to explore the interface, or connect the companion Financial-DataBase for SEC-derived fundamentals.
 
-Eight book-derived methodologies (Graham, Graham & Dodd, Buffett/Clark,
-Buffett Classic, Fisher, Lynch GARP, Greenblatt Magic Formula and Marks),
-DCF valuation with four variants labeled `not-from-canon`, SEC-derived
-fundamentals through the companion Financial-DataBase, a five-page Streamlit
-UI, a screener, portfolio tracking, a daily workflow with alerts, and an
-offline demo mode. Prices are fetched on demand and never persisted. See
-[CHANGELOG.md](CHANGELOG.md) for the full list and the known limitations.
+## Table of contents
 
-> For a detailed walkthrough of the architecture and design decisions, see
-> [docs/architecture.md](docs/architecture.md).
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [The 8 methodologies](#the-8-methodologies)
+- [DCF valuation](#dcf-valuation)
+- [Quick start](#quick-start-30-seconds)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Data engine](#data-engine)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [FAQ](#faq)
+- [Tests](#tests)
+- [Contributing](#contributing)
+- [Contributors](#contributors)
+- [License](#license)
+- [Star History](#star-history)
+- [Acknowledgments](#acknowledgments)
 
-## Why this project
+## Screenshots
 
-Most fundamental-analysis tools give you **one** answer: a single score, a
-single rating, a single recommendation. This project does the opposite: it
-runs **8 book methodologies in parallel** and shows you where they agree and
-where they disagree — because disagreement is information, not a bug.
+Captured at a 1600 × 1000 browser viewport. The demo screenshots use pinned data; the screener screenshot uses the live local Financial-DataBase and a Yahoo price snapshot.
 
-- **8 book methodologies, side by side.** Graham, Graham & Dodd, Buffett
-  (×2), Fisher (quantitative subset), Lynch, Greenblatt and Marks. Each one
-  evaluates the same company independently.
-- **DCF as an explicit outsider.** Valuations that come from a
-  discounted-cash-flow model are labeled `not-from-canon` and never merged
-  into the book methodology scores.
-- **Disagreement summary.** When Graham says AVOID and Buffett says BUY, the
-  system tells you *why* — different frameworks, not different data.
-- **Financial guards.** Banks and insurers are excluded from methodologies
-  that do not apply to them, instead of producing misleading numbers.
-- **Data engine built in.** Financial-DataBase ingests 76M+ SEC facts across
-  8,000 companies with full provenance and idempotency.
-- **Prices are never persisted.** Every price is fetched in real time and
-  cached in memory, so the numbers you see are the numbers the market has
-  right now.
+### Home — portfolio snapshot, opportunities, and alerts
 
-### How it compares
+![Home dashboard with portfolio metrics, top opportunities, and recent alerts](assets/screenshot_home.png)
 
-| Feature | This project | Simply Wall St | Finviz | Morningstar |
-|---|:---:|:---:|:---:|:---:|
-| Multiple methodologies, side by side | ✅ 8 | ❌ | ❌ | ❌ |
-| Explicit disagreement summary | ✅ | ❌ | ❌ | ❌ |
-| Financial guards by methodology | ✅ | ❌ | ❌ | ❌ |
-| Book-derived rules (documented) | ✅ | ⚠️ | ❌ | ⚠️ |
-| Open source | ✅ | ❌ | ❌ | ❌ |
-| Self-hostable, no accounts | ✅ | ❌ | ❌ | ❌ |
-| Prices never persisted | ✅ | — | — | — |
-| DCF explicitly labeled not-from-canon | ✅ | ❌ | ❌ | ❌ |
-| Read source filings (10-K/10-Q) and their statements | ✅ | ❌ | ❌ | ⚠️ |
-| Read source narrative sections (Risk Factors, MD&A) | ✅ | ❌ | ❌ | ⚠️ |
+### Analysis — eight methodology verdicts
 
-*Honest footnote:* the table is about the workflow this project optimises
-for. Commercial tools beat it in other dimensions (universe breadth, news,
-broker integration, mobile apps) — and Fisher here is a **quantitative
-subset** (4 of 15 points), because scuttlebutt cannot be automated.
+![AAPL analysis with eight methodology verdicts](assets/screenshot_analysis_methodologies.png)
 
-## Try it in 30 seconds (no database required)
+### Analysis — the disagreement summary
 
-![analyze-full](assets/analyze-full.gif)
+![AAPL overview showing why methodology families disagree](assets/screenshot_analysis_overview.png)
 
-![compare-methodologies](assets/compare-methodologies.gif)
+The frameworks evaluate the same fundamentals independently. The disagreement summary explains why their verdicts differ instead of hiding the conflict in one composite score.
 
-> See [A worked example](#a-worked-example) below for a narrated full run.
+### DCF — intrinsic value and sensitivity
+
+![AAPL DCF with intrinsic value, margin of safety, assumptions, sensitivity, and the not-from-canon disclaimer](assets/screenshot_analysis_dcf.png)
+
+The DCF is labeled `not-from-canon`: it is a practical valuation, not a book rule, and never feeds methodology scores.
+
+### Financials — insights and statement facts
+
+![AAPL financial insights summary and balance-sheet facts by fiscal year](assets/screenshot_financials.png)
+
+### Filings — SEC source documents
+
+![AAPL SEC filings with filing dates, periods, accessions, and SEC links](assets/screenshot_filings.png)
+
+Select a filing in the app to load its statement preview; this capture shows the populated filings list and source links.
+
+### Consensus — agreement across the universe
+
+![Consensus ranking with the top table and six Lynch-category sections](assets/screenshot_consensus.png)
+
+This is the offline demo snapshot: eight pinned demo tickers plus synthetic sample rows to demonstrate the ranking layout.
+
+### Screener — Technology companies with WATCH verdicts
+
+![Live screener results filtered to Technology and WATCH](assets/screenshot_screener.png)
+
+The live run filtered 85 Technology candidates to 22 WATCH verdicts.
+
+### CLI — `analyze-full AAPL --demo`
+
+Excerpt from the actual CLI output (ANSI color codes removed):
+
+```text
+Comprehensive analysis: AAPL
+1) Company overview
+     Ticker         AAPL
+     Name           Apple Inc.
+
+2) Real-time price and valuation
+     Price              $340.00
+     Market Cap         $4856.5B
+     PER                43.2
+     P/B                85.20
+     FCF Yield          2.6%
+     EV/EBIT            36.7
+
+3) Fundamental metrics
+     ROE                      197.1%
+     ROIC                     89.1%
+     Operating margin         32.0%
+     Net margin               27.0%
+     Revenue growth           8.0%
+     Debt / Equity            1.70
+     Free Cash Flow           $125.2B
+
+4) Company quality
+     Buffett score        94.8
+     Moat                 STRONG
+     Rating               A
+     Confidence           HIGH
+     Total score          96.1
+
+DCF Valuation (supplementary, not-from-canon)
+         Intrinsic value/share : $163.14
+                 Current price : $340.00
+              Margin of safety : -108.4%
+                       Verdict : OVERVALUED
+```
+
+## Features
+
+- **Eight methodologies, side by side.** Each framework evaluates the same company independently.
+- **Disagreement as a feature.** See the rules and reasons behind different conclusions instead of relying on one averaged score.
+- **Financial guards.** Methodologies abstain from company types their assumptions do not fit, including banks and insurers.
+- **Comprehensive financials.** Browse SEC XBRL facts by statement and fiscal year, including concepts not mapped to analysis fields.
+- **Automatic insights.** Review growth, YoY changes, CAGR, trend, stability, and direction changes from the same facts as the tables.
+- **Deterministic alerts.** Cash runway, margin, debt, FCF, revenue, earnings-quality, and dividend signals include their evidence.
+- **Source documents.** Browse SEC filings and extract statements, Risk Factors, and MD&A.
+- **Consensus screener.** Rank companies across all eight verdicts, compare Lynch categories, and inspect the disagreement zone.
+- **Deterministic analysis.** No LLM is used for rules, verdicts, insights, or alerts.
+- **Prices are never written to a database.** Yahoo quotes are fetched on demand and cached in memory; consensus snapshots are report artifacts.
+
+## The 8 methodologies
+
+| Methodology | Source | Family | What it looks for |
+|---|---|---|---|
+| `graham` | *The Intelligent Investor* (1949) | `DEEP_VALUE` | Defensive criteria, financial strength, and the 22.5 valuation test |
+| `graham_dodd` | *Security Analysis* (1934) | `DEEP_VALUE` | Net working capital, earnings stability, and fixed-charge coverage |
+| `buffett_classic` | Internal four-pillar framework | `QUALITY_COMPOUNDER` | Profitability, financial strength, cash generation, and stability |
+| `buffett_clark` | *Warren Buffett and the Interpretation of Financial Statements* | `QUALITY_COMPOUNDER` | Durable margins, interest burden, and owner-earnings signals |
+| `fisher_quantitative_subset` | *Common Stocks and Uncommon Profits* (1958) | `QUALITY_COMPOUNDER` | Quantitative subset: R&D intensity, margins, and dilution |
+| `lynch_garp` | *One Up on Wall Street* (1989) | `GARP` | PEG, earnings growth, and Lynch company categories |
+| `marks` | *The Most Important Thing* (2011) | `CYCLE_AWARE_VALUE` | Cycle position, resilience, leverage, and margin of safety |
+| `greenblatt` | *The Little Book That Beats the Market* (2005) | `MAGIC_FORMULA` | Return on capital and earnings yield ranking |
+
+## DCF valuation
+
+The DCF is a supplementary valuation labeled **`not-from-canon`**. It lives outside the methodology registry and never changes a book-derived verdict or composite score. Five evaluation routes cover standard FCF, REIT FFO, two-stage and single-stage financial DDM, and hyper-growth companies. Missing or unsuitable inputs produce `INSUFFICIENT_DATA` rather than fabricated values.
+
+See [the DCF design notes](backend/valuation/README.md) for assumptions, formulas, and variant behavior.
+
+## Quick start (30 seconds)
+
+Try the pinned offline bundle without PostgreSQL, SEC access, or Yahoo:
 
 ```bash
 git clone https://github.com/JdeJusto/Value_Investing.git
 cd Value_Investing
 python -m pip install pipenv
-PIPENV_VENV_IN_PROJECT=1 pipenv install --dev   # creates ./.venv
-source .venv/bin/activate
+PIPENV_VENV_IN_PROJECT=1 pipenv install --dev
 
 python main.py analyze-full AAPL --demo
 python main.py compare-methodologies AAPL --demo
-
 VI_DEMO=1 ./run_ui.sh   # http://localhost:8501
 ```
 
-Demo mode uses a **pinned offline bundle** for 8 tickers (AAPL, MSFT, KO, JNJ,
-JPM, XOM, PLD, TSLA): no PostgreSQL, no SEC, no Yahoo. Every command accepts
-`--demo`, `screener --universe demo` screens the bundle, and the UI shows a
-demo banner with the price refresh disabled. The fixtures are real-ish 10-K
-figures pinned to a date — regenerate them with
-`python -m scripts.build_demo_data`. To use the real system, see
-[Installation](#installation).
+Demo mode contains eight pinned tickers: AAPL, MSFT, KO, JNJ, JPM, XOM, PLD, and TSLA. It uses no external services.
 
-## A worked example
+## Installation
 
-`analyze-full` runs everything on one company: fundamentals, the eight
-methodologies, the DCF and the historical valuation. This is the real output
-of `python main.py analyze-full KO --demo`:
-
-```text
-  Analisis integral: KO
-1) Company overview
-     Ticker         KO
-     Nombre         The Coca-Cola Company
-2) Precio y valoracion en tiempo real
-     Precio             $70.00
-     Market Cap         $374.7B
-     PER                29.0
-     P/B                11.71
-     FCF Yield          3.8%
-     EV/EBIT            28.1
-3) Metricas fundamentales
-     ROE                      40.4%
-     ROIC                     17.2%
-     Margen operativo         30.0%
-     Margen neto              27.0%
-     Crecimiento ingresos     4.0%
-     Deuda / Equity           1.38
-     Free Cash Flow           $14.4B
-     Owner Earnings           $11.5B
-4) Calidad de la empresa
-     Buffett score        97.5
-     Moat                 STRONG
-     Rating               A
-     Score total          98.8
-     Valor DCF            $449.3B
-     Margen de seguridad  16.6%
-     ROIC medio           16.4%
-     Insight: High sustained ROE above 15%; Strong free cash flow generation
-     in most years; Stable margins indicate pricing power; Wide economic moat.
-
-  DCF Valuation (supplementary, not-from-canon)
-         Intrinsic value/share : $59.48
-                 Current price : $70.00
-              Margin of safety : -17.7%
-                       Verdict : OVERVALUED
-  ⚠️ This valuation is NOT part of any book-derived methodology.
-     It is a practical addition labeled not-from-canon.
-
-5) Valoracion historica
-fiscal_year |    price |      eps |   pe_ratio |  fcf_yield
-      2025 |    68.58 |     3.04 |      22.55 |      1.79%
-      2024 |    59.32 |     2.47 |      24.05 |      1.85%
-      2023 |    54.49 |     2.48 |      21.98 |      4.14%
-6) Riesgos / anomalias / triggers
-     Piotroski F-Score: 6/9
-     Altman Z-Score: 4.23
-     Fuente: YAHOO  |  Confianza datos: HIGH  |  Calidad: 100.0%
-```
-
-What you are seeing:
-
-- **1) Overview / 2) Price**: identity plus the live-price metrics (market
-  cap, P/E, FCF yield, EV/EBIT). In demo mode the price is the pinned
-  fixture ($70.00).
-- **3) Fundamentals**: margins, ROE/ROIC, leverage, owner earnings — the
-  raw material every methodology consumes.
-- **4) Quality**: the Buffett-style composite (score, moat, rating) with the
-  human-readable insights behind it.
-- **DCF panel**: shown separately and labeled `not-from-canon` — it is a
-  practical valuation, not a book rule, and it never feeds the methodology
-  scores. Here it says OVERVALUED while the quality block rates the business
-  highly: exactly the disagreement this platform is built to show.
-- **5) Historical valuation**: P/E and FCF yield per fiscal year, so you can
-  judge whether today's multiple is high or low *for this company*.
-- **6) Risks**: z-score anomalies, Piotroski F-Score, Altman Z-Score and any
-  active trigger.
-
-For the multi-framework view use `compare-methodologies KO --demo`: the eight
-verdicts side by side plus the disagreement summary.
-
-The **Consensus** page aggregates those eight verdicts across a whole
-universe: rankings by consensus score (BUYs minus AVOIDs), best companies per
-Lynch category, the disagreement zone, the full verdict matrix, and an inline
-consensus entry on the Analysis page. Generate the rankings with
-`python -m scripts.compute_consensus_rankings --universe sp500`; see
-[docs/consensus_screener.md](docs/consensus_screener.md).
-
-### How to read the consensus
-
-The eight book methodologies are intentionally strict. In a fully priced
-market, most companies score 0 BUYs, and even excellent businesses rarely
-accumulate more than 3 BUYs (measured on the S&P 500: ~37% of companies have
-1+ BUYs at current prices and ~2% reach 3 BUYs). Treat the tiers as:
-
-- **3 BUYs** — top of the universe; the best the current rule set can
-  identify.
-- **2 BUYs** — high conviction; worth serious research.
-- **1 BUY** — a single framework sees value; cross-check with the
-  disagreement zone.
-- **0 BUYs** — the majority of the universe; not necessarily bad, but not
-  cheap or high-quality enough to trigger any framework.
-
-The **consensus score** (BUYs minus AVOIDs) is often more informative than
-the BUY count alone: it captures how many frameworks actively reject the
-company, which is why the consensus tables default to sorting by it.
-
-## UI
-
-| Home | Analysis |
-|------|----------|
-| ![Home](assets/ui_home.png) | ![Analysis](assets/ui_analysis.png) |
-
-| Screener | Portfolio |
-|----------|-----------|
-| ![Screener](assets/ui_screener.png) | ![Portfolio](assets/ui_portfolio.png) |
-
-| Reports |
-|---------|
-| ![Reports](assets/ui_reports.png) |
-
-Captured from the Streamlit app running in demo mode
-(`VI_DEMO=1 ./run_ui.sh`). The screenshots predate the **Consensus** page
-(`ui/pages/06_consensus.py`), which adds the universe-wide verdict view.
-
-## What it does
-
-- Loads and normalizes company fundamentals from SEC filings, Yahoo Finance, or the companion Financial-DataBase.
-- Calculates financial ratios, DCF valuations, company-quality and moat assessments, and explainable scores.
-- Screens companies, ranks opportunities, and generates fundamental alerts.
-- Aggregates the eight methodology verdicts into consensus rankings (top picks, best per Lynch category, disagreement zone).
-- Tracks portfolios and runs deterministic, historical backtests.
-- Provides a CLI, a Streamlit analysis UI, and a FastAPI + React web application.
-
-This is an analysis tool, **not investment advice**. Results depend on the quality and availability of upstream data.
-
-## Data sources and external services
-
-| Source | How it is used |
-| --- | --- |
-| [SEC EDGAR](https://www.sec.gov/edgar) | Filings, XBRL company facts, and company/CIK identifiers. The direct provider uses `edgartools`; the companion Financial-DataBase can also refresh SEC data. SEC requests require a descriptive `SEC_USER_AGENT` with valid contact details. |
-| [Yahoo Finance](https://finance.yahoo.com/) via [`yfinance`](https://github.com/ranaroussi/yfinance) | Market data, on-demand prices, and an alternate source for financial statements. Prices are cached in memory and **are not persisted** by this project. Availability and rate limits are controlled by Yahoo. |
-| [Wikipedia](https://www.wikipedia.org/) | Constituent lists used when rebuilding the S&P 500, Nasdaq-100, and selected European index universes. |
-| [iShares](https://www.ishares.com/) | Russell 2000 constituents from the official IWM ETF holdings file. |
-| [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase) | Optional companion PostgreSQL database for SEC-derived fundamentals and targeted SEC refreshes; configured with `FINANCIAL_DATABASE_URL`. It is a separate project. |
-
-Provider data and trademarks are not covered by this repository's MIT license. Follow each provider's terms, access policies, and attribution requirements. Data may be delayed, incomplete, or unavailable.
-
-## Data conventions
-
-- **Net income**: when a company reports both a consolidated net income and
-  a net income available to common stockholders (usually because it has
-  preferred stock), the platform uses the **available to common** figure —
-  it is the right basis for per-share metrics (EPS, P/E, DDM) and keeps
-  preferred dividends from inflating returns. The CLI marks the figure as
-  "available to common" so it is not mistaken for the consolidated number
-  found on EDGAR (JPM FY2025: 55.7B available to common vs 57.0B
-  consolidated — see `docs/coherence_audit_2026-09-30.md`).
-
-The Python integrations use `edgartools`, `yfinance`, and SQLAlchemy. The
-interfaces include Streamlit and FastAPI + React; the optional Compose stack
-also uses Redis and Celery. `Pipfile` and `Pipfile.lock` are the authoritative
-Python dependency list.
-
-## Quick start
-
-Requirements: Python 3.13+ (the CI-tested version) and Pipenv. PostgreSQL and Docker Compose are optional for the CLI; Node.js 22+ is needed only to develop the React frontend.
+Requirements: Python 3.13+ and Pipenv. A reachable Financial-DataBase PostgreSQL instance is recommended for the full SEC-derived data set. Local JSON fallback paths and the offline demo are available without it.
 
 ```bash
-git clone https://github.com/JdeJusto/Value_Investing.git
-cd Value_Investing
 python -m pip install pipenv
-pipenv install --dev
-cp .env.example .env
-```
-
-Edit `.env` before making SEC requests. Replace the example `SEC_USER_AGENT` with a descriptive application name and a real contact address. Set `SEC_EMAIL` and `SEC_NAME` for the direct `edgartools` provider. Never commit `.env` or real credentials.
-
-```bash
-# With pipenv (PIPENV_VENV_IN_PROJECT=1 creates ./.venv, which ./run_ui.sh
-# and the source/activate flow below expect; without it pipenv puts the
-# virtualenv outside the project)
 PIPENV_VENV_IN_PROJECT=1 pipenv install --dev
-pipenv shell                # or prefix every command with: pipenv run
-# Without pipenv: use the checked-in venv wrapper
-source .venv/bin/activate   # python3.13+ venv
+cp .env.example .env
+source .venv/bin/activate
 ```
 
+Before SEC requests, set `SEC_USER_AGENT` to a descriptive application name and real contact address. Set `SEC_EMAIL` and `SEC_NAME` for the direct `edgartools` provider. Do not commit `.env` or credentials. See [`.env.example`](.env.example) for all settings.
+
+## Usage
+
+### CLI
+
 ```bash
-./vi debug
-./vi load-data AAPL
-./vi analyze AAPL
+./vi analyze-full AAPL
+./vi compare-methodologies AAPL
+./vi consensus AAPL
+./vi consensus-ranking --universe sp500 --top 20
+./vi consensus-by-category --universe sp500 --per-category 5
+./vi financial-alerts AAPL
 ./vi screener --tickers AAPL,MSFT
-./run_ui.sh                 # Streamlit UI (5 pages) at http://localhost:8501
 ```
 
-`./vi` runs the project's virtual environment without requiring `pipenv run` (equivalent to `.venv/bin/python main.py ...`). The complete environment-variable list is in [`.env.example`](.env.example). The variables that matter day to day:
-
-| Variable | Purpose |
-| --- | --- |
-| `SEC_USER_AGENT` | Required for SEC requests (app name + real contact, e.g. `MyApp/1.0 me@example.com`). |
-| `SEC_EMAIL` / `SEC_NAME` | Contact for the direct `edgartools` provider. |
-| `FINANCIAL_DATABASE_URL` | Financial-DataBase PostgreSQL URL (default `postgresql://financial:test@localhost:5432/financial_database` — a **local development default**, not a secret; change it for anything beyond localhost). Optional: without a reachable FDB the app falls back to the local JSON repository and live providers. |
-| `DATA_RAW_DIR` | Raw SEC download directory used by the FDB sync subprocess. |
-| `PORTFOLIO_PATH` | Portfolio JSON (default `data/portfolio.json`). |
-
-### Analysis commands
+Consensus commands read the latest precomputed report. Refresh it with:
 
 ```bash
-./vi analyze-graham AAPL
-./vi analyze-buffett-classic AAPL
-./vi analyze-buffett-clark AAPL
-./vi analyze-graham-dodd AAPL
-./vi analyze-fisher-quant AAPL
-./vi analyze-lynch-garp AAPL
-./vi compare-methodologies AAPL     # all methodologies side by side
-./vi consensus AAPL                 # one ticker's aggregated verdicts
-./vi consensus-ranking --top 20     # universe ranking by BUYs
-./vi consensus-by-category          # top companies per Lynch category
-./vi dcf AAPL                       # not-from-canon DCF (REIT/DDM/hyper-growth variants)
-./vi analyze-full AAPL              # consolidated 6-section report
+python -m scripts.compute_consensus_rankings --universe sp500
 ```
 
-### Streamlit UI (6 pages)
+### Streamlit UI
 
 ```bash
-./run_ui.sh                 # Home · Analysis · Screener · Portfolio · Reports · Consensus
+./run_ui.sh
 ```
 
-Do **not** run `python -m ui.app`: the app is launched with Streamlit (`streamlit run ui/app.py`, which `run_ui.sh` wraps). Pages are `ui/pages/01_home.py` … `06_consensus.py`; data loading is cached in memory and prices are never persisted (the only price write is the explicit "Save prices to portfolio" button).
+The six pages are Home, Analysis, Screener, Portfolio, Reports, and Consensus. For a database-free walkthrough, use `VI_DEMO=1 ./run_ui.sh`.
 
 ### Filings and statements
 
-Browse every filing for a company and extract the three main financial
-statements plus the narrative sections (Risk Factors, MD&A) directly from
-the source document:
-
 ```bash
-# List filings for a ticker (defaults to 10-K/10-Q/20-F/40-F)
 python main.py filings AAPL --form 10-K,10-Q --year 2025
-
-# Extract a statement from the most recent matching filing
 python main.py filing-statement AAPL --type balance_sheet
 python main.py filing-statement AAPL --type income_statement
 python main.py filing-statement AAPL --type cash_flow
-
-# Extract Risk Factors and MD&A as plain text
 python main.py filing-section AAPL --type risk_factors --word-limit 500
-python main.py filing-section AAPL --type md_a
-
-# Open the source directly on SEC EDGAR
-python main.py filings AAPL --open
 ```
 
-Extracted statements and narrative sections preserve the original filing
-text (no normalization, no summarization) and results are cached locally
-under `data/raw/filings/` (HTML) and the matching JSON parse cache. In the
-UI the Filings tab lists every filing, previews the statement you pick, and
-shows Risk Factors / MD&A with an explicit Load button.
+The Filings tab links to SEC source documents and can load statement or narrative previews. Parsed documents are cached locally under `data/raw/filings/`.
 
-### Full financial statements
-
-The Analysis page has a **Financials** tab that shows every fact stored in
-Financial-DataBase for the company, grouped by statement type (Balance Sheet,
-Income Statement, Cash Flow, Other) and organized by fiscal year. Rows
-preserve the original filing format and are searchable and exportable to CSV.
-
-This reads the raw XBRL facts, not just the mapped VO fields — you see the
-complete picture as filed. Filter by fiscal period (FY/Q1–Q4), the last N
-years (up to 20), and unit (USD, shares, USD/shares, pure); concepts the
-classifier cannot place land in "Other" so nothing is hidden.
-
-### Financial insights
-
-The Financials tab opens with a **Summary** panel computed from the same
-facts as the tables (no LLM, no second source). For every key metric —
-revenue, gross/operating/net income, EPS, assets, liabilities, equity, cash,
-debt, operating cash flow, capex, free cash flow, dividends, and the derived
-margins, ROE/ROA, debt-to-equity and FCF conversion — it shows:
-
-| Metric | Latest | YoY | 5y CAGR | Trend | Stability |
-| --- | --- | --- | --- | --- | --- |
-| Revenue | $416,161,000,000 | +6.4% | +8.7% | growing | volatile |
-| Net Margin | 26.9% | +2.9pp | +42.3% | growing | volatile |
-
-The panel is searchable and exportable to CSV like the statement tables.
-
-### Financial alerts
-
-Deterministic rules over the same facts flag solvency and quality issues
-(and positives) with the evidence that triggered them — no LLM:
-
-```bash
-# Show financial alerts for a company
-python main.py financial-alerts AAPL
-python main.py financial-alerts AAPL --severity CRITICAL
-```
-
-The same alerts appear in the Analysis sidebar: 🔴 CRITICAL (low cash
-runway), 🟠 WARNING (margin collapse, debt spike, inventory buildup,
-negative FCF streak, dividend cut) and 🔵 INFO (revenue decline, earnings
-quality, EPS dilution, strong FCF conversion). The CLI exits 1 when a
-CRITICAL fires, so shell chains can react:
-`python main.py financial-alerts AAPL || notify-send "Alert"`.
-
-### Portfolio
+### Portfolio and daily workflow
 
 ```bash
 ./vi portfolio view
 ./vi portfolio performance
 ./vi portfolio add AAPL 10 180.00 --thesis "moat"
-./vi portfolio exit AAPL 340.00
-./vi portfolio remove AAPL
+python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 ```
 
-### Daily workflow
+## Data engine
 
-```bash
-source .venv/bin/activate
-python -m scripts.daily_workflow                    # full run (writes data/reports/daily_*.md)
-python -m scripts.daily_workflow --dry-run --limit 5 --top 3   # safe smoke run
+The app can read SEC-derived fundamentals from the companion [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase) PostgreSQL project. Value Investing treats it as a read-only source; targeted refreshes are delegated to its CLI when configured. Local JSON storage is a fallback. Yahoo Finance provides on-demand prices, which are cached in memory and never written to a database. Consensus price snapshots are report files, not a database price store.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    SEC[SEC EDGAR filings and XBRL] --> FDB[(Financial-DataBase)]
+    FDB --> Repo[FinancialDatabaseRepository]
+    Repo --> VO[NormalizedFinancials]
+    Yahoo[Yahoo Finance] --> Price[PriceService<br/>in-memory cache only]
+    VO --> Methods[8 book methodologies]
+    Price --> Methods
+    VO --> DCF[DCF<br/>not-from-canon]
+    Price --> DCF
+    Methods --> UI[CLI, Streamlit, FastAPI + React]
+    DCF --> UI
+    Methods --> Consensus[Consensus report JSON]
+    Price --> Consensus
+    Consensus --> UI
 ```
 
-The daily report feeds the Home page (top opportunities + alerts).
+The domain uses plain Python objects; providers and repositories live at the edges. Each methodology receives the same normalized fundamentals and price interface. The DCF remains separate from book verdicts. More detail: [architecture](docs/architecture.md) and [consensus design](docs/consensus_screener.md).
 
-The optional Docker Compose stack includes PostgreSQL, Redis, the FastAPI service, Celery workers, and the React frontend. It is for local development, not a production deployment; configure secrets, database migrations, and network access before exposing any service.
+## Roadmap
 
-### Common tasks
+- [x] Eight independent book methodologies and separate DCF variants
+- [x] Financial statements, insights, deterministic alerts, and filing previews
+- [x] Consensus rankings, price snapshots, and disagreement-zone view
+- [ ] Weekly automation for consensus and Greenblatt rankings
+- [ ] Real-time alert notifications
+- [ ] Broader documented methodology coverage
 
-**Analyze a company you have never looked at**
+## FAQ
 
-```bash
-python main.py analyze-full <TICKER> --demo   # try it without a database
-python main.py analyze-full <TICKER>          # real SEC fundamentals
-```
+**Why eight methodologies instead of one composite score?**
 
-**Find candidates in a sector**
+A composite can hide disagreement. Independent frameworks answer different questions; the UI shows their verdicts and reasons side by side.
 
-```bash
-VI_DEMO=1 ./run_ui.sh
-# Screener -> pick universe/sector -> Run
-```
+**Why is the DCF labeled `not-from-canon`?**
 
-**Compare how different frameworks see the same company**
+The book methodologies do not prescribe this DCF. It is a practical valuation model, kept separate so it cannot silently affect book-derived scores.
 
-```bash
-python main.py compare-methodologies <TICKER>
-```
+**Are market prices stored?**
 
-**See what the frameworks like across a universe**
+Prices are never written to a database. Quotes are fetched on demand and cached in memory. Consensus JSON reports may contain a price snapshot for reproducibility.
 
-```bash
-python -m scripts.compute_consensus_rankings --universe sp500   # precompute (prefetches prices)
-python main.py consensus AAPL                                   # one ticker's verdicts
-python main.py consensus-ranking --universe sp500 --top 20      # top by BUYs
-python main.py consensus-ranking --by avoid --top 10            # most-rejected
-python main.py consensus-by-category --per-category 5           # per Lynch category
-VI_DEMO=1 ./run_ui.sh   # Consensus page
-```
+**Can I analyze banks and insurers?**
 
-**Track a position**
+Book rules abstain where their assumptions do not fit financial companies. The Financials tab still shows stored facts, and the DCF has dividend-discount variants for financials.
 
-```bash
-python main.py portfolio add <TICKER> <SHARES> <PRICE> --thesis "..." --signal BUY
-python main.py portfolio view
-```
+**Do I need Financial-DataBase?**
 
-**Run the daily workflow manually**
+It is the recommended source for full SEC fundamentals. Local JSON fallback paths and the offline demo are available for exploration.
 
-```bash
-python -m scripts.daily_workflow --limit 20 --top 5
-```
+**Does the project use an LLM?**
 
-## Troubleshooting
-
-| Symptom | Fix |
-| --- | --- |
-| `ModuleNotFoundError: No module named 'dotenv'` | You are running with the system Python. Activate the venv (`source .venv/bin/activate`) or use `./vi` / `pipenv run`. `python-dotenv` is already installed and declared in `Pipfile`/`Pipfile.lock`; the daily workflow also degrades gracefully without it. |
-| `Connection refused` to PostgreSQL | Check the service and the URL in `.env` (`FINANCIAL_DATABASE_URL` for Financial-DataBase, `DATABASE_URL` for the local store). The CLI falls back to JSON storage when the database is unreachable. |
-| `pyarrow.lib.ArrowInvalid` in the UI | Fixed by the dataframe normalizer (`ui/_shared.normalize_rows`); update `main` and reload the page. |
-| Yahoo throttling (HTTP 429, prices N/A) | Wait and retry. Prices are cached in memory only (15 min) and degrade to "—"; nothing is fabricated or persisted. |
-| Streamlit on a busy port | `./run_ui.sh` uses 8501; run `streamlit run ui/app.py --server.port N` for another port. |
+No. Analysis rules, verdicts, insights, and alerts are deterministic.
 
 ## Tests
 
 ```bash
-pipenv run python -m pytest tests/unit -q
+python -m pytest tests/unit -q
+ruff check .
+ruff format --check .
 ```
 
-The unit suite does not require live market data or a database. Tests that need Financial-DataBase skip when it is not configured.
+The last release run had **1,728 passed and 2 skipped**. The tests badge is static and should be updated when the test count changes. Coverage is not currently measured, so there is no coverage badge.
 
-## Project layout
+## Contributing
 
-```text
-backend/      domain, providers, repositories, analytics, services, and API
-cli/          command-line commands
-ui/           Streamlit analysis interface
-frontend/     React + TypeScript client for the FastAPI service
-scripts/      daily workflow, universe builders, validation, and dev utilities
-config/       universe and runtime configuration
-tests/        automated tests
-data/         local repository data, cache, and reports
-```
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and [Security](SECURITY.md). The UI, CLI, and documentation are in English.
 
-## Documentation
+## Contributors
 
-- [Daily workflow](docs/runbook_daily.md)
-- [Scoring methodology](docs/scoring_methodology.md) and [validation](docs/scoring_validation.md)
-- [Cross-source validation methodology](docs/validation_methodology.md)
-- [Consensus screener](docs/consensus_screener.md)
-- [Data gaps investigation](docs/data_gaps_investigation.md)
-- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
-
-## Language
-
-The UI and documentation are in English. Financial terminology follows
-standard US conventions.
-
-## Releasing
-
-Releases follow [Semantic Versioning](https://semver.org/). See [CONTRIBUTING.md](CONTRIBUTING.md#releasing) for the process.
+See the [GitHub contributors graph](https://github.com/JdeJusto/Value_Investing/graphs/contributors). Contributions are welcome.
 
 ## License
 
-[MIT](LICENSE). The license applies to this project's code, not to data supplied by external providers.
+[MIT](LICENSE). The license applies to this repository's code, not to data supplied by external providers.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=JdeJusto/Value_Investing&type=Date)](https://star-history.com/#JdeJusto/Value_Investing&Date)
+
+## Acknowledgments
+
+- The authors whose books inform the documented investment rules.
+- The [SEC EDGAR](https://www.sec.gov/edgar) team for public filings and company facts.
+- [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase) for the companion SEC-derived data engine.
+- [Streamlit](https://streamlit.io/) for the UI and [yfinance](https://github.com/ranaroussi/yfinance) for on-demand market data.
