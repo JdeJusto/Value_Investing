@@ -35,6 +35,10 @@ INCOME_STATEMENT_CONCEPTS = {
     "SalesRevenueServicesNet": "revenue",
     # REITs file their rental income here when no 'Revenues' tag is present
     "OperatingLeaseLeaseIncome": "revenue",
+    # Alternative real-estate rental revenue tags (no 'Revenues' tag filed)
+    "OperatingLeaseIncome": "revenue",
+    "RentalRevenue": "revenue",
+    "RealEstateRevenueNet": "revenue",
     # Cost of Goods Sold
     "CostOfGoodsSold": "cogs",
     "CostOfRevenue": "cogs",
@@ -45,6 +49,9 @@ INCOME_STATEMENT_CONCEPTS = {
     "GrossProfit": "gross_profit",
     # Operating Expenses
     "OperatingExpenses": "operating_expense",
+    # REITs file their total operating costs and expenses (rental property
+    # costs + D&A + G&A) here when no 'OperatingExpenses' tag is present.
+    "CostsAndExpenses": "operating_expense",
     "ResearchAndDevelopmentExpense": "research_development",
     # JNJ files essentially all R&D under the ExcludingAcquiredInProcessCost
     # tag; its plain tag only carries a residual. The dominance override in
@@ -63,12 +70,15 @@ INCOME_STATEMENT_CONCEPTS = {
     "NonoperatingIncomeExpense": "non_operating_income_expense",
     # Interest Expense
     "InterestExpense": "interest_expense",
+    "InterestExpenseNonoperating": "interest_expense",
     # Tax Provision
     "IncomeTaxExpenseBenefit": "tax_provision",
     "IncomeTaxExpense": "tax_provision",
     # Pretax Income
     "IncomeLossBeforeIncomeTaxes": "pretax_income",
     "PretaxIncome": "pretax_income",
+    # The standard US-GAAP pretax line for most filers (COLD, AAPL, ...)
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest": "pretax_income",
     # Net Income
     "NetIncomeLossAvailableToCommonStockholdersBasic": "net_income",
     "NetIncomeLossAvailableToCommonStockholdersDiluted": "net_income",
@@ -105,6 +115,21 @@ INCOME_FIELD_PRIORITY = {
         # value-based override in _normalize_financial_facts for REITs whose
         # rental income is the whole top line (e.g. CPT).
         "OperatingLeaseLeaseIncome",
+        "OperatingLeaseIncome",
+        "RentalRevenue",
+        "RealEstateRevenueNet",
+    ],
+    "interest_expense": [
+        # The plain tag is consistently the expense line; Nonoperating is the
+        # REIT/common alternative used when the plain tag is absent (COLD).
+        "InterestExpense",
+        "InterestExpenseNonoperating",
+    ],
+    "operating_expense": [
+        # OperatingExpenses is the intended total where filed; CostsAndExpenses
+        # is the REIT-style total operating costs line and only fills the gap.
+        "OperatingExpenses",
+        "CostsAndExpenses",
     ],
     "net_income": [
         "NetIncomeLossAvailableToCommonStockholdersBasic",
@@ -212,6 +237,9 @@ DEBT_NONCURRENT_PRIORITY = [
     "LongTermDebtNoncurrent",
     "LongTermNotesPayable",
     "SeniorNotes",
+    # REITs (COLD, ...) tag their mortgage/notes debt here when no broader
+    # long-term-debt tag exists; ranked last so a real total always wins.
+    "SecuredDebt",
 ]
 DEBT_CURRENT_RANK = {
     concept: rank for rank, concept in enumerate(DEBT_CURRENT_PRIORITY)

@@ -168,3 +168,71 @@ def test_us_gaap_revenue_wins_over_ifrs_when_both_present():
         _fact("RevenueFromContractsWithCustomers", 900.0),
     )
     assert income["revenue"] == 1000.0
+
+
+# ---------------------------------------------------------------------------
+# REIT / structural concept gaps (COLD case)
+# ---------------------------------------------------------------------------
+def test_pretax_income_continuing_operations_concept_maps():
+    """The standard US-GAAP pretax line (COLD and most filers) maps."""
+    income = _income(
+        _fact(
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
+            "ExtraordinaryItemsNoncontrollingInterest",
+            -135_733_000,
+        )
+    )
+    assert income["pretax_income"] == -135_733_000
+
+
+def test_interest_expense_nonoperating_maps_as_fallback():
+    """REITs file InterestExpenseNonoperating when the plain tag is absent."""
+    income = _income(_fact("InterestExpenseNonoperating", 147_776_000))
+    assert income["interest_expense"] == 147_776_000
+
+
+def test_plain_interest_expense_wins_over_nonoperating():
+    income = _income(
+        _fact("InterestExpense", 100.0),
+        _fact("InterestExpenseNonoperating", 90.0),
+    )
+    assert income["interest_expense"] == 100.0
+
+
+def test_reit_rental_revenue_aliases_map():
+    """OperatingLeaseIncome / RentalRevenue / RealEstateRevenueNet -> revenue."""
+    for tag in ("OperatingLeaseIncome", "RentalRevenue", "RealEstateRevenueNet"):
+        income = _income(_fact(tag, 500.0))
+        assert income["revenue"] == 500.0, tag
+
+
+def test_costs_and_expenses_maps_to_operating_expense():
+    """REIT total operating costs line fills operating_expense when filed alone."""
+    income = _income(_fact("CostsAndExpenses", 2_594_612_000))
+    assert income["operating_expense"] == 2_594_612_000
+
+
+def test_operating_expenses_wins_over_costs_and_expenses():
+    income = _income(
+        _fact("OperatingExpenses", 100.0),
+        _fact("CostsAndExpenses", 90.0),
+    )
+    assert income["operating_expense"] == 100.0
+
+
+def test_secured_debt_maps_to_total_debt():
+    """REIT mortgage/secured debt (COLD) fills total_debt when nothing else exists."""
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [_fact("SecuredDebt", 3_792_123_000)]
+    )
+    assert normalized["balance"]["total_debt"] == 3_792_123_000
+
+
+def test_long_term_debt_wins_over_secured_debt():
+    normalized = FinancialDatabaseRepository()._normalize_financial_facts(
+        [
+            _fact("LongTermDebt", 4_140_235_000),
+            _fact("SecuredDebt", 3_792_123_000),
+        ]
+    )
+    assert normalized["balance"]["total_debt"] == 4_140_235_000
