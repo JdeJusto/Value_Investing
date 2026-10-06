@@ -2,7 +2,7 @@
 
 [English](README.md) · [Español](README.es.md)
 
-[![Version](https://img.shields.io/badge/version-0.12.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.12.1-blue)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-1324%20passed-green)]()
 
 A deterministic, explainable toolkit for fundamental stock analysis. It combines financial statements, transparent valuation and quality measures, screening, portfolio tracking, and backtesting through a command-line interface and web applications.
