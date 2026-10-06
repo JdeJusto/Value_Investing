@@ -76,12 +76,17 @@ class ConsensusService:
     def __init__(
         self,
         directory: Path | str | None = None,
-        max_age_days: int = STALE_AFTER_DAYS,
+        max_age_days: int | None = STALE_AFTER_DAYS,
     ) -> None:
-        self._dir = (
-            Path(directory) if directory is not None else default_consensus_dir()
-        )
-        self._max_age_days = max_age_days
+        if directory is None:
+            # Pinned demo fixtures never expire; production files do.
+            from backend.services.demo_mode import is_demo
+
+            self._dir = default_consensus_dir()
+            self._max_age_days = None if is_demo() else max_age_days
+        else:
+            self._dir = Path(directory)
+            self._max_age_days = max_age_days
         self._report: ConsensusReport | None = None
 
     # ------------------------------------------------------------------
@@ -107,7 +112,7 @@ class ConsensusService:
             self._report = None
             return None
         age = (datetime.now(UTC).date() - report_date).days
-        if age > self._max_age_days:
+        if self._max_age_days is not None and age > self._max_age_days:
             logger.warning(
                 "consensus file %s is stale (%s days old)", files[-1].name, age
             )
@@ -119,6 +124,16 @@ class ConsensusService:
     def load_by_date(self, date_str: str) -> ConsensusReport | None:
         """Load ``consensus_<date>.json``; None (with a warning) when absent."""
         report = self._read(self._dir / f"consensus_{date_str}.json")
+        self._report = report
+        return report
+
+    def load_file(self, path: Path | str) -> ConsensusReport | None:
+        """Load a specific consensus JSON (no staleness check).
+
+        Used by the UI for pinned demo fixtures whose filename does not follow
+        the ``consensus_<date>.json`` convention.
+        """
+        report = self._read(Path(path))
         self._report = report
         return report
 

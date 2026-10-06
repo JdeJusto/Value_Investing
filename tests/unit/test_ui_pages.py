@@ -32,6 +32,7 @@ PAGES = [
         "ui/pages/03_screener.py",
         "ui/pages/04_portfolio.py",
         "ui/pages/05_reports.py",
+        "ui/pages/06_consensus.py",
     )
 ]
 

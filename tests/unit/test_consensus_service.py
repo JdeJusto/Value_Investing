@@ -60,6 +60,14 @@ def test_load_by_date_reads_the_exact_file(tmp_path):
     assert len(report.companies) == 9
 
 
+def test_load_file_reads_a_pinned_fixture_name(tmp_path):
+    pinned = tmp_path / "consensus_demo.json"
+    pinned.write_text(FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+    report = ConsensusService(directory=tmp_path).load_file(pinned)
+    assert report is not None
+    assert len(report.companies) == 9
+
+
 def test_missing_file_returns_none_with_a_warning(tmp_path, caplog):
     with caplog.at_level(logging.WARNING):
         report = ConsensusService(directory=tmp_path).load_latest()
@@ -75,6 +83,15 @@ def test_stale_file_returns_none_with_a_warning(tmp_path, caplog):
     assert report is None
     assert "stale" in caplog.text
     assert service.top_by_consensus(5) == []
+
+
+def test_demo_fixtures_never_expire(monkeypatch, tmp_path):
+    monkeypatch.setenv("VI_DEMO", "1")
+    monkeypatch.setattr(
+        "backend.services.consensus_service.default_consensus_dir", lambda: tmp_path
+    )
+    _write_report(tmp_path, stale_days=365)
+    assert ConsensusService().load_latest() is not None
 
 
 def test_top_by_consensus_orders_by_buys_then_score(tmp_path):

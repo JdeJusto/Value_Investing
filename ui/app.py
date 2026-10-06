@@ -31,6 +31,7 @@ pages = [
     st.Page("pages/03_screener.py", title="Screener"),
     st.Page("pages/04_portfolio.py", title="Portfolio"),
     st.Page("pages/05_reports.py", title="Reports"),
+    st.Page("pages/06_consensus.py", title="Consensus"),
 ]
 
 st.navigation(pages).run()
