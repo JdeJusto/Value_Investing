@@ -89,8 +89,9 @@ by earlier files.
 
 ## Ranking logic
 
-- **Top by consensus**: sort by `buy_count` desc, then `consensus_score`
-  desc, then `avoid_count` asc, then ticker. Companies where every
+- **Top by consensus**: the UI defaults to `consensus_score` desc, then
+  `buy_count` desc, then `avoid_count` asc, then ticker; a selector (and the
+  CLI's `--by buys|avoid|score`) switches the lens. Companies where every
   methodology returned INSUFFICIENT (pure data holes) are excluded.
 - **Best per Lynch category**: the same ordering grouped by
   `lynch_category`; categories with fewer than N companies with a BUY fall

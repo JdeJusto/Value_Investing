@@ -267,7 +267,9 @@ verdict matrix. Companies where every methodology returned
 INSUFFICIENT_DATA are data holes and are excluded from every ranking. The UI
 page is `ui/pages/06_consensus.py`; the CLI entry points are
 `consensus <ticker>`, `consensus-ranking` and `consensus-by-category`
-(`cli/commands/consensus*.py`), which only read the JSON. Demo mode reads the
+(`cli/commands/consensus*.py`), which only read the JSON. The Analysis page
+shows a compact inline entry for the current ticker (Methodologies tab; JSON
+read only). Demo mode reads the
 pinned `data/demo/consensus/consensus_demo.json`. Design, price prefetch and
 v2 output format: `docs/consensus_screener.md`.
 
