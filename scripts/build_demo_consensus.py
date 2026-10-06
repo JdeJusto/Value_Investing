@@ -98,11 +98,46 @@ _CATEGORIES = (
     "ASSET_PLAY",
 )
 
+#: Deterministic demo prices (the 8 demo tickers use the pinned bundle values).
+_DEMO_PRICES = {
+    "AAPL": 340.0,
+    "MSFT": 510.0,
+    "KO": 70.0,
+    "JNJ": 165.0,
+    "JPM": 300.0,
+    "XOM": 120.0,
+    "PLD": 115.0,
+    "TSLA": 420.0,
+    "GOOGL": 195.0,
+    "AMZN": 225.0,
+    "META": 600.0,
+    "BRK.B": 480.0,
+    "V": 310.0,
+    "MA": 520.0,
+    "UNH": 340.0,
+    "HD": 400.0,
+    "PG": 165.0,
+    "DIS": 115.0,
+    "NFLX": 900.0,
+    "NVDA": 180.0,
+    "AMD": 160.0,
+    "INTC": 35.0,
+    "BA": 220.0,
+    "CAT": 400.0,
+    "MCD": 300.0,
+    "NKE": 75.0,
+    "PEP": 150.0,
+    "WMT": 100.0,
+    "CVX": 155.0,
+    "GE": 260.0,
+}
 
-def _row(name: str, verdicts: tuple[str, ...], category: str) -> dict:
+
+def _row(ticker: str, name: str, verdicts: tuple[str, ...], category: str) -> dict:
     counts = {verdict: verdicts.count(verdict) for verdict in set(verdicts)}
     buy = counts.get("BUY", 0)
     avoid = counts.get("AVOID", 0)
+    price = _DEMO_PRICES.get(ticker)
     return {
         "name": name,
         "verdicts": dict(zip(METHODOLOGY_KEYS, verdicts, strict=True)),
@@ -111,12 +146,14 @@ def _row(name: str, verdicts: tuple[str, ...], category: str) -> dict:
         "insufficient_count": counts.get("INSUFFICIENT_DATA", 0),
         "consensus_score": buy - avoid,
         "lynch_category": category,
+        "price": price,
+        "prices_available": price is not None,
     }
 
 
 def build() -> dict:
     companies: dict[str, dict] = {
-        ticker: _row(name, verdicts, category)
+        ticker: _row(ticker, name, verdicts, category)
         for ticker, (name, verdicts, category) in DEMO_COMPANIES.items()
     }
     for index, (ticker, name) in enumerate(EXTRA_COMPANIES.items()):
@@ -124,11 +161,16 @@ def build() -> dict:
             _ROTATION[(position + index) % len(_ROTATION)]
             for position in range(len(METHODOLOGY_KEYS))
         )
-        companies[ticker] = _row(name, verdicts, _CATEGORIES[index % len(_CATEGORIES)])
+        companies[ticker] = _row(
+            ticker, name, verdicts, _CATEGORIES[index % len(_CATEGORIES)]
+        )
+    prices_snapshot = {ticker: _DEMO_PRICES[ticker] for ticker in sorted(_DEMO_PRICES)}
     return {
-        "version": 1,
+        "version": 2,
         "date": datetime.now(UTC).date().isoformat(),
         "universe": "sp500",
+        "prices_available": bool(prices_snapshot),
+        "prices_snapshot": prices_snapshot,
         "companies": {ticker: companies[ticker] for ticker in sorted(companies)},
     }
 
