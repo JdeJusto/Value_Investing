@@ -67,7 +67,27 @@ _FAST_GROWER_CAGR = 0.20
 _HYPER_GROWTH_CAGR = 0.30
 _HYPER_GROWTH_PEG_PREMIUM = 0.2
 _SLOW_GROWER_CAGR = 0.08
-_CYCLICAL_SECTORS = frozenset({"Basic Materials", "Energy", "Industrials"})
+#: Lynch's cyclical sectors, matched as case-insensitive substrings so provider
+#: label variants ("Materials", "Industrials—Diversified", "Oil & Gas",
+#: "Consumer Discretionary") and casing differences keep resolving. The exact
+#: set (Basic Materials / Energy / Industrials / Consumer Cyclical) is a subset.
+_CYCLICAL_SECTOR_KEYWORDS = (
+    "basic material",
+    "material",
+    "energy",
+    "oil",
+    "gas",
+    "industrial",
+    "capital goods",
+    "consumer cyclical",
+    "consumer discretionary",
+    "cyclical",
+    "automotive",
+    "semiconductor",
+    "mining",
+    "steel",
+    "chemical",
+)
 _CYCLICAL_VOLATILITY = 0.5
 _ASSET_PLAY_PBV = 0.7
 _DIVIDEND_STABILITY_PASS = 9
@@ -88,6 +108,19 @@ _FLAG_BY_RULE = {
     "lynch_garp.rule_4_inventory_vs_sales": ("Inventory growing 50% faster than sales"),
     "lynch_garp.rule_5_dividend_adjusted_peg": ("Dividend-adjusted PEG above 1.5"),
 }
+
+
+def _is_cyclical_sector(sector: Any) -> bool:
+    """True when a sector label reads as cyclical (case-insensitive substring).
+
+    A single provider variant ("Materials", "Industrials—Diversified") used to
+    drop a volatile company out of the Cyclical bucket and into a growth one;
+    matching keywords instead of an exact set removes that silent fallback.
+    """
+    if not sector:
+        return False
+    lowered = str(sector).strip().lower()
+    return any(keyword in lowered for keyword in _CYCLICAL_SECTOR_KEYWORDS)
 
 
 @dataclass(frozen=True)
@@ -439,15 +472,16 @@ class LynchGARPMethodology(Methodology):
         return statistics.pstdev(values) / abs(mean)
 
     def _is_cyclical(self, sector, rows) -> bool:
-        """Cyclical sector plus volatile earnings (Lynch's warning sign)."""
-        if not sector:
+        """Cyclical sector plus volatile earnings (Lynch's warning sign).
+
+        Sector matching is case-insensitive and keyword-based so provider
+        label variants resolve; a missing or non-cyclical sector never
+        fabricates the category.
+        """
+        if not _is_cyclical_sector(sector):
             return False
         volatility = self._earnings_volatility(rows)
-        if volatility is None or volatility <= _CYCLICAL_VOLATILITY:
-            return False
-        if sector in _CYCLICAL_SECTORS:
-            return True
-        return sector == "Consumer Cyclical"
+        return volatility is not None and volatility > _CYCLICAL_VOLATILITY
 
     def _is_asset_play(self, rows, market_cap) -> bool:
         """Deep discount to book value, without compounder-grade growth."""

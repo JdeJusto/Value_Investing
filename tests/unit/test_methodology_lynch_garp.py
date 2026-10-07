@@ -625,6 +625,62 @@ def test_categorize_cyclical_energy_volatility():
     assert _category(rows, market_cap=20_000_000_000.0) == "CYCLICAL"
 
 
+@pytest.mark.parametrize(
+    "sector",
+    [
+        "Energy",
+        "energy",  # case-insensitive: the old exact match missed this
+        "Basic Materials",
+        "Materials",  # provider variant
+        "Industrials",
+        "Industrials - Diversified",
+        "Consumer Cyclical",
+        "Consumer Discretionary",
+        "Oil & Gas",
+    ],
+)
+def test_categorize_cyclical_matches_sector_variants(sector):
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=float(v) * 5e6,
+            sector=sector,
+        )
+        for i, v in enumerate(values)
+    ]
+    assert _category(rows, market_cap=20_000_000_000.0) == "CYCLICAL"
+
+
+def test_categorize_volatile_technology_is_not_cyclical():
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=float(v) * 5e6,
+            sector="Technology",
+        )
+        for i, v in enumerate(values)
+    ]
+    assert _category(rows, market_cap=20_000_000_000.0) != "CYCLICAL"
+
+
+def test_categorize_volatile_without_sector_is_not_cyclical():
+    values = [100, 50, 150, 30, 120, 40, 90, 20, 80, 60]
+    rows = [
+        _cat_row(
+            2015 + i,
+            net_income=float(v) * 1e6,
+            revenue=float(v) * 5e6,
+            sector=None,
+        )
+        for i, v in enumerate(values)
+    ]
+    assert _category(rows, market_cap=20_000_000_000.0) != "CYCLICAL"
+
+
 def test_categorize_turnaround():
     values = [-10, -20, -5, 10, 15]  # oldest -> newest, 3 of 5 negative
     rows = [

@@ -177,3 +177,13 @@ Neither verdict is a buy, a hold or a sell; both render dim/neutral.
   a screener export is the quality score sitting beside an unrelated valuation
   column, not a valuation rule passing on a loss. Making it price-aware would
   add a new rule and is deliberately out of scope.
+
+### lynch_garp sector matching — 2026-10-07
+
+- The Cyclical bucket matched `sector` with an exact, case-sensitive set
+  (`{"Basic Materials", "Energy", "Industrials"}` plus `"Consumer Cyclical"`).
+  A provider variant or a casing difference dropped a volatile company into a
+  growth bucket. Matching is now a case-insensitive substring against a
+  keyword list (`material`, `energy`, `industrial`, `consumer cyclical`,
+  `consumer discretionary`, `oil`, `gas`, …), so label variants resolve.
+  Non-cyclical and missing sectors still never fabricate the category.
