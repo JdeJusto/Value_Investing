@@ -27,6 +27,7 @@ from backend.repositories.fdb_mixins.fiscal_year_mixin import FiscalYearMixin
 from backend.repositories.fdb_mixins.helpers import (  # noqa: F401
     _as_date,
     _cumulative_split_multiplier,
+    select_split_events,
 )
 from backend.repositories.fdb_mixins.lookups_mixin import LookupsMixin
 from backend.repositories.fdb_mixins.normalization_mixin import NormalizationMixin

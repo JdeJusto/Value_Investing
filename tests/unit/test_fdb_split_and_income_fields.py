@@ -20,6 +20,7 @@ from backend.repositories.financial_database_repository import (
     FinancialDatabaseRepository,
     _as_date,
     _cumulative_split_multiplier,
+    select_split_events,
 )
 
 
@@ -78,6 +79,50 @@ def test_reverse_split_divides():
     # comparison on today's basis. Fractions are applied, not skipped.
     rows = [(date(2020, 8, 28), 0.1)]
     assert _cumulative_split_multiplier(date(2015, 9, 26), rows) == pytest.approx(0.1)
+
+
+# ---------------------------------------------------------------------------
+# select_split_events
+# ---------------------------------------------------------------------------
+def test_select_split_events_prefers_instant_facts():
+    # CoStar re-files its single 2021 split as duration facts ending
+    # 2021-06-30 ... 2025-06-30; only the instant 2021-06-07 fact is the event.
+    rows = [
+        (None, date(2021, 6, 7), 10.0),
+        (date(2021, 1, 1), date(2021, 6, 30), 10.0),
+        (date(2025, 1, 1), date(2025, 6, 30), 10.0),
+    ]
+    assert select_split_events(rows) == [(date(2021, 6, 7), 10.0)]
+
+
+def test_select_split_events_duration_only_falls_back_to_all():
+    rows = [
+        (date(2019, 1, 1), date(2019, 6, 30), 2.0),
+        (date(2019, 7, 1), date(2019, 9, 30), 2.0),
+    ]
+    assert select_split_events(rows) == [
+        (date(2019, 6, 30), 2.0),
+        (date(2019, 9, 30), 2.0),
+    ]
+
+
+def test_select_split_events_empty():
+    assert select_split_events([]) == []
+
+
+def test_csgp_duration_disclosure_does_not_inflate_later_years():
+    # Regression: one 10:1 split effective 2021-06-07, re-disclosed as a
+    # duration fact ending 2025-06-30. FY2024 already reflects the split, so
+    # its factor must stay 1.0 (it used to be 10.0).
+    raw = [
+        (None, date(2021, 6, 7), 10.0),
+        (date(2021, 1, 1), date(2021, 6, 30), 10.0),
+        (date(2025, 1, 1), date(2025, 6, 30), 10.0),
+    ]
+    events = select_split_events(raw)
+    assert _cumulative_split_multiplier(date(2024, 12, 31), events) == 1.0
+    # A fiscal year that predates the split still gets the 10x adjustment.
+    assert _cumulative_split_multiplier(date(2020, 12, 31), events) == 10.0
 
 
 # ---------------------------------------------------------------------------

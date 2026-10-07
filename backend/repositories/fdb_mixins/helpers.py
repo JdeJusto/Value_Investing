@@ -35,6 +35,36 @@ def _as_date(value) -> date | None:
         return None
 
 
+def select_split_events(rows: list) -> list[tuple]:
+    """Pick the split *effective dates* out of raw ratio facts.
+
+    Each entry in ``rows`` is a ``(period_start, period_end, ratio)`` triple
+    from the XBRL ``StockholdersEquityNoteStockSplitConversionRatio*`` facts.
+
+    An **instant** fact (``period_start`` is None) carries the split's
+    effective date as its ``period_end``. A *duration* fact repeats the same
+    split across a reporting period, so its ``period_end`` is a quarter/year
+    end rather than the split date. Counting both counts one split several
+    times and lets a re-disclosure filed years later land *after* a fiscal
+    year that in fact already reflects the split (CoStar's 10:1 split of
+    2021-06-07 is re-disclosed as a duration fact ending 2025-06-30, which
+    used to give every pre-mid-2025 year an extra 10x).
+
+    When a company discloses any instant fact, those period_ends are the
+    effective dates, so only they are returned. A company that only ever
+    reports duration facts keeps them (deduped by the caller); a company with
+    no facts returns an empty list and the factor stays 1.0.
+    """
+    instants = [
+        (period_end, ratio)
+        for period_start, period_end, ratio in (rows or [])
+        if period_start is None
+    ]
+    if instants:
+        return instants
+    return [(period_end, ratio) for _start, period_end, ratio in (rows or [])]
+
+
 def _cumulative_split_multiplier(fy_end, split_rows: list) -> float:
     """Product of DISTINCT split ratios effective strictly after ``fy_end``.
 

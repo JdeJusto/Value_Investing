@@ -10,16 +10,19 @@ import math
 from backend.repositories.fdb_concept_mapping import (
     _SPLIT_RATIO_CONCEPTS,
 )
+from backend.repositories.fdb_mixins.helpers import select_split_events
 
 
 class SharesMixin:
     def _fetch_split_ratio_facts(self, company_id) -> list:
-        """All ``StockSplitConversionRatio`` facts for a company.
+        """Split *effective dates* and ratios for a company.
 
-        Returns ``[(period_end, ratio), ...]`` pairs from the XBRL facts (one
-        per split; period_end = effective date, ratio = shares-after /
-        shares-before). Empty list when the company reports no ratio facts —
-        callers then keep the splits-unadjusted 1.0 factor.
+        Returns ``[(period_end, ratio), ...]`` pairs from the XBRL facts
+        (period_end = effective date, ratio = shares-after / shares-before).
+        A split re-filed as a duration note is not a separate event, so only
+        the instant facts are used when a company has any; see
+        :func:`select_split_events`. Empty list when the company reports no
+        ratio facts — callers then keep the as-reported 1.0 factor.
         """
         if not company_id:
             return []
@@ -28,7 +31,7 @@ class SharesMixin:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT f.period_end, f.value
+                    SELECT f.period_start, f.period_end, f.value
                     FROM financial_facts f
                     WHERE f.company_id = %s
                       AND f.concept = ANY(%s::text[])
@@ -36,12 +39,14 @@ class SharesMixin:
                     (company_id, list(_SPLIT_RATIO_CONCEPTS)),
                 )
                 # RealDict rows iterate by KEY, so unpack them into plain
-                # (period_end, ratio) tuples before returning.
-                return [
-                    (row.get("period_end"), row.get("value"))
+                # (period_start, period_end, ratio) tuples; ``select_split_events``
+                # keeps only the split effective dates (instant facts).
+                rows = [
+                    (row.get("period_start"), row.get("period_end"), row.get("value"))
                     for row in cur.fetchall()
                     if row is not None
                 ]
+                return select_split_events(rows)
         except Exception:  # noqa: BLE001 — degrade to 1.0 (as-reported shares)
             # instead of failing the ticker.
             return []
