@@ -55,6 +55,7 @@ def verdict_color(verdict: str) -> str:
         "WATCH": yellow,
         "HOLD": lambda text: text,
         "AVOID": red,
+        "N/A": dim,
         "INSUFFICIENT_DATA": dim,
     }.get(verdict, lambda text: text)(verdict)
 

@@ -49,6 +49,7 @@ VERDICT_COLORS = {
     "WATCH": "yellow",
     "HOLD": "cyan",
     "AVOID": "bright_red",
+    "N/A": "dim",
     "INSUFFICIENT_DATA": "dim",
 }
 

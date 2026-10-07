@@ -22,6 +22,7 @@ from typing import Any
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -101,7 +102,7 @@ class GrahamMethodology(Methodology):
                 methodology=self.name + ("_modernized" if self.era_adjustment else ""),
                 version=self.version,
                 family=self.family,
-                verdict=Verdict.INSUFFICIENT_DATA,
+                verdict=Verdict.NOT_APPLICABLE,
                 score=None,
                 metrics={
                     "financial_company": True,
@@ -115,7 +116,8 @@ class GrahamMethodology(Methodology):
                         "companies (banks, insurers). The balance-sheet criteria "
                         "assume an industrial or utility."
                     ),
-                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                    FINANCIAL_NA_REASON,
+                    f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,

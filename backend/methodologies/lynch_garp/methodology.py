@@ -30,6 +30,7 @@ from typing import Any
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -164,7 +165,7 @@ class LynchGARPMethodology(Methodology):
                 methodology=self.name,
                 version=self.version,
                 family=self.family,
-                verdict=Verdict.INSUFFICIENT_DATA,
+                verdict=Verdict.NOT_APPLICABLE,
                 score=None,
                 metrics={
                     "financial_company": True,
@@ -174,7 +175,8 @@ class LynchGARPMethodology(Methodology):
                 },
                 reasons=[
                     financial_reason,
-                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                    FINANCIAL_NA_REASON,
+                    f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,

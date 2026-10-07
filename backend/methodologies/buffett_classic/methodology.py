@@ -16,6 +16,7 @@ from backend.intelligence.buffett_engine import buffett_filter
 from backend.intelligence.moat_analysis import analyze_moat
 from backend.intelligence.quality_metrics import compute_quality_metrics
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -86,7 +87,7 @@ class BuffettClassicMethodology(Methodology):
                 methodology=self.name,
                 version=self.version,
                 family=self.family,
-                verdict=Verdict.INSUFFICIENT_DATA,
+                verdict=Verdict.NOT_APPLICABLE,
                 score=None,
                 metrics={
                     "financial_company": True,
@@ -98,7 +99,8 @@ class BuffettClassicMethodology(Methodology):
                         "(banks, insurers): the 4-pillar filter reads bank "
                         "leverage as weakness. See README for details."
                     ),
-                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                    FINANCIAL_NA_REASON,
+                    f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,

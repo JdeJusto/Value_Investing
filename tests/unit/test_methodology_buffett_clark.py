@@ -378,7 +378,7 @@ def test_rules_expose_all_seven():
 # financial companies (banks/insurers are out of scope for the DCA screen;
 # the shared company-type detector guards before any rule runs)
 # ---------------------------------------------------------------------------
-def test_financial_company_insufficient():
+def test_financial_company_not_applicable():
     rows = [
         NormalizedFinancials.from_dict(
             {
@@ -394,7 +394,7 @@ def test_financial_company_insufficient():
         )
     ]
     result = BuffettClarkMethodology().evaluate("T", rows, _Prices(100.0))
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.verdict == Verdict.NOT_APPLICABLE
     assert result.score is None
     assert result.confidence == Confidence.HIGH
     assert result.metrics["financial_company"] is True
@@ -403,7 +403,7 @@ def test_financial_company_insufficient():
     assert any("financial" in r.lower() for r in result.reasons)
 
 
-def test_financial_sector_hint_insufficient():
+def test_financial_sector_hint_not_applicable():
     rows = [
         NormalizedFinancials.from_dict(
             {
@@ -417,5 +417,5 @@ def test_financial_sector_hint_insufficient():
         )
     ]
     result = BuffettClarkMethodology().evaluate("T", rows, _Prices(100.0))
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.verdict == Verdict.NOT_APPLICABLE
     assert result.metrics["financial_company"] is True

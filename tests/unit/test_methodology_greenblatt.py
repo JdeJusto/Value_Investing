@@ -151,10 +151,10 @@ def test_missing_ticker_is_insufficient(tmp_path):
     assert any("not in the Greenblatt ranking" in reason for reason in result.reasons)
 
 
-def test_financial_company_is_insufficient(tmp_path):
+def test_financial_company_is_not_applicable(tmp_path):
     _write_ranking(tmp_path)
     result = _evaluate([_row(sector="Financial Services")], tmp_path)
-    assert result.verdict is Verdict.INSUFFICIENT_DATA
+    assert result.verdict is Verdict.NOT_APPLICABLE
     assert any("financial" in reason.lower() for reason in result.reasons)
     assert result.metrics["financial_company"] is True
 

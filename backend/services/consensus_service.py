@@ -69,11 +69,23 @@ class CompanyConsensus:
     price: float | None = None
     #: True when the computation had a price for this ticker.
     prices_available: bool = False
+    #: Methodologies that abstained by design (financial company -> "N/A").
+    na_count: int = 0
 
     @property
     def is_data_hole(self) -> bool:
         """True when every methodology said INSUFFICIENT_DATA."""
         return bool(self.verdicts) and self.insufficient_count == len(self.verdicts)
+
+    @property
+    def is_not_applicable(self) -> bool:
+        """True when every methodology abstained by design (all "N/A")."""
+        return bool(self.verdicts) and self.na_count == len(self.verdicts)
+
+    @property
+    def is_excluded(self) -> bool:
+        """True when a ranking must skip the company (no real verdict at all)."""
+        return self.is_data_hole or self.is_not_applicable
 
 
 @dataclass
@@ -197,6 +209,11 @@ class ConsensusService:
                     consensus_score=int(row.get("consensus_score") or 0),
                     price=float(price) if price is not None else None,
                     prices_available=bool(row.get("prices_available")),
+                    na_count=(
+                        int(row["na_count"])
+                        if row.get("na_count") is not None
+                        else sum(1 for v in verdicts.values() if v == "N/A")
+                    ),
                 )
             )
         snapshot = {
@@ -226,11 +243,11 @@ class ConsensusService:
         )
 
     def _ranked(self) -> list[CompanyConsensus]:
-        """Rankable companies (all-INSUFFICIENT data holes excluded)."""
+        """Rankable companies (data holes and all-N/A companies excluded)."""
         if self._report is None:
             return []
         return sorted(
-            (c for c in self._report.companies if not c.is_data_hole),
+            (c for c in self._report.companies if not c.is_excluded),
             key=self._rank_key,
         )
 

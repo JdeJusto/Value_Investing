@@ -33,9 +33,9 @@ _BY_KEYS = {
 
 
 def rank(companies, by: str = "buys"):
-    """Ranked companies (all-INSUFFICIENT data holes excluded)."""
+    """Ranked companies (data holes and all-N/A companies excluded)."""
     return sorted(
-        (company for company in companies if not company.is_data_hole),
+        (company for company in companies if not company.is_excluded),
         key=_BY_KEYS[by],
     )
 

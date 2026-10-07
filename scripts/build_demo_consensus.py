@@ -144,6 +144,7 @@ def _row(ticker: str, name: str, verdicts: tuple[str, ...], category: str) -> di
         "buy_count": buy,
         "avoid_count": avoid,
         "insufficient_count": counts.get("INSUFFICIENT_DATA", 0),
+        "na_count": counts.get("N/A", 0),
         "consensus_score": buy - avoid,
         "lynch_category": category,
         "price": price,

@@ -31,7 +31,16 @@ class Verdict(str, Enum):
     WATCH = "WATCH"
     HOLD = "HOLD"
     AVOID = "AVOID"
+    #: The methodology does not apply by design (e.g. a book screen written for
+    #: product companies run on a bank). Distinct from INSUFFICIENT_DATA, which
+    #: means "the data to decide is missing".
+    NOT_APPLICABLE = "N/A"
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
+#: Canonical reason attached when a methodology abstains on a financial
+#: company. Kept in one place so every methodology and the screener agree.
+FINANCIAL_NA_REASON = "financial company — rules do not apply"
 
 
 class Confidence(str, Enum):

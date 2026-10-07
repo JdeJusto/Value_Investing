@@ -139,6 +139,13 @@ def main() -> None:
         horizontal=True,
         key=f"consensus_sort_{report.date}",
     )
+    na_companies = [c for c in report.companies if c.is_not_applicable]
+    if na_companies:
+        st.caption(
+            f"{len(na_companies)}/{len(report.companies)} companies read N/A — "
+            "financial companies are excluded from the book methodologies by "
+            "design (banks, insurers, consumer finance)."
+        )
     top = service.top_by_consensus(10_000)
     if categories:
         top = [company for company in top if company.lynch_category in categories]
@@ -170,7 +177,7 @@ def main() -> None:
     with st.expander("Verdict matrix", expanded=False):
         st.caption(
             "One row per company, one column per methodology: BUY, WATCH, "
-            "HOLD, AVOID or INSUFFICIENT_DATA."
+            "HOLD, AVOID, N/A (not applicable) or INSUFFICIENT_DATA."
         )
         st.dataframe(service.verdict_matrix(), hide_index=True, width="stretch")
 

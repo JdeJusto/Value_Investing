@@ -132,7 +132,7 @@ def test_insufficient_history_abstains():
 def test_financial_company_abstains():
     rows = _healthy_history(sector="Financial Services")
     result = _evaluate(rows)
-    assert result.verdict is Verdict.INSUFFICIENT_DATA
+    assert result.verdict is Verdict.NOT_APPLICABLE
     assert result.metrics["financial_company"] is True
 
 

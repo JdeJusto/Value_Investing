@@ -141,11 +141,11 @@ def test_financial_company_detected_bank_like_balance_sheet():
     assert is_financial(rows[0]) is True
 
 
-def test_financial_company_evaluate_returns_insufficient_with_reason():
+def test_financial_company_evaluate_returns_na_with_reason():
     mgmt = LynchGARPMethodology()
     rows = _bank_like(_backbone())
     res = mgmt.evaluate("T", rows, _Price(None))
-    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.verdict == Verdict.NOT_APPLICABLE
     assert res.score is None
     assert res.confidence == Confidence.HIGH
     assert res.failed_rules == []
@@ -165,7 +165,7 @@ def test_no_inventory_low_debt_not_financial():
     ] + ordered[1:]
     assert is_financial(rows[0]) is False
     res = LynchGARPMethodology().evaluate("T", rows, _Price(None))
-    assert res.verdict != Verdict.INSUFFICIENT_DATA
+    assert res.verdict not in (Verdict.INSUFFICIENT_DATA, Verdict.NOT_APPLICABLE)
 
 
 # ---------------------------------------------------------------------------

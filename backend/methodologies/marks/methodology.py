@@ -23,6 +23,7 @@ import statistics
 from typing import Any
 
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -148,6 +149,7 @@ class MarksMethodology(Methodology):
                     "companies: leverage, coverage and EV/EBIT do not mean "
                     "the same thing for banks and insurers."
                 ),
+                verdict=Verdict.NOT_APPLICABLE,
             )
         if latest is None or len(rows) < MIN_HISTORY_YEARS:
             return self._insufficient(
@@ -370,15 +372,24 @@ class MarksMethodology(Methodology):
         }
 
     # ------------------------------------------------------------------
-    def _insufficient(self, ticker: str, reason: str) -> MethodologyResult:
+    def _insufficient(
+        self,
+        ticker: str,
+        reason: str,
+        verdict: Verdict = Verdict.INSUFFICIENT_DATA,
+    ) -> MethodologyResult:
+        reasons = [reason]
+        if verdict is Verdict.NOT_APPLICABLE:
+            reasons.insert(0, FINANCIAL_NA_REASON)
+        reasons.append(f"verdict: {verdict.value}")
         return MethodologyResult(
             methodology=self.name,
             version=self.version,
             family=self.family,
-            verdict=Verdict.INSUFFICIENT_DATA,
+            verdict=verdict,
             score=None,
             metrics={"financial_company": "financial" in reason},
-            reasons=[reason, f"verdict: {Verdict.INSUFFICIENT_DATA.value}"],
+            reasons=reasons,
             red_flags=[],
             confidence=Confidence.HIGH,
             sources=[rule.source for rule in ALL_RULES],

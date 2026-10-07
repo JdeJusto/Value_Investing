@@ -128,7 +128,7 @@ def test_rules_and_metadata(monkeypatch):
     assert "buffett_engine" in meta["source"]["book"]
 
 
-def test_financial_company_returns_insufficient():
+def test_financial_company_returns_not_applicable():
     # Consistency with the other five methodologies: a bank/insurer cannot
     # be judged by rules designed for industrials (the financial-strength
     # pillar reads bank leverage as weakness).
@@ -145,7 +145,7 @@ def test_financial_company_returns_insufficient():
         )
     ]
     result = BuffettClassicMethodology().evaluate("JPM", rows, _Prices())
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.verdict == Verdict.NOT_APPLICABLE
     assert result.score is None
     assert result.confidence == Confidence.HIGH
     assert result.metrics["financial_company"] is True

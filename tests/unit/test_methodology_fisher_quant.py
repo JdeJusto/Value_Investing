@@ -809,7 +809,7 @@ def test_readme_disclaimer_present():
 # financial companies (banks/insurers are out of scope; the shared company-type
 # detector guards before any rule runs)
 # ---------------------------------------------------------------------------
-def test_financial_company_insufficient():
+def test_financial_company_not_applicable():
     rows = [
         NormalizedFinancials.from_dict(
             {
@@ -823,7 +823,7 @@ def test_financial_company_insufficient():
         )
     ]
     result = FisherQuantitativeSubsetMethodology().evaluate("T", rows, _Prices())
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.verdict == Verdict.NOT_APPLICABLE
     assert result.score is None
     assert result.confidence == Confidence.HIGH
     assert result.metrics["financial_company"] is True
@@ -831,7 +831,7 @@ def test_financial_company_insufficient():
     assert any("financial" in r.lower() for r in result.reasons)
 
 
-def test_financial_sector_hint_insufficient():
+def test_financial_sector_hint_not_applicable():
     rows = [
         NormalizedFinancials.from_dict(
             {
@@ -845,5 +845,5 @@ def test_financial_sector_hint_insufficient():
         )
     ]
     result = FisherQuantitativeSubsetMethodology().evaluate("T", rows, _Prices())
-    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.verdict == Verdict.NOT_APPLICABLE
     assert result.metrics["financial_company"] is True

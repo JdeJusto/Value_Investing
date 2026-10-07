@@ -41,7 +41,8 @@ def test_confidence_is_a_str_enum():
 
 
 def test_verdicts_are_distinct():
-    assert len(set(Verdict)) == 5
+    assert len(set(Verdict)) == 6
+    assert Verdict.NOT_APPLICABLE.value == "N/A"
     assert len(set(Confidence)) == 3
 
 

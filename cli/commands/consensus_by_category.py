@@ -18,7 +18,7 @@ _EMPTY_NOTE = "No companies in this category in the current universe."
 def rank_category(members, per_category: int):
     """Top ``per_category`` companies in one category, by consensus score."""
     ordered = sorted(
-        (company for company in members if not company.is_data_hole),
+        (company for company in members if not company.is_excluded),
         key=lambda company: (
             -company.consensus_score,
             -company.buy_count,

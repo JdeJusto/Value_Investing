@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -65,7 +66,7 @@ class GrahamDoddMethodology(Methodology):
                 methodology=self.name,
                 version=self.version,
                 family=self.family,
-                verdict=Verdict.INSUFFICIENT_DATA,
+                verdict=Verdict.NOT_APPLICABLE,
                 score=None,
                 metrics={
                     "financial_company": True,
@@ -80,7 +81,8 @@ class GrahamDoddMethodology(Methodology):
                         "stability and balance-sheet strength assume a product "
                         "company."
                     ),
-                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                    FINANCIAL_NA_REASON,
+                    f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,

@@ -14,6 +14,7 @@ import statistics
 from typing import Any
 
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -166,7 +167,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 methodology=self.name,
                 version=self.version,
                 family=self.family,
-                verdict=Verdict.INSUFFICIENT_DATA,
+                verdict=Verdict.NOT_APPLICABLE,
                 score=None,
                 metrics={"financial_company": True},
                 reasons=[
@@ -175,7 +176,8 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                         "inventory, gross margin and R&D; financials (banks, "
                         "insurers) do not fit."
                     ),
-                    f"verdict: {Verdict.INSUFFICIENT_DATA.value}",
+                    FINANCIAL_NA_REASON,
+                    f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,

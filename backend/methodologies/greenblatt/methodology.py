@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.methodologies.base import (
+    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -68,6 +69,7 @@ class GreenblattMethodology(Methodology):
                     "companies (banks, insurers): the ROC denominator assumes "
                     "an industrial balance sheet."
                 ),
+                verdict=Verdict.NOT_APPLICABLE,
             )
 
         payload, error = self._load_rankings()
@@ -234,15 +236,24 @@ class GreenblattMethodology(Methodology):
             )
         return payload, None
 
-    def _insufficient(self, ticker: str, reason: str) -> MethodologyResult:
+    def _insufficient(
+        self,
+        ticker: str,
+        reason: str,
+        verdict: Verdict = Verdict.INSUFFICIENT_DATA,
+    ) -> MethodologyResult:
+        reasons = [reason]
+        if verdict is Verdict.NOT_APPLICABLE:
+            reasons.insert(0, FINANCIAL_NA_REASON)
+        reasons.append(f"verdict: {verdict.value}")
         return MethodologyResult(
             methodology=self.name,
             version=self.version,
             family=self.family,
-            verdict=Verdict.INSUFFICIENT_DATA,
+            verdict=verdict,
             score=None,
             metrics={"financial_company": True} if "financial" in reason else {},
-            reasons=[reason, f"verdict: {Verdict.INSUFFICIENT_DATA.value}"],
+            reasons=reasons,
             red_flags=[],
             confidence=Confidence.HIGH,
             sources=[rule.source for rule in ALL_RULES],

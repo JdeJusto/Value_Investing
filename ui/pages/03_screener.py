@@ -47,7 +47,7 @@ from ui.services import (
 )
 
 DEFAULT_METHODOLOGY = "buffett_classic"
-VERDICTS = ["BUY", "WATCH", "HOLD", "AVOID", "INSUFFICIENT_DATA"]
+VERDICTS = ["BUY", "WATCH", "HOLD", "AVOID", "N/A", "INSUFFICIENT_DATA"]
 CATEGORIES = [
     "SLOW_GROWER",
     "STALWART",

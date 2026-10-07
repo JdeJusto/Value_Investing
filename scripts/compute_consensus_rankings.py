@@ -184,12 +184,14 @@ def build_company_consensus(
     insufficient_count = sum(
         1 for verdict in verdicts.values() if verdict == "INSUFFICIENT_DATA"
     )
+    na_count = sum(1 for verdict in verdicts.values() if verdict == "N/A")
     return {
         "name": name,
         "verdicts": verdicts,
         "buy_count": buy_count,
         "avoid_count": avoid_count,
         "insufficient_count": insufficient_count,
+        "na_count": na_count,
         "consensus_score": buy_count - avoid_count,
         "lynch_category": category,
         "price": price,
@@ -228,11 +230,11 @@ def print_summary(companies: dict[str, dict[str, Any]], seconds: float) -> None:
     for ticker, row in sorted(companies.items(), key=lambda item: _rank_key(item[1]))[
         :10
     ]:
-        flag = (
-            " (all INSUFFICIENT)"
-            if row["insufficient_count"] == len(METHODOLOGY_KEYS)
-            else ""
-        )
+        flag = ""
+        if row.get("insufficient_count") == len(METHODOLOGY_KEYS):
+            flag = " (all INSUFFICIENT)"
+        elif row.get("na_count") == len(METHODOLOGY_KEYS):
+            flag = " (all N/A — financial)"
         print(
             f"  {ticker:6s} buys={row['buy_count']} avoids={row['avoid_count']} "
             f"score={row['consensus_score']:+d} category={row['lynch_category']}{flag}"

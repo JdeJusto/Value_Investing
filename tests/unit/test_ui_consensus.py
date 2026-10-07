@@ -56,6 +56,7 @@ def _company(name: str, verdicts: list[str], category: str) -> dict:
         "buy_count": counts.get("BUY", 0),
         "avoid_count": counts.get("AVOID", 0),
         "insufficient_count": counts.get("INSUFFICIENT_DATA", 0),
+        "na_count": counts.get("N/A", 0),
         "consensus_score": counts.get("BUY", 0) - counts.get("AVOID", 0),
         "lynch_category": category,
         "price": None,
