@@ -341,6 +341,7 @@ Additional reviews: [full platform audit](docs/full_platform_audit_2026-09-24.md
 - [ ] Weekly automation for consensus and Greenblatt rankings
 - [ ] Real-time alert notifications
 - [ ] Broader documented methodology coverage
+- [ ] REST API for mobile access — see [#27](https://github.com/JdeJusto/Value_Investing/issues/27) ([design](docs/api_design.md))
 
 See the [engineering backlog](docs/backlog.md) for follow-up items.
 
