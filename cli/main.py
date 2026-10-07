@@ -2,7 +2,42 @@ import argparse
 import logging
 import sys
 
+from backend.services import cli_output
+
 logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
+
+NO_COLOR_HELP = "Disable colored output (same as NO_COLOR=1)."
+
+
+def _add_no_color(
+    parser: argparse.ArgumentParser, seen: set[int] | None = None
+) -> None:
+    """Register ``--no-color`` on ``parser`` and on every nested subparser.
+
+    The CLI is argparse-based, so the flag is repeated per subparser instead
+    of living on a Click context: that way ``main.py --no-color portfolio
+    view`` and ``main.py portfolio view --no-color`` behave the same and the
+    flag shows up in every ``--help``. argparse exposes no public API to walk
+    the subparser tree, hence the private attributes.
+
+    ``SUPPRESS`` matters: argparse applies each subparser's default into the
+    same namespace, so a plain ``default=False`` would silently reset a
+    ``--no-color`` typed before the command. ``seen`` keeps a parser
+    reachable twice from being registered twice.
+    """
+    if seen is None:
+        seen = set()
+    if id(parser) in seen:
+        return
+    seen.add(id(parser))
+    parser.add_argument(
+        "--no-color", action="store_true", default=argparse.SUPPRESS, help=NO_COLOR_HELP
+    )
+    # argparse has no public accessor for the subparser tree.
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sub_parser in action.choices.values():
+                _add_no_color(sub_parser, seen)
 
 
 def main():
@@ -99,11 +134,16 @@ def main():
     financial_alerts.register(sub)
     register_methodologies(sub)
 
+    # After registration: the root and every (nested) subparser accept
+    # --no-color, so the flag works before or after the command name.
+    _add_no_color(parser)
+
     if len(sys.argv) == 1:
         parser.print_help()
         return
 
     args = parser.parse_args()
+    cli_output.set_no_color(getattr(args, "no_color", False))
     if getattr(args, "demo", False):
         from backend.services.demo_mode import enable_demo
 

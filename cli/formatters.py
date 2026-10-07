@@ -1,5 +1,7 @@
 import math
 
+from backend.services import cli_output
+
 
 class Colors:
     GREEN = "\033[92m"
@@ -11,28 +13,39 @@ class Colors:
     RESET = "\033[0m"
 
 
+def _colorize(code: str, text: str) -> str:
+    """Wrap ``text`` in ``code`` only when colored output is enabled.
+
+    Colors follow the shared rules (``--no-color``, ``NO_COLOR``, non-TTY
+    stdout), so redirected output never contains escape codes.
+    """
+    if not cli_output.color_enabled():
+        return text
+    return f"{code}{text}{Colors.RESET}"
+
+
 def green(text: str) -> str:
-    return f"{Colors.GREEN}{text}{Colors.RESET}"
+    return _colorize(Colors.GREEN, text)
 
 
 def red(text: str) -> str:
-    return f"{Colors.RED}{text}{Colors.RESET}"
+    return _colorize(Colors.RED, text)
 
 
 def yellow(text: str) -> str:
-    return f"{Colors.YELLOW}{text}{Colors.RESET}"
+    return _colorize(Colors.YELLOW, text)
 
 
 def cyan(text: str) -> str:
-    return f"{Colors.CYAN}{text}{Colors.RESET}"
+    return _colorize(Colors.CYAN, text)
 
 
 def bold(text: str) -> str:
-    return f"{Colors.BOLD}{text}{Colors.RESET}"
+    return _colorize(Colors.BOLD, text)
 
 
 def dim(text: str) -> str:
-    return f"{Colors.DIM}{text}{Colors.RESET}"
+    return _colorize(Colors.DIM, text)
 
 
 def verdict_color(verdict: str) -> str:
