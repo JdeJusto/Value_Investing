@@ -301,7 +301,9 @@ def test_print_kv_never_wraps_long_values(monkeypatch):
 
 def test_bullet_line_and_rule_line_marks():
     bullet = cli_output.bullet_line("Anomaly: marginal drop", style=cli_output.DANGER)
-    assert str(bullet) == "• Anomaly: marginal drop"
+    assert str(bullet) == "  • Anomaly: marginal drop"
+    deep = cli_output.bullet_line("Technology: 40%", indent="    ")
+    assert str(deep) == "    • Technology: 40%"
     assert str(cli_output.rule_line("PASS", "criterion_1_size")) == (
         "  ✓ PASS  criterion_1_size"
     )

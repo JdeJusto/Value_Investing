@@ -225,9 +225,11 @@ def print_kv(
         )
 
 
-def bullet_line(text, style: str = MUTED, marker: str = "•") -> Text:
-    """``marker`` in ``style`` followed by plain text — alerts and lists."""
-    line = Text()
+def bullet_line(
+    text, style: str = MUTED, marker: str = "•", indent: str = "  "
+) -> Text:
+    """``indent`` + ``marker`` in ``style`` + text — alerts and lists."""
+    line = Text(indent)
     line.append(f"{marker} ", style=style)
     line.append(text if isinstance(text, Text) else str(text))
     return line

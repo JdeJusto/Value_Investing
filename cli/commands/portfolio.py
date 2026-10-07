@@ -1,14 +1,17 @@
 from datetime import datetime
 
+from rich.text import Text
+
 from backend.app.cli import add_demo_argument, build_portfolio_service
+from backend.services import cli_output
 from cli.formatters import (
-    bold,
     dim,
     fmt_dollar,
     fmt_pct,
     green,
     print_header,
     print_key_value,
+    print_section,
     print_table,
     red,
     yellow,
@@ -114,6 +117,15 @@ def _remove(args):
     print(f"  {yellow('Position removed:')} {args.ticker}")
 
 
+def _thesis_line(ticker: str, thesis: str | None) -> Text:
+    """``  TICKER: thesis`` — ticker in the primary color, empty muted."""
+    line = Text("  ")
+    line.append(ticker, style=cli_output.PRIMARY)
+    line.append(": ")
+    line.append(thesis or "(no thesis)", style="" if thesis else cli_output.MUTED)
+    return line
+
+
 def _view(args):
     service = build_portfolio_service()
     positions = service.view()
@@ -163,10 +175,10 @@ def _view(args):
         )
     print_table(headers, rows)
 
-    print(f"  {bold('Thesis')}")
+    console = cli_output.get_console()
+    print_section("Thesis")
     for p in positions:
-        thesis = p["thesis"] or dim("(no thesis)")
-        print(f"  - {bold(p['ticker'])}: {thesis}")
+        console.print(_thesis_line(p["ticker"], p["thesis"]), soft_wrap=True)
 
 
 def _performance(args):
@@ -187,23 +199,35 @@ def _performance(args):
     print_key_value("Total return", return_label)
 
     allocation = perf["allocation"]
+    console = cli_output.get_console()
     if allocation["overconcentrated"]:
-        print(f"  {red('Overconcentration:')}")
+        print_section("Overconcentration")
         for finding in allocation["overconcentrated"]:
-            print(
-                f"    - {finding['ticker']}: {finding['weight']:.0%}"
-                f" (limit {finding['threshold']:.0%})"
+            console.print(
+                cli_output.bullet_line(
+                    f"{finding['ticker']}: {finding['weight']:.0%}"
+                    f" (limit {finding['threshold']:.0%})",
+                    style=cli_output.DANGER,
+                    indent="    ",
+                ),
+                soft_wrap=True,
             )
     else:
         print(f"  {green('No overconcentration.')}")
 
     if allocation["sector_exposure"]:
-        print(f"  {bold('Sector exposure')}")
+        print_section("Sector exposure")
         for exposure in allocation["sector_exposure"]:
-            print(f"    - {exposure['sector']}: {exposure['weight']:.0%}")
+            console.print(
+                cli_output.bullet_line(
+                    f"{exposure['sector']}: {exposure['weight']:.0%}",
+                    indent="    ",
+                ),
+                soft_wrap=True,
+            )
 
     risk = allocation["risk"]
-    print(f"  {bold('Concentration risk')}")
+    print_section("Concentration risk")
     print_key_value("Largest position", f"{risk['largest_position_weight']:.0%}")
     print_key_value("Top-5", f"{risk['top_n_share']:.0%}")
     print_key_value("HHI", f"{risk['hhi']:.3f}")
