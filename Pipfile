@@ -31,6 +31,9 @@ asyncpg = "*"
 bcrypt = "==4.0.1"
 beautifulsoup4 = ">=4.15"
 lxml = ">=6.0"
+# Terminal rendering (tables, panels, spinners) for the CLI. Pure Python, no
+# C extensions; it is the only output-formatting dependency (no colorama).
+rich = ">=14.0"
 
 [dev-packages]
 black = ">=25.0"
