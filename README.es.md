@@ -3,7 +3,7 @@
 [English](README.md) · [Español](README.es.md)
 
 [![Version](https://img.shields.io/badge/version-0.12.4-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-1738%20passed-green)]()
+[![Tests](https://img.shields.io/badge/tests-1812%20passed-green)]()
 
 Herramienta determinista y explicable para el análisis fundamental de acciones. Combina estados financieros, métricas transparentes de valoración y calidad, filtros, seguimiento de carteras y backtesting mediante una interfaz de terminal y aplicaciones web.
 
@@ -63,6 +63,8 @@ Edita `.env` antes de hacer peticiones a SEC. Sustituye el `SEC_USER_AGENT` de e
 ```
 
 `./vi` utiliza el entorno virtual del proyecto sin necesitar `pipenv run`. La lista completa de variables está en [`.env.example`](.env.example). `FINANCIAL_DATABASE_URL` es opcional; si Financial-DataBase no está disponible, la aplicación puede usar su repositorio JSON local y los proveedores configurados.
+
+La CLI dibuja paneles, tablas y colores con [Rich](https://github.com/Textualize/rich): una salida redirigida nunca contiene códigos de color, y `NO_COLOR=1` o la bandera `--no-color` desactivan el color también en terminal. `./vi interactive` abre un menú con los comandos principales, pide sus argumentos y los ejecuta en el mismo proceso (`q` o Ctrl+C para salir).
 
 La pila opcional de Docker Compose incluye PostgreSQL, Redis, el servicio FastAPI, workers de Celery y el frontend React. Está pensada para desarrollo local, no para producción; configura secretos, migraciones de base de datos y acceso de red antes de exponer cualquier servicio.
 

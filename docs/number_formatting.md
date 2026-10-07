@@ -25,6 +25,11 @@ Not feasible in this session: a secondary "export full precision" button
 (the full-precision rows are no longer kept alongside the display rows;
 the CLI and the Raw tab are the full-precision references).
 
+The v0.13.0 Rich redesign changed layout only — panels, framed tables and
+colored markers around the same values. The formatters still produce the
+same strings, the CLI stays at full precision, and `—` still marks a
+missing value.
+
 ## Rules
 
 | Range | Format | Example |

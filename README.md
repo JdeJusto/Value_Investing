@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1738%20passed-10A77A?style=for-the-badge" alt="1,738 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1812%20passed-10A77A?style=for-the-badge" alt="1,812 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
   <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
@@ -250,6 +250,14 @@ Before SEC requests, set `SEC_USER_AGENT` to a descriptive application name and 
 ./vi consensus-by-category --universe sp500 --per-category 5
 ./vi financial-alerts AAPL
 ./vi screener --tickers AAPL,MSFT
+```
+
+Output is rendered with [Rich](https://github.com/Textualize/rich): bordered panels and framed tables on a terminal, plus spinners and progress bars for long runs. Redirected output never contains color codes; `NO_COLOR=1` or the `--no-color` flag turns color off on a terminal as well.
+
+Prefer a menu over flags: `./vi interactive` lists the main commands, asks for each one's arguments, and runs it in-process. Press `q` or Ctrl+C to leave.
+
+```bash
+./vi interactive
 ```
 
 Consensus commands read the latest precomputed report. Refresh it with:

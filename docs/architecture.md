@@ -42,6 +42,13 @@ flowchart TB
 - **Analytics** (`backend/analytics/`): ratio computation and scoring.
 - **UI** (`cli/` and `ui/`): presentation only — no business logic. The CLI
   commands and the Streamlit pages both read from `ui_adapter`/services.
+  CLI rendering is centralized in `backend/services/cli_output.py` (Rich
+  panels, tables, spinners, progress bars; `cli/formatters.py` delegates to
+  it): styling is built from `Text` objects, `NO_COLOR` and `--no-color`
+  are honored, redirected stdout stays free of ANSI codes, and
+  spinners/progress only run on a terminal. `main.py interactive` is a
+  one-level menu that parses each command's arguments with that command's
+  own parser and dispatches in-process.
 
 ## 3. Data flow
 
