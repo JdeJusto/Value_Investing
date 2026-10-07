@@ -27,6 +27,8 @@ def _row(
     ebit: float = 150.0,
     total_debt: float = 400.0,
     stockholders_equity: float = 600.0,
+    operating_cash_flow: float = 180.0,
+    capital_expenditure: float = 50.0,
     sector: str | None = None,
 ) -> NormalizedFinancials:
     return NormalizedFinancials(
@@ -42,8 +44,8 @@ def _row(
         total_debt=total_debt,
         stockholders_equity=stockholders_equity,
         cash_and_equivalents=100.0,
-        operating_cash_flow=180.0,
-        capital_expenditure=50.0,
+        operating_cash_flow=operating_cash_flow,
+        capital_expenditure=capital_expenditure,
         sector=sector,
     )
 
@@ -127,6 +129,17 @@ def test_insufficient_history_abstains():
     result = _evaluate(rows)
     assert result.verdict is Verdict.INSUFFICIENT_DATA
     assert any("at least 3" in reason for reason in result.reasons)
+
+
+def test_negative_ebit_does_not_pass_the_margin_of_safety_rule():
+    # EV/EBIT is negative (loss) and FCF is negative: neither can be read as
+    # cheapness, so rule 3 must fail.
+    rows = _healthy_history(
+        ebit=-100.0, operating_cash_flow=10.0, capital_expenditure=50.0
+    )
+    result = _evaluate(rows)
+    assert "marks.rule_3_margin_of_safety" in result.failed_rules
+    assert result.verdict is not Verdict.BUY
 
 
 def test_financial_company_abstains():

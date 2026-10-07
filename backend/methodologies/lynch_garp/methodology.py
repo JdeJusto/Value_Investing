@@ -37,6 +37,10 @@ from backend.methodologies.base import (
     Verdict,
 )
 from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.ratio_guards import (
+    is_meaningful_pbv,
+    is_meaningful_pe,
+)
 from backend.methodologies.lynch_garp.rules import (
     ALL_RULES,
     RULE_1_PEG,
@@ -560,6 +564,14 @@ class LynchGARPMethodology(Methodology):
                 "no earnings or share count",
             )
         pe = price / eps
+        if not is_meaningful_pe(pe):
+            return RuleOutcome(
+                RULE_1_PEG.id,
+                _FAIL,
+                pe,
+                pass_level,
+                f"P/E {pe:.1f} is not meaningful (loss or extreme)",
+            )
         growth = self._earnings_cagr(rows)
         if growth is None:
             return RuleOutcome(
@@ -650,6 +662,14 @@ class LynchGARPMethodology(Methodology):
                 "no market cap or book value for the P/BV rule",
             )
         pbv = market_cap / book
+        if not is_meaningful_pbv(pbv):
+            return RuleOutcome(
+                RULE_1_PEG.id,
+                _FAIL,
+                pbv,
+                _ASSET_PLAY_PBV,
+                f"P/BV {pbv:.2f} is not meaningful (extreme book ratio)",
+            )
         detail = f"P/BV {pbv:.2f} (asset play: book value vs market cap)"
         if pbv < _ASSET_PLAY_PBV:
             return RuleOutcome(RULE_1_PEG.id, _PASS, pbv, _ASSET_PLAY_PBV, detail)
@@ -853,6 +873,14 @@ class LynchGARPMethodology(Methodology):
                 "no earnings-growth series for the dividend-adjusted PEG",
             )
         pe = price / eps
+        if not is_meaningful_pe(pe):
+            return RuleOutcome(
+                RULE_5_DIVIDEND_ADJUSTED_PEG.id,
+                _FAIL,
+                pe,
+                _PEG_PASS,
+                f"P/E {pe:.1f} is not meaningful (loss or extreme)",
+            )
         yield_ = (dividends / latest.shares_outstanding) / price
         pegy = (pe / (growth * 100.0)) / (1.0 + yield_)
         detail = f"PEGY {pegy:.2f} (dividend yield {yield_:.2%})"

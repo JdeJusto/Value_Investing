@@ -29,6 +29,10 @@ from backend.methodologies.base import (
     Verdict,
 )
 from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.ratio_guards import (
+    is_meaningful_pbv,
+    is_meaningful_pe,
+)
 from backend.methodologies.graham.rules import (
     ALL_RULES,
     VERDICT_CRITERIA,
@@ -397,6 +401,14 @@ class GrahamMethodology(Methodology):
             )
         eps = avg_earnings / shares
         pe = price / eps
+        if not is_meaningful_pe(pe):
+            return CriterionResult(
+                "graham.criterion_6_pe",
+                False,
+                pe,
+                _MAX_PE,
+                f"P/E {pe:.1f} is not meaningful (loss or near-zero denominator)",
+            )
         return CriterionResult(
             "graham.criterion_6_pe",
             pe <= _MAX_PE,
@@ -429,6 +441,14 @@ class GrahamMethodology(Methodology):
                 "graham.criterion_7_pbv", None, None, _MAX_PBV, "no share count"
             )
         pbv = price / (latest.stockholders_equity / shares)
+        if not is_meaningful_pbv(pbv):
+            return CriterionResult(
+                "graham.criterion_7_pbv",
+                False,
+                pbv,
+                _MAX_PBV,
+                f"P/BV {pbv:.2f} is not meaningful (near-zero book value)",
+            )
         return CriterionResult(
             "graham.criterion_7_pbv",
             pbv <= _MAX_PBV,
@@ -449,6 +469,14 @@ class GrahamMethodology(Methodology):
                 None,
                 _MAX_PE_PBV_PRODUCT,
                 "needs a live price",
+            )
+        if not is_meaningful_pe(pe.value) or not is_meaningful_pbv(pbv.value):
+            return CriterionResult(
+                "graham.criterion_8_pe_pbv_product",
+                False,
+                None,
+                _MAX_PE_PBV_PRODUCT,
+                "P/E x P/BV not meaningful (loss or near-zero denominator)",
             )
         product = pe.value * pbv.value
         return CriterionResult(

@@ -25,6 +25,7 @@ from backend.methodologies.graham.methodology import (
     _MAX_PBV,
     _MAX_PE,
     _MAX_PE_PBV_PRODUCT,
+    CriterionResult,
     GrahamMethodology,
 )
 
@@ -261,6 +262,24 @@ def test_combined_test_fails_when_both_multiples_are_high():
 def test_combined_test_insufficient_without_a_price():
     result = _evaluate("graham_pass.json", price=None)
     assert result.metrics["pe_pbv_product"] is None
+
+
+def test_combined_test_rejects_a_meaningless_pe():
+    """A four-digit P/E x a tiny P/BV is a denominator artifact, not cheapness."""
+    pe = CriterionResult("graham.criterion_6_pe", False, 200.0, _MAX_PE, "P/E 200.0")
+    pbv = CriterionResult("graham.criterion_7_pbv", True, 0.1, _MAX_PBV, "P/BV 0.10")
+    result = GrahamMethodology._combined_test([pe, pbv])
+    assert result.passed is False
+    assert result.value is None
+    assert "not meaningful" in result.detail
+
+
+def test_combined_test_rejects_a_negative_pe_product():
+    pe = CriterionResult("graham.criterion_6_pe", False, -195.78, _MAX_PE, "P/E -195.8")
+    pbv = CriterionResult("graham.criterion_7_pbv", True, 0.5, _MAX_PBV, "P/BV 0.50")
+    result = GrahamMethodology._combined_test([pe, pbv])
+    assert result.passed is False
+    assert "not meaningful" in result.detail
 
 
 # ----------------------------------------------------------------------

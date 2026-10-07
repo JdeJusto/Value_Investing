@@ -140,3 +140,40 @@ the reason stays on record.
   reported); PG HOLD 50 (R&D 2.4%); F AVOID (negative margins); JNJ HOLD 50
   after the concept fallback; XOM/GM/INTC/T remain INSUFFICIENT_DATA (partial
   FDB coverage). No verdict of the other methodologies was touched.
+
+## Decision 11 — NOT_APPLICABLE for financial companies (2026-10-07)
+
+**Decision:** A book screen written for product companies (leverage, net PPE,
+R&D, EV/EBIT, ROC on an industrial balance sheet) returns
+`Verdict.NOT_APPLICABLE` (`"N/A"`) on a bank or insurer, with the canonical
+reason `financial company — rules do not apply`. This is distinct from
+`INSUFFICIENT_DATA`, which means "the data to decide is missing".
+
+**Rationale:** Reporting a bank as `INSUFFICIENT_DATA` implied a data gap and
+pushed the company into the "no real verdict" bucket, where it was both shown
+to the user and silently excluded from consensus rankings for the wrong
+reason. `N/A` states the truth — the methodology abstains by design — and lets
+the consensus count and exclude those companies explicitly (`na_count`).
+Neither verdict is a buy, a hold or a sell; both render dim/neutral.
+
+### ratio sanity guards — 2026-10-07
+
+- `backend/methodologies/common/ratio_guards.py` introduces
+  `is_meaningful_pe` / `is_meaningful_pbv` / `is_meaningful_ev_ebit` /
+  `is_meaningful_fcf_yield`. A ratio that is non-positive or above a
+  deliberately loose ceiling (P/E 100, P/BV 50, EV/EBIT 100, |FCF yield|
+  100%) is a denominator artifact (losses or a near-zero denominator), not
+  cheapness, and a ratio rule must **fail**, never pass, on it.
+- Applied where a ratio gates a rule: Graham criterion 6 (P/E), criterion 7
+  (P/BV) and the combined 22.5 product; Lynch PEG, dividend-adjusted PEGY and
+  the asset-play P/BV; Marks' margin-of-safety rule (EV/EBIT and FCF yield).
+- Net effect on the reported artifacts: CSGP's Marks verdict moves
+  WATCH 60 → **HOLD 35** (a negative EBIT had been read as a margin of safety).
+  AAPL (buffett_classic WATCH 74.72), KO (BUY 80.46) and every other observed
+  verdict are unchanged.
+- Known limitation: `buffett_classic` produces a **price-independent** quality
+  score (four pillars: profitability, financial strength, cash generation,
+  stability). It consumes no P/E, so a "BUY next to a negative P/E" pairing in
+  a screener export is the quality score sitting beside an unrelated valuation
+  column, not a valuation rule passing on a loss. Making it price-aware would
+  add a new rule and is deliberately out of scope.

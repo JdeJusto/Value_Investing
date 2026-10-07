@@ -207,6 +207,15 @@ def test_rule1_negative_growth_fails():
     assert res.metrics["rule_outcomes"][R1] == "FAIL"
 
 
+def test_rule1_extreme_pe_fails_as_not_meaningful():
+    # P/E 1583 passes through the raw rule as a huge PEG; the guard makes the
+    # failure explicit instead of relying on the PEG threshold.
+    rows = _backbone()
+    outcome = LynchGARPMethodology()._rule_1_peg(rows, _price_for(rows, 1583.74))
+    assert outcome.outcome == "FAIL"
+    assert "not meaningful" in outcome.detail
+
+
 def test_rule1_peg_scales_with_growth_rate():
     low = _backbone(growth=0.10)
     res_low = _evaluate(low, _price_for(low, 20.0))

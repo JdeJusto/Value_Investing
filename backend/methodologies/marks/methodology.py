@@ -30,6 +30,10 @@ from backend.methodologies.base import (
     Verdict,
 )
 from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.ratio_guards import (
+    is_meaningful_ev_ebit,
+    is_meaningful_fcf_yield,
+)
 from backend.methodologies.marks.rules import (
     ALL_RULES,
     RULE_1_CYCLE,
@@ -216,8 +220,8 @@ class MarksMethodology(Methodology):
             net_debt_ebitda is not None and net_debt_ebitda > DANGER_NET_DEBT_TO_EBITDA
         )
         margin_of_safety_pass = (
-            fcf_yield is not None and fcf_yield >= MIN_FCF_YIELD
-        ) or (ev_ebit is not None and ev_ebit <= MAX_EV_EBIT)
+            is_meaningful_fcf_yield(fcf_yield) and fcf_yield >= MIN_FCF_YIELD
+        ) or (is_meaningful_ev_ebit(ev_ebit) and ev_ebit <= MAX_EV_EBIT)
         quality_pass = (
             avg_roic is not None
             and avg_roic >= MIN_AVG_ROIC
