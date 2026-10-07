@@ -13,6 +13,7 @@ from backend.app.cli import (
 )
 from backend.config.settings import get_output_dir
 from backend.domain.value_objects.filter_criteria import FilterCriteria
+from backend.services import cli_output
 from cli.formatters import (
     bold,
     dim,
@@ -223,19 +224,21 @@ def _run_screener(args):
 
     start = time.time()
 
-    def progress(current, total, ticker):
-        pct = int(current / total * 100)
-        bar = "#" * (pct // 5) + dim("·" * (20 - pct // 5))
-        sys.stdout.write(f"\r    [{bar}] {current}/{total} ({pct:>2d}%) {ticker:<8}")
-        sys.stdout.flush()
+    with cli_output.progress(0, "Screening") as batch:
 
-    results = service.screen(
-        tickers=tickers,
-        filters=filters,
-        top_n=args.top,
-        progress_callback=progress,
-        no_prices=args.no_prices,
-    )
+        def progress(current, total, ticker):
+            """Rich bar on a terminal; silent when output is redirected."""
+            batch.set_total(total)
+            batch.set_description(f"Screening {ticker}")
+            batch.update(current)
+
+        results = service.screen(
+            tickers=tickers,
+            filters=filters,
+            top_n=args.top,
+            progress_callback=progress,
+            no_prices=args.no_prices,
+        )
     elapsed = time.time() - start
 
     print(f"\n\n  {green(str(len(results)))} results in {elapsed:.1f}s")
@@ -494,7 +497,8 @@ def _run_investment_screener(args) -> None:
     print()
 
     service = build_investment_screener(universe, no_prices=args.no_prices)
-    results = service.top_n(args.top, **criteria)
+    with cli_output.status("Screening with the Buffett engine..."):
+        results = service.top_n(args.top, **criteria)
     print(f"\n  {green(str(len(results)))} results")
 
     if not results:

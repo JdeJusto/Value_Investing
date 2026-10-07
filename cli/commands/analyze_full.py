@@ -400,7 +400,8 @@ def _run(args):
     console = cli_output.get_console()
     for ticker in tickers:
         try:
-            row = service._analyze_ticker(ticker, no_prices=args.no_prices)
+            with cli_output.status(f"Analyzing {ticker}..."):
+                row = service._analyze_ticker(ticker, no_prices=args.no_prices)
         except Exception as e:  # noqa: BLE001
             line = Text(f"\n{ticker} — ", style=cli_output.DANGER)
             line.append("ERROR:", style=cli_output.DANGER)

@@ -27,9 +27,11 @@ from __future__ import annotations
 import math
 import os
 import sys
+from contextlib import contextmanager
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
 from rich.text import Text
 
@@ -246,6 +248,96 @@ def rule_line(status: str, rule_id: str, indent: str = "  ") -> Text:
     line.append(f"{mark} {status}", style=style)
     line.append(f"  {rule_id}")
     return line
+
+
+class _NullProgress:
+    """Progress stand-in for redirected output: same API, no rendering."""
+
+    def advance(self, n: int = 1) -> None:
+        """Ignore the step (nothing is drawn outside a terminal)."""
+
+    def update(self, completed: int) -> None:
+        """Ignore the absolute position (nothing is drawn)."""
+
+    def set_total(self, total: int) -> None:
+        """Ignore the batch size (nothing is drawn)."""
+
+    def set_description(self, description: str) -> None:
+        """Ignore the caption (nothing is drawn)."""
+
+
+@contextmanager
+def status(
+    message: str, *, console: Console | None = None, enabled: bool | None = None
+):
+    """Live spinner while a long operation runs.
+
+    Spinners animate with cursor control, so they only start on a terminal;
+    redirected output must stay free of escape codes. Reserve this for steps
+    that reliably take over a second — a spinner on a fast command just adds
+    noise.
+    """
+    if enabled is None:
+        enabled = sys.stdout.isatty()
+    if not enabled:
+        yield
+        return
+    console = console or get_console()
+    with console.status(message, spinner="dots", spinner_style=PRIMARY):
+        yield
+
+
+@contextmanager
+def progress(
+    total: int,
+    description: str = "",
+    *,
+    console: Console | None = None,
+    enabled: bool | None = None,
+):
+    """Progress bar for a batch of items; a no-op object when redirected.
+
+    Yields an object with ``advance(n=1)``, ``update(completed)``,
+    ``set_total(total)`` and ``set_description(text)``, so callers can run
+    the same loop on and off a terminal. Pass ``total=0`` when the batch
+    size is only known once the loop is running and set it with
+    ``set_total``::
+
+        with progress(len(tickers), "Analyzing") as bar:
+            for ticker in tickers:
+                ...
+                bar.advance()
+    """
+    if enabled is None:
+        enabled = sys.stdout.isatty()
+    if not enabled:
+        yield _NullProgress()
+        return
+    console = console or get_console()
+    bar = Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        console=console,
+        transient=True,
+    )
+    with bar:
+        task = bar.add_task(description, total=total if total > 0 else None)
+
+        class _Batch:
+            def advance(self, n: int = 1) -> None:
+                bar.advance(task, n)
+
+            def update(self, completed: int) -> None:
+                bar.update(task, completed=completed)
+
+            def set_total(self, total: int) -> None:
+                bar.update(task, total=total)
+
+            def set_description(self, description: str) -> None:
+                bar.update(task, description=description)
+
+        yield _Batch()
 
 
 def data_table(

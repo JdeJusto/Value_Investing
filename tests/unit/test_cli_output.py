@@ -385,3 +385,72 @@ def test_print_table_renders_headers_and_rows(capsys):
     out = capsys.readouterr().out
     assert "Ranking" in out and "Ticker" in out and "AAPL" in out and "82.9" in out
     assert ESC not in out
+
+
+# --- spinners and progress bars ------------------------------------------
+
+
+def test_status_is_silent_when_output_is_redirected(monkeypatch):
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    with cli_output.status("Screening 500 tickers..."):
+        pass
+    assert sys.stdout.getvalue() == ""
+
+
+def test_status_animates_on_a_terminal(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys, "stdout", _TTY())
+    with cli_output.status("Screening 500 tickers..."):
+        pass
+    out = sys.stdout.getvalue()
+    assert ESC in out
+    assert "Screening 500 tickers..." in out
+
+
+def test_status_can_be_disabled_explicitly(monkeypatch):
+    monkeypatch.setattr(sys, "stdout", _TTY())
+    with cli_output.status("Anything", enabled=False):
+        pass
+    assert sys.stdout.getvalue() == ""
+
+
+def test_progress_is_silent_when_output_is_redirected(monkeypatch):
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    with cli_output.progress(3, "Analyzing") as bar:
+        bar.advance()
+        bar.update(3)
+    assert sys.stdout.getvalue() == ""
+
+
+def test_progress_renders_and_counts_the_batch_on_a_terminal(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys, "stdout", _TTY())
+    with cli_output.progress(2, "Analyzing") as bar:
+        bar.advance()
+        bar.advance()
+    out = sys.stdout.getvalue()
+    assert ESC in out
+    assert "Analyzing" in out
+    assert "2/2" in out
+
+
+def test_progress_can_be_disabled_explicitly(capsys):
+    with cli_output.progress(3, "Analyzing", enabled=False) as bar:
+        bar.advance(2)
+        bar.update(1)
+        bar.set_total(5)
+        bar.set_description("Analyzing AAPL")
+    assert capsys.readouterr().out == ""
+
+
+def test_progress_accepts_a_batch_size_known_only_later(monkeypatch):
+    """The screener only learns the batch size from its first callback."""
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys, "stdout", _TTY())
+    with cli_output.progress(0, "Screening") as bar:
+        bar.set_total(2)
+        bar.set_description("Screening MSFT")
+        bar.update(2)
+    out = sys.stdout.getvalue()
+    assert ESC in out
+    assert "2/2" in out
