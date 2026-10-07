@@ -159,6 +159,17 @@ CATEGORY_LABELS = {
     LynchCategory.UNKNOWN: "Unclassified",
 }
 
+#: Short labels for CSV export (UI keeps the long labels from CATEGORY_LABELS).
+CATEGORY_SHORT = {
+    LynchCategory.SLOW_GROWER: "Slow Grower",
+    LynchCategory.STALWART: "Stalwart",
+    LynchCategory.FAST_GROWER: "Fast Grower",
+    LynchCategory.CYCLICAL: "Cyclical",
+    LynchCategory.TURNAROUND: "Turnaround",
+    LynchCategory.ASSET_PLAY: "Asset Play",
+    LynchCategory.UNKNOWN: "Unknown",
+}
+
 #: Categories whose Rule 1 is not the PEG: the generic passed/evaluable score
 #: is not comparable across categories, so it is hidden (never invented).
 _SCORELESS_CATEGORIES = frozenset({LynchCategory.SLOW_GROWER, LynchCategory.ASSET_PLAY})
