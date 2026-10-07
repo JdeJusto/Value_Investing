@@ -26,3 +26,15 @@ def test_help_has_no_debug_output():
     assert "DEBUG" not in result.stderr
     assert "DEBUG" not in result.stdout
     assert "usage: main.py" in result.stdout
+
+
+def test_no_debug_prints_left_in_cli_sources():
+    """``--help`` cannot catch debug noise printed while a command runs, so
+    the CLI sources are scanned directly (``historical-valuation`` shipped
+    three of them on stderr)."""
+    offenders = []
+    for path in sorted((PROJECT_ROOT / "cli").rglob("*.py")):
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            if line.strip().startswith("print(") and "DEBUG" in line:
+                offenders.append(f"{path.relative_to(PROJECT_ROOT)}:{lineno}")
+    assert offenders == []

@@ -108,20 +108,26 @@ def print_separator(char: str = "=", width: int = 72):
 
 
 def print_header(text: str, char: str = "=", width: int = 72):
-    print()
-    print(char * width)
-    print(f"  {text}")
-    print(char * width)
+    """Command banner, rendered as a bordered Rich panel.
+
+    ``char`` and ``width`` only describe the old ``===`` rule; the panel sizes
+    itself from the console, so they are accepted for signature compatibility.
+    """
+    cli_output.print_banner(text)
 
 
 def print_section(title: str):
-    print()
-    print(f"  {bold(title)}")
-    print(f"  {dim('─' * 60)}")
+    """Section heading (bold title) followed by a dim rule."""
+    console = cli_output.get_console()
+    console.print()
+    console.print(cli_output.heading(title), soft_wrap=True)
+    console.print(cli_output.rule(), soft_wrap=True)
 
 
 def print_key_value(key: str, value: str, width: int = 28):
-    print(f"  {key:>{width}} : {value}")
+    cli_output.get_console().print(
+        cli_output.kv_line(key, value, width), soft_wrap=True
+    )
 
 
 def print_table(
@@ -130,50 +136,44 @@ def print_table(
     title: str | None = None,
     padding: int = 2,
 ):
-    if title:
-        print()
-        print(f"  {bold(title)}")
-        print()
-
-    col_widths = []
-    for col_idx, (header, _) in enumerate(headers):
-        max_w = len(header)
-        for row in rows:
-            if col_idx < len(row):
-                max_w = max(max_w, len(remove_ansi(row[col_idx])))
-        col_widths.append(max_w)
-
-    header_parts = []
-    sep_parts = []
-    for col_idx, (header, align) in enumerate(headers):
-        w = col_widths[col_idx]
-        if align == 0:
-            header_parts.append(header.ljust(w))
-        else:
-            header_parts.append(header.rjust(w))
-        sep_parts.append("─" * w)
-
-    header_line = "  " + "  ".join(bold(h) for h in header_parts)
-    sep_line = "  " + "─".join(sep_parts)
-
-    print(header_line)
-    print(sep_line)
-
-    for row in rows:
-        parts = []
-        for col_idx, (_, align) in enumerate(headers):
-            w = col_widths[col_idx]
-            val = row[col_idx] if col_idx < len(row) else ""
-            if align == 0:
-                parts.append(val.ljust(w + len(val) - len(remove_ansi(val))))
-            else:
-                parts.append(val.rjust(w + len(val) - len(remove_ansi(val))))
-        print("  " + "  ".join(parts))
-
-    print()
+    """Rich table: dim title, bold header, right-aligned columns (align 1)."""
+    cli_output.get_console().print(
+        cli_output.data_table(headers, rows, title=title, padding=padding)
+    )
 
 
 def remove_ansi(text: str) -> str:
     import re
 
     return re.sub(r"\033\[[0-9;]*m", "", text)
+
+
+def valuation_table(ratios: list):
+    """Historical valuation rows (P/E, FCF yield) as a Rich table.
+
+    Same figures and formats as ``HistoricalValuationService``'s text
+    rendering — ``.2f`` for price/EPS/P/E and ``.2%`` for the FCF yield,
+    with ``N/A`` for missing values — rendered as right-aligned columns.
+    """
+
+    def _num(value, pattern: str = "{:.2f}") -> str:
+        return pattern.format(value) if value is not None else "N/A"
+
+    headers = [
+        ("fiscal_year", 1),
+        ("price", 1),
+        ("eps", 1),
+        ("pe_ratio", 1),
+        ("fcf_yield", 1),
+    ]
+    rows = [
+        [
+            str(ratio.get("fiscal_year")),
+            _num(ratio.get("price")),
+            _num(ratio.get("eps")),
+            _num(ratio.get("pe_ratio")),
+            _num(ratio.get("fcf_yield"), "{:.2%}"),
+        ]
+        for ratio in ratios
+    ]
+    return cli_output.data_table(headers, rows)

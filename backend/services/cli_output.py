@@ -66,6 +66,10 @@ SEVERITY_COLORS = {
 # fold wide table cells over several lines. 160 keeps every cell on one line.
 PIPE_WIDTH = 160
 
+# Panels always fill the console width, so they are capped: a piped report
+# must not draw a 160-column banner around a two-line header.
+PANEL_WIDTH = 100
+
 _NO_COLOR = False
 
 
@@ -142,6 +146,132 @@ def metric_table(title: str) -> Table:
 def section_panel(title: str, body) -> Panel:
     """A bordered panel with a left-aligned title in the primary color."""
     return Panel(body, title=title, title_align="left", border_style=PRIMARY)
+
+
+class _EmptyBody:
+    """Renders nothing, so a banner panel is exactly two border lines."""
+
+    def __rich_console__(self, console, options):
+        return iter(())
+
+
+def print_banner(title: str, body=None, *, console: Console | None = None) -> None:
+    """Print the command banner: a bordered panel titled with ``title``.
+
+    ``body`` is optional supporting text (facts, subtitles); without it the
+    panel is a two-line banner.
+    """
+    console = console or get_console()
+    panel = Panel(
+        body if body is not None else _EmptyBody(),
+        title=Text(title, style=HEADER),
+        border_style=PRIMARY,
+        padding=(0, 1),
+    )
+    console.print()
+    print_panel(panel, console=console)
+
+
+def print_panel(renderable, *, console: Console | None = None) -> None:
+    """Print a panel capped at :data:`PANEL_WIDTH` (never wider than needed)."""
+    console = console or get_console()
+    console.print(renderable, width=min(console.width, PANEL_WIDTH))
+
+
+def heading(text: str, indent: int = 2) -> Text:
+    """Section heading (bold white) as used before a block of metrics."""
+    return Text(" " * indent + text, style=HEADER)
+
+
+def rule(length: int = 60, char: str = "─", indent: int = 2) -> Text:
+    """Dim horizontal rule, the companion line under a :func:`heading`."""
+    return Text(" " * indent + char * length, style=MUTED)
+
+
+def kv_line(
+    label: str,
+    value,
+    key_width: int = 28,
+    indent: str = "  ",
+    align: str = "right",
+    sep: str = " : ",
+) -> Text:
+    """One aligned label/value line.
+
+    ``align="right"`` with ``sep=" : "`` reproduces the classic
+    ``print_key_value`` layout; sections use left alignment with a plain
+    separator. ``value`` may be a :class:`Text` to keep its styling.
+    """
+    padded = f"{label:>{key_width}}" if align == "right" else f"{label:<{key_width}}"
+    line = Text(f"{indent}{padded}{sep}")
+    line.append(value if isinstance(value, Text) else str(value))
+    return line
+
+
+def print_kv(
+    pairs,
+    key_width: int = 20,
+    indent: str = "     ",
+    align: str = "left",
+    sep: str = " ",
+    *,
+    console: Console | None = None,
+) -> None:
+    """Print aligned label/value pairs, one per line (never wrapped)."""
+    console = console or get_console()
+    for label, value in pairs:
+        console.print(
+            kv_line(label, value, key_width, indent, align, sep), soft_wrap=True
+        )
+
+
+def bullet_line(text, style: str = MUTED, marker: str = "•") -> Text:
+    """``marker`` in ``style`` followed by plain text — alerts and lists."""
+    line = Text()
+    line.append(f"{marker} ", style=style)
+    line.append(text if isinstance(text, Text) else str(text))
+    return line
+
+
+def rule_line(status: str, rule_id: str, indent: str = "  ") -> Text:
+    """``  ✓ PASS  <rule id>`` — one evaluated methodology criterion."""
+    mark, style = {
+        "PASS": ("✓", ACCENT),
+        "FAIL": ("✗", DANGER),
+        "N/A": ("·", MUTED),
+    }.get(status, ("·", MUTED))
+    line = Text(indent)
+    line.append(f"{mark} {status}", style=style)
+    line.append(f"  {rule_id}")
+    return line
+
+
+def data_table(
+    headers: list[tuple[str, int]],
+    rows: list[list],
+    title: str | None = None,
+    padding: int = 2,
+) -> Table:
+    """Rich table from ``(label, align)`` columns (align 1 = right).
+
+    Cells may be plain strings, raw-ANSI strings (parsed into styles, so
+    colored cells keep their width) or :class:`Text` objects.
+    """
+    del padding  # Rich sizes columns itself; kept for signature parity.
+    table = Table(title=title, title_style=PRIMARY, header_style=HEADER)
+    for label, align in headers:
+        table.add_column(label, justify="right" if align else "left")
+    for row in rows:
+        cells = []
+        for cell in row:
+            if isinstance(cell, Text) or not isinstance(cell, str):
+                cells.append(cell)
+            elif "\x1b" in cell:
+                cells.append(Text.from_ansi(cell))
+            else:
+                cells.append(cell)
+        table.add_row(*cells)
+    return table
 
 
 def format_currency(value: float | None, decimals: int = 2) -> str:

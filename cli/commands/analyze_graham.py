@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from backend.app.cli import add_demo_argument, add_refresh_arguments
+from backend.services import cli_output
 from cli.formatters import (
     confidence_color,
     dim,
-    green,
     print_header,
     print_key_value,
     print_section,
@@ -72,17 +72,18 @@ def _run(args):
     print()
 
     print_section("Criteria")
+    console = cli_output.get_console()
     for rule_id in result.passed_rules:
-        print(f"  {green('PASS')}  {rule_id}")
+        console.print(cli_output.rule_line("PASS", rule_id), soft_wrap=True)
     for rule_id in result.failed_rules:
-        print(f"  {red('FAIL')}  {rule_id}")
+        console.print(cli_output.rule_line("FAIL", rule_id), soft_wrap=True)
     unknown = [
         rule.id
         for rule in methodology.rules()
         if rule.id not in result.passed_rules and rule.id not in result.failed_rules
     ]
     for rule_id in unknown:
-        print(f"  {dim('N/A')}  {rule_id}")
+        console.print(cli_output.rule_line("N/A", rule_id), soft_wrap=True)
     print()
 
     if result.red_flags:

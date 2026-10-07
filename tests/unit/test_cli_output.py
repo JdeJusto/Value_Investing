@@ -219,3 +219,167 @@ def test_flag_is_reset_between_invocations(monkeypatch):
     # A later invocation without the flag must start from a clean slate.
     out = _run_main(monkeypatch, "methodologies", "list")
     assert ESC in out
+
+
+# --- rich builders (panels, headings, kv lines, tables) -------------------
+
+
+def test_banner_contains_the_title_and_stays_capped():
+    buffer = io.StringIO()
+    console = get_console(no_color=True)
+    console.file = buffer
+    cli_output.print_banner("Comprehensive analysis: AAPL", console=console)
+    out = buffer.getvalue()
+    assert "Comprehensive analysis: AAPL" in out
+    assert ESC not in out
+    assert max(len(line) for line in out.splitlines()) <= cli_output.PANEL_WIDTH
+
+
+def test_banner_without_body_is_exactly_two_border_lines():
+    buffer = io.StringIO()
+    console = get_console(no_color=True)
+    console.file = buffer
+    cli_output.print_banner("Header", console=console)
+    lines = [line for line in buffer.getvalue().splitlines() if line]
+    assert len(lines) == 2
+    assert lines[0].startswith("╭") and lines[1].startswith("╰")
+
+
+def test_print_panel_never_exceeds_the_panel_width():
+    buffer = io.StringIO()
+    console = get_console(no_color=True)
+    console.file = buffer
+    cli_output.print_panel(cli_output.section_panel("DCF", "body"), console=console)
+    assert max(len(line) for line in buffer.getvalue().splitlines()) <= (
+        cli_output.PANEL_WIDTH
+    )
+
+
+def test_heading_and_rule_layout():
+    heading = cli_output.heading("1) Company overview", indent=0)
+    assert str(heading) == "1) Company overview"
+    assert heading.style == cli_output.HEADER
+    rule = cli_output.rule(indent=2)
+    assert str(rule) == "  " + "─" * 60
+    assert rule.style == cli_output.MUTED
+
+
+def test_kv_line_matches_the_classic_key_value_layout():
+    line = cli_output.kv_line("Score", "—")
+    assert str(line) == "  " + f"{'Score':>28}" + " : " + "—"
+    left = cli_output.kv_line(
+        "Price", "$1.00", key_width=6, indent="  ", align="left", sep=" "
+    )
+    assert str(left) == "  Price  $1.00"
+
+
+def test_kv_line_preserves_value_styles_on_a_tty(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys, "stdout", _TTY())
+    console = get_console()
+    buffer = io.StringIO()
+    console.file = buffer
+    console.print(
+        cli_output.kv_line("Confidence", confidence_text("HIGH")), soft_wrap=True
+    )
+    out = buffer.getvalue()
+    assert "Confidence" in out and "HIGH" in out
+    assert ESC in out
+
+
+def test_print_kv_never_wraps_long_values(monkeypatch):
+    monkeypatch.setattr(sys, "stdout", io.StringIO())  # non-TTY
+    buffer = io.StringIO()
+    console = get_console()
+    console.file = buffer
+    long_value = "word " * 60
+    cli_output.print_kv([("Insight", long_value)], key_width=20, console=console)
+    lines = [line for line in buffer.getvalue().splitlines() if line]
+    assert len(lines) == 1
+    assert long_value.strip() in lines[0]
+
+
+def test_bullet_line_and_rule_line_marks():
+    bullet = cli_output.bullet_line("Anomaly: marginal drop", style=cli_output.DANGER)
+    assert str(bullet) == "• Anomaly: marginal drop"
+    assert str(cli_output.rule_line("PASS", "criterion_1_size")) == (
+        "  ✓ PASS  criterion_1_size"
+    )
+    assert str(cli_output.rule_line("FAIL", "criterion_2_pe")) == (
+        "  ✗ FAIL  criterion_2_pe"
+    )
+    assert str(cli_output.rule_line("N/A", "criterion_3")) == "  · N/A  criterion_3"
+
+
+def test_rule_line_is_colored_on_a_tty(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys, "stdout", _TTY())
+    out = _render(get_console(), cli_output.rule_line("FAIL", "r1"))
+    assert ESC in out
+    assert "✗ FAIL" in out
+
+
+def test_data_table_renders_cells_and_alignment():
+    table = cli_output.data_table(
+        [("fiscal_year", 1), ("fcf_yield", 1)],
+        [["2025", "12.3%"]],
+        title="Valuation",
+    )
+    assert str(table.title) == "Valuation"
+    assert table.columns[0].justify == "right"
+    out = _render(get_console(no_color=True), table)
+    assert "fiscal_year" in out and "2025" in out and "12.3%" in out
+    assert ESC not in out
+
+
+def test_data_table_converts_ansi_cells_into_styles():
+    """A colored cell must render clean when color is disabled."""
+    table = cli_output.data_table([("Verdict", 0)], [["\x1b[92mBUY\x1b[0m"]])
+    out = _render(get_console(no_color=True), table)
+    assert "BUY" in out
+    assert ESC not in out
+
+
+# --- cli/formatters delegation -------------------------------------------
+
+
+def test_print_header_renders_a_bordered_panel(capsys):
+    from cli.formatters import print_header
+
+    cli_output.reset_no_color()
+    print_header("Fundamental analysis: AAPL")
+    out = capsys.readouterr().out
+    assert "Fundamental analysis: AAPL" in out
+    assert "╭" in out and "╰" in out
+    assert ESC not in out
+
+
+def test_print_section_renders_title_and_rule(capsys):
+    from cli.formatters import print_section
+
+    cli_output.reset_no_color()
+    print_section("Reasons")
+    out = capsys.readouterr().out
+    assert "Reasons" in out
+    assert "─" * 20 in out
+    assert ESC not in out
+
+
+def test_print_key_value_keeps_the_classic_layout(capsys):
+    from cli.formatters import print_key_value
+
+    cli_output.reset_no_color()
+    print_key_value("Score", "—")
+    out = capsys.readouterr().out
+    assert "Score : —" in out
+    assert ESC not in out
+
+
+def test_print_table_renders_headers_and_rows(capsys):
+    from cli.formatters import print_table
+
+    cli_output.reset_no_color()
+    print_table([("Ticker", 0), ("Score", 1)], [["AAPL", "82.9"]], title="Ranking")
+    out = capsys.readouterr().out
+    assert "Ranking" in out and "Ticker" in out and "AAPL" in out and "82.9" in out
+    assert ESC not in out

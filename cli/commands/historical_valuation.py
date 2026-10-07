@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-import sys
-
 from backend.app.cli import (
     add_demo_argument,
     add_refresh_arguments,
     build_financial_repository,
     refresh_analysis_inputs,
 )
+from backend.services import cli_output
 from backend.services.historical_valuation_service import HistoricalValuationService
 from cli.formatters import (
     dim,
     print_header,
     print_key_value,
     red,
+    valuation_table,
     yellow,
 )
 
@@ -42,17 +42,16 @@ def register(subparsers):
 
 def _run(args):
     """Run the historical-valuation command."""
-    print(f"DEBUG: historical_valuation _run called with args: {args}", file=sys.stderr)
     service = HistoricalValuationService()
     repo = build_financial_repository()
     tickers = [t.upper().strip() for t in args.tickers]
-    print(f"DEBUG: tickers: {tickers}", file=sys.stderr)
     refresh_analysis_inputs(tickers, args)
 
     if not repo.available():
         print(f"{red('ERROR:')} Financial-DataBase repository not available")
         return
 
+    console = cli_output.get_console()
     for ticker in tickers:
         print_header(f"Historical Valuation Ratios for {ticker}")
 
@@ -63,7 +62,6 @@ def _run(args):
 
         # Get historical valuation ratios
         ratios = service.get_historical_valuation_summary(ticker)
-        print(f"DEBUG: got {len(ratios)} ratios for {ticker}", file=sys.stderr)
 
         if not ratios:
             print(f"  {yellow('No valuation data available for')} {ticker}")
@@ -72,9 +70,8 @@ def _run(args):
             )
             continue
 
-        # Print table
-        table_output = service.format_valuation_table(ticker)
-        print(table_output)
+        # Print table (same figures as the service's text rendering)
+        console.print(valuation_table(ratios))
 
         # Show latest values if available
         if ratios:

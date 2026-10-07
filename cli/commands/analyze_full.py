@@ -17,6 +17,8 @@ ticker never stops the rest of the batch. The supplementary DCF block is
 deliberately NOT part of any book methodology and never affects scoring.
 """
 
+from rich.text import Text
+
 from backend.adapters.database.repositories.company_repository import CompanyRepository
 from backend.app.cli import (
     add_demo_argument,
@@ -24,19 +26,14 @@ from backend.app.cli import (
     build_screener_service,
     refresh_analysis_inputs,
 )
+from backend.services import cli_output
 from backend.services.historical_valuation_service import HistoricalValuationService
 from cli.commands.preflight import require_known_tickers
 from cli.formatters import (
-    bold,
-    dim,
     fmt_dollar,
     fmt_pct,
     fmt_ratio,
-    green,
-    print_header,
-    print_key_value,
-    red,
-    yellow,
+    valuation_table,
 )
 
 
@@ -71,7 +68,22 @@ def register(subparsers):
 
 
 def _fmt(value, formatter):
-    return formatter(value) if value is not None else dim("N/A")
+    """Format a metric; a missing value renders as muted ``N/A``."""
+    if value is None:
+        return Text("N/A", style=cli_output.MUTED)
+    return formatter(value)
+
+
+def _na():
+    """Missing text as muted rich Text (styling survives inside panels)."""
+    return Text("N/A", style=cli_output.MUTED)
+
+
+def _heading(title: str) -> None:
+    """Numbered section heading: bold title over a dim rule (column 0)."""
+    console = cli_output.get_console()
+    console.print(cli_output.heading(title, indent=0), soft_wrap=True)
+    console.print(cli_output.rule(indent=0), soft_wrap=True)
 
 
 def _company_overview(ticker: str, name) -> tuple:
@@ -84,113 +96,165 @@ def _company_overview(ticker: str, name) -> tuple:
         return None, None
 
 
-def _print_section(ticker):
-    print_header(f"Comprehensive analysis: {ticker}")
+def _print_section(ticker, name=None, price=None, market_cap=None, sector=None):
+    """Command banner: ticker in the title, headline facts in the body."""
+    facts = "  ·  ".join(
+        part
+        for part in (
+            name,
+            f"Price {cli_output.format_currency(price)}",
+            f"Market Cap {cli_output.format_currency(market_cap)}",
+            f"Sector {sector or 'N/A'}",
+        )
+        if part
+    )
+    cli_output.print_banner(f"Comprehensive analysis: {ticker}", Text(facts))
 
 
 def _section_overview(row_input, sector, industry):
-    print(bold("1) Company overview"))
-    ov = [
-        ("Ticker", row_input["ticker"]),
-        ("Name", row_input["name"] or dim("N/A")),
-        ("Sector", sector or dim("N/A")),
-        ("Industry", industry or dim("N/A")),
-    ]
-    for label, value in ov:
-        print(f"     {label:<14} {value}")
+    _heading("1) Company overview")
+    cli_output.print_kv(
+        [
+            ("Ticker", row_input["ticker"]),
+            ("Name", row_input["name"] or _na()),
+            ("Sector", sector or _na()),
+            ("Industry", industry or _na()),
+        ],
+        key_width=14,
+    )
 
 
 def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, shares, no_prices):
-    print(bold("2) Real-time price and valuation"))
+    _heading("2) Real-time price and valuation")
     if no_prices:
-        print(f"     {yellow('(--no-prices) Price not fetched in real time.')}")
-    vals = [
-        ("Price", _fmt(price, fmt_dollar)),
-        ("Shares outstanding", f"{shares:,}" if shares else dim("N/A")),
-        ("Market Cap", _fmt(market_cap, fmt_dollar)),
-        ("PER", _fmt(per, lambda v: fmt_ratio(v, 1))),
-        ("P/B", _fmt(pb, lambda v: fmt_ratio(v, 2))),
-        ("FCF Yield", _fmt(fcf_yield, fmt_pct)),
-        ("EV/EBIT", _fmt(ev_ebit, lambda v: fmt_ratio(v, 1))),
-    ]
-    for label, value in vals:
-        print(f"     {label:<18} {value}")
+        cli_output.get_console().print(
+            Text(
+                "     (--no-prices) Price not fetched in real time.",
+                style=cli_output.WARNING,
+            ),
+            soft_wrap=True,
+        )
+    cli_output.print_kv(
+        [
+            ("Price", _fmt(price, fmt_dollar)),
+            ("Shares outstanding", f"{shares:,}" if shares else _na()),
+            ("Market Cap", _fmt(market_cap, fmt_dollar)),
+            ("PER", _fmt(per, lambda v: fmt_ratio(v, 1))),
+            ("P/B", _fmt(pb, lambda v: fmt_ratio(v, 2))),
+            ("FCF Yield", _fmt(fcf_yield, fmt_pct)),
+            ("EV/EBIT", _fmt(ev_ebit, lambda v: fmt_ratio(v, 1))),
+        ],
+        key_width=18,
+    )
 
 
 def _section_fundamentals(row_input):
-    print(bold("3) Fundamental metrics"))
-    vals = [
-        ("ROE", _fmt(row_input.get("roe"), fmt_pct)),
-        ("ROIC", _fmt(row_input.get("roic"), fmt_pct)),
-        ("Operating margin", _fmt(row_input.get("operating_margin"), fmt_pct)),
-        ("Net margin", _fmt(row_input.get("net_margin"), fmt_pct)),
-        ("Revenue growth", _fmt(row_input.get("revenue_growth"), fmt_pct)),
-        ("Debt / Equity", _fmt(row_input.get("debt_to_equity"), fmt_ratio)),
-        ("Free Cash Flow", _fmt(row_input.get("fcf"), fmt_dollar)),
-        ("Owner Earnings", _fmt(row_input.get("owner_earnings"), fmt_dollar)),
-        ("CROIC", _fmt(row_input.get("croic"), fmt_pct)),
-    ]
-    for label, value in vals:
-        print(f"     {label:<24} {value}")
+    _heading("3) Fundamental metrics")
+    cli_output.print_kv(
+        [
+            ("ROE", _fmt(row_input.get("roe"), fmt_pct)),
+            ("ROIC", _fmt(row_input.get("roic"), fmt_pct)),
+            ("Operating margin", _fmt(row_input.get("operating_margin"), fmt_pct)),
+            ("Net margin", _fmt(row_input.get("net_margin"), fmt_pct)),
+            ("Revenue growth", _fmt(row_input.get("revenue_growth"), fmt_pct)),
+            ("Debt / Equity", _fmt(row_input.get("debt_to_equity"), fmt_ratio)),
+            ("Free Cash Flow", _fmt(row_input.get("fcf"), fmt_dollar)),
+            ("Owner Earnings", _fmt(row_input.get("owner_earnings"), fmt_dollar)),
+            ("CROIC", _fmt(row_input.get("croic"), fmt_pct)),
+        ],
+        key_width=24,
+    )
 
 
 def _section_quality(row_input, quality):
-    print(bold("4) Company quality"))
+    _heading("4) Company quality")
     composite = row_input.get("composite_score") or {}
     moat = row_input.get("moat_analysis") or {}
-    vals = [
-        ("Buffett score", _fmt(row_input.get("buffett_score"), lambda v: f"{v:.1f}")),
-        ("Moat", moat.get("moat_type") or dim("N/A")),
-        ("Rating", composite.get("rating") or dim("N/A")),
-        ("Confidence", composite.get("confidence") or dim("N/A")),
-        ("Total score", _fmt(composite.get("total_score"), lambda v: f"{v:.1f}")),
-        ("DCF value", _fmt(row_input.get("dcf_value"), fmt_dollar)),
-        ("Margin of safety", _fmt(row_input.get("dcf_margin_of_safety"), fmt_pct)),
-    ]
+    confidence = composite.get("confidence")
+    cli_output.print_kv(
+        [
+            (
+                "Buffett score",
+                _fmt(row_input.get("buffett_score"), lambda v: f"{v:.1f}"),
+            ),
+            ("Moat", moat.get("moat_type") or _na()),
+            ("Rating", composite.get("rating") or _na()),
+            (
+                "Confidence",
+                cli_output.confidence_text(confidence) if confidence else _na(),
+            ),
+            ("Total score", _fmt(composite.get("total_score"), lambda v: f"{v:.1f}")),
+            ("DCF value", _fmt(row_input.get("dcf_value"), fmt_dollar)),
+            ("Margin of safety", _fmt(row_input.get("dcf_margin_of_safety"), fmt_pct)),
+        ],
+        key_width=20,
+    )
     if quality:
-        vals.extend(
+        cli_output.print_kv(
             [
                 ("Average ROIC", _fmt(quality.get("roic_mean"), fmt_pct)),
                 ("Revenue CAGR", _fmt(quality.get("revenue_cagr"), fmt_pct)),
-            ]
+            ],
+            key_width=20,
         )
-    for label, value in vals:
-        print(f"     {label:<20} {value}")
     insight = row_input.get("insight")
     if insight:
         text = insight if isinstance(insight, str) else "; ".join(insight)
-        print(f"     Insight: {text}")
+        cli_output.get_console().print(
+            cli_output.kv_line(
+                "Insight", text, key_width=20, indent="     ", align="left", sep=" "
+            ),
+            soft_wrap=True,
+        )
 
 
 def render_dcf_section(result) -> None:
     """Render the supplementary DCF block (not-from-canon) for analyze-full."""
+    from rich.console import Group
+
     from backend.valuation.base import SOURCE
     from backend.valuation.dcf import INSUFFICIENT_DATA
 
-    print_header(f"DCF Valuation (supplementary, {SOURCE})")
+    console = cli_output.get_console()
+    lines: list = []
     if result.verdict == INSUFFICIENT_DATA:
-        print_key_value("Verdict", dim(result.verdict))
-        reason = "; ".join(result.reasons) if result.reasons else "-"
-        print_key_value("Reason", reason)
-        if result.missing_inputs:
-            print_key_value("Missing", ", ".join(result.missing_inputs))
-    else:
-        verdict_color = {
-            "UNDERVALUED": green,
-            "FAIR": yellow,
-            "OVERVALUED": red,
-        }.get(result.verdict, lambda t: t)
-        print_key_value(
-            "Intrinsic value/share", _fmt(result.intrinsic_value_per_share, fmt_dollar)
+        lines.append(
+            cli_output.kv_line("Verdict", Text(result.verdict, style=cli_output.MUTED))
         )
-        print_key_value("Current price", _fmt(result.current_price, fmt_dollar))
-        print_key_value("Margin of safety", _fmt(result.margin_of_safety, fmt_pct))
-        print_key_value("Verdict", verdict_color(result.verdict))
+        reason = "; ".join(result.reasons) if result.reasons else "-"
+        lines.append(cli_output.kv_line("Reason", reason))
+        if result.missing_inputs:
+            lines.append(
+                cli_output.kv_line("Missing", ", ".join(result.missing_inputs))
+            )
+    else:
+        verdict_style = {
+            "UNDERVALUED": cli_output.ACCENT,
+            "FAIR": cli_output.WARNING,
+            "OVERVALUED": cli_output.DANGER,
+        }.get(result.verdict, "")
+        lines.append(
+            cli_output.kv_line(
+                "Intrinsic value/share",
+                _fmt(result.intrinsic_value_per_share, fmt_dollar),
+            )
+        )
+        lines.append(
+            cli_output.kv_line("Current price", _fmt(result.current_price, fmt_dollar))
+        )
+        lines.append(
+            cli_output.kv_line(
+                "Margin of safety", _fmt(result.margin_of_safety, fmt_pct)
+            )
+        )
+        lines.append(
+            cli_output.kv_line("Verdict", Text(result.verdict, style=verdict_style))
+        )
         fcf_label = {1: "FCF base (1y)", 2: "FCF base (2y avg)"}.get(
             result.fcf_years, "FCF base (3y avg)"
         )
-        print()
-        print(f"  {bold('Assumptions')}")
+        lines.append(Text(""))
+        lines.append(cli_output.heading("Assumptions", indent=0))
         for label, value in (
             ("WACC", _fmt(result.wacc, lambda v: f"{v:.2%}")),
             (fcf_label, _fmt(result.fcf_base, fmt_dollar)),
@@ -198,13 +262,27 @@ def render_dcf_section(result) -> None:
             ("Growth years 6-10", _fmt(result.growth_6_10, fmt_pct)),
             ("Terminal growth", f"{result.terminal_growth:.2%}"),
         ):
-            print(f"  {label:<20} : {value}")
-    print()
-    print(
-        f"  {yellow('⚠️')} This valuation is NOT part of any book-derived methodology."
+            lines.append(
+                cli_output.kv_line(
+                    label, value, key_width=20, indent="  ", align="left", sep=" : "
+                )
+            )
+    lines.append(Text(""))
+    warning = Text()
+    warning.append("⚠️ ", style=cli_output.WARNING)
+    warning.append("This valuation is NOT part of any book-derived methodology.")
+    lines.append(warning)
+    lines.append(Text("     It is a practical addition labeled not-from-canon."))
+    lines.append(
+        Text("     See backend/valuation/README.md for assumptions and limits.")
     )
-    print("     It is a practical addition labeled not-from-canon.")
-    print("     See backend/valuation/README.md for assumptions and limits.")
+    console.print()
+    cli_output.print_panel(
+        cli_output.section_panel(
+            f"DCF Valuation (supplementary, {SOURCE})", Group(*lines)
+        ),
+        console=console,
+    )
 
 
 def _dcf_enabled(args) -> bool:
@@ -233,29 +311,43 @@ def _section_dcf(ticker, repo=None, price_service=None) -> None:
         result = DCFValuation().evaluate(ticker, rows, price_service)
         render_dcf_section(result)
     except Exception as e:  # noqa: BLE001 — a failing DCF must never stop the report
-        print(f"     {red('DCF unavailable:')} {e}")
+        line = Text("     DCF unavailable:", style=cli_output.DANGER)
+        line.append(f" {e}")
+        cli_output.get_console().print(line, soft_wrap=True)
 
 
 def _section_historical(ticker):
-    print(bold("5) Historical valuation"))
+    _heading("5) Historical valuation")
     service = HistoricalValuationService()
+    console = cli_output.get_console()
     try:
-        table = service.format_valuation_table(ticker)
+        summary = getattr(service, "get_historical_valuation_summary", None)
+        if callable(summary):
+            ratios = summary(ticker)
+            if ratios:
+                console.print(valuation_table(ratios))
+                return
+        # No structured rows (or none available): keep the text rendering.
+        print(service.format_valuation_table(ticker))
     except Exception as e:  # noqa: BLE001
-        print(f"     {red('ERROR:')} {e}")
-        return
-    print(table)
+        line = Text("     ERROR:", style=cli_output.DANGER)
+        line.append(f" {e}")
+        console.print(line, soft_wrap=True)
 
 
 def _section_risks(row_input):
-    print(bold("6) Risks / anomalies / triggers"))
+    _heading("6) Risks / anomalies / triggers")
+    console = cli_output.get_console()
     anomalies = row_input.get("anomalies") or []
     if not anomalies:
-        print("     No anomalies detected.")
+        console.print(Text("     No anomalies detected."), soft_wrap=True)
     else:
         for a in anomalies:
             desc = a if isinstance(a, str) else str(a)
-            print(f"     {red('Anomaly:')} {desc}")
+            line = Text("     • ", style=cli_output.DANGER)
+            line.append("Anomaly:", style=cli_output.DANGER)
+            line.append(f" {desc}")
+            console.print(line, soft_wrap=True)
 
     triggers = []
     try:
@@ -268,9 +360,12 @@ def _section_risks(row_input):
     except Exception:  # noqa: BLE001, S110
         pass
     if triggers:
-        print(f"     {yellow('Trigger:')} {', '.join(triggers)}")
+        line = Text("     • ", style=cli_output.WARNING)
+        line.append("Trigger:", style=cli_output.WARNING)
+        line.append(f" {', '.join(triggers)}")
+        console.print(line, soft_wrap=True)
     else:
-        print("     No active triggers.")
+        console.print(Text("     No active triggers."), soft_wrap=True)
 
     piotroski = row_input.get("piotroski_fscore")
     if piotroski is not None:
@@ -285,10 +380,15 @@ def _section_risks(row_input):
     confidence = (row_input.get("composite_score") or {}).get("confidence")
     source = row_input.get("data_source_used")
     quality = row_input.get("data_quality_score")
-    print(
+    summary = Text(
         f"     Source: {source or 'N/A'}  |  Data confidence: "
-        f"{confidence or 'N/A'}  |  Quality: {fmt_pct(quality) if quality is not None else dim('N/A')}"
+        f"{confidence or 'N/A'}  |  Quality: "
     )
+    if quality is None:
+        summary.append("N/A", style=cli_output.MUTED)
+    else:
+        summary.append(fmt_pct(quality))
+    console.print(summary, soft_wrap=True)
 
 
 def _run(args):
@@ -297,15 +397,21 @@ def _run(args):
     require_known_tickers(tickers)
     refresh_analysis_inputs(tickers, args, fetch_prices=not args.no_prices)
 
+    console = cli_output.get_console()
     for ticker in tickers:
         try:
             row = service._analyze_ticker(ticker, no_prices=args.no_prices)
         except Exception as e:  # noqa: BLE001
-            print(f"\n{red(ticker)} — {red('ERROR:')} {e}")
+            line = Text(f"\n{ticker} — ", style=cli_output.DANGER)
+            line.append("ERROR:", style=cli_output.DANGER)
+            line.append(f" {e}")
+            console.print(line, soft_wrap=True)
             continue
 
         if row is None:
-            print(f"\n{red(ticker)} — Not enough data for the analysis.")
+            line = Text(f"\n{ticker} — ", style=cli_output.WARNING)
+            line.append("Not enough data for the analysis.")
+            console.print(line, soft_wrap=True)
             continue
 
         d = row.extra or {}
@@ -313,7 +419,13 @@ def _run(args):
         try:
             sector, industry = _company_overview(ticker, row.name)
 
-            _print_section(ticker)
+            _print_section(
+                ticker,
+                name=row.name,
+                price=row.price,
+                market_cap=row.market_cap,
+                sector=sector,
+            )
             _section_overview({"ticker": ticker, "name": row.name}, sector, industry)
             _section_price(
                 row.price,
@@ -334,4 +446,6 @@ def _run(args):
             print()
             print("-" * 72)
         except Exception as e:  # noqa: BLE001
-            print(f"\n  {red('ERROR:')} generating report for {ticker}: {e}")
+            line = Text("\n  ERROR:", style=cli_output.DANGER)
+            line.append(f" generating report for {ticker}: {e}")
+            console.print(line, soft_wrap=True)

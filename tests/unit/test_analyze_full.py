@@ -8,6 +8,7 @@ import pytest
 from backend.domain.value_objects.screener_result import ScreenerRow
 from backend.services.screener_service import StockScreenerService
 from cli.commands import analyze_full
+from cli.formatters import valuation_table
 
 
 def _analysis_dict(**overrides):
@@ -267,6 +268,70 @@ class TestAnalyzeFullMockedPrice:
         prices.get_current_price.assert_not_called()
         prices.get_shares_outstanding.assert_not_called()
         assert "--no-prices" in out
+
+
+def test_valuation_table_keeps_the_text_figures():
+    """Section 5 renders the summary rows as a table with the same formats
+    as the text version (``.2f`` and ``.2%``, missing values as ``N/A``)."""
+    table = valuation_table(
+        [
+            {
+                "fiscal_year": 2025,
+                "price": 200.0,
+                "eps": 20.0,
+                "pe_ratio": None,
+                "fcf_yield": 0.123,
+            },
+            {
+                "fiscal_year": 2024,
+                "price": None,
+                "eps": None,
+                "pe_ratio": None,
+                "fcf_yield": None,
+            },
+        ]
+    )
+    assert [column.header for column in table.columns] == [
+        "fiscal_year",
+        "price",
+        "eps",
+        "pe_ratio",
+        "fcf_yield",
+    ]
+    # Rich keeps row cells on their column (right-aligned numerics).
+    assert [str(cell) for cell in table.columns[0]._cells] == ["2025", "2024"]
+    assert [str(cell) for cell in table.columns[1]._cells] == ["200.00", "N/A"]
+    assert [str(cell) for cell in table.columns[2]._cells] == ["20.00", "N/A"]
+    assert [str(cell) for cell in table.columns[3]._cells] == ["N/A", "N/A"]
+    assert [str(cell) for cell in table.columns[4]._cells] == ["12.30%", "N/A"]
+
+
+def test_section_historical_prefers_the_structured_summary(monkeypatch, capsys):
+    """When the service exposes rows, section 5 renders them as a table; the
+    text form stays as the fallback for services without rows."""
+
+    class _Rows:
+        def get_historical_valuation_summary(self, ticker):
+            return [
+                {
+                    "fiscal_year": 2025,
+                    "price": 200.0,
+                    "eps": 20.0,
+                    "pe_ratio": 10.0,
+                    "fcf_yield": 0.09,
+                }
+            ]
+
+        def format_valuation_table(self, ticker):  # pragma: no cover - not used
+            raise AssertionError("text fallback must not run when rows exist")
+
+    monkeypatch.setattr(analyze_full, "HistoricalValuationService", _Rows)
+    analyze_full._section_historical("AAPL")
+    out = capsys.readouterr().out
+    assert "5) Historical valuation" in out
+    assert "fiscal_year" in out
+    assert "200.00" in out and "9.00%" in out
+    assert "text fallback" not in out
 
 
 if __name__ == "__main__":
