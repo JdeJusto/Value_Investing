@@ -18,6 +18,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from backend.methodologies.lynch_garp.methodology import (
+    CATEGORY_SHORT,
+    LynchCategory,
+)
 from backend.methodologies.registry import discover, registry
 from backend.services.narrative_extractor import SOURCE_LABELS
 
@@ -98,6 +102,7 @@ class MethodologiesView:
     consensus: str | None = None
     reason_lines: list[str] = field(default_factory=list)
     category: str | None = None
+    category_short: str | None = None
 
 
 @dataclass
@@ -130,6 +135,7 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
     table: list[dict[str, Any]] = []
     details: list[dict[str, Any]] = []
     category: str | None = None
+    category_short: str | None = None
     for result in results:
         metrics = dict(result.metrics or {})
         key_reason = result.reasons[0] if result.reasons else ""
@@ -151,6 +157,11 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
                 "score": result.score,
                 "confidence": result.confidence.value,
                 "category": metrics.get("lynch_category_label"),
+                "category_short": CATEGORY_SHORT.get(
+                    LynchCategory(metrics.get("lynch_category"))
+                    if metrics.get("lynch_category")
+                    else LynchCategory.UNKNOWN
+                ),
                 "rule_outcomes": metrics.get("rule_outcomes", {}),
                 "metrics": metrics,
                 "reasons": list(result.reasons),
@@ -159,6 +170,17 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
         )
         if result.methodology == "lynch_garp":
             category = metrics.get("lynch_category_label")
+            # Also compute short category for CSV export
+            lynch_cat = metrics.get("lynch_category")
+            if lynch_cat:
+                try:
+                    category_short = CATEGORY_SHORT.get(
+                        LynchCategory(lynch_cat), CATEGORY_SHORT[LynchCategory.UNKNOWN]
+                    )
+                except ValueError:
+                    category_short = CATEGORY_SHORT[LynchCategory.UNKNOWN]
+            else:
+                category_short = CATEGORY_SHORT[LynchCategory.UNKNOWN]
     agreement, family_lines, explanation, consensus = _disagreement_summary(results)
     reason_lines = [
         f"{result.methodology} ({result.verdict.value}): "
@@ -175,6 +197,7 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
         consensus=consensus,
         reason_lines=reason_lines,
         category=category,
+        category_short=category_short,
     )
 
 
@@ -540,7 +563,7 @@ def enrich_rows(
 
     def enrich_one(row: dict) -> dict | None:
         ticker = row["ticker"]
-        verdict = score = category = None
+        verdict = score = category = category_short = None
         try:
             fundamentals = load_fundamentals(ticker)
         except Exception:  # noqa: BLE001 — one bad ticker must not break the batch
@@ -564,7 +587,9 @@ def enrich_rows(
                 if detail:
                     verdict = detail["verdict"]
                     score = detail["score"]
+                    key_reason = detail["reasons"][0] if detail["reasons"] else ""
                 category = view.category
+                category_short = view.category_short
         return {
             "Ticker": ticker,
             "Name": row.get("name"),
@@ -573,9 +598,14 @@ def enrich_rows(
             "P/E": row.get("per"),
             "FCF Yield": row.get("fcf_yield"),
             "ROE": row.get("roe"),
+            "Dividend Yield": row.get("dividend_yield"),
+            "Dividend Rate": row.get("dividend_rate"),
+            "Dividend Yield 5Y": row.get("dividend_yield_5y"),
             "Verdict": verdict,
             "Score": score,
+            "Key Reason": key_reason if "key_reason" in locals() else None,
             "Category": category,
+            "Category Short": category_short,
         }
 
     if workers <= 1 or len(rows) <= 1:

@@ -389,9 +389,68 @@ class PriceService:
             pass
         return None
 
-    # ------------------------------------------------------------------
-    # market snapshots (single .info call per ticker)
-    # ------------------------------------------------------------------
+    def get_dividend_yield(self, ticker: str) -> float | None:
+        """Return the trailing annual dividend yield from Yahoo, or None.
+
+        Yield is expressed as a decimal (e.g., 0.024 for 2.4%).
+        """
+        key = f"dividend_yield:{ticker.upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return float(cached)
+
+        try:
+            info = yf.Ticker(ticker).info
+            # trailingAnnualDividendYield is a decimal; dividendYield is a percentage
+            yield_ = info.get("trailingAnnualDividendYield")
+            if yield_ is None:
+                yield_ = info.get("dividendYield")
+                if yield_ is not None:
+                    yield_ = float(yield_) / 100.0
+            if yield_ is not None:
+                yield_ = float(yield_)
+                self._set_cached(key, yield_)
+                return yield_
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
+            pass
+        return None
+
+    def get_dividend_rate(self, ticker: str) -> float | None:
+        """Return the annual dividend rate (dollars per share) from Yahoo, or None."""
+        key = f"dividend_rate:{ticker.upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return float(cached)
+
+        try:
+            info = yf.Ticker(ticker).info
+            rate = info.get("dividendRate")
+            if rate is not None:
+                rate = float(rate)
+                self._set_cached(key, rate)
+                return rate
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
+            pass
+        return None
+
+    def get_five_year_avg_dividend_yield(self, ticker: str) -> float | None:
+        """Return the 5-year average dividend yield from Yahoo, or None."""
+        key = f"dividend_yield_5y:{ticker.upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return float(cached)
+
+        try:
+            info = yf.Ticker(ticker).info
+            yld = info.get("fiveYearAvgDividendYield")
+            if yld is not None:
+                yld = float(yld) / 100.0
+                self._set_cached(key, yld)
+                return yld
+        except Exception:  # noqa: BLE001, S110 — provider failure must not break analysis
+            pass
+        return None
+
     def get_market_snapshots(
         self,
         tickers: list[str],

@@ -219,6 +219,25 @@ class StockScreenerService:
                 if ebit and ebit != 0:
                     ev = market_cap + (debt or 0) - (cash or 0)
                     d["ev_ebit"] = ev / ebit
+
+            # Dividend metrics
+            if d.get("dividend_yield") is None:
+                try:
+                    d["dividend_yield"] = self._price_service.get_dividend_yield(ticker)
+                except Exception:  # noqa: BLE001, S110
+                    pass
+            if d.get("dividend_rate") is None:
+                try:
+                    d["dividend_rate"] = self._price_service.get_dividend_rate(ticker)
+                except Exception:  # noqa: BLE001, S110
+                    pass
+            if d.get("dividend_yield_5y") is None:
+                try:
+                    d["dividend_yield_5y"] = (
+                        self._price_service.get_five_year_avg_dividend_yield(ticker)
+                    )
+                except Exception:  # noqa: BLE001, S110
+                    pass
         except Exception:  # noqa: BLE001, S110
             pass
 

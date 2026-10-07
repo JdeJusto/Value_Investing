@@ -12,6 +12,7 @@ from backend.services.ui_adapter import enrich_rows
 class _View:
     details: list = field(default_factory=list)
     category: str | None = None
+    category_short: str | None = None
 
 
 def _make_loaders(failing: set[str] | None = None, exploding: set[str] | None = None):
@@ -38,7 +39,12 @@ def _make_loaders(failing: set[str] | None = None, exploding: set[str] | None = 
             raise RuntimeError("evaluation blew up")
         return _View(
             details=[
-                {"methodology": "buffett_classic", "verdict": "BUY", "score": 80.0}
+                {
+                    "methodology": "buffett_classic",
+                    "verdict": "BUY",
+                    "score": 80.0,
+                    "reasons": ["test reason"],
+                }
             ],
             category="Quality",
         )

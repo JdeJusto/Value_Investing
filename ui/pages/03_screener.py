@@ -291,7 +291,17 @@ def _results() -> None:
     display = rows[:DISPLAY_CAP]
     if len(rows) > DISPLAY_CAP:
         st.caption(f"Showing the first {DISPLAY_CAP} rows of {len(rows)}.")
-    dataframe_with_download(display, "screener_results.csv", "screener_results")
+    # For CSV export: replace long Category with short Category Short
+    csv_rows = []
+    for row in display:
+        csv_row = dict(row)
+        if csv_row.get("Category Short"):
+            csv_row["Category"] = csv_row["Category Short"]
+        csv_row.pop("Category Short", None)
+        csv_rows.append(csv_row)
+    dataframe_with_download(
+        display, "screener_results.csv", "screener_results", csv_rows=csv_rows
+    )
 
 
 main()

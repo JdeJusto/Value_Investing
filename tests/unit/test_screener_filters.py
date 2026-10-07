@@ -68,10 +68,16 @@ def _loaders(rows_by_ticker, names):
     class _View:
         details: list = field(
             default_factory=lambda: [
-                {"methodology": "buffett_classic", "verdict": "BUY", "score": 80.0}
+                {
+                    "methodology": "buffett_classic",
+                    "verdict": "BUY",
+                    "score": 80.0,
+                    "reasons": ["test reason"],
+                }
             ]
         )
         category: str | None = "Quality"
+        category_short: str | None = "Quality"
 
     def run_methodologies(ticker, fundamentals, price):
         return _View()

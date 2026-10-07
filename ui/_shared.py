@@ -84,13 +84,18 @@ def load_ticker_list() -> list[str]:
 
 
 def rows_to_csv(rows: list[dict[str, Any]]) -> str:
-    """Serialize a list of row dicts to CSV (pure, testable)."""
+    """Serialize a list of row dicts to CSV (pure, testable).
+
+    None/empty values are written as "N/A" per F4 requirement.
+    """
     if not rows:
         return ""
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=list(rows[0].keys()))
     writer.writeheader()
-    writer.writerows(rows)
+    for row in rows:
+        csv_row = {k: ("N/A" if v is None or v == "" else v) for k, v in row.items()}
+        writer.writerow(csv_row)
     return buffer.getvalue()
 
 
@@ -134,8 +139,14 @@ def dataframe_with_download(
     key: str,
     *,
     height: int | None = None,
+    csv_rows: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Sortable dataframe plus a CSV download button for the same rows."""
+    """Sortable dataframe plus a CSV download button.
+
+    By default the CSV contains the same rows as the displayed table. Pass
+    ``csv_rows`` to customize the CSV content (e.g. different column values
+    for export) while the UI still shows ``rows``.
+    """
     if not rows:
         st.info("No rows to display.")
         return
@@ -144,9 +155,12 @@ def dataframe_with_download(
     if height is not None:
         kwargs["height"] = height
     st.dataframe(rows, **kwargs)
+    download_data = rows_to_csv(csv_rows if csv_rows is not None else rows).encode(
+        "utf-8"
+    )
     st.download_button(
         "Download CSV",
-        data=rows_to_csv(rows).encode("utf-8"),
+        data=download_data,
         file_name=filename,
         mime="text/csv",
         key=key,
