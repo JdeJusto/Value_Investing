@@ -238,13 +238,13 @@ API_CORS_ORIGINS=http://localhost:8501,http://127.0.0.1:8501
 3. **No business logic duplicated** — API handlers are thin wrappers
 
 ### Dependency Isolation
-```toml
-# pyproject.toml
-[project.optional-dependencies]
-api = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "python-multipart>=0.0.9"]
-```
-- Base install: `pipenv install` (CLI + Streamlit only)
-- API install: `pipenv install -e ".[api]"`
+
+This repo has no `pyproject.toml`; dependencies are declared in `Pipfile`.
+`fastapi`, `uvicorn[standard]` and `httpx` (the FastAPI TestClient) are already
+declared there and installed in `.venv`, so the API adds no new dependency to
+install. A future move to a `pyproject.toml` `api` extra — so a base CLI +
+Streamlit install does not pull FastAPI — is a packaging follow-up, not a
+Phase-1 blocker.
 
 ### Data Consistency
 - Same FDB PostgreSQL
