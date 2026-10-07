@@ -30,34 +30,28 @@ Play Store release.
 **Testable:** `uvicorn backend.api.app:app --reload` → `/api/v1/health` 200 and `/api/v1/company/AAPL` returns the envelope; wrong key → 401.
 
 ### Phase 2 — Read-only company endpoints (2-3 days)
-- [ ] `/api/v1/company/{ticker}` — profile
-- [ ] `/api/v1/company/{ticker}/fundamentals` — last N years
 - [ ] `/api/v1/company/{ticker}/methodologies` — 8 verdicts
 - [ ] `/api/v1/company/{ticker}/dcf` — DCF valuation
-- [ ] `/api/v1/price/{ticker}` + `/history`
-- [ ] Response envelope (`data` + `meta`), error format
-- [ ] OpenAPI docs auto-generated at `/docs`
+- [ ] `/api/v1/alerts/{ticker}` — per-ticker alert feed (Home fans out per open position, plus Company Detail)
+- [ ] Reuse the Phase-1 envelope and error pattern
 
-**Testable:** mobile can fetch AAPL fundamentals + verdicts.
+**Testable:** mobile can render the Methodologies, DCF and Alerts panels.
 
 ### Phase 3 — Filings and financials endpoints (2-3 days)
 - [ ] `/api/v1/company/{ticker}/filings` — list with form/year filters
 - [ ] `/api/v1/company/{ticker}/filing/{accession}/statement/{type}`
 - [ ] `/api/v1/company/{ticker}/filing/{accession}/section/{type}`
-- [ ] `/api/v1/company/{ticker}/financials` — all facts per year
+- [ ] `/api/v1/company/{ticker}/financials` — facts per year
 - [ ] `/api/v1/insights/{ticker}`
-- [ ] `/api/v1/historical-valuation/{ticker}`
 
-**Testable:** full company deep-dive via API.
+**Testable:** full company deep-dive via API (Financials + Filings tabs).
 
 ### Phase 4 — Screener and consensus endpoints (2 days)
 - [ ] `/api/v1/screener` with filters + pagination
-- [ ] `/api/v1/consensus`, `/ranking`, `/by-category`, `/disagreement`, `/matrix`
-- [ ] `/api/v1/opportunities`
-- [ ] `/api/v1/alerts/{ticker}`
-- [ ] `/api/v1/search`
+- [ ] `/api/v1/consensus`, `/ranking`, `/by-category`, `/disagreement`
+- [ ] `/api/v1/search` — ticker/name lookup for the Home search bar
 
-**Testable:** mobile can screen and rank.
+**Testable:** mobile can screen, rank and search.
 
 ### Phase 5 — Portfolio endpoints (1 day)
 - [ ] `GET /api/v1/portfolio`
@@ -66,7 +60,6 @@ Play Store release.
 - [ ] `POST /api/v1/portfolio/positions/{ticker}/exit`
 - [ ] `GET /api/v1/portfolio/performance`
 - [ ] `fcntl.flock` around JSON read-modify-write
-- [ ] Reports endpoints (`/reports`, `/reports/{date}`)
 
 **Testable:** mobile can add/exit positions; CLI sees the same data.
 
@@ -109,6 +102,23 @@ Play Store release.
 - [ ] User documentation for install + update
 
 **Testable:** APK installed and working on the user's phone.
+
+---
+
+## Deferred endpoints
+
+Not consumed by any mobile screen. They stay in `docs/api_design.md` as design
+intent and can be added when a real use case appears:
+
+| Endpoint | Why it is deferred |
+|----------|--------------------|
+| `GET /company/{ticker}/fundamentals` | The Financials tab consumes `/financials` (facts per year); the normalized multi-year series returns if the Overview needs it |
+| `GET /historical-valuation/{ticker}` | No mobile screen shows the historical P/E + FCF-yield table |
+| `GET /price/{ticker}` | Price and market cap are embedded in `/company/{ticker}` and `/portfolio`; a standalone quote endpoint waits for a pull-to-refresh need |
+| `GET /price/{ticker}/history` | No mobile chart is specced to need OHLC history yet |
+| `GET /consensus/matrix` | The Consensus screen shows top / by-category / disagreement, not the full verdict matrix |
+| `GET /opportunities` | No mobile screen; the CLI/Streamlit opportunity view stays local |
+| `GET /reports`, `GET /reports/{date}` | No Reports tab in the mobile app; reports stay local in CLI/Streamlit |
 
 ---
 
@@ -156,7 +166,7 @@ This is a real range, not marketing. Solo development with AI assistance.
 - [ ] CLI and Streamlit still work exactly as before
 - [ ] API runs on the local machine and on Tailscale
 - [ ] Mobile app connects via LAN IP and via Tailscale
-- [ ] All 28 endpoints documented in `/docs` (FastAPI autodoc)
+- [ ] All app-facing endpoints (Phases 1-5) documented in `/docs` (FastAPI autodoc)
 - [ ] APK installable on the user's phone
 - [ ] Portfolio changes sync between mobile and CLI
 - [ ] No duplicate business logic (mobile → API → services)

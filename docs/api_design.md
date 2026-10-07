@@ -36,9 +36,9 @@ Install with: `pipenv install -e ".[api]"` (base install unchanged)
 
 ---
 
-## B2 — Endpoint Surface (28 endpoints)
+## B2 — Endpoint Surface (30 endpoints: 22 near-term + 8 deferred)
 
-All endpoints prefixed with `/api/v1/`. Versioning allows future breaking changes without breaking installed mobile apps.
+All endpoints prefixed with `/api/v1/`. Versioning allows future breaking changes without breaking installed mobile apps. Phases 1-5 implement the 22 app-facing endpoints; the remaining 8 stay here as design intent and are deferred (see `docs/api_roadmap.md`, "Deferred endpoints").
 
 ### Response Envelope
 
