@@ -14,13 +14,15 @@ import statistics
 from typing import Any
 
 from backend.methodologies.base import (
-    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 from backend.methodologies.fisher_quantitative_subset.rules import (
     RULES,
     RULES_SOURCES,
@@ -176,7 +178,9 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                         "inventory, gross margin and R&D; financials (banks, "
                         "insurers) do not fit."
                     ),
-                    FINANCIAL_NA_REASON,
+                    financial_na_reason(
+                        latest, rows, getattr(latest, "sector", None), ticker
+                    ),
                     f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],

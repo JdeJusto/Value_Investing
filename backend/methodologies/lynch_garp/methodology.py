@@ -30,13 +30,15 @@ from typing import Any
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import (
-    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 from backend.methodologies.common.ratio_guards import (
     is_meaningful_pbv,
     is_meaningful_pe,
@@ -198,6 +200,9 @@ class LynchGARPMethodology(Methodology):
                 "(banks, insurers). Debt and inventory rules are "
                 "structurally different. See README for details."
             )
+            na_reason = financial_na_reason(
+                latest, rows, getattr(latest, "sector", None), ticker
+            )
             return MethodologyResult(
                 methodology=self.name,
                 version=self.version,
@@ -212,7 +217,7 @@ class LynchGARPMethodology(Methodology):
                 },
                 reasons=[
                     financial_reason,
-                    FINANCIAL_NA_REASON,
+                    na_reason,
                     f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],

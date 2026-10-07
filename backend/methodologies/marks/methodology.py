@@ -29,7 +29,10 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 from backend.methodologies.common.ratio_guards import (
     is_meaningful_ev_ebit,
     is_meaningful_fcf_yield,
@@ -146,6 +149,9 @@ class MarksMethodology(Methodology):
         latest = rows[0] if rows else None
 
         if is_financial(latest, getattr(latest, "sector", None)):
+            na_reason = financial_na_reason(
+                latest, rows, getattr(latest, "sector", None), ticker
+            )
             return self._insufficient(
                 ticker,
                 (
@@ -154,6 +160,7 @@ class MarksMethodology(Methodology):
                     "the same thing for banks and insurers."
                 ),
                 verdict=Verdict.NOT_APPLICABLE,
+                na_reason=na_reason,
             )
         if latest is None or len(rows) < MIN_HISTORY_YEARS:
             return self._insufficient(
@@ -381,10 +388,13 @@ class MarksMethodology(Methodology):
         ticker: str,
         reason: str,
         verdict: Verdict = Verdict.INSUFFICIENT_DATA,
+        na_reason: str | None = None,
     ) -> MethodologyResult:
         reasons = [reason]
         if verdict is Verdict.NOT_APPLICABLE:
-            reasons.insert(0, FINANCIAL_NA_REASON)
+            reasons.insert(
+                0, na_reason if na_reason is not None else FINANCIAL_NA_REASON
+            )
         reasons.append(f"verdict: {verdict.value}")
         return MethodologyResult(
             methodology=self.name,

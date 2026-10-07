@@ -16,7 +16,6 @@ from backend.intelligence.buffett_engine import buffett_filter
 from backend.intelligence.moat_analysis import analyze_moat
 from backend.intelligence.quality_metrics import compute_quality_metrics
 from backend.methodologies.base import (
-    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -24,7 +23,10 @@ from backend.methodologies.base import (
     SourceRef,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 
 # The engine (buffett_engine.py) defines per-pillar thresholds but no
 # BUY/WATCH/HOLD/AVOID mapping, so the wrapper uses the framework's agreed
@@ -99,7 +101,9 @@ class BuffettClassicMethodology(Methodology):
                         "(banks, insurers): the 4-pillar filter reads bank "
                         "leverage as weakness. See README for details."
                     ),
-                    FINANCIAL_NA_REASON,
+                    financial_na_reason(
+                        latest, rows, getattr(latest, "sector", None), ticker
+                    ),
                     f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],

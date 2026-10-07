@@ -10,13 +10,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from backend.methodologies.base import (
-    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 
 from .rules import ALL_RULES
 
@@ -77,7 +79,7 @@ class BuffettClarkMethodology(Methodology):
                         "companies (banks, insurers): gross margin, interest "
                         "burden and debt thresholds assume a product company."
                     ),
-                    FINANCIAL_NA_REASON,
+                    financial_na_reason(latest, rows, latest.sector, ticker),
                     f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],

@@ -29,6 +29,16 @@ from backend.services.ui_adapter import enrich_rows, run_methodologies
 from scripts.compute_consensus_rankings import build_company_consensus
 
 
+def _has_financial_na_reason(reasons: list[str]) -> bool:
+    """True when any reason indicates a financial N/A (generic or subtype-specific)."""
+    for r in reasons:
+        if FINANCIAL_NA_REASON in r:
+            return True
+        if " — rules do not apply" in r and r.endswith("rules do not apply"):
+            return True
+    return False
+
+
 class _Prices:
     """Minimal price stub (the financial guard never reads it)."""
 
@@ -72,7 +82,7 @@ def test_every_methodology_returns_na_for_a_bank(methodology, ticker):
     assert result.verdict is Verdict.NOT_APPLICABLE
     assert result.score is None
     assert result.metrics["financial_company"] is True
-    assert FINANCIAL_NA_REASON in result.reasons
+    assert _has_financial_na_reason(result.reasons)
     # Not a data gap: the canonical financial reason is present.
     assert not any("verdict: INSUFFICIENT_DATA" in reason for reason in result.reasons)
 

@@ -22,13 +22,15 @@ from typing import Any
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import (
-    FINANCIAL_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 from backend.methodologies.common.ratio_guards import (
     is_meaningful_pbv,
     is_meaningful_pe,
@@ -120,7 +122,7 @@ class GrahamMethodology(Methodology):
                         "companies (banks, insurers). The balance-sheet criteria "
                         "assume an industrial or utility."
                     ),
-                    FINANCIAL_NA_REASON,
+                    financial_na_reason(latest, rows, latest.sector, ticker),
                     f"verdict: {Verdict.NOT_APPLICABLE.value}",
                 ],
                 red_flags=[],

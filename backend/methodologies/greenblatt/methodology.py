@@ -27,7 +27,10 @@ from backend.methodologies.base import (
     MethodologyResult,
     Verdict,
 )
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.common.company_type import (
+    financial_na_reason,
+    is_financial,
+)
 from backend.methodologies.greenblatt.rules import ALL_RULES, RULE_3_RANK
 
 #: Where the weekly ranking files live (relative to the repo root).
@@ -62,6 +65,9 @@ class GreenblattMethodology(Methodology):
         latest = rows[0] if rows else None
 
         if is_financial(latest, getattr(latest, "sector", None)):
+            na_reason = financial_na_reason(
+                latest, rows, getattr(latest, "sector", None), ticker
+            )
             return self._insufficient(
                 ticker,
                 (
@@ -70,6 +76,7 @@ class GreenblattMethodology(Methodology):
                     "an industrial balance sheet."
                 ),
                 verdict=Verdict.NOT_APPLICABLE,
+                na_reason=na_reason,
             )
 
         payload, error = self._load_rankings()
@@ -241,10 +248,13 @@ class GreenblattMethodology(Methodology):
         ticker: str,
         reason: str,
         verdict: Verdict = Verdict.INSUFFICIENT_DATA,
+        na_reason: str | None = None,
     ) -> MethodologyResult:
         reasons = [reason]
         if verdict is Verdict.NOT_APPLICABLE:
-            reasons.insert(0, FINANCIAL_NA_REASON)
+            reasons.insert(
+                0, na_reason if na_reason is not None else FINANCIAL_NA_REASON
+            )
         reasons.append(f"verdict: {verdict.value}")
         return MethodologyResult(
             methodology=self.name,

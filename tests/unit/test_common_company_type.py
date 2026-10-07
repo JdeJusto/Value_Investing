@@ -15,7 +15,9 @@ from __future__ import annotations
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.common.company_type import (
     CompanyType,
+    FinancialSubtype,
     detect_company_type,
+    detect_financial_subtype,
     is_financial,
     is_hyper_growth,
     is_reit,
@@ -293,3 +295,87 @@ def test_revenue_cagr_fallback_from_ocf_minus_capex():
     result = detect_company_type(rows[0], rows)
     assert is_hyper_growth(rows[0], rows) is True
     assert result is CompanyType.HYPER_GROWTH
+
+
+# ---------------------------------------------------------------------------
+# financial subtype
+# ---------------------------------------------------------------------------
+def test_financial_subtype_from_sector_hint():
+    assert (
+        detect_financial_subtype(None, sector_hint="Banks—Diversified")
+        is FinancialSubtype.BANK
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Credit Union")
+        is FinancialSubtype.BANK
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Insurance")
+        is FinancialSubtype.INSURANCE
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Reinsurance")
+        is FinancialSubtype.INSURANCE
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Payment")
+        is FinancialSubtype.PAYMENTS
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Asset Management")
+        is FinancialSubtype.ASSET_MANAGEMENT
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Asset Manager")
+        is FinancialSubtype.ASSET_MANAGEMENT
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Capital Markets")
+        is FinancialSubtype.CAPITAL_MARKETS
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Broker")
+        is FinancialSubtype.CAPITAL_MARKETS
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Exchange")
+        is FinancialSubtype.CAPITAL_MARKETS
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Diversified Financial")
+        is FinancialSubtype.FINANCIAL_OTHER
+    )
+    assert (
+        detect_financial_subtype(None, sector_hint="Financial Services")
+        is FinancialSubtype.FINANCIAL_OTHER
+    )
+
+
+def test_financial_subtype_falls_back_to_other_without_sector_hint():
+    # A bank-like fingerprint with no sector hint -> FINANCIAL_OTHER
+    row = _row(2024, inventory=None, long_term_debt=60e9, net_income=10e9, revenue=40e9)
+    assert detect_financial_subtype(row) is FinancialSubtype.FINANCIAL_OTHER
+
+
+def test_non_financial_returns_financial_other():
+    row = _row(
+        2024,
+        revenue=390e9,
+        inventory=6.5e9,
+        operating_cash_flow=118e9,
+        capital_expenditure=11e9,
+    )
+    assert detect_financial_subtype(row) is FinancialSubtype.FINANCIAL_OTHER
+
+
+def test_reit_and_utility_return_financial_other():
+    row_reit = _row(2024, sector="Real Estate")
+    row_util = _row(2024, sector="Utilities")
+    assert (
+        detect_financial_subtype(row_reit, sector_hint=row_reit.sector)
+        is FinancialSubtype.FINANCIAL_OTHER
+    )
+    assert (
+        detect_financial_subtype(row_util, sector_hint=row_util.sector)
+        is FinancialSubtype.FINANCIAL_OTHER
+    )
