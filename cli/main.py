@@ -96,6 +96,7 @@ def main():
         filings,
         financial_alerts,
         historical_valuation,
+        interactive,
         load_data,
         momentum,
         opportunities,
@@ -132,6 +133,7 @@ def main():
     filing_statement.register(sub)
     filing_section.register(sub)
     financial_alerts.register(sub)
+    interactive.register(sub)
     register_methodologies(sub)
 
     # After registration: the root and every (nested) subparser accept

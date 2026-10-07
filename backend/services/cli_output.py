@@ -174,10 +174,12 @@ def print_banner(title: str, body=None, *, console: Console | None = None) -> No
     print_panel(panel, console=console)
 
 
-def print_panel(renderable, *, console: Console | None = None) -> None:
-    """Print a panel capped at :data:`PANEL_WIDTH` (never wider than needed)."""
+def print_panel(
+    renderable, *, console: Console | None = None, width: int | None = None
+) -> None:
+    """Print a panel capped at ``width`` (default :data:`PANEL_WIDTH`)."""
     console = console or get_console()
-    console.print(renderable, width=min(console.width, PANEL_WIDTH))
+    console.print(renderable, width=min(console.width, width or PANEL_WIDTH))
 
 
 def heading(text: str, indent: int = 2) -> Text:
