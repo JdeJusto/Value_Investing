@@ -227,3 +227,29 @@ def test_demo_flag_reads_the_bundled_fixture(demo):
     assert report is not None
     assert report.universe == "sp500"
     assert len(report.companies) == 30
+
+
+def test_consensus_renders_the_verdict_table(demo, capsys):
+    """The methodology/verdict block is a framed table, still plain when
+    stdout is redirected."""
+    args = _args(["consensus", "AAPL", "--demo"])
+    consensus_cmd._run(args)
+    out = capsys.readouterr().out
+
+    assert "┏" in out and "┃" in out and "└" in out
+    assert "Methodology" in out and "Verdict" in out
+    for methodology in METHODOLOGIES:
+        assert methodology in out
+    assert "\x1b" not in out
+
+
+def test_by_category_renders_one_table_per_category(demo, capsys):
+    args = _args(["consensus-by-category", "--demo", "--per-category", "3"])
+    rows = consensus_by_category._run(args)
+    out = capsys.readouterr().out
+
+    assert "┏" in out
+    for header in ("#", "Ticker", "Name", "BUYs", "AVOIDs", "Score"):
+        assert header in out
+    assert rows
+    assert "\x1b" not in out

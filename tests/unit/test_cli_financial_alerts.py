@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from typing import ClassVar
 
@@ -207,3 +208,32 @@ def test_demo_mode_without_a_fixture(monkeypatch, capsys):
     monkeypatch.setattr(alert_module, "load_demo_alerts", lambda ticker: None)
     _run("financial-alerts", "ZZZZ")
     assert "No alerts fixture for" in capsys.readouterr().out
+
+
+def test_severity_group_and_bullets_are_colored_on_a_tty(monkeypatch):
+    """On a terminal the group header and alert bullets carry the severity
+    color; a redirected run keeps plain text (asserted by the tests above)."""
+    import io
+
+    class _TTY(io.StringIO):
+        def isatty(self) -> bool:  # pragma: no cover - trivial
+            return True
+
+    _AlertService.report = _report(
+        [
+            _alert("low_cash_runway", "CRITICAL", title="Low cash runway"),
+            _alert("revenue_decline", "INFO", title="Revenue decline"),
+        ]
+    )
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys, "stdout", _TTY())
+
+    with pytest.raises(SystemExit):
+        _run("financial-alerts", "AAPL")
+
+    out = sys.stdout.getvalue()
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", out)
+    assert "🔴 CRITICAL (1)" in plain
+    assert "🔵 INFO (1)" in plain
+    assert "  • Low cash runway" in plain
+    assert "\x1b" in out  # severity colors are emitted on a terminal

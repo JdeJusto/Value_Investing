@@ -6,7 +6,7 @@ import webbrowser
 from datetime import date
 
 from backend.app.cli import add_demo_argument
-from cli.formatters import dim, print_header, red
+from cli.formatters import dim, print_header, print_table, red
 
 
 def register(subparsers):
@@ -95,10 +95,7 @@ def _run(args):
         print("  No filings match the filters. Try --all or a wider date range.")
         return
 
-    print(
-        f"  {'Form':<7} {'Filed':<12} {'Period':<12} {'FY':<6} {'Accession':<22} Link"
-    )
-    print("  " + "─" * 74)
+    rows = []
     for record in records:
         link = record.sec_url or ""
         shown = link if args.urls else _hyperlink(link)
@@ -106,10 +103,27 @@ def _run(args):
         fiscal_year = (
             str(record.effective_fiscal_year) if record.effective_fiscal_year else "—"
         )
-        print(
-            f"  {record.form_type:<7} {record.filing_date.isoformat():<12} "
-            f"{period:<12} {fiscal_year:<6} {record.accession_number:<22} {shown}"
+        rows.append(
+            [
+                record.form_type,
+                record.filing_date.isoformat(),
+                period,
+                fiscal_year,
+                record.accession_number,
+                shown,
+            ]
         )
+    print_table(
+        [
+            ("Form", 0),
+            ("Filed", 0),
+            ("Period", 0),
+            ("FY", 0),
+            ("Accession", 0),
+            ("Link", 0),
+        ],
+        rows,
+    )
 
     print()
     print(f"  Total: {len(records)} filings")

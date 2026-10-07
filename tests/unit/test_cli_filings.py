@@ -155,3 +155,18 @@ def test_urls_flag_prints_the_document_url_when_available(monkeypatch, capsys):
         "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
         "aapl-20240928.htm" in out
     )
+
+
+def test_rows_are_rendered_as_a_table_without_ansi(monkeypatch, capsys):
+    """Filings render through the shared table helper: a framed table on a
+    terminal-less run and never a single escape code."""
+    _Recorder.records = [_record(), _record("10-Q")]
+    _run("AAPL")
+    out = capsys.readouterr().out
+
+    assert "┏" in out and "┃" in out and "└" in out  # rich table frame
+    for header in ("Form", "Filed", "Period", "FY", "Accession", "Link"):
+        assert header in out
+    assert "0000320193-24-000123" in out
+    assert "10-Q" in out
+    assert "\x1b" not in out

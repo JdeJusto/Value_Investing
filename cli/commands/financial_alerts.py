@@ -9,7 +9,10 @@ chains can react: ``financial-alerts AAPL || notify-send "Alert"``.
 
 from __future__ import annotations
 
+from rich.text import Text
+
 from backend.app.cli import add_demo_argument
+from backend.services import cli_output
 from cli.formatters import print_header, red
 
 _SEVERITY_EMOJI = {"CRITICAL": "🔴", "WARNING": "🟠", "INFO": "🔵"}
@@ -81,6 +84,7 @@ def _run(args):
 
     print_header(f"Financial Alerts — {ticker} ({report.company_name})")
 
+    console = cli_output.get_console()
     shown = [
         alert
         for alert in report.alerts
@@ -88,11 +92,19 @@ def _run(args):
     ]
     for severity in _SEVERITY_ORDER:
         group = [alert for alert in shown if alert.severity == severity]
+        header = Text(f"{_SEVERITY_EMOJI[severity]} ")
+        header.append(cli_output.severity_text(severity))
+        header.append(f" ({len(group)})")
         print()
-        print(f"{_SEVERITY_EMOJI[severity]} {severity} ({len(group)})")
+        console.print(header, soft_wrap=True)
         for alert in group:
             print()
-            print(f"  • {alert.title}")
+            console.print(
+                cli_output.bullet_line(
+                    alert.title, style=cli_output.SEVERITY_COLORS.get(severity, "")
+                ),
+                soft_wrap=True,
+            )
             print(f"    {alert.message}")
             evidence = " · ".join(
                 f"{key}: {value}" for key, value in alert.evidence.items()

@@ -11,15 +11,14 @@ import json
 from pathlib import Path
 
 from backend.app.cli import add_demo_argument
+from backend.services import cli_output
 from backend.services.consensus_service import (
     CompanyConsensus,
     ConsensusReport,
     ConsensusService,
     default_consensus_dir,
 )
-from cli.formatters import fmt_dollar, print_header
-
-_TABLE_WIDTH = 30
+from cli.formatters import fmt_dollar, print_header, print_table
 
 
 def add_common_arguments(parser) -> None:
@@ -124,10 +123,13 @@ def _run(args) -> None:
     print_header(f"Consensus — {ticker} ({company.name})")
     print(f"  As of: {report.date} · Universe: {report.universe}")
     print()
-    print(f"  {'Methodology':<{_TABLE_WIDTH}}  Verdict")
-    print("  " + "─" * (_TABLE_WIDTH + 9))
-    for methodology, verdict in company.verdicts.items():
-        print(f"  {methodology:<{_TABLE_WIDTH}}  {verdict}")
+    print_table(
+        [("Methodology", 0), ("Verdict", 0)],
+        [
+            [methodology, cli_output.verdict_text(verdict)]
+            for methodology, verdict in company.verdicts.items()
+        ],
+    )
     print()
     counts: dict[str, int] = {}
     for verdict in company.verdicts.values():

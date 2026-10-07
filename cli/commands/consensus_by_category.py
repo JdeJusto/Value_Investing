@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.services import cli_output
 from backend.services.consensus_service import LYNCH_CATEGORIES
 from cli.commands.consensus import (
     add_common_arguments,
@@ -9,7 +10,7 @@ from cli.commands.consensus import (
     missing_message,
     write_csv,
 )
-from cli.formatters import bold, print_header
+from cli.formatters import print_header, print_table
 
 _EMPTY_NOTE = "No companies in this category in the current universe."
 
@@ -46,6 +47,7 @@ def _run(args) -> list[dict]:
         return []
     print_header(f"Consensus by Lynch category — {report.universe} ({report.date})")
     csv_rows: list[dict] = []
+    console = cli_output.get_console()
     for category in LYNCH_CATEGORIES:
         members = [
             company
@@ -53,18 +55,34 @@ def _run(args) -> list[dict]:
             if company.lynch_category == category
         ]
         print()
-        print(f"  {bold(category)}")
-        print("  " + "─" * 48)
+        console.print(cli_output.heading(category), soft_wrap=True)
+        console.print(cli_output.rule(length=48), soft_wrap=True)
         ranked = rank_category(members, args.per_category)
         if not ranked:
             print(f"  {_EMPTY_NOTE}")
             continue
+        print_table(
+            [
+                ("#", 1),
+                ("Ticker", 0),
+                ("Name", 0),
+                ("BUYs", 1),
+                ("AVOIDs", 1),
+                ("Score", 1),
+            ],
+            [
+                [
+                    str(index),
+                    company.ticker,
+                    company.name,
+                    str(company.buy_count),
+                    str(company.avoid_count),
+                    f"{company.consensus_score:+d}",
+                ]
+                for index, company in enumerate(ranked, 1)
+            ],
+        )
         for index, company in enumerate(ranked, 1):
-            print(
-                f"  {index}. {company.ticker:<6} ({company.name})  "
-                f"BUYs: {company.buy_count}  AVOIDs: {company.avoid_count}  "
-                f"Score: {company.consensus_score:+d}"
-            )
             csv_rows.append(
                 {
                     "Category": category,
