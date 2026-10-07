@@ -253,9 +253,46 @@ api = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "python-multipart>=0.0.9"]
 - Same reports directory (`data/reports/`)
 
 ### Race Conditions (Portfolio Writes)
-- Portfolio JSON read-modify-write from mobile + CLI could collide
-- **Mitigation:** `fcntl.flock` around JSON file in `JsonPortfolioRepository`
-- Design documented here; implementation in Phase 5
+- See "Portfolio write invariant" below — it is a design requirement, not an
+  implementation detail of Phase 5.
+
+---
+
+## Portfolio write invariant
+
+The portfolio JSON (`data/portfolio.json`) has **three potential writers**:
+
+- the mobile app, via the REST API;
+- the local CLI (`python main.py portfolio ...`);
+- the Streamlit UI.
+
+If two writers do a read-modify-write simultaneously, one of the changes is
+lost (or the JSON is corrupted).
+
+**Invariant:** every write goes through a single service (`PortfolioService`)
+that holds an exclusive file lock (`fcntl.flock`) around the whole
+read-modify-write block. No consumer writes the JSON directly.
+
+Consequences for the design:
+
+- API handlers for portfolio mutations do NOT read-modify-write the JSON;
+  they call `PortfolioService`.
+- The CLI already goes through `PortfolioService` (verified 2026-10-07:
+  `cli/commands/portfolio.py` uses `build_portfolio_service()`).
+- Streamlit add/exit/remove already go through `PortfolioService`, but the
+  "Save prices to portfolio" button writes through
+  `JsonPortfolioRepository.save()` directly (`ui/pages/04_portfolio.py`, and
+  `portfolio_adapter.save_portfolio_prices`) — a known exception to fix in
+  Phase 5.
+- Reads may stay lock-free when they tolerate a slightly stale snapshot;
+  writes must hold the lock.
+
+This invariant must be tested before Phase 5 ships:
+
+- a test that runs two concurrent `PortfolioService` writes from separate
+  threads and asserts the final file contains both changes (no lost update);
+- a test that verifies the CLI and the API mutate only through the service
+  (not the JSON file directly).
 
 ---
 

@@ -53,15 +53,19 @@ Play Store release.
 
 **Testable:** mobile can screen, rank and search.
 
-### Phase 5 — Portfolio endpoints (1 day)
+### Phase 5 — Portfolio endpoints (1-2 days)
 - [ ] `GET /api/v1/portfolio`
 - [ ] `POST /api/v1/portfolio/positions`
 - [ ] `DELETE /api/v1/portfolio/positions/{ticker}`
 - [ ] `POST /api/v1/portfolio/positions/{ticker}/exit`
 - [ ] `GET /api/v1/portfolio/performance`
-- [ ] `fcntl.flock` around JSON read-modify-write
+- [ ] `PortfolioService` uses `fcntl.flock` for writes.
+- [ ] CLI portfolio mutations go through `PortfolioService`.
+- [ ] Streamlit portfolio mutations go through `PortfolioService`
+      (`save_portfolio_prices` currently writes via the repository directly).
+- [ ] Concurrent-write test passes (no lost updates).
 
-**Testable:** mobile can add/exit positions; CLI sees the same data.
+**Testable:** mobile can add/exit positions; CLI sees the same data; two concurrent writes keep both changes.
 
 ### Phase 6 — Mobile app: skeleton (3-4 days)
 - [ ] Expo project init (`npx create-expo-app`)
@@ -130,12 +134,12 @@ intent and can be added when a real use case appears:
 | 2 — Company endpoints | 2-3 days |
 | 3 — Filings/financials | 2-3 days |
 | 4 — Screener/consensus | 2 days |
-| 5 — Portfolio | 1 day |
+| 5 — Portfolio | 1-2 days |
 | 6 — Mobile skeleton | 3-4 days |
 | 7 — Mobile company detail | 3-5 days |
 | 8 — Mobile remaining screens | 5-7 days |
 | 9 — Polish + distribute | 2-3 days |
-| **Total** | **21-30 days (roughly 4-6 weeks part-time)** |
+| **Total** | **22-32 days (roughly 5-6 weeks part-time)** |
 
 This is a real range, not marketing. Solo development with AI assistance.
 
