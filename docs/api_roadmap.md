@@ -17,16 +17,17 @@ Play Store release.
 
 ## Phase List
 
-### Phase 1 — FastAPI skeleton (1-2 days)
-- [ ] Add `api` optional dependency to `pyproject.toml`
-- [ ] Create `backend/api/__init__.py`, `backend/api/app.py`, `backend/api/auth.py`
-- [ ] Implement `/health` and `/api/v1/version` endpoints
-- [ ] API key middleware (`X-API-Key`)
-- [ ] `tests/api/test_app.py` with TestClient fixture
+### Phase 1 — FastAPI skeleton + first real endpoint (2-3 days)
+- [ ] Verify the API dependencies already declared in `Pipfile` (`fastapi`, `uvicorn[standard]`, `httpx`) — nothing to install
+- [ ] Replace the stale experimental `backend/api/` package (delete `main.py`, `deps.py`, `v1/`; repoint the two legacy Docker references)
+- [ ] Create `backend/api/` (`__init__.py`, `app.py`, `auth.py`, `responses.py`, `deps.py`, `routes/system.py`, `routes/company.py`)
+- [ ] `GET /api/v1/health` and `GET /api/v1/version` (no auth)
+- [ ] `GET /api/v1/company/{ticker}` — first real endpoint (FDB + `PriceService`, envelope, 404 `TICKER_NOT_FOUND`, fail-closed 503)
+- [ ] `tests/api/test_app.py` with stubbed services (no DB, no Yahoo)
 - [ ] `.env.example` updated
-- [ ] Does NOT touch existing code
+- [ ] Does NOT touch existing services, CLI or Streamlit
 
-**Testable:** `uvicorn backend.api.app:app --reload` → `GET /health` returns 200.
+**Testable:** `uvicorn backend.api.app:app --reload` → `/api/v1/health` 200 and `/api/v1/company/AAPL` returns the envelope; wrong key → 401.
 
 ### Phase 2 — Read-only company endpoints (2-3 days)
 - [ ] `/api/v1/company/{ticker}` — profile
@@ -115,7 +116,7 @@ Play Store release.
 
 | Phase | Estimate |
 |-------|----------|
-| 1 — FastAPI skeleton | 1-2 days |
+| 1 — FastAPI skeleton + first endpoint | 2-3 days |
 | 2 — Company endpoints | 2-3 days |
 | 3 — Filings/financials | 2-3 days |
 | 4 — Screener/consensus | 2 days |
