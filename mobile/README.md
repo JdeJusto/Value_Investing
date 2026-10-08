@@ -5,12 +5,36 @@ TypeScript) with Expo Router; see `docs/mobile_app_design.md` for the full
 architecture and issue [#27](https://github.com/JdeJusto/Value_Investing/issues/27)
 for the roadmap.
 
+> **Current status**: development is on the Android emulator. Physical-phone
+> testing will resume once the app is feature-complete and an APK is built.
+
 ## Requirements
 
 - Node.js >= 20
 - The API server running on the same network (`docs/api_design.md`)
 
-## Development
+## Development on Android emulator (recommended)
+
+The emulator on the host machine avoids all the network friction of testing
+on a physical phone (Tailscale, VPN, router AP isolation). See
+[`docs/mobile_emulator_setup.md`](../docs/mobile_emulator_setup.md) for the
+full setup guide (Android Studio, AVD, KVM checks).
+
+Quick version, once the emulator is configured:
+
+```bash
+# From the repo root: starts FastAPI, the emulator and Metro in one go
+./scripts/dev_emulator.sh
+```
+
+In the app: Settings → **Emulator mode: ON**, paste the API key printed in
+the FastAPI terminal, **Test connection**.
+
+## Development on a physical phone
+
+> The phone must be able to reach the host machine: use Tailscale or a
+> hotspot, and note the router may need AP isolation disabled. See
+> "Configuration" below.
 
 ```bash
 cd mobile
