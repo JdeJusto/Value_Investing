@@ -4,9 +4,12 @@ import { ApiClient } from "../client";
 import {
   fetchCompany,
   fetchDCF,
+  fetchFilings,
   fetchFinancials,
   fetchInsights,
   fetchMethodologies,
+  fetchSection,
+  fetchStatement,
 } from "../company";
 
 fetchMock.enableMocks();
@@ -182,5 +185,33 @@ test("fetchInsights calls the insights endpoint", async () => {
   await fetchInsights(client, "AAPL");
   expect(fetchMock.mock.calls[0][0]).toBe(
     "http://10.0.2.2:8000/api/v1/company/AAPL/insights",
+  );
+});
+
+test("fetchFilings builds the filter query", async () => {
+  fetchMock.mockResponseOnce(
+    JSON.stringify({ data: { ticker: "AAPL" }, meta: META }),
+  );
+  const client = new ApiClient(CONFIG);
+  await fetchFilings(client, "aapl", { form: "10-K", year: 2024, limit: 5 });
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/company/AAPL/filings?form=10-K&year=2024&limit=5",
+  );
+});
+
+test("fetchStatement and fetchSection build their paths", async () => {
+  fetchMock.mockResponseOnce(JSON.stringify({ data: {}, meta: META }));
+  const client = new ApiClient(CONFIG);
+  await fetchStatement(client, "0000320193-24-000123", "balance_sheet");
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/filings/0000320193-24-000123/statement/balance_sheet",
+  );
+
+  fetchMock.mockResponseOnce(JSON.stringify({ data: {}, meta: META }));
+  await fetchSection(client, "0000320193-24-000123", "risk_factors", {
+    wordLimit: 100,
+  });
+  expect(fetchMock.mock.calls[1][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/filings/0000320193-24-000123/section/risk_factors?word_limit=100",
   );
 });

@@ -202,3 +202,116 @@ export function fetchInsights(
     `/api/v1/company/${encodeURIComponent(normalized)}/insights`,
   );
 }
+
+export type Filing = {
+  accession_number: string;
+  form_type: string;
+  filing_date: string;
+  period_of_report: string | null;
+  fiscal_year: number | null;
+  is_amended: boolean;
+  sec_url: string | null;
+};
+
+/** Shape of GET /company/{ticker}/filings. */
+export type FilingsResponse = {
+  ticker: string;
+  filings: Filing[];
+  count: number;
+  available_forms: string[];
+  available_years: number[];
+};
+
+export type StatementLine = {
+  label: string;
+  current: string | null;
+  prior: string | null;
+  indent_level: number;
+};
+
+/** Shape of GET /filings/{accession}/statement/{type}. */
+export type StatementResponse = {
+  accession_number: string;
+  form_type: string;
+  filing_date: string;
+  period_end: string | null;
+  statement_type: string;
+  source: string;
+  warnings: string[];
+  lines: StatementLine[];
+};
+
+/** Shape of GET /filings/{accession}/section/{type}. */
+export type SectionResponse = {
+  accession_number: string;
+  form_type: string;
+  section_type: string;
+  title: string;
+  word_count: number;
+  source: string;
+  warnings: string[];
+  text: string;
+  truncated: boolean;
+};
+
+export function fetchFilings(
+  client: ApiClient,
+  ticker: string,
+  filters?: {
+    form?: string;
+    year?: number;
+    limit?: number;
+    includeAmendments?: boolean;
+  },
+): Promise<ApiEnvelope<FilingsResponse>> {
+  const params = new URLSearchParams();
+  if (filters?.form) {
+    params.set("form", filters.form);
+  }
+  if (filters?.year) {
+    params.set("year", String(filters.year));
+  }
+  if (filters?.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  if (filters?.includeAmendments === false) {
+    params.set("include_amendments", "false");
+  }
+  const query = params.toString();
+  const normalized = ticker.trim().toUpperCase();
+  return client.get<FilingsResponse>(
+    `/api/v1/company/${encodeURIComponent(normalized)}/filings${
+      query ? `?${query}` : ""
+    }`,
+  );
+}
+
+export function fetchStatement(
+  client: ApiClient,
+  accession: string,
+  statementType: string,
+): Promise<ApiEnvelope<StatementResponse>> {
+  return client.get<StatementResponse>(
+    `/api/v1/filings/${encodeURIComponent(accession)}/statement/${encodeURIComponent(
+      statementType,
+    )}`,
+  );
+}
+
+export function fetchSection(
+  client: ApiClient,
+  accession: string,
+  sectionType: string,
+  opts?: { wordLimit?: number },
+): Promise<ApiEnvelope<SectionResponse>> {
+  const params = new URLSearchParams();
+  if (opts?.wordLimit) {
+    params.set("word_limit", String(opts.wordLimit));
+  }
+  const query = params.toString();
+  return client.get<SectionResponse>(
+    `/api/v1/filings/${encodeURIComponent(accession)}/section/${encodeURIComponent(
+      sectionType,
+    )}${query ? `?${query}` : ""}`,
+  );
+}

@@ -6,15 +6,21 @@ import { ApiRequestError, type ApiEnvelope } from "../api/client";
 import type {
   CompanyResponse,
   DCFResponse,
+  FilingsResponse,
   FinancialsResponse,
   InsightsResponse,
   MethodologiesResponse,
+  SectionResponse,
+  StatementResponse,
 } from "../api/company";
 import { useCompany } from "../hooks/useCompany";
 import { useDCF } from "../hooks/useDCF";
+import { useFilings } from "../hooks/useFilings";
 import { useFinancials } from "../hooks/useFinancials";
 import { useInsights } from "../hooks/useInsights";
 import { useMethodologies } from "../hooks/useMethodologies";
+import { useSection } from "../hooks/useSection";
+import { useStatement } from "../hooks/useStatement";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 jest.mock("expo-router", () => ({
@@ -42,6 +48,18 @@ jest.mock("../hooks/useInsights", () => ({
   useInsights: jest.fn(),
 }));
 
+jest.mock("../hooks/useFilings", () => ({
+  useFilings: jest.fn(),
+}));
+
+jest.mock("../hooks/useStatement", () => ({
+  useStatement: jest.fn(),
+}));
+
+jest.mock("../hooks/useSection", () => ({
+  useSection: jest.fn(),
+}));
+
 const mockUseCompany = useCompany as jest.MockedFunction<typeof useCompany>;
 const mockUseMethodologies = useMethodologies as jest.MockedFunction<
   typeof useMethodologies
@@ -51,6 +69,11 @@ const mockUseFinancials = useFinancials as jest.MockedFunction<
   typeof useFinancials
 >;
 const mockUseInsights = useInsights as jest.MockedFunction<typeof useInsights>;
+const mockUseFilings = useFilings as jest.MockedFunction<typeof useFilings>;
+const mockUseStatement = useStatement as jest.MockedFunction<
+  typeof useStatement
+>;
+const mockUseSection = useSection as jest.MockedFunction<typeof useSection>;
 
 function queryResult<T>(
   partial: Partial<UseQueryResult<ApiEnvelope<T>, Error>>,
@@ -108,6 +131,18 @@ beforeEach(() => {
   mockUseInsights.mockReturnValue(
     queryResult<InsightsResponse>({ isLoading: true, isPending: true }),
   );
+  mockUseFilings.mockReset();
+  mockUseFilings.mockReturnValue(
+    queryResult<FilingsResponse>({ isLoading: true, isPending: true }),
+  );
+  mockUseStatement.mockReset();
+  mockUseStatement.mockReturnValue(
+    queryResult<StatementResponse>({ isLoading: true, isPending: true }),
+  );
+  mockUseSection.mockReset();
+  mockUseSection.mockReturnValue(
+    queryResult<SectionResponse>({ isLoading: true, isPending: true }),
+  );
 });
 
 test("renders the overview with live company data", async () => {
@@ -123,13 +158,13 @@ test("renders the overview with live company data", async () => {
   expect(screen.getByText("2025")).toBeTruthy();
 });
 
-test("switches to a stub tab without leaving the screen", async () => {
+test("opens the Filings tab with its own loading state", async () => {
   mockUseCompany.mockReturnValue(
     queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
   );
   await renderCompany();
   await fireEvent.press(screen.getByText("Filings"));
-  expect(screen.getByText("Filings — coming soon.")).toBeTruthy();
+  expect(screen.getByTestId("skeleton-cards")).toBeTruthy();
 });
 
 test("opens the Financials tab with its own loading state", async () => {

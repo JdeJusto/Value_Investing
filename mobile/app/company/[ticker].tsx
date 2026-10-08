@@ -12,6 +12,7 @@ import {
 import type { ApiEnvelope } from "../../src/api/client";
 import type { CompanyResponse } from "../../src/api/company";
 import { DCFTab } from "../../src/components/DCFTab";
+import { FilingsTab } from "../../src/components/FilingsTab";
 import { FinancialsTab } from "../../src/components/FinancialsTab";
 import { MethodologiesTab } from "../../src/components/MethodologiesTab";
 import { useCompany } from "../../src/hooks/useCompany";
@@ -113,12 +114,7 @@ export default function CompanyScreen() {
             ticker={normalized}
           />
         ) : (
-          <View style={styles.comingSoon}>
-            <ThemedText muted>{tab} — coming soon.</ThemedText>
-            <ThemedText muted>
-              API endpoint pending (Phase 2+ of issue #27).
-            </ThemedText>
-          </View>
+          <FilingsTab ticker={normalized} />
         )}
       </ScrollView>
     </ThemedView>
