@@ -17,15 +17,15 @@ Play Store release.
 
 ## Phase List
 
-### Phase 1 — FastAPI skeleton + first real endpoint (2-3 days)
-- [ ] Verify the API dependencies already declared in `Pipfile` (`fastapi`, `uvicorn[standard]`, `httpx`) — nothing to install
-- [ ] Replace the stale experimental `backend/api/` package (delete `main.py`, `deps.py`, `v1/`; repoint the two legacy Docker references)
-- [ ] Create `backend/api/` (`__init__.py`, `app.py`, `auth.py`, `responses.py`, `deps.py`, `routes/system.py`, `routes/company.py`)
-- [ ] `GET /api/v1/health` and `GET /api/v1/version` (no auth)
-- [ ] `GET /api/v1/company/{ticker}` — first real endpoint (FDB + `PriceService`, envelope, 404 `TICKER_NOT_FOUND`, fail-closed 503)
-- [ ] `tests/api/test_app.py` with stubbed services (no DB, no Yahoo)
-- [ ] `.env.example` updated
-- [ ] Does NOT touch existing services, CLI or Streamlit
+### Phase 1 — FastAPI skeleton + first real endpoint (2-3 days) — done (11d2aaa)
+- [x] Verify the API dependencies already declared in `Pipfile` (`fastapi`, `uvicorn[standard]`, `httpx`) — nothing to install
+- [x] Replace the stale experimental `backend/api/` package (delete `main.py`, `deps.py`, `v1/`; repoint the two legacy Docker references)
+- [x] Create `backend/api/` (`__init__.py`, `app.py`, `auth.py`, `responses.py`, `deps.py`, `routes/system.py`, `routes/company.py`)
+- [x] `GET /api/v1/health` and `GET /api/v1/version` (no auth)
+- [x] `GET /api/v1/company/{ticker}` — first real endpoint (FDB + `PriceService`, envelope, 404 `TICKER_NOT_FOUND`, fail-closed 503)
+- [x] `tests/api/test_app.py` with stubbed services (no DB, no Yahoo)
+- [x] `.env.example` updated
+- [x] Does NOT touch existing services, CLI or Streamlit
 
 **Testable:** `uvicorn backend.api.app:app --reload` → `/api/v1/health` 200 and `/api/v1/company/AAPL` returns the envelope; wrong key → 401.
 
