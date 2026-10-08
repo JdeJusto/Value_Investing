@@ -30,7 +30,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    command: uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.api.app:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     environment:

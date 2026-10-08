@@ -1,45 +1,35 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+"""Injectable service accessors shared by the API routes.
 
-from backend.core.database import get_db
-from backend.core.security import decode_token
-from backend.models import UserModel
+Both accessors are FastAPI dependencies so tests can replace them with stubs
+via ``app.dependency_overrides`` — no database or Yahoo needed.
+"""
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+from __future__ import annotations
 
+from backend.domain.interfaces.financial_repository import FinancialRepository
+from backend.services.price_service import PriceService
 
-async def get_current_user(
-    token: str | None = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
-) -> UserModel | None:
-    if token is None:
-        return None
-    payload = decode_token(token)
-    if payload is None or payload.get("type") != "access":
-        return None
-    user_id: str | None = payload.get("sub")
-    if user_id is None:
-        return None
-    try:
-        numeric_id = int(user_id)
-    except (TypeError, ValueError):
-        return None
-    result = await db.execute(select(UserModel).where(UserModel.id == numeric_id))
-    user = result.scalar_one_or_none()
-    if user is None or not user.is_active:
-        return None
-    return user
+_repository: FinancialRepository | None = None
+_price_service: PriceService | None = None
 
 
-async def get_current_active_user(
-    current_user: UserModel | None = Depends(get_current_user),
-) -> UserModel:
-    if current_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return current_user
+def get_repository() -> FinancialRepository:
+    """Financial repository (Financial-DataBase when available).
+
+    Built lazily and shared process-wide; ``build_financial_repository``
+    already falls back to the JSON repository when FDB is unreachable.
+    """
+    global _repository
+    if _repository is None:
+        from backend.app.cli import build_financial_repository
+
+        _repository = build_financial_repository()
+    return _repository
+
+
+def get_price_service() -> PriceService:
+    """Shared ``PriceService`` (in-memory cache; prices are never persisted)."""
+    global _price_service
+    if _price_service is None:
+        _price_service = PriceService()
+    return _price_service
