@@ -67,3 +67,21 @@ export function abbreviateCurrency(value: number | null): string {
 export function abbreviateNumber(value: number | null): string {
   return format(value, false);
 }
+
+/** Methodology score with two decimals like the desktop; null -> em dash. */
+export function formatScore(value: number | null): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return DASH;
+  }
+  return value.toFixed(2);
+}
+
+/** Percentage for display: `-1.411 -> "-141%"` (0 decimals by default). */
+export function formatPercent(value: number | null, digits = 0): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return DASH;
+  }
+  const pct = value * 100;
+  const sign = pct < 0 ? "-" : "";
+  return `${sign}${Math.abs(pct).toFixed(digits)}%`;
+}

@@ -8,10 +8,10 @@ import {
   View,
 } from "react-native";
 
-import { ApiRequestError } from "../../src/api/client";
 import { useCompany } from "../../src/hooks/useCompany";
 import { ThemedText, ThemedView } from "../../src/theme/Themed";
 import { useTheme } from "../../src/theme/ThemeProvider";
+import { apiErrorMessage } from "../../src/utils/errors";
 import { abbreviateCurrency } from "../../src/utils/format";
 
 const SUGGESTED = ["AAPL", "MSFT", "KO", "JNJ"];
@@ -82,7 +82,7 @@ export default function HomeScreen() {
             ]}
           >
             <ThemedText style={{ color: theme.danger }}>
-              {errorMessage(query.error, normalized)}
+              {apiErrorMessage(query.error, normalized)}
             </ThemedText>
           </View>
         ) : null}
@@ -141,25 +141,6 @@ function SkeletonCard() {
       />
     </View>
   );
-}
-
-function errorMessage(error: unknown, ticker: string): string {
-  if (error instanceof ApiRequestError) {
-    if (error.code === "TICKER_NOT_FOUND") {
-      return `Ticker ${ticker} not found.`;
-    }
-    if (error.code === "NETWORK_ERROR") {
-      return "Cannot reach the server. Check Settings.";
-    }
-    if (error.code === "UNAUTHORIZED" || error.status === 401) {
-      return "Invalid API key. Check Settings.";
-    }
-    if (error.code === "API_KEY_NOT_CONFIGURED") {
-      return "The server has no API key configured.";
-    }
-    return error.message;
-  }
-  return "Something went wrong. Try again.";
 }
 
 const styles = StyleSheet.create({

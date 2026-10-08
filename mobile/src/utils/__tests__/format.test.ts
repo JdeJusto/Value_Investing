@@ -1,4 +1,10 @@
-import { abbreviateCurrency, abbreviateNumber, DASH } from "../format";
+import {
+  abbreviateCurrency,
+  abbreviateNumber,
+  DASH,
+  formatPercent,
+  formatScore,
+} from "../format";
 
 test("abbreviates large currency values with K/M/B/T", () => {
   expect(abbreviateCurrency(416_161_000_000)).toBe("$416.16B");
@@ -30,4 +36,16 @@ test("abbreviateNumber drops the currency symbol", () => {
   expect(abbreviateNumber(416_161_000_000)).toBe("416.16B");
   expect(abbreviateNumber(-19_001_000_000)).toBe("(19.00B)");
   expect(abbreviateNumber(null)).toBe(DASH);
+});
+
+test("formatScore keeps two decimals and maps null to the em dash", () => {
+  expect(formatScore(28.57)).toBe("28.57");
+  expect(formatScore(100)).toBe("100.00");
+  expect(formatScore(null)).toBe(DASH);
+});
+
+test("formatPercent renders percentages", () => {
+  expect(formatPercent(-1.411)).toBe("-141%");
+  expect(formatPercent(0.085, 2)).toBe("8.50%");
+  expect(formatPercent(null)).toBe(DASH);
 });

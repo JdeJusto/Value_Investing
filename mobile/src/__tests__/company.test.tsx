@@ -3,8 +3,9 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import CompanyScreen from "../../app/company/[ticker]";
 import { ApiRequestError, type ApiEnvelope } from "../api/client";
-import type { CompanyResponse } from "../api/company";
+import type { CompanyResponse, MethodologiesResponse } from "../api/company";
 import { useCompany } from "../hooks/useCompany";
+import { useMethodologies } from "../hooks/useMethodologies";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 jest.mock("expo-router", () => ({
@@ -16,11 +17,18 @@ jest.mock("../hooks/useCompany", () => ({
   useCompany: jest.fn(),
 }));
 
+jest.mock("../hooks/useMethodologies", () => ({
+  useMethodologies: jest.fn(),
+}));
+
 const mockUseCompany = useCompany as jest.MockedFunction<typeof useCompany>;
+const mockUseMethodologies = useMethodologies as jest.MockedFunction<
+  typeof useMethodologies
+>;
 
-type CompanyQuery = UseQueryResult<ApiEnvelope<CompanyResponse>, Error>;
-
-function queryResult(partial: Partial<CompanyQuery>): CompanyQuery {
+function queryResult<T>(
+  partial: Partial<UseQueryResult<ApiEnvelope<T>, Error>>,
+): UseQueryResult<ApiEnvelope<T>, Error> {
   return {
     data: undefined,
     error: null,
@@ -31,7 +39,7 @@ function queryResult(partial: Partial<CompanyQuery>): CompanyQuery {
     isSuccess: false,
     refetch: jest.fn(),
     ...partial,
-  } as unknown as CompanyQuery;
+  } as unknown as UseQueryResult<ApiEnvelope<T>, Error>;
 }
 
 const ENVELOPE: ApiEnvelope<CompanyResponse> = {
@@ -58,11 +66,15 @@ function renderCompany() {
 
 beforeEach(() => {
   mockUseCompany.mockReset();
+  mockUseMethodologies.mockReset();
+  mockUseMethodologies.mockReturnValue(
+    queryResult<MethodologiesResponse>({ isLoading: true, isPending: true }),
+  );
 });
 
 test("renders the overview with live company data", async () => {
   mockUseCompany.mockReturnValue(
-    queryResult({ data: ENVELOPE, isSuccess: true }),
+    queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
   );
   await renderCompany();
   const card = screen.getByText("Apple Inc.");
@@ -75,7 +87,7 @@ test("renders the overview with live company data", async () => {
 
 test("switches to a stub tab without leaving the screen", async () => {
   mockUseCompany.mockReturnValue(
-    queryResult({ data: ENVELOPE, isSuccess: true }),
+    queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
   );
   await renderCompany();
   await fireEvent.press(screen.getByText("DCF"));
@@ -84,7 +96,7 @@ test("switches to a stub tab without leaving the screen", async () => {
 
 test("shows a pull-to-refresh error state when the query fails", async () => {
   mockUseCompany.mockReturnValue(
-    queryResult({
+    queryResult<CompanyResponse>({
       error: new ApiRequestError("NETWORK_ERROR", "unreachable", 0),
       isError: true,
     }),

@@ -11,7 +11,9 @@ import {
 
 import type { ApiEnvelope } from "../../src/api/client";
 import type { CompanyResponse } from "../../src/api/company";
+import { MethodologiesTab } from "../../src/components/MethodologiesTab";
 import { useCompany } from "../../src/hooks/useCompany";
+import { useMethodologies } from "../../src/hooks/useMethodologies";
 import { ThemedText, ThemedView } from "../../src/theme/Themed";
 import { useTheme } from "../../src/theme/ThemeProvider";
 import { abbreviateCurrency } from "../../src/utils/format";
@@ -33,6 +35,7 @@ export default function CompanyScreen() {
   const params = useLocalSearchParams<{ ticker?: string }>();
   const normalized = (params.ticker ?? "").toUpperCase();
   const query = useCompany(normalized);
+  const methodologiesQuery = useMethodologies(normalized);
   const [tab, setTab] = useState<Tab>("Overview");
 
   return (
@@ -67,9 +70,10 @@ export default function CompanyScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={query.isRefetching}
+            refreshing={query.isRefetching || methodologiesQuery.isRefetching}
             onRefresh={() => {
               void query.refetch();
+              void methodologiesQuery.refetch();
             }}
             tintColor={theme.accent}
           />
@@ -77,6 +81,8 @@ export default function CompanyScreen() {
       >
         {tab === "Overview" ? (
           <OverviewTab query={query} />
+        ) : tab === "Methodologies" ? (
+          <MethodologiesTab query={methodologiesQuery} ticker={normalized} />
         ) : (
           <View style={styles.comingSoon}>
             <ThemedText muted>{tab} — coming soon.</ThemedText>
