@@ -1,7 +1,13 @@
 import fetchMock from "jest-fetch-mock";
 
 import { ApiClient } from "../client";
-import { fetchCompany, fetchDCF, fetchMethodologies } from "../company";
+import {
+  fetchCompany,
+  fetchDCF,
+  fetchFinancials,
+  fetchInsights,
+  fetchMethodologies,
+} from "../company";
 
 fetchMock.enableMocks();
 
@@ -141,4 +147,40 @@ test("fetchDCF calls the dcf endpoint and parses the response", async () => {
   expect(result.data.source).toBe("not-from-canon");
   expect(result.data.margin_of_safety).toBe(-1.411);
   expect(result.data.sensitivity).toHaveLength(1);
+});
+
+test("fetchFinancials builds the years and abbreviate query", async () => {
+  fetchMock.mockResponseOnce(
+    JSON.stringify({ data: { ticker: "AAPL" }, meta: META }),
+  );
+  const client = new ApiClient(CONFIG);
+  await fetchFinancials(client, "aapl", { years: 10, abbreviate: true });
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/company/AAPL/financials?years=10&abbreviate=true",
+  );
+});
+
+test("fetchFinancials without options sends no query string", async () => {
+  fetchMock.mockResponseOnce(
+    JSON.stringify({ data: { ticker: "AAPL" }, meta: META }),
+  );
+  const client = new ApiClient(CONFIG);
+  await fetchFinancials(client, "AAPL");
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/company/AAPL/financials",
+  );
+});
+
+test("fetchInsights calls the insights endpoint", async () => {
+  fetchMock.mockResponseOnce(
+    JSON.stringify({
+      data: { ticker: "AAPL", metrics: [], warnings: [] },
+      meta: META,
+    }),
+  );
+  const client = new ApiClient(CONFIG);
+  await fetchInsights(client, "AAPL");
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/company/AAPL/insights",
+  );
 });

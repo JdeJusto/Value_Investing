@@ -12,9 +12,12 @@ import {
 import type { ApiEnvelope } from "../../src/api/client";
 import type { CompanyResponse } from "../../src/api/company";
 import { DCFTab } from "../../src/components/DCFTab";
+import { FinancialsTab } from "../../src/components/FinancialsTab";
 import { MethodologiesTab } from "../../src/components/MethodologiesTab";
 import { useCompany } from "../../src/hooks/useCompany";
 import { useDCF } from "../../src/hooks/useDCF";
+import { useFinancials } from "../../src/hooks/useFinancials";
+import { useInsights } from "../../src/hooks/useInsights";
 import { useMethodologies } from "../../src/hooks/useMethodologies";
 import { ThemedText, ThemedView } from "../../src/theme/Themed";
 import { useTheme } from "../../src/theme/ThemeProvider";
@@ -39,6 +42,11 @@ export default function CompanyScreen() {
   const query = useCompany(normalized);
   const methodologiesQuery = useMethodologies(normalized);
   const dcfQuery = useDCF(normalized);
+  const financialsQuery = useFinancials(normalized, {
+    years: 10,
+    abbreviate: true,
+  });
+  const insightsQuery = useInsights(normalized);
   const [tab, setTab] = useState<Tab>("Overview");
 
   return (
@@ -77,12 +85,16 @@ export default function CompanyScreen() {
             refreshing={
               query.isRefetching ||
               methodologiesQuery.isRefetching ||
-              dcfQuery.isRefetching
+              dcfQuery.isRefetching ||
+              financialsQuery.isRefetching ||
+              insightsQuery.isRefetching
             }
             onRefresh={() => {
               void query.refetch();
               void methodologiesQuery.refetch();
               void dcfQuery.refetch();
+              void financialsQuery.refetch();
+              void insightsQuery.refetch();
             }}
             tintColor={theme.accent}
           />
@@ -94,6 +106,12 @@ export default function CompanyScreen() {
           <MethodologiesTab query={methodologiesQuery} ticker={normalized} />
         ) : tab === "DCF" ? (
           <DCFTab query={dcfQuery} ticker={normalized} />
+        ) : tab === "Financials" ? (
+          <FinancialsTab
+            financialsQuery={financialsQuery}
+            insightsQuery={insightsQuery}
+            ticker={normalized}
+          />
         ) : (
           <View style={styles.comingSoon}>
             <ThemedText muted>{tab} — coming soon.</ThemedText>

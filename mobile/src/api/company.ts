@@ -121,3 +121,84 @@ export function fetchDCF(
     `/api/v1/company/${encodeURIComponent(normalized)}/dcf`,
   );
 }
+
+export type FinancialsRow = {
+  concept: string;
+  label: string;
+  unit: string;
+  values: Record<string, string>; // fiscal year -> formatted value
+};
+
+export type FinancialsCounts = {
+  balance_sheet: number;
+  income_statement: number;
+  cash_flow: number;
+  other: number;
+  total: number;
+};
+
+/** Shape of GET /company/{ticker}/financials. */
+export type FinancialsResponse = {
+  ticker: string;
+  name: string | null;
+  period: string;
+  years: number[];
+  balance_sheet: FinancialsRow[];
+  income_statement: FinancialsRow[];
+  cash_flow: FinancialsRow[];
+  other: FinancialsRow[];
+  counts: FinancialsCounts;
+};
+
+export type InsightsMetric = {
+  metric: string;
+  label: string;
+  latest_value: string | null;
+  latest_year: number | null;
+  yoy_change_pct: number | null;
+  cagr_5y: number | null;
+  cagr_10y: number | null;
+  average_5y: string | null;
+  trend: "growing" | "stable" | "declining";
+  stability: "stable" | "volatile";
+  direction_changed: boolean;
+  notes: string[];
+};
+
+/** Shape of GET /company/{ticker}/insights. */
+export type InsightsResponse = {
+  ticker: string;
+  metrics: InsightsMetric[];
+  warnings: string[];
+};
+
+export function fetchFinancials(
+  client: ApiClient,
+  ticker: string,
+  opts?: { years?: number; abbreviate?: boolean },
+): Promise<ApiEnvelope<FinancialsResponse>> {
+  const params = new URLSearchParams();
+  if (opts?.years) {
+    params.set("years", String(opts.years));
+  }
+  if (opts?.abbreviate) {
+    params.set("abbreviate", "true");
+  }
+  const query = params.toString();
+  const normalized = ticker.trim().toUpperCase();
+  return client.get<FinancialsResponse>(
+    `/api/v1/company/${encodeURIComponent(normalized)}/financials${
+      query ? `?${query}` : ""
+    }`,
+  );
+}
+
+export function fetchInsights(
+  client: ApiClient,
+  ticker: string,
+): Promise<ApiEnvelope<InsightsResponse>> {
+  const normalized = ticker.trim().toUpperCase();
+  return client.get<InsightsResponse>(
+    `/api/v1/company/${encodeURIComponent(normalized)}/insights`,
+  );
+}

@@ -6,10 +6,14 @@ import { ApiRequestError, type ApiEnvelope } from "../api/client";
 import type {
   CompanyResponse,
   DCFResponse,
+  FinancialsResponse,
+  InsightsResponse,
   MethodologiesResponse,
 } from "../api/company";
 import { useCompany } from "../hooks/useCompany";
 import { useDCF } from "../hooks/useDCF";
+import { useFinancials } from "../hooks/useFinancials";
+import { useInsights } from "../hooks/useInsights";
 import { useMethodologies } from "../hooks/useMethodologies";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
@@ -30,11 +34,23 @@ jest.mock("../hooks/useDCF", () => ({
   useDCF: jest.fn(),
 }));
 
+jest.mock("../hooks/useFinancials", () => ({
+  useFinancials: jest.fn(),
+}));
+
+jest.mock("../hooks/useInsights", () => ({
+  useInsights: jest.fn(),
+}));
+
 const mockUseCompany = useCompany as jest.MockedFunction<typeof useCompany>;
 const mockUseMethodologies = useMethodologies as jest.MockedFunction<
   typeof useMethodologies
 >;
 const mockUseDCF = useDCF as jest.MockedFunction<typeof useDCF>;
+const mockUseFinancials = useFinancials as jest.MockedFunction<
+  typeof useFinancials
+>;
+const mockUseInsights = useInsights as jest.MockedFunction<typeof useInsights>;
 
 function queryResult<T>(
   partial: Partial<UseQueryResult<ApiEnvelope<T>, Error>>,
@@ -84,6 +100,14 @@ beforeEach(() => {
   mockUseDCF.mockReturnValue(
     queryResult<DCFResponse>({ isLoading: true, isPending: true }),
   );
+  mockUseFinancials.mockReset();
+  mockUseFinancials.mockReturnValue(
+    queryResult<FinancialsResponse>({ isLoading: true, isPending: true }),
+  );
+  mockUseInsights.mockReset();
+  mockUseInsights.mockReturnValue(
+    queryResult<InsightsResponse>({ isLoading: true, isPending: true }),
+  );
 });
 
 test("renders the overview with live company data", async () => {
@@ -104,8 +128,17 @@ test("switches to a stub tab without leaving the screen", async () => {
     queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
   );
   await renderCompany();
+  await fireEvent.press(screen.getByText("Filings"));
+  expect(screen.getByText("Filings — coming soon.")).toBeTruthy();
+});
+
+test("opens the Financials tab with its own loading state", async () => {
+  mockUseCompany.mockReturnValue(
+    queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
+  );
+  await renderCompany();
   await fireEvent.press(screen.getByText("Financials"));
-  expect(screen.getByText("Financials — coming soon.")).toBeTruthy();
+  expect(screen.getByTestId("skeleton-cards")).toBeTruthy();
 });
 
 test("opens the DCF tab with its own loading state", async () => {
