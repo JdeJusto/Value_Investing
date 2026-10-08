@@ -8,6 +8,15 @@ for the roadmap.
 > **Current status**: development is on the Android emulator. Physical-phone
 > testing will resume once the app is feature-complete and an APK is built.
 
+## Features
+
+- **Home**: live company lookup (ticker search, price, market cap).
+- **Company detail**: Overview · **Methodologies** (8 verdicts, summary
+  chips, expandable reasons/red flags) · **DCF** (intrinsic value, margin of
+  safety, 3×3 sensitivity) · Financials and Filings (coming soon).
+- **Settings**: emulator/LAN/Tailscale URLs, API key, theme, connection test.
+- Screener, Consensus and Portfolio tabs are stubs (API Phases 3-5 pending).
+
 ## Requirements
 
 - Node.js >= 20

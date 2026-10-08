@@ -29,11 +29,11 @@ Play Store release.
 
 **Testable:** `uvicorn backend.api.app:app --reload` → `/api/v1/health` 200 and `/api/v1/company/AAPL` returns the envelope; wrong key → 401.
 
-### Phase 2 — Read-only company endpoints (2-3 days)
-- [ ] `/api/v1/company/{ticker}/methodologies` — 8 verdicts
-- [ ] `/api/v1/company/{ticker}/dcf` — DCF valuation
-- [ ] `/api/v1/alerts/{ticker}` — per-ticker alert feed (Home fans out per open position, plus Company Detail)
-- [ ] Reuse the Phase-1 envelope and error pattern
+### Phase 2 — Read-only company endpoints (2-3 days) — done (v0.14.0)
+- [x] `/api/v1/company/{ticker}/methodologies` — 8 verdicts
+- [x] `/api/v1/company/{ticker}/dcf` — DCF valuation
+- [x] `/api/v1/alerts/{ticker}` — per-ticker alert feed (Home fans out per open position, plus Company Detail)
+- [x] Reuse the Phase-1 envelope and error pattern
 
 **Testable:** mobile can render the Methodologies, DCF and Alerts panels.
 
@@ -67,24 +67,24 @@ Play Store release.
 
 **Testable:** mobile can add/exit positions; CLI sees the same data; two concurrent writes keep both changes.
 
-### Phase 6 — Mobile app: skeleton (3-4 days)
-- [ ] Expo project init (`npx create-expo-app`)
-- [ ] Tab navigation (6 tabs)
-- [ ] Settings screen (API URLs, key, theme, demo mode)
-- [ ] Home screen with stubbed data
-- [ ] React Query + Zustand setup
-- [ ] SecureStore for API key
+### Phase 6 — Mobile app: skeleton (3-4 days) — done (mobile skeleton session)
+- [x] Expo project init (`npx create-expo-app`)
+- [x] Tab navigation (5 tabs + company push route)
+- [x] Settings screen (API URLs, key, theme; demo mode not implemented)
+- [x] Home screen with live data (the plan said "stubbed data")
+- [x] React Query + Zustand setup
+- [ ] SecureStore for API key (AsyncStorage for now — documented tradeoff)
 
 **Testable:** app launches, settings save, health check passes.
 
 ### Phase 7 — Mobile app: company detail (3-5 days)
-- [ ] Company detail screen with 5 tabs
-- [ ] Overview (ratios + verdict summary)
-- [ ] Methodologies (8 cards)
-- [ ] DCF (value + margin of safety + sensitivity)
+- [x] Company detail screen with 5 tabs
+- [x] Overview (ratios + verdict summary)
+- [x] Methodologies (8 cards) — v0.14.0
+- [x] DCF (value + margin of safety + sensitivity) — v0.14.0
 - [ ] Financials (yearly table)
 - [ ] Filings (list + statement + section)
-- [ ] Pull to refresh, skeleton loaders
+- [x] Pull to refresh, skeleton loaders
 
 **Testable:** full company deep-dive on phone.
 

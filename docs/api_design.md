@@ -87,8 +87,8 @@ Error responses:
 | GET | `/api/v1/version` | API version + build info (no auth) |
 | GET | `/api/v1/company/{ticker}` | Company profile (name, sector, CIK, identifiers) |
 | GET | `/api/v1/company/{ticker}/fundamentals` | Fundamentals (last N fiscal years); `?years=10` |
-| GET | `/api/v1/company/{ticker}/methodologies` | All 8 methodology verdicts + scores |
-| GET | `/api/v1/company/{ticker}/dcf` | DCF valuation (not-from-canon) |
+| GET | `/api/v1/company/{ticker}/methodologies` | All 8 methodology verdicts + scores (✅ shipped v0.14.0) |
+| GET | `/api/v1/company/{ticker}/dcf` | DCF valuation (not-from-canon) (✅ shipped v0.14.0) |
 | GET | `/api/v1/company/{ticker}/filings` | SEC filings list; `?form=10-K&year=2025&limit=20` |
 | GET | `/api/v1/company/{ticker}/filing/{accession}/statement/{type}` | Statement from filing; `type` = `balance-sheet`, `income`, `cash-flow` |
 | GET | `/api/v1/company/{ticker}/filing/{accession}/section/{type}` | Narrative section; `type` = `risk-factors`, `mda`, `business` |
@@ -99,7 +99,7 @@ Error responses:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/insights/{ticker}` | Narrative insights (moat, quality, risks) |
-| GET | `/api/v1/alerts/{ticker}` | Deterministic alerts for a ticker |
+| GET | `/api/v1/alerts/{ticker}` | Deterministic alerts for a ticker (✅ shipped v0.14.0) |
 | GET | `/api/v1/historical-valuation/{ticker}` | Historical P/E + FCF yield table |
 | GET | `/api/v1/price/{ticker}` | Current price + market cap + dividend metrics |
 | GET | `/api/v1/price/{ticker}/history` | Historical prices; `?start=2025-01-01&end=2025-12-31` |
