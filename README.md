@@ -345,6 +345,12 @@ Additional reviews: [full platform audit](docs/full_platform_audit_2026-09-24.md
 
 See the [engineering backlog](docs/backlog.md) for follow-up items.
 
+## Mobile app (work in progress)
+
+A native Android app that consumes the FastAPI backend. See
+[`mobile/README.md`](mobile/README.md). Requires the API server
+running locally (see `docs/api_design.md`).
+
 <a id="faq"></a>
 ## FAQ
 
