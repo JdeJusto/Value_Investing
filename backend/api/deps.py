@@ -85,3 +85,14 @@ def get_screener_source() -> Callable[[list[str], Any], list[dict]]:
     from backend.api.screener_source import load_enriched_universe
 
     return load_enriched_universe
+
+
+def get_consensus_service() -> Any:
+    """Consensus loader for the API.
+
+    Staleness is *reported* (``meta.warning``) rather than enforced, so a
+    slightly old snapshot stays visible instead of turning into a 503.
+    """
+    from backend.services.consensus_service import ConsensusService
+
+    return ConsensusService(max_age_days=None)

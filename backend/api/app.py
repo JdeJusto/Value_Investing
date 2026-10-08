@@ -19,6 +19,7 @@ from backend.api.responses import ApiError, fail
 from backend.api.routes import (
     alerts,
     company,
+    consensus,
     dcf,
     filings,
     financials,
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(filings.router)
     app.include_router(insights.router)
     app.include_router(screener.router)
+    app.include_router(consensus.router)
     return app
 
 
