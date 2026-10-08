@@ -2,8 +2,8 @@
 
 [English](README.md) · [Español](README.es.md)
 
-[![Version](https://img.shields.io/badge/version-0.13.1-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-1898%20passed-green)]()
+[![Version](https://img.shields.io/badge/version-0.14.0-blue)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-1900%20passed-green)]()
 
 Herramienta determinista y explicable para el análisis fundamental de acciones. Combina estados financieros, métricas transparentes de valoración y calidad, filtros, seguimiento de carteras y backtesting mediante una interfaz de terminal y aplicaciones web.
 
