@@ -24,6 +24,7 @@ from backend.api.routes import (
     financials,
     insights,
     methodologies,
+    screener,
     system,
 )
 
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(financials.router)
     app.include_router(filings.router)
     app.include_router(insights.router)
+    app.include_router(screener.router)
     return app
 
 

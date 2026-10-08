@@ -6,6 +6,7 @@ via ``app.dependency_overrides`` — no database or Yahoo needed.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from backend.api.responses import ApiError
@@ -14,6 +15,7 @@ from backend.services.price_service import PriceService
 
 _repository: FinancialRepository | None = None
 _price_service: PriceService | None = None
+_portfolio_service: Any = None
 
 
 def load_company_rows(repository: FinancialRepository, ticker: str) -> list[Any]:
@@ -58,3 +60,28 @@ def get_price_service() -> PriceService:
     if _price_service is None:
         _price_service = PriceService()
     return _price_service
+
+
+def get_portfolio_service() -> Any:
+    """Portfolio service, built exactly like the CLI's.
+
+    Every write path goes through :class:`PortfolioService`, which serializes
+    read-modify-write blocks with an exclusive ``fcntl.flock``.
+    """
+    global _portfolio_service
+    if _portfolio_service is None:
+        from backend.app.cli import build_portfolio_service
+
+        _portfolio_service = build_portfolio_service()
+    return _portfolio_service
+
+
+def get_screener_source() -> Callable[[list[str], Any], list[dict]]:
+    """The expensive screener pipeline (screen + enrich).
+
+    Returned as a dependency so tests can replace the Yahoo/DB-bound pipeline
+    with a stub via ``app.dependency_overrides``.
+    """
+    from backend.api.screener_source import load_enriched_universe
+
+    return load_enriched_universe
