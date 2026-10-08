@@ -175,6 +175,97 @@ class LookupsMixin:
         except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
+    def get_sector_map(
+        self, tickers: list[str] | tuple[str, ...]
+    ) -> dict[str, str | None]:
+        """Sector per ticker in ONE metadata query (active listings).
+
+        Tickers missing from the database (or not yet sector-enriched) map to
+        None. Read-only metadata; never touches prices.
+        """
+        wanted = sorted({str(t).upper() for t in tickers if str(t).strip()})
+        if not wanted:
+            return {}
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT UPPER(cl.ticker) AS ticker, c.sector
+                    FROM company_listings cl
+                    JOIN companies c ON c.id = cl.company_id
+                    WHERE UPPER(cl.ticker) = ANY(%s) AND cl.is_active
+                    """,
+                    (wanted,),
+                )
+                return {row["ticker"]: row["sector"] for row in cur.fetchall()}
+        except Exception:  # noqa: BLE001 — a DB failure reads as "no sector"
+            return {}
+
+    def search_companies(self, query: str, limit: int = 20) -> list[dict]:
+        """Ticker prefix/substring matches, then legal-name substring matches.
+
+        Returns ``[{"ticker", "name", "sector"}]``: exact-ticker matches
+        first, then prefix matches, then substring matches; when fewer than
+        ``limit`` rows match the ticker, legal-name substring matches fill the
+        rest. Read-only metadata (companies + active listings).
+        """
+        q = str(query or "").strip().upper()
+        limit = max(int(limit), 0)
+        if not q or limit == 0:
+            return []
+        found: list[dict] = []
+        seen: set[str] = set()
+
+        def _add(row) -> None:
+            if row["ticker"] not in seen:
+                seen.add(row["ticker"])
+                found.append(
+                    {
+                        "ticker": row["ticker"],
+                        "name": row["name"],
+                        "sector": row["sector"],
+                    }
+                )
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT UPPER(cl.ticker) AS ticker, c.legal_name AS name,
+                           c.sector AS sector
+                    FROM company_listings cl
+                    JOIN companies c ON c.id = cl.company_id
+                    WHERE cl.is_active AND UPPER(cl.ticker) LIKE %s
+                    ORDER BY (UPPER(cl.ticker) = %s) DESC,
+                             (UPPER(cl.ticker) LIKE %s) DESC,
+                             cl.ticker
+                    LIMIT %s
+                    """,
+                    (f"%{q}%", q, f"{q}%", limit),
+                )
+                for row in cur.fetchall():
+                    _add(row)
+                if len(found) < limit:
+                    cur.execute(
+                        """
+                        SELECT UPPER(cl.ticker) AS ticker, c.legal_name AS name,
+                               c.sector AS sector
+                        FROM company_listings cl
+                        JOIN companies c ON c.id = cl.company_id
+                        WHERE cl.is_active AND UPPER(c.legal_name) LIKE %s
+                        ORDER BY cl.ticker
+                        LIMIT %s
+                        """,
+                        (f"%{q}%", limit - len(found)),
+                    )
+                    for row in cur.fetchall():
+                        _add(row)
+        except Exception:  # noqa: BLE001 — a DB failure reads as "no match"
+            return []
+        return found[:limit]
+
     def _get_listing_id_by_cik(self, cik: str) -> str | None:
         """Get listing ID for a company's primary listing.
 
