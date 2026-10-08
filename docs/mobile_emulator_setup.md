@@ -66,7 +66,53 @@ location (`~/Android/Sdk`).
 
 ### 3. Create a Virtual Device (AVD)
 
-In Android Studio:
+Two options: CLI (no GUI needed) or the Android Studio GUI.
+
+**Prerequisite for the CLI option**: the SDK command-line tools must be
+installed once. If `$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager` does
+not exist, open Android Studio → **Settings → Languages & Frameworks →
+Android SDK → SDK Tools** tab → check **Android SDK Command-line Tools
+(latest)** → **Apply**. That is a one-time GUI step; everything after it is
+terminal-only.
+
+#### Option A — CLI (no GUI)
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+AVDMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+
+# Accept licenses
+yes | "$SDKMANAGER" --licenses
+
+# Install the required components (the system image is ~1.5 GB)
+yes | "$SDKMANAGER" "platforms;android-34"
+yes | "$SDKMANAGER" "system-images;android-34;google_apis;x86_64"
+yes | "$SDKMANAGER" "emulator" "platform-tools"
+
+# Create the AVD
+echo "no" | "$AVDMANAGER" create avd \
+    --name Pixel_6_API_34 \
+    --package "system-images;android-34;google_apis;x86_64" \
+    --device "pixel_6" \
+    --force
+
+# Verify
+emulator -list-avds
+```
+
+If `pixel_6` is not a valid device id, list them with
+`"$AVDMANAGER" list device | grep -i pixel` and pick a valid one.
+
+**Already have another AVD?** The launcher accepts an override, which is
+useful when the installed system image is newer than API 34 and you do not
+want to download another one:
+
+```bash
+AVD_NAME=Medium_Phone_API_37.0 ./scripts/dev_emulator.sh
+```
+
+#### Option B — Android Studio GUI (optional)
 
 1. **Tools → Device Manager → Create Device**
 2. Category: **Phone** → **Pixel 6** (or Pixel 7)
@@ -131,6 +177,13 @@ emulator -avd Pixel_6_API_34 -no-snapshot-load -gpu host
 ```
 
 Wait for Android to boot (~30-60 s). You will see the home screen.
+
+If the machine has no display (SSH / headless), run it without a window:
+
+```bash
+emulator -avd Pixel_6_API_34 -no-snapshot-load \
+    -no-window -gpu swiftshader_indirect
+```
 
 ### Terminal 3 — Metro + install on the emulator
 
@@ -219,4 +272,14 @@ On the phone, in the app's Settings:
 | App cannot reach the API | uvicorn bound to 127.0.0.1 | Restart with `--host 0.0.0.0` |
 | App shows `NETWORK_ERROR` | Wrong IP in Settings | Enable Emulator mode |
 | `adb: no devices` | Emulator not running | Wait for boot; `adb devices` to verify |
+| `emulator: ERROR: Unknown AVD name [Pixel_6_API_34]` | The AVD does not exist yet | Create it (section 3) or use `AVD_NAME=<your-avd> ./scripts/dev_emulator.sh` |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Old app signature on the emulator | Uninstall the old app: `adb uninstall com.jdejusto.valueinvesting` |
+
+> To check the emulator's current screen without interacting with it:
+>
+> ```bash
+> adb exec-out screencap -p > /tmp/screen.png
+> ```
+>
+> This writes the current frame to a PNG. Useful when the emulator window is
+> not visible (headless sessions) or when reporting a bug.
