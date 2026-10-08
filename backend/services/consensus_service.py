@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -51,6 +52,33 @@ def normalize_lynch_category(value: str) -> str:
         if lowered.startswith(prefix):
             return category
     return "UNKNOWN"
+
+
+def summarize_verdicts(verdicts: Mapping[str, str]) -> dict[str, int]:
+    """Count verdicts per bucket and compute the consensus score.
+
+    Single source of truth shared by the consensus computation script
+    (``scripts.compute_consensus_rankings.build_company_consensus``) and the
+    API's methodologies endpoint. ``consensus_score`` is BUYs minus AVOIDs;
+    ``N/A`` (abstained by design) and ``INSUFFICIENT_DATA`` are counted
+    separately and never scored.
+    """
+    values = [str(verdict) for verdict in (verdicts or {}).values()]
+    buy = sum(1 for verdict in values if verdict == "BUY")
+    watch = sum(1 for verdict in values if verdict == "WATCH")
+    hold = sum(1 for verdict in values if verdict == "HOLD")
+    avoid = sum(1 for verdict in values if verdict == "AVOID")
+    na = sum(1 for verdict in values if verdict == "N/A")
+    insufficient = sum(1 for verdict in values if verdict == "INSUFFICIENT_DATA")
+    return {
+        "buy_count": buy,
+        "watch_count": watch,
+        "hold_count": hold,
+        "avoid_count": avoid,
+        "na_count": na,
+        "insufficient_count": insufficient,
+        "consensus_score": buy - avoid,
+    }
 
 
 @dataclass(frozen=True)

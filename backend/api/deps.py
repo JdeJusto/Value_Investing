@@ -6,11 +6,36 @@ via ``app.dependency_overrides`` — no database or Yahoo needed.
 
 from __future__ import annotations
 
+from typing import Any
+
+from backend.api.responses import ApiError
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.services.price_service import PriceService
 
 _repository: FinancialRepository | None = None
 _price_service: PriceService | None = None
+
+
+def load_company_rows(repository: FinancialRepository, ticker: str) -> list[Any]:
+    """Newest-first rows for ``ticker``, or the standard API error.
+
+    Raises :class:`ApiError` 404 ``TICKER_NOT_FOUND`` when the company is
+    unknown, and 503 ``SERVICE_UNAVAILABLE`` when the repository itself fails
+    (a DB failure must never leak as a 500).
+    """
+    try:
+        rows = [
+            row
+            for row in (repository.get_best_available(ticker) or [])
+            if row is not None
+        ]
+    except Exception as exc:  # a DB failure is a 503, not a 500
+        raise ApiError(
+            503, "SERVICE_UNAVAILABLE", "Financial database is unavailable"
+        ) from exc
+    if not rows:
+        raise ApiError(404, "TICKER_NOT_FOUND", f"Unknown ticker: {ticker}")
+    return rows
 
 
 def get_repository() -> FinancialRepository:

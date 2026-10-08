@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 import backend
 from backend.api.responses import ApiError, fail
-from backend.api.routes import company, system
+from backend.api.routes import company, methodologies, system
 
 DEFAULT_CORS_ORIGINS = "http://localhost:8501"
 
@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
 
     app.include_router(system.router)
     app.include_router(company.router)
+    app.include_router(methodologies.router)
     return app
 
 

@@ -7,8 +7,8 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from backend.api.auth import require_api_key
-from backend.api.deps import get_price_service, get_repository
-from backend.api.responses import ApiError, ok
+from backend.api.deps import get_price_service, get_repository, load_company_rows
+from backend.api.responses import ok
 
 router = APIRouter(prefix="/api/v1/company", tags=["company"])
 
@@ -25,19 +25,7 @@ def company(
     to ``null`` fields instead of failing the request.
     """
     normalized = ticker.strip().upper()
-    try:
-        rows = [
-            row
-            for row in (repository.get_best_available(normalized) or [])
-            if row is not None
-        ]
-    except Exception as exc:
-        raise ApiError(
-            503, "SERVICE_UNAVAILABLE", "Financial database is unavailable"
-        ) from exc
-
-    if not rows:
-        raise ApiError(404, "TICKER_NOT_FOUND", f"Unknown ticker: {normalized}")
+    rows = load_company_rows(repository, normalized)
 
     latest = rows[0]
     try:

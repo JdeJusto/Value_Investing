@@ -27,7 +27,7 @@ from typing import Any
 
 from backend.app.cli import build_financial_repository
 from backend.methodologies.registry import discover
-from backend.services.consensus_service import CONSENSUS_VERSION
+from backend.services.consensus_service import CONSENSUS_VERSION, summarize_verdicts
 from backend.services.price_service import _snapshot_price, get_price_service
 from backend.services.ui_adapter import parse_universe_tickers, run_methodologies
 
@@ -179,20 +179,15 @@ def build_company_consensus(
             )
     for key in METHODOLOGY_KEYS:  # deterministic schema: always eight keys
         verdicts.setdefault(key, "INSUFFICIENT_DATA")
-    buy_count = sum(1 for verdict in verdicts.values() if verdict == "BUY")
-    avoid_count = sum(1 for verdict in verdicts.values() if verdict == "AVOID")
-    insufficient_count = sum(
-        1 for verdict in verdicts.values() if verdict == "INSUFFICIENT_DATA"
-    )
-    na_count = sum(1 for verdict in verdicts.values() if verdict == "N/A")
+    counts = summarize_verdicts(verdicts)
     return {
         "name": name,
         "verdicts": verdicts,
-        "buy_count": buy_count,
-        "avoid_count": avoid_count,
-        "insufficient_count": insufficient_count,
-        "na_count": na_count,
-        "consensus_score": buy_count - avoid_count,
+        "buy_count": counts["buy_count"],
+        "avoid_count": counts["avoid_count"],
+        "insufficient_count": counts["insufficient_count"],
+        "na_count": counts["na_count"],
+        "consensus_score": counts["consensus_score"],
         "lynch_category": category,
         "price": price,
         "prices_available": prices_available,
