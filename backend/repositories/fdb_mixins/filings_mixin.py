@@ -128,3 +128,45 @@ class FilingsMixin:
         with self._get_connection().cursor() as cur:
             cur.execute(sql, tuple(params))
             return [dict(row) for row in cur.fetchall()]
+
+    def get_filing_by_accession(self, accession: str) -> dict | None:
+        """One filing row by accession number, or None when unknown.
+
+        The accession-only lookup the API's ``/filings/{accession}/...``
+        endpoints need (the listing path is ticker-scoped). The ticker comes
+        from the company's active listing so the caller can build the same
+        record ``list_filings`` produces.
+        """
+        accession = (accession or "").strip()
+        if not accession:
+            return None
+        sql = """
+            SELECT
+                f.accession_number,
+                f.form,
+                f.filing_date,
+                f.period_end,
+                f.fiscal_year,
+                f.fiscal_period,
+                f.is_amended,
+                f.filing_url,
+                ci.identifier_value AS cik,
+                (
+                    SELECT cl.ticker
+                    FROM company_listings cl
+                    WHERE cl.company_id = f.company_id
+                      AND cl.is_active
+                    ORDER BY cl.is_primary DESC NULLS LAST
+                    LIMIT 1
+                ) AS ticker
+            FROM filings f
+            LEFT JOIN company_identifiers ci
+              ON ci.company_id = f.company_id
+             AND ci.identifier_type = 'CIK'
+            WHERE f.accession_number = %s
+            LIMIT 1
+        """
+        with self._get_connection().cursor() as cur:
+            cur.execute(sql, (accession,))
+            row = cur.fetchone()
+            return dict(row) if row else None

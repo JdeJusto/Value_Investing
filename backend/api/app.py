@@ -20,6 +20,7 @@ from backend.api.routes import (
     alerts,
     company,
     dcf,
+    filings,
     financials,
     methodologies,
     system,
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(dcf.router)
     app.include_router(alerts.router)
     app.include_router(financials.router)
+    app.include_router(filings.router)
     return app
 
 

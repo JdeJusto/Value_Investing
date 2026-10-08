@@ -204,3 +204,24 @@ class FilingService:
             if (year := record.effective_fiscal_year) is not None
         }
         return sorted(years, reverse=True)
+
+    def get_by_accession(self, accession: str) -> FilingRecord | None:
+        """One filing by accession number, or None when unknown.
+
+        Backs the API's accession-scoped statement/section endpoints (the
+        listing path is ticker-scoped). Demo fixtures are ticker-scoped, so
+        demo mode returns None — the API runs against the live database.
+        """
+        accession = (accession or "").strip()
+        if not accession:
+            return None
+        if is_demo():
+            return None
+        repo = self._repository()
+        getter = getattr(repo, "get_filing_by_accession", None)
+        if getter is None:
+            return None
+        row = getter(accession)
+        if not row:
+            return None
+        return self._to_record(str(row.get("ticker") or ""), row)

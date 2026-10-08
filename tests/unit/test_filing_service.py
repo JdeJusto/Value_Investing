@@ -177,3 +177,41 @@ def test_available_fiscal_years_are_derived_and_sorted():
 
 def test_default_form_types_cover_the_financial_statements():
     assert DEFAULT_FORM_TYPES == ("10-K", "10-Q", "20-F", "40-F")
+
+
+class _AccessionRepo(_Repo):
+    """Stub repo exposing the accession lookup (the API path)."""
+
+    def __init__(self, rows, by_accession=None):
+        super().__init__(rows)
+        self._by_accession = by_accession
+
+    def get_filing_by_accession(self, accession):
+        return self._by_accession
+
+
+def test_get_by_accession_returns_a_record():
+    row = _row()
+    row["ticker"] = "AAPL"
+    service = FilingService(repository=_AccessionRepo([], by_accession=row))
+    record = service.get_by_accession("0000320193-24-000123")
+    assert record is not None
+    assert record.accession_number == "0000320193-24-000123"
+    assert record.form_type == "10-K"
+    assert record.ticker == "AAPL"
+    assert record.effective_fiscal_year == 2024  # derived from period_end
+
+
+def test_get_by_accession_unknown_returns_none():
+    service = FilingService(repository=_AccessionRepo([], by_accession=None))
+    assert service.get_by_accession("0000000000-00-000000") is None
+
+
+def test_get_by_accession_without_repo_support_returns_none():
+    service = FilingService(repository=_Repo([]))
+    assert service.get_by_accession("0000320193-24-000123") is None
+
+
+def test_get_by_accession_blank_returns_none():
+    service = FilingService(repository=_AccessionRepo([], by_accession=None))
+    assert service.get_by_accession("   ") is None
