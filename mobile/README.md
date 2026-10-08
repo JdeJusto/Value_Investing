@@ -48,7 +48,48 @@ npm run lint      # eslint (flat config)
 
 ## Building an APK
 
-Two paths. See the section below in this file (Phase H fills it).
+Two paths are supported. The EAS path needs no Android SDK locally; the
+local path needs the Android SDK installed on Arch (a large download).
+
+### Easy path (EAS Build, cloud)
+
+```bash
+npm install -g eas-cli
+eas login
+eas build:configure
+eas build -p android --profile preview
+# Download the APK link printed at the end
+```
+
+`eas.json` defines two profiles: `preview` (APK, internal distribution) and
+`production` (AAB for a future Play Store release).
+
+### Local path (prebuild + Gradle)
+
+```bash
+npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease
+# android/app/build/outputs/apk/release/app-release.apk
+```
+
+The keystore must exist outside the repo (for example
+`~/.android/release.keystore`); generate one with:
+
+```bash
+keytool -genkeypair -v -keystore ~/.android/release.keystore \
+  -alias valueinvesting -keyalg RSA -keysize 2048 -validity 10000
+```
+
+### Install on the phone
+
+- **Via USB**: `adb install <path>.apk`
+- **Without USB**: send the APK to yourself (email, Signal, etc.), open it on
+  the phone, and enable "Install from unknown sources" for the file manager.
+
+### Connecting the app to the API
+
+See "Configuration" above. After the first launch, set the URLs and the API
+key once and the app remembers them.
 
 ## Troubleshooting
 
