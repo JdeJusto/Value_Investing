@@ -48,6 +48,7 @@ export default function CompanyScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.segmentScroll}
         contentContainerStyle={[styles.segment, { borderColor: theme.border }]}
       >
         {TABS.map((name) => {
@@ -155,10 +156,12 @@ function OverviewTab({ query }: { query: CompanyQuery }) {
 }
 
 const styles = StyleSheet.create({
+  segmentScroll: { flexGrow: 0, flexShrink: 0 },
   segment: {
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    alignItems: "center",
   },
   segmentItem: {
     borderRadius: 16,
