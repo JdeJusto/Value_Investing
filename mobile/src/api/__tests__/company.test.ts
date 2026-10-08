@@ -1,7 +1,7 @@
 import fetchMock from "jest-fetch-mock";
 
 import { ApiClient } from "../client";
-import { fetchCompany, fetchMethodologies } from "../company";
+import { fetchCompany, fetchDCF, fetchMethodologies } from "../company";
 
 fetchMock.enableMocks();
 
@@ -106,4 +106,39 @@ test("a null methodology score is preserved as null", async () => {
   const result = await fetchMethodologies(client, "JPM");
   expect(result.data.methodologies[0].score).toBeNull();
   expect(result.data.summary.na_count).toBe(1);
+});
+
+test("fetchDCF calls the dcf endpoint and parses the response", async () => {
+  fetchMock.mockResponseOnce(
+    JSON.stringify({
+      data: {
+        ticker: "AAPL",
+        variant: "standard",
+        intrinsic_value: 139.6,
+        current_price: 340.0,
+        margin_of_safety: -1.411,
+        verdict: "OVERVALUED",
+        wacc: 0.085,
+        assumptions: {
+          fcf_base: 106.6e9,
+          growth_1_5: 0.06,
+          growth_6_10: 0.05,
+          terminal_growth: 0.025,
+        },
+        sensitivity: [{ wacc: 0.065, growth: 0.04, value: 160.5 }],
+        reasons: ["FCF base: 3-year average."],
+        missing_inputs: [],
+        source: "not-from-canon",
+      },
+      meta: META,
+    }),
+  );
+  const client = new ApiClient(CONFIG);
+  const result = await fetchDCF(client, "aapl");
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://10.0.2.2:8000/api/v1/company/AAPL/dcf",
+  );
+  expect(result.data.source).toBe("not-from-canon");
+  expect(result.data.margin_of_safety).toBe(-1.411);
+  expect(result.data.sensitivity).toHaveLength(1);
 });

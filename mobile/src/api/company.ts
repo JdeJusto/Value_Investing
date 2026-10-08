@@ -75,3 +75,49 @@ export function fetchMethodologies(
     `/api/v1/company/${encodeURIComponent(normalized)}/methodologies`,
   );
 }
+
+export type DCFVariant =
+  | "standard"
+  | "reit"
+  | "ddm_financial"
+  | "ddm_financial_two_stage"
+  | "hyper_growth";
+
+export type DCFAssumptions = {
+  fcf_base: number | null;
+  growth_1_5: number | null;
+  growth_6_10: number | null;
+  terminal_growth: number;
+};
+
+export type DCFSensitivityRow = {
+  wacc: number;
+  growth: number;
+  value: number | null;
+};
+
+/** Shape of GET /company/{ticker}/dcf (source is always not-from-canon). */
+export type DCFResponse = {
+  ticker: string;
+  variant: DCFVariant;
+  intrinsic_value: number | null;
+  current_price: number | null;
+  margin_of_safety: number | null;
+  verdict: "UNDERVALUED" | "FAIR" | "OVERVALUED" | "INSUFFICIENT_DATA";
+  wacc: number | null;
+  assumptions: DCFAssumptions;
+  sensitivity: DCFSensitivityRow[];
+  reasons: string[];
+  missing_inputs: string[];
+  source: "not-from-canon";
+};
+
+export function fetchDCF(
+  client: ApiClient,
+  ticker: string,
+): Promise<ApiEnvelope<DCFResponse>> {
+  const normalized = ticker.trim().toUpperCase();
+  return client.get<DCFResponse>(
+    `/api/v1/company/${encodeURIComponent(normalized)}/dcf`,
+  );
+}

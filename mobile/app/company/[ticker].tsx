@@ -11,8 +11,10 @@ import {
 
 import type { ApiEnvelope } from "../../src/api/client";
 import type { CompanyResponse } from "../../src/api/company";
+import { DCFTab } from "../../src/components/DCFTab";
 import { MethodologiesTab } from "../../src/components/MethodologiesTab";
 import { useCompany } from "../../src/hooks/useCompany";
+import { useDCF } from "../../src/hooks/useDCF";
 import { useMethodologies } from "../../src/hooks/useMethodologies";
 import { ThemedText, ThemedView } from "../../src/theme/Themed";
 import { useTheme } from "../../src/theme/ThemeProvider";
@@ -36,6 +38,7 @@ export default function CompanyScreen() {
   const normalized = (params.ticker ?? "").toUpperCase();
   const query = useCompany(normalized);
   const methodologiesQuery = useMethodologies(normalized);
+  const dcfQuery = useDCF(normalized);
   const [tab, setTab] = useState<Tab>("Overview");
 
   return (
@@ -70,10 +73,15 @@ export default function CompanyScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={query.isRefetching || methodologiesQuery.isRefetching}
+            refreshing={
+              query.isRefetching ||
+              methodologiesQuery.isRefetching ||
+              dcfQuery.isRefetching
+            }
             onRefresh={() => {
               void query.refetch();
               void methodologiesQuery.refetch();
+              void dcfQuery.refetch();
             }}
             tintColor={theme.accent}
           />
@@ -83,6 +91,8 @@ export default function CompanyScreen() {
           <OverviewTab query={query} />
         ) : tab === "Methodologies" ? (
           <MethodologiesTab query={methodologiesQuery} ticker={normalized} />
+        ) : tab === "DCF" ? (
+          <DCFTab query={dcfQuery} ticker={normalized} />
         ) : (
           <View style={styles.comingSoon}>
             <ThemedText muted>{tab} — coming soon.</ThemedText>

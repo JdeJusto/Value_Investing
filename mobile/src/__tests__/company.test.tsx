@@ -3,8 +3,13 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import CompanyScreen from "../../app/company/[ticker]";
 import { ApiRequestError, type ApiEnvelope } from "../api/client";
-import type { CompanyResponse, MethodologiesResponse } from "../api/company";
+import type {
+  CompanyResponse,
+  DCFResponse,
+  MethodologiesResponse,
+} from "../api/company";
 import { useCompany } from "../hooks/useCompany";
+import { useDCF } from "../hooks/useDCF";
 import { useMethodologies } from "../hooks/useMethodologies";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
@@ -21,10 +26,15 @@ jest.mock("../hooks/useMethodologies", () => ({
   useMethodologies: jest.fn(),
 }));
 
+jest.mock("../hooks/useDCF", () => ({
+  useDCF: jest.fn(),
+}));
+
 const mockUseCompany = useCompany as jest.MockedFunction<typeof useCompany>;
 const mockUseMethodologies = useMethodologies as jest.MockedFunction<
   typeof useMethodologies
 >;
+const mockUseDCF = useDCF as jest.MockedFunction<typeof useDCF>;
 
 function queryResult<T>(
   partial: Partial<UseQueryResult<ApiEnvelope<T>, Error>>,
@@ -70,6 +80,10 @@ beforeEach(() => {
   mockUseMethodologies.mockReturnValue(
     queryResult<MethodologiesResponse>({ isLoading: true, isPending: true }),
   );
+  mockUseDCF.mockReset();
+  mockUseDCF.mockReturnValue(
+    queryResult<DCFResponse>({ isLoading: true, isPending: true }),
+  );
 });
 
 test("renders the overview with live company data", async () => {
@@ -90,8 +104,17 @@ test("switches to a stub tab without leaving the screen", async () => {
     queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
   );
   await renderCompany();
+  await fireEvent.press(screen.getByText("Financials"));
+  expect(screen.getByText("Financials — coming soon.")).toBeTruthy();
+});
+
+test("opens the DCF tab with its own loading state", async () => {
+  mockUseCompany.mockReturnValue(
+    queryResult<CompanyResponse>({ data: ENVELOPE, isSuccess: true }),
+  );
+  await renderCompany();
   await fireEvent.press(screen.getByText("DCF"));
-  expect(screen.getByText("DCF — coming soon.")).toBeTruthy();
+  expect(screen.getByTestId("skeleton-cards")).toBeTruthy();
 });
 
 test("shows a pull-to-refresh error state when the query fails", async () => {
