@@ -46,14 +46,18 @@ def test_missing_demo_fixture_returns_none(monkeypatch):
     assert load_balance_sheet(_demo_record(ticker="ZZZZ")) is None
 
 
-def test_fetch_failure_returns_none_without_raising(monkeypatch):
+def test_fetch_failure_returns_none_without_raising(monkeypatch, tmp_path):
     monkeypatch.delenv("VI_DEMO", raising=False)
 
     class _Boom:
         def fetch_html(self, *args, **kwargs):
             return None
 
-    assert load_balance_sheet(_demo_record(), fetcher=_Boom()) is None
+    # A temp cache keeps the test independent of any previously parsed filing
+    # (a real fetch of the same accession would otherwise satisfy the lookup).
+    assert (
+        load_balance_sheet(_demo_record(), fetcher=_Boom(), cache_dir=tmp_path) is None
+    )
 
 
 def _run(monkeypatch) -> AppTest:
