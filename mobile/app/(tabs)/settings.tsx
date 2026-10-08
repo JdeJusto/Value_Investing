@@ -66,6 +66,26 @@ export default function SettingsScreen() {
 
         <ThemedText style={styles.sectionTitle}>Connection</ThemedText>
 
+        <View style={styles.switchRow}>
+          <View style={styles.switchLabel}>
+            <ThemedText>Emulator mode (10.0.2.2)</ThemedText>
+            <ThemedText muted style={styles.helpText}>
+              Use this when running on Android Studio&apos;s emulator.
+              Overrides the LAN and Tailscale URLs below.
+            </ThemedText>
+          </View>
+          <Switch
+            value={settings.useEmulator}
+            onValueChange={settings.setUseEmulator}
+            trackColor={{ true: theme.accent, false: theme.border }}
+          />
+        </View>
+        {settings.useEmulator ? (
+          <ThemedText muted style={styles.note}>
+            LAN and Tailscale settings are ignored while emulator mode is on.
+          </ThemedText>
+        ) : null}
+
         <ThemedText style={styles.label}>LAN URL</ThemedText>
         <TextInput
           value={settings.lanUrl}
@@ -75,8 +95,10 @@ export default function SettingsScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
+          editable={!settings.useEmulator}
           style={[
             styles.input,
+            settings.useEmulator && styles.inputDisabled,
             {
               color: theme.text,
               borderColor: theme.border,
@@ -94,8 +116,10 @@ export default function SettingsScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
+          editable={!settings.useEmulator}
           style={[
             styles.input,
+            settings.useEmulator && styles.inputDisabled,
             {
               color: theme.text,
               borderColor: theme.border,
@@ -109,6 +133,7 @@ export default function SettingsScreen() {
           <Switch
             value={settings.useTailscale}
             onValueChange={settings.setUseTailscale}
+            disabled={settings.useEmulator}
             trackColor={{ true: theme.accent, false: theme.border }}
           />
         </View>
@@ -228,6 +253,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8,
   },
+  switchLabel: { flex: 1, paddingRight: 12 },
+  helpText: { fontSize: 12, marginTop: 2 },
+  note: { fontSize: 12, marginTop: 4 },
+  inputDisabled: { opacity: 0.5 },
   keyRow: { flexDirection: "row", gap: 8, alignItems: "stretch" },
   keyInput: { flex: 1 },
   keyToggle: {
