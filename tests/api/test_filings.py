@@ -13,6 +13,7 @@ from backend.services.financial_statement_parser import (
     StatementLine,
     StatementType,
 )
+from backend.services.narrative_extractor import NarrativeSection
 
 
 def _filing_row(
@@ -246,3 +247,84 @@ def test_statement_missing_api_key_401(monkeypatch):
     )
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+# ---------------------------------------------------------------------------
+# narrative section
+# ---------------------------------------------------------------------------
+def _fake_section():
+    return NarrativeSection(
+        section_type="risk_factors",
+        filing_date=date(2024, 11, 1),
+        period_end=date(2024, 9, 28),
+        form_type="10-K",
+        title="Item 1A. Risk Factors",
+        text=" ".join(f"word{index}" for index in range(150)),
+        word_count=150,
+        source="toc_anchor",
+        extraction_warnings=[],
+    )
+
+
+def test_section_shape(monkeypatch):
+    monkeypatch.setattr(
+        "backend.api.routes.filings.load_narrative_section",
+        lambda record, stype: _fake_section(),
+    )
+    client = _client(monkeypatch, _Repo(ROWS))
+    response = _get(client, "/api/v1/filings/0000320193-24-000123/section/risk_factors")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["accession_number"] == "0000320193-24-000123"
+    assert data["form_type"] == "10-K"
+    assert data["section_type"] == "risk_factors"
+    assert data["title"] == "Item 1A. Risk Factors"
+    assert data["word_count"] == 150
+    assert data["source"] == "toc_anchor"
+    assert data["truncated"] is False
+    assert len(data["text"].split()) == 150
+
+
+def test_section_word_limit_truncates(monkeypatch):
+    monkeypatch.setattr(
+        "backend.api.routes.filings.load_narrative_section",
+        lambda record, stype: _fake_section(),
+    )
+    client = _client(monkeypatch, _Repo(ROWS))
+    data = _get(
+        client,
+        "/api/v1/filings/0000320193-24-000123/section/risk_factors?word_limit=100",
+    ).json()["data"]
+    assert data["truncated"] is True
+    assert len(data["text"].split()) == 100
+    assert data["word_count"] == 150
+
+
+def test_section_invalid_type_400(monkeypatch):
+    client = _client(monkeypatch, _Repo(ROWS))
+    response = _get(client, "/api/v1/filings/0000320193-24-000123/section/risk")
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_SECTION_TYPE"
+
+
+def test_section_not_found_in_filing_is_a_200(monkeypatch):
+    monkeypatch.setattr(
+        "backend.api.routes.filings.load_narrative_section",
+        lambda record, stype: None,
+    )
+    client = _client(monkeypatch, _Repo(ROWS))
+    response = _get(client, "/api/v1/filings/0000320193-24-000123/section/md_a")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["text"] == ""
+    assert data["warnings"] == ["Section not found in filing."]
+
+
+def test_section_missing_api_key_401(monkeypatch):
+    client = _client(monkeypatch, _Repo(ROWS))
+    response = _get(
+        client,
+        "/api/v1/filings/0000320193-24-000123/section/risk_factors",
+        key=None,
+    )
+    assert response.status_code == 401

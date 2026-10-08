@@ -15,6 +15,10 @@ from backend.services.financial_statement_parser import (
     StatementType,
     load_financial_statement,
 )
+from backend.services.narrative_extractor import (
+    SectionType,
+    load_narrative_section,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["filings"])
 
@@ -116,6 +120,59 @@ def filing_statement(
     return ok(data, source="sec_edgar", cache_ttl=86400)
 
 
+@router.get(
+    "/filings/{accession}/section/{section_type}",
+    dependencies=[Depends(require_api_key)],
+)
+def filing_section(
+    accession: str,
+    section_type: str,
+    word_limit: int | None = None,
+    repository: Any = Depends(get_repository),
+) -> dict[str, Any]:
+    """One narrative section from a filing: risk factors or MD&A.
+
+    ``word_limit`` truncates the text for previews; ``truncated`` says whether
+    it did. A section the extractor cannot find returns empty text with a
+    warning — never a 500.
+    """
+    stype = _section_type(section_type)
+    record = _filing_or_404(repository, accession)
+    section = load_narrative_section(record, stype)
+    if section is None:
+        data = {
+            "accession_number": record.accession_number,
+            "form_type": record.form_type,
+            "section_type": stype.value,
+            "title": "",
+            "word_count": 0,
+            "source": "none",
+            "warnings": ["Section not found in filing."],
+            "text": "",
+            "truncated": False,
+        }
+    else:
+        text = section.text
+        truncated = False
+        if word_limit is not None and word_limit > 0:
+            words = text.split()
+            if len(words) > word_limit:
+                text = " ".join(words[:word_limit])
+                truncated = True
+        data = {
+            "accession_number": record.accession_number,
+            "form_type": record.form_type,
+            "section_type": stype.value,
+            "title": section.title,
+            "word_count": section.word_count,
+            "source": section.source,
+            "warnings": list(section.extraction_warnings),
+            "text": text,
+            "truncated": truncated,
+        }
+    return ok(data, source="sec_edgar", cache_ttl=86400)
+
+
 def _parse_date(value: str | None) -> date | None:
     """ISO date or None; a malformed value is a 400, not a 500."""
     if not value:
@@ -136,6 +193,15 @@ def _statement_type(value: str) -> StatementType:
     except ValueError as exc:
         raise ApiError(
             400, "INVALID_STATEMENT_TYPE", f"Unknown statement type: {value}"
+        ) from exc
+
+
+def _section_type(value: str) -> SectionType:
+    try:
+        return SectionType((value or "").strip().lower())
+    except ValueError as exc:
+        raise ApiError(
+            400, "INVALID_SECTION_TYPE", f"Unknown section type: {value}"
         ) from exc
 
 
