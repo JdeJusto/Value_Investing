@@ -18,7 +18,6 @@ from backend.services.ui_adapter import (
     build_portfolio_view,
     latest_daily_report,
     refresh_portfolio_prices,
-    save_portfolio_prices,
 )
 from ui._shared import (
     DASH,
@@ -86,10 +85,8 @@ def _refresh_prices(portfolio, path: str) -> None:
         type="primary",
         disabled=not prices,
     ):
-        from backend.portfolio.portfolio_repository import JsonPortfolioRepository
-
-        updated = save_portfolio_prices(
-            portfolio, prices, JsonPortfolioRepository(path)
+        updated = _portfolio_service(path).save_prices(
+            {ticker: float(data["new"]) for ticker, data in prices.items()}
         )
         st.session_state.pop("home_prices", None)
         st.success(f"Prices saved to the portfolio ({updated} positions).")
@@ -109,6 +106,14 @@ def _refresh_prices(portfolio, path: str) -> None:
         width="stretch",
         hide_index=True,
     )
+
+
+def _portfolio_service(path: str):
+    """Write-locked service: price saves go through the same lock as the CLI."""
+    from backend.portfolio.portfolio_repository import JsonPortfolioRepository
+    from backend.portfolio.portfolio_service import PortfolioService
+
+    return PortfolioService(repository=JsonPortfolioRepository(path))
 
 
 def _latest_report() -> None:

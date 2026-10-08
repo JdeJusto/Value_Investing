@@ -136,6 +136,7 @@ data/processed/*
 data/normalized/*
 !data/normalized/.gitkeep
 data/portfolio.json
+*.json.lock
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/cache/.gitkeep

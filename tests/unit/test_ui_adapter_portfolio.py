@@ -13,11 +13,11 @@ import pytest
 
 from backend.portfolio.models import Portfolio, Position
 from backend.portfolio.portfolio_repository import JsonPortfolioRepository
+from backend.portfolio.portfolio_service import PortfolioService
 from backend.services.ui_adapter import (
     DASH,
     build_portfolio_view,
     refresh_portfolio_prices,
-    save_portfolio_prices,
 )
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -140,25 +140,22 @@ def test_refresh_portfolio_prices_does_not_modify_portfolio():
     assert portfolio.position("AAPL").current_price == 340.0
 
 
-def test_save_portfolio_prices_updates_json(tmp_path):
+def test_save_prices_updates_json_through_the_service(tmp_path):
     repository = JsonPortfolioRepository(tmp_path / "portfolio.json")
     portfolio = _load("portfolio_three")
     repository.save(portfolio)
-    updated = save_portfolio_prices(
-        portfolio,
-        {"AAPL": {"stored": 340.0, "new": 400.0, "delta_pct": 0.176}},
-        repository,
-    )
+    updated = PortfolioService(repository).save_prices({"AAPL": 400.0})
     assert updated == 1
     reloaded = JsonPortfolioRepository(tmp_path / "portfolio.json").load()
     assert reloaded.position("AAPL").current_price == 400.0
     assert reloaded.position("MSFT").current_price == 300.0
 
 
-def test_save_portfolio_prices_with_empty_refresh_writes_nothing(tmp_path):
+def test_save_prices_with_empty_dict_keeps_the_state(tmp_path):
     repository = JsonPortfolioRepository(tmp_path / "portfolio.json")
     portfolio = _load("portfolio_three")
     repository.save(portfolio)
-    before = (tmp_path / "portfolio.json").read_text()
-    assert save_portfolio_prices(portfolio, {}, repository) == 0
-    assert (tmp_path / "portfolio.json").read_text() == before
+    assert PortfolioService(repository).save_prices({}) == 0
+    reloaded = JsonPortfolioRepository(tmp_path / "portfolio.json").load()
+    assert reloaded.position("AAPL").current_price == 340.0
+    assert reloaded.position("MSFT").current_price == 300.0

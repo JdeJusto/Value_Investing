@@ -33,7 +33,6 @@ def test_ui_adapter_still_exposes_the_moved_view_models():
         ui_adapter.refresh_portfolio_prices
         is portfolio_adapter.refresh_portfolio_prices
     )
-    assert ui_adapter.save_portfolio_prices is portfolio_adapter.save_portfolio_prices
 
 
 def test_sector_concentration_threshold_moved_with_the_block():

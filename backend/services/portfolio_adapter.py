@@ -231,22 +231,7 @@ def refresh_portfolio_prices(portfolio: Any, price_service: Any) -> dict[str, di
     return refreshed
 
 
-def save_portfolio_prices(
-    portfolio: Any, prices: dict[str, dict], repository: Any
-) -> int:
-    """Persist refreshed prices through the repository; returns how many.
-
-    Only tickers present in ``prices`` are touched; the portfolio object is
-    updated in place and saved atomically by the repository. This is the only
-    path that writes prices, and the UI calls it from an explicit button.
-    """
-    updated = 0
-    for ticker, data in prices.items():
-        position = portfolio.position(ticker)
-        if position is None:
-            continue
-        position.current_price = float(data["new"])
-        updated += 1
-    if updated:
-        repository.save(portfolio)
-    return updated
+# Note: there is deliberately no "save prices" helper here anymore. Persisted
+# prices go through PortfolioService.save_prices(), which serializes the
+# update with the portfolio's exclusive file lock; the Streamlit pages call
+# the service directly.

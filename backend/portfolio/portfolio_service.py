@@ -2,10 +2,18 @@
 
 The analyzer is the analytics-layer entry point (it may refresh prices
 and scores); the service itself never touches providers directly.
+
+Concurrency invariant: every read-modify-write cycle (add, exit, remove,
+save_prices, view, performance) runs inside an exclusive ``fcntl.flock``
+on ``<portfolio>.lock``, so concurrent writers — the API, the CLI and the
+Streamlit UI — can never lose an update.
 """
 
-from collections.abc import Callable
+import fcntl
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 
 from backend.portfolio.allocation import (
     overconcentration,
@@ -32,6 +40,40 @@ class PortfolioService:
         self._analyzer = analyzer
 
     # ------------------------------------------------------------------
+    # write lock
+    # ------------------------------------------------------------------
+    @contextmanager
+    def _locked_portfolio(self) -> Iterator[Portfolio]:
+        """Exclusive-lock read → yield → save.
+
+        ``fcntl.flock`` (blocking) serializes the whole critical section
+        across threads *and* processes; the lock file lives next to the
+        portfolio JSON. Repositories without a ``lock_path`` (in-memory test
+        doubles) degrade to a plain load/save — single-process callers only.
+        """
+        lock_path = self._lock_path()
+        if lock_path is None:
+            portfolio = self._load()
+            yield portfolio
+            self._save(portfolio)
+            return
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "w", encoding="utf-8") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                portfolio = self._load()
+                yield portfolio
+                self._save(portfolio)
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    def _lock_path(self) -> Path | None:
+        lock_path = getattr(self._repository, "lock_path", None)
+        return Path(lock_path) if lock_path is not None else None
+
+    # ------------------------------------------------------------------
+    # mutations
+    # ------------------------------------------------------------------
     def add(
         self,
         ticker: str,
@@ -42,7 +84,6 @@ class PortfolioService:
         signal_at_entry: str = "",
     ) -> Position:
         """Open (or average into) a position, saving the thesis."""
-        portfolio = self._load()
         t = ticker.upper().strip()
         position = Position(
             ticker=t,
@@ -53,65 +94,84 @@ class PortfolioService:
             thesis=thesis,
             signal_at_entry=signal_at_entry,
         )
-        portfolio.add(position)
-        self._save(portfolio)
+        with self._locked_portfolio() as portfolio:
+            portfolio.add(position)
         return position
 
     def exit(self, ticker: str, price: float) -> Position | None:
         """Close a position at ``price`` and record realized PnL."""
-        portfolio = self._load()
-        closed = portfolio.close(ticker, price)
-        if closed is not None:
-            self._save(portfolio)
+        with self._locked_portfolio() as portfolio:
+            closed = portfolio.close(ticker, price)
         return closed
 
     def remove(self, ticker: str) -> Position | None:
-        portfolio = self._load()
-        removed = portfolio.remove(ticker)
-        if removed is not None:
-            self._save(portfolio)
+        with self._locked_portfolio() as portfolio:
+            removed = portfolio.remove(ticker)
         return removed
+
+    def save_prices(self, prices: dict[str, float]) -> int:
+        """Persist refreshed prices (ticker -> price); returns how many.
+
+        The single price-write path: the Streamlit "Save prices" buttons and
+        anything else persist through here, so the update always happens
+        inside the exclusive lock against the freshest portfolio state.
+        Unknown tickers and non-positive prices are ignored (no fabricated
+        price is ever stored).
+        """
+        updated = 0
+        with self._locked_portfolio() as portfolio:
+            for ticker, raw_price in (prices or {}).items():
+                position = portfolio.position(ticker)
+                if position is None:
+                    continue
+                try:
+                    price = float(raw_price)
+                except (TypeError, ValueError):
+                    continue
+                if price <= 0:
+                    continue
+                position.current_price = price
+                updated += 1
+        return updated
 
     # ------------------------------------------------------------------
     def view(self) -> list[dict]:
         """Every open position enriched with scores, moat and signal."""
-        portfolio = self._load()
-        self._refresh_prices(portfolio)
-        self._save(portfolio)
-        enriched: list[dict] = []
-        for position in portfolio.positions:
-            if not position.is_open:
-                continue
-            info = self._analysis_for(position)
-            is_live = info.pop("current_price_source") == "live"
-            enriched.append(
-                {
-                    "ticker": position.ticker,
-                    "quantity": position.quantity,
-                    "avg_price": position.avg_price,
-                    "current_price": position.current_price,
-                    "entry_date": position.entry_date.isoformat(),
-                    "thesis": position.thesis,
-                    "signal_at_entry": position.signal_at_entry,
-                    "unrealized_return": position.unrealized_return,
-                    "price_source": "live" if is_live else "stored",
-                    **info,
-                }
-            )
+        with self._locked_portfolio() as portfolio:
+            self._refresh_prices(portfolio)
+            enriched: list[dict] = []
+            for position in portfolio.positions:
+                if not position.is_open:
+                    continue
+                info = self._analysis_for(position)
+                is_live = info.pop("current_price_source") == "live"
+                enriched.append(
+                    {
+                        "ticker": position.ticker,
+                        "quantity": position.quantity,
+                        "avg_price": position.avg_price,
+                        "current_price": position.current_price,
+                        "entry_date": position.entry_date.isoformat(),
+                        "thesis": position.thesis,
+                        "signal_at_entry": position.signal_at_entry,
+                        "unrealized_return": position.unrealized_return,
+                        "price_source": "live" if is_live else "stored",
+                        **info,
+                    }
+                )
         return enriched
 
     def performance(self) -> dict:
         """Performance snapshot plus allocation warnings."""
-        portfolio = self._load()
-        self._refresh_prices(portfolio)
-        self._save(portfolio)
-        perf = portfolio_performance(portfolio)
-        sectors = self._sector_map(portfolio)
-        perf["allocation"] = {
-            "overconcentrated": overconcentration(portfolio),
-            "sector_exposure": sector_exposure(portfolio, sectors),
-            "risk": risk_concentration(portfolio),
-        }
+        with self._locked_portfolio() as portfolio:
+            self._refresh_prices(portfolio)
+            perf = portfolio_performance(portfolio)
+            sectors = self._sector_map(portfolio)
+            perf["allocation"] = {
+                "overconcentrated": overconcentration(portfolio),
+                "sector_exposure": sector_exposure(portfolio, sectors),
+                "risk": risk_concentration(portfolio),
+            }
         return perf
 
     # ------------------------------------------------------------------

@@ -24,6 +24,15 @@ class JsonPortfolioRepository(PortfolioRepository):
     def __init__(self, path: str | os.PathLike = "data/portfolio.json"):
         self._path = Path(path)
 
+    @property
+    def lock_path(self) -> Path:
+        """Lock file guarding the read-modify-write cycle of this portfolio.
+
+        Lives next to the JSON (``portfolio.json.lock``) so every writer —
+        API, CLI, Streamlit — shares the same advisory lock.
+        """
+        return Path(str(self._path) + ".lock")
+
     def load(self) -> Portfolio:
         if not self._path.exists():
             return Portfolio()

@@ -168,14 +168,9 @@ def _render_refresh_prices(portfolio, path: str) -> None:
         hide_index=True,
     )
     if st.button("Save prices to portfolio", key="pf_save", type="primary"):
-        from backend.portfolio.portfolio_repository import JsonPortfolioRepository
-
-        repository = JsonPortfolioRepository(path)
-        current = repository.load()
-        for position in current.positions:
-            if position.is_open and position.ticker in quotes:
-                position.current_price = quotes[position.ticker]
-        repository.save(current)
+        _portfolio_service(path).save_prices(
+            {ticker: float(price) for ticker, price in quotes.items()}
+        )
         st.session_state.pop("pf_quotes", None)
         _flash("Prices saved to the portfolio.")
         st.rerun()

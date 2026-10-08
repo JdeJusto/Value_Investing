@@ -35,7 +35,6 @@ from backend.services.portfolio_adapter import (  # noqa: F401
     exit_position,
     refresh_portfolio_prices,
     remove_position,
-    save_portfolio_prices,
     validate_new_position,
 )
 from backend.services.screener_filters import is_investable_company
