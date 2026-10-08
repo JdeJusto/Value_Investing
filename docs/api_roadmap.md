@@ -37,12 +37,12 @@ Play Store release.
 
 **Testable:** mobile can render the Methodologies, DCF and Alerts panels.
 
-### Phase 3 — Filings and financials endpoints (2-3 days)
-- [ ] `/api/v1/company/{ticker}/filings` — list with form/year filters
-- [ ] `/api/v1/company/{ticker}/filing/{accession}/statement/{type}`
-- [ ] `/api/v1/company/{ticker}/filing/{accession}/section/{type}`
-- [ ] `/api/v1/company/{ticker}/financials` — facts per year
-- [ ] `/api/v1/insights/{ticker}`
+### Phase 3 — Filings and financials endpoints (2-3 days) — done (v0.15.0)
+- [x] `/api/v1/company/{ticker}/filings` — list with form/year filters
+- [x] `/api/v1/filings/{accession}/statement/{type}`
+- [x] `/api/v1/filings/{accession}/section/{type}`
+- [x] `/api/v1/company/{ticker}/financials` — facts per year
+- [x] `/api/v1/company/{ticker}/insights`
 
 **Testable:** full company deep-dive via API (Financials + Filings tabs).
 
@@ -77,13 +77,13 @@ Play Store release.
 
 **Testable:** app launches, settings save, health check passes.
 
-### Phase 7 — Mobile app: company detail (3-5 days)
+### Phase 7 — Mobile app: company detail (3-5 days) — done (v0.15.0)
 - [x] Company detail screen with 5 tabs
 - [x] Overview (ratios + verdict summary)
 - [x] Methodologies (8 cards) — v0.14.0
 - [x] DCF (value + margin of safety + sensitivity) — v0.14.0
-- [ ] Financials (yearly table)
-- [ ] Filings (list + statement + section)
+- [x] Financials (yearly table) — v0.15.0
+- [x] Filings (list + statement + section) — v0.15.0
 - [x] Pull to refresh, skeleton loaders
 
 **Testable:** full company deep-dive on phone.

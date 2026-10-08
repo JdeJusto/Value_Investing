@@ -13,9 +13,10 @@ for the roadmap.
 - **Home**: live company lookup (ticker search, price, market cap).
 - **Company detail**: Overview · **Methodologies** (8 verdicts, summary
   chips, expandable reasons/red flags) · **DCF** (intrinsic value, margin of
-  safety, 3×3 sensitivity) · Financials and Filings (coming soon).
+  safety, 3×3 sensitivity) · **Financials** (insights summary + year tables)
+  · **Filings** (list, filters, statement and narrative previews).
 - **Settings**: emulator/LAN/Tailscale URLs, API key, theme, connection test.
-- Screener, Consensus and Portfolio tabs are stubs (API Phases 3-5 pending).
+- Screener, Consensus and Portfolio tabs are stubs (API Phases 4-5 pending).
 
 ## Requirements
 

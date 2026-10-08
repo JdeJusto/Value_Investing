@@ -89,16 +89,16 @@ Error responses:
 | GET | `/api/v1/company/{ticker}/fundamentals` | Fundamentals (last N fiscal years); `?years=10` |
 | GET | `/api/v1/company/{ticker}/methodologies` | All 8 methodology verdicts + scores (✅ shipped v0.14.0) |
 | GET | `/api/v1/company/{ticker}/dcf` | DCF valuation (not-from-canon) (✅ shipped v0.14.0) |
-| GET | `/api/v1/company/{ticker}/filings` | SEC filings list; `?form=10-K&year=2025&limit=20` |
-| GET | `/api/v1/company/{ticker}/filing/{accession}/statement/{type}` | Statement from filing; `type` = `balance-sheet`, `income`, `cash-flow` |
-| GET | `/api/v1/company/{ticker}/filing/{accession}/section/{type}` | Narrative section; `type` = `risk-factors`, `mda`, `business` |
-| GET | `/api/v1/company/{ticker}/financials` | All XBRL facts per year; `?period=FY&years=10` |
+| GET | `/api/v1/company/{ticker}/filings` | SEC filings list; `?form=10-K&year=2025&limit=20` (✅ shipped v0.15.0) |
+| GET | `/api/v1/filings/{accession}/statement/{type}` | Statement from filing; `type` = `balance_sheet`, `income_statement`, `cash_flow` (✅ shipped v0.15.0) |
+| GET | `/api/v1/filings/{accession}/section/{type}` | Narrative section; `type` = `risk_factors`, `md_a` (✅ shipped v0.15.0) |
+| GET | `/api/v1/company/{ticker}/financials` | All XBRL facts per year; `?period=FY&years=10&abbreviate=true` (✅ shipped v0.15.0) |
 
 ### Discovery & Analysis Endpoints (6)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/insights/{ticker}` | Narrative insights (moat, quality, risks) |
+| GET | `/api/v1/company/{ticker}/insights` | Narrative insights (moat, quality, risks) (✅ shipped v0.15.0) |
 | GET | `/api/v1/alerts/{ticker}` | Deterministic alerts for a ticker (✅ shipped v0.14.0) |
 | GET | `/api/v1/historical-valuation/{ticker}` | Historical P/E + FCF yield table |
 | GET | `/api/v1/price/{ticker}` | Current price + market cap + dividend metrics |
