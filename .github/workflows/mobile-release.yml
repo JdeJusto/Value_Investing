@@ -30,24 +30,38 @@ jobs:
         run: npm ci
 
       - name: Prebuild Android project
-      - name: Create debug keystore
-        run: |
-          mkdir -p ~/.android
-          keytool -genkeypair -v
-            -keystore ~/.android/debug.keystore
-            -alias androiddebugkey
-            -storepass android -keypass android
-            -keyalg RSA -keysize 2048 -validity 10000
-            -dname "CN=Android Debug,O=Android,C=US"
         working-directory: mobile
         run: npx expo prebuild --platform android --clean
 
-      - name: Build APK
+      - name: Create debug keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Build release APK (arm64-v8a only)
         working-directory: mobile/android
         run: ./gradlew assembleRelease
 
+      - name: Rename APK
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SRC="mobile/android/app/build/outputs/apk/release"
+          # The ABI split produces app-<abi>-release.apk; prefer arm64-v8a.
+          if [ -f "$SRC/app-arm64-v8a-release.apk" ]; then
+              cp "$SRC/app-arm64-v8a-release.apk" \
+                 "value-investing-${VERSION}-arm64-v8a.apk"
+          else
+              # Fallback if ABI split did not apply (single APK)
+              APK=$(ls "$SRC"/*.apk | head -1)
+              cp "$APK" "value-investing-${VERSION}-release.apk"
+          fi
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: value-investing-*-debug.apk
+          files: value-investing-*.apk
