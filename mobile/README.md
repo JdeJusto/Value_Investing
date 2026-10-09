@@ -152,3 +152,12 @@ key once and the app remembers them.
 - **Metro is running but the phone cannot connect**: make sure the phone is
   on the same Wi-Fi and the API URL uses the machine's LAN IP, not
   `localhost`.
+
+### APK size
+
+The release build uses an ABI split to ship only  (all modern Android phones). Combined with R8 minification and resource shrinking, the APK is ~30 MB instead of the ~215 MB debug build. The  config plugins () preserve the split and the debug-keystore signing through .
+
+### APK size
+
+The release build uses an ABI split to ship only `arm64-v8a` (all modern Android phones). Combined with R8 minification and resource shrinking, the APK is ~30 MB instead of the ~215 MB debug build. The `app.json` config plugins (`mobile/plugins/`) preserve the split and the debug-keystore signing through `expo prebuild`.
+
