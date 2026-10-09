@@ -1,3 +1,10 @@
+## [0.16.5] - 2026-10-09
+
+### Fixed
+
+- Grant contents:write to the mobile-release workflow
+
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
