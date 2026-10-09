@@ -11,9 +11,16 @@
 export type ApiEnvelope<T> = {
   data: T;
   meta: {
-    source: "financial_database" | "yahoo" | "mixed" | "internal";
+    source:
+      | "financial_database"
+      | "yahoo"
+      | "mixed"
+      | "internal"
+      | "consensus_json"
+      | "portfolio_json";
     as_of: string;
     cache_ttl: number;
+    warning?: string;
   };
 };
 
