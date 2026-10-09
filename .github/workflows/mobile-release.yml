@@ -30,18 +30,22 @@ jobs:
         run: npm ci
 
       - name: Prebuild Android project
+      - name: Create debug keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v
+            -keystore ~/.android/debug.keystore
+            -alias androiddebugkey
+            -storepass android -keypass android
+            -keyalg RSA -keysize 2048 -validity 10000
+            -dname "CN=Android Debug,O=Android,C=US"
         working-directory: mobile
         run: npx expo prebuild --platform android --clean
 
       - name: Build APK
         working-directory: mobile/android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
 
-      - name: Rename APK
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk \
-             "value-investing-${VERSION}-debug.apk"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
