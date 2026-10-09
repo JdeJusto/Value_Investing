@@ -28,7 +28,8 @@
     },
     "plugins": [
       "expo-router",
-      "./plugins/withAbiSplit.js"
+      "./plugins/withAbiSplit.js",
+      "./plugins/withReleaseSigning.js"
     ]
   }
 }
