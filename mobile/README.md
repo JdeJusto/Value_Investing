@@ -122,6 +122,16 @@ keytool -genkeypair -v -keystore ~/.android/release.keystore \
   -alias valueinvesting -keyalg RSA -keysize 2048 -validity 10000
 ```
 
+## Release assets
+
+Pre-built debug APKs are attached to every GitHub release (tagged `v*`).
+The workflow in `.github/workflows/mobile-release.yml` builds and uploads
+them automatically. To download:
+
+- Go to the [Releases page](https://github.com/JdeJusto/Value_Investing/releases/latest)
+- Download `value-investing-<version>-debug.apk`
+- Install on your phone (enable "Install from unknown sources")
+
 ### Install on the phone
 
 - **Via USB**: `adb install <path>.apk`

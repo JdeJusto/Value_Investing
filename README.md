@@ -358,6 +358,14 @@ disagreement zone, and a live portfolio with add/exit/remove actions. See
 [`mobile/README.md`](mobile/README.md). Requires the API server running
 locally (see `docs/api_design.md`).
 
+### Download the mobile app
+
+The Android APK is available on the
+[Releases page](https://github.com/JdeJusto/Value_Investing/releases/latest).
+Download `value-investing-<version>-debug.apk`, install it on your
+phone (enable "Install from unknown sources"), and configure the
+API URL in Settings.
+
 <a id="faq"></a>
 ## FAQ
 
