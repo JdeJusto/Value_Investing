@@ -18,13 +18,17 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "enableProguardInReleaseBuilds": true,
+      "enableSeparateBuildPerCPUArchitecture": true,
+      "universalApk": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "./plugins/withAbiSplit.js"
     ]
   }
 }
