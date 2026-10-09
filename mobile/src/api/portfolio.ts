@@ -35,7 +35,7 @@ export type PortfolioPerformanceData = {
   total_pnl: number;
   total_return: number | null;
   position_weights: Record<string, number>;
-  positions: Array<{
+  positions: {
     ticker: string;
     quantity: number;
     avg_price: number;
@@ -43,10 +43,10 @@ export type PortfolioPerformanceData = {
     market_value: number;
     unrealized_pnl: number;
     unrealized_return: number | null;
-  }>;
+  }[];
   allocation: {
-    overconcentrated: Array<{ ticker: string; weight: number }>;
-    sector_exposure: Array<{ sector: string; weight: number }>;
+    overconcentrated: { ticker: string; weight: number }[];
+    sector_exposure: { sector: string; weight: number }[];
     risk: {
       largest_position_weight: number;
       top_n_share: number;

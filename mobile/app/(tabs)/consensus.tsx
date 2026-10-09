@@ -32,7 +32,7 @@ function renderRow(item: ConsensusCompany) {
   );
 }
 
-function buildCategoryRows(categories: Record<string, ConsensusCompany[]>): Array<{ category: string; companies: ConsensusCompany[] }> {
+function buildCategoryRows(categories: Record<string, ConsensusCompany[]>): { category: string; companies: ConsensusCompany[] }[] {
   return Object.entries(categories)
     .filter(([, companies]) => companies.length > 0)
     .map(([category, companies]) => ({ category, companies }));
