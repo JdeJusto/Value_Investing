@@ -345,13 +345,16 @@ Additional reviews: [full platform audit](docs/full_platform_audit_2026-09-24.md
 
 See the [engineering backlog](docs/backlog.md) for follow-up items.
 
-## Mobile app (work in progress)
+## Mobile app (feature-complete for daily use)
 
 A native Android app that consumes the FastAPI backend. The Home screen
-renders live company data, and the company detail screen ships four real
-tabs: **Methodologies** (8 book verdicts), **DCF** (intrinsic value, margin
-of safety, sensitivity), **Financials** (insights + year tables) and
-**Filings** (statements + narrative sections). See
+renders live company data, and the company detail screen ships five real
+tabs: **Overview**, **Methodologies** (8 book verdicts), **DCF** (intrinsic
+value, margin of safety, sensitivity), **Financials** (insights + year tables)
+and **Filings** (statements + narrative sections). The top-level tabs
+**Screener**, **Consensus** and **Portfolio** are fully implemented:
+filterable universe with infinite scroll, consensus rankings by category and
+disagreement zone, and a live portfolio with add/exit/remove actions. See
 [`mobile/README.md`](mobile/README.md). Requires the API server running
 locally (see `docs/api_design.md`).
 

@@ -279,20 +279,22 @@ Consequences for the design:
   they call `PortfolioService`.
 - The CLI already goes through `PortfolioService` (verified 2026-10-07:
   `cli/commands/portfolio.py` uses `build_portfolio_service()`).
-- Streamlit add/exit/remove already go through `PortfolioService`, but the
-  "Save prices to portfolio" button writes through
-  `JsonPortfolioRepository.save()` directly (`ui/pages/04_portfolio.py`, and
-  `portfolio_adapter.save_portfolio_prices`) — a known exception to fix in
-  Phase 5.
+- Streamlit add/exit/remove already go through `PortfolioService`, and the
+  "Save prices to portfolio" button now also goes through
+  `PortfolioService.save_prices()` — the Phase 5 fix (v0.16.0) rerouted
+  both `ui/pages/04_portfolio.py` and `ui/pages/01_home.py` through the
+  service, so every writer uses the exclusive `fcntl.flock`.
 - Reads may stay lock-free when they tolerate a slightly stale snapshot;
   writes must hold the lock.
 
-This invariant must be tested before Phase 5 ships:
+This invariant is tested and verified (v0.16.0):
 
 - a test that runs two concurrent `PortfolioService` writes from separate
   threads and asserts the final file contains both changes (no lost update);
-- a test that verifies the CLI and the API mutate only through the service
-  (not the JSON file directly).
+- a test that verifies the CLI, the API, and the Streamlit UI mutate only
+  through the service (not the JSON file directly).
+- the lock file (`portfolio.json.lock`) is created next to the JSON and is
+  gitignored.
 
 ---
 

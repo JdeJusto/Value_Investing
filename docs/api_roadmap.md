@@ -46,14 +46,14 @@ Play Store release.
 
 **Testable:** full company deep-dive via API (Financials + Filings tabs).
 
-### Phase 4 — Screener and consensus endpoints (2 days)
+### Phase 4 — Screener and consensus endpoints (2 days) — done (v0.16.0)
 - [ ] `/api/v1/screener` with filters + pagination
 - [ ] `/api/v1/consensus`, `/ranking`, `/by-category`, `/disagreement`
 - [ ] `/api/v1/search` — ticker/name lookup for the Home search bar
 
 **Testable:** mobile can screen, rank and search.
 
-### Phase 5 — Portfolio endpoints (1-2 days)
+### Phase 5 — Portfolio endpoints (1-2 days) — done (v0.16.0)
 - [ ] `GET /api/v1/portfolio`
 - [ ] `POST /api/v1/portfolio/positions`
 - [ ] `DELETE /api/v1/portfolio/positions/{ticker}`
@@ -88,7 +88,7 @@ Play Store release.
 
 **Testable:** full company deep-dive on phone.
 
-### Phase 8 — Mobile app: screener, consensus, portfolio (5-7 days)
+### Phase 8 — Mobile app: screener, consensus, portfolio (5-7 days) — done (v0.16.0)
 - [ ] Screener with filter bottom sheet + infinite scroll
 - [ ] Consensus (top, by category, disagreement)
 - [ ] Portfolio (positions, add/exit/remove, performance)

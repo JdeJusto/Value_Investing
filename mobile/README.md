@@ -15,8 +15,16 @@ for the roadmap.
   chips, expandable reasons/red flags) · **DCF** (intrinsic value, margin of
   safety, 3×3 sensitivity) · **Financials** (insights summary + year tables)
   · **Filings** (list, filters, statement and narrative previews).
+- **Screener**: filterable universe with pagination (universe, sector, verdict,
+  Lynch category, P/E, ROE, FCF yield, market cap), infinite-scroll results,
+  tap to open company detail.
+- **Consensus**: latest snapshot with BUY distribution; three views — Top
+  ranked (by score/buys/avoids), Best per Lynch category, Disagreement zone
+  (strong BUY vs strong AVOID camps); tap any row for company detail.
+- **Portfolio**: positions with live PnL, allocation risk; add position (modal
+  with validation), exit (records realized PnL at live price), remove (no PnL);
+  pull-to-refresh reloads from the API.
 - **Settings**: emulator/LAN/Tailscale URLs, API key, theme, connection test.
-- Screener, Consensus and Portfolio tabs are stubs (API Phases 4-5 pending).
 
 ## Requirements
 
