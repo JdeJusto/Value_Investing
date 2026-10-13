@@ -21,6 +21,7 @@ from datetime import date
 from typing import Any
 
 from backend.services.demo_mode import DEMO_ROOT, is_demo
+from backend.services.path_safety import safe_join
 
 #: What most investors want first; ``--all`` / no filter shows everything.
 DEFAULT_FORM_TYPES: tuple[str, ...] = ("10-K", "10-Q", "20-F", "40-F")
@@ -111,7 +112,7 @@ class FilingService:
 
     @staticmethod
     def _demo_rows(ticker: str) -> list[dict]:
-        path = DEMO_FILINGS / f"{ticker}.json"
+        path = safe_join(DEMO_FILINGS, f"{ticker}.json")
         if not path.exists():
             return []
         try:

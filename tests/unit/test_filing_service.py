@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from backend.services.filing_service import (
     DEFAULT_FORM_TYPES,
     FilingService,
     build_sec_urls,
 )
+from backend.services.path_safety import UnsafePathComponent
 
 
 def _row(
@@ -215,3 +218,8 @@ def test_get_by_accession_without_repo_support_returns_none():
 def test_get_by_accession_blank_returns_none():
     service = FilingService(repository=_AccessionRepo([], by_accession=None))
     assert service.get_by_accession("   ") is None
+
+
+def test_demo_rows_rejects_path_traversal():
+    with pytest.raises(UnsafePathComponent):
+        FilingService._demo_rows("../etc/passwd")
