@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege: CI only reads the repository (tests, lint, build).
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,6 +18,8 @@ jobs:
   unit-tests:
     name: Unit tests (no database)
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
@@ -42,6 +48,8 @@ jobs:
   compile:
     name: Compile check
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python
@@ -54,6 +62,8 @@ jobs:
   frontend:
     name: Frontend (audit, lint, build)
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: frontend

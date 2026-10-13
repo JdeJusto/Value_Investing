@@ -9,6 +9,12 @@ on:
     tags:
       - "v*"
 
+# Least privilege: this workflow only verifies the tag (reads the repository
+# and runs the suite); the GitHub release itself is created by
+# scripts/release.sh, so `contents: read` is enough.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -17,6 +23,8 @@ jobs:
   verify-tag:
     name: Verify tagged release
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
