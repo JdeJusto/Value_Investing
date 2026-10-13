@@ -24,6 +24,7 @@ from backend.repositories.fdb_concept_mapping import (
     INCOME_STATEMENT_CONCEPTS,
 )
 from backend.services.demo_mode import DEMO_ROOT, is_demo
+from backend.services.path_safety import safe_join
 from backend.services.ui_format import abbreviate_number
 
 #: Default history window and its hard cap (the UI offers 1..20 years).
@@ -464,7 +465,7 @@ class FinancialsViewService:
         """Offline fixtures (annual only): ``data/demo/financials/<T>.json``."""
         if fiscal_period != "FY":
             return None
-        path = DEMO_ROOT / "financials" / f"{ticker}.json"
+        path = safe_join(DEMO_ROOT, "financials", f"{ticker}.json")
         if not path.exists():
             return None
         try:

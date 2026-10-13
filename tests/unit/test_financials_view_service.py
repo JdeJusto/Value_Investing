@@ -6,6 +6,8 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from backend.services.financials_view_service import (
     DEFAULT_MAX_YEARS,
     FinancialsViewService,
@@ -15,6 +17,7 @@ from backend.services.financials_view_service import (
     humanize_concept,
     table_rows,
 )
+from backend.services.path_safety import UnsafePathComponent
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "financials"
 
@@ -349,3 +352,9 @@ def test_demo_quarterly_view_returns_none(monkeypatch, tmp_path):
     monkeypatch.setenv("VI_DEMO", "1")
 
     assert FinancialsViewService().build("AAPL", "Q1") is None
+
+
+def test_demo_view_rejects_path_traversal():
+    service = FinancialsViewService(_Repo(_facts()))
+    with pytest.raises(UnsafePathComponent):
+        service._demo_view("../etc/passwd", "FY", DEFAULT_MAX_YEARS)
