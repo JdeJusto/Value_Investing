@@ -1,3 +1,9 @@
+## [0.16.6] - 2026-10-13
+
+### Fixed
+
+- Re-run mobile APK release after fixing invalid mobile-release.yml
+
 ## [0.16.5] - 2026-10-09
 
 ### Fixed
