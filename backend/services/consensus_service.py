@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from backend.services.path_safety import safe_join
+
 logger = logging.getLogger(__name__)
 
 #: Output schema version written by the computation script.
@@ -193,7 +195,7 @@ class ConsensusService:
 
     def load_by_date(self, date_str: str) -> ConsensusReport | None:
         """Load ``consensus_<date>.json``; None (with a warning) when absent."""
-        report = self._read(self._dir / f"consensus_{date_str}.json")
+        report = self._read(safe_join(self._dir, f"consensus_{date_str}.json"))
         self._report = report
         return report
 

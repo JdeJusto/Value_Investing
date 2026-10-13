@@ -8,11 +8,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from backend.services.consensus_service import (
     LYNCH_CATEGORIES,
     ConsensusService,
     normalize_lynch_category,
 )
+from backend.services.path_safety import UnsafePathComponent
 from scripts.compute_consensus_rankings import build_company_consensus
 
 FIXTURE = (
@@ -237,3 +240,9 @@ def test_build_company_consensus_reads_the_lynch_category():
     row = build_company_consensus("ABC", "ABC Corp", view)
     assert row["lynch_category"] == "STALWART"
     assert row["verdicts"]["marks"] == "INSUFFICIENT_DATA"  # schema completed
+
+
+def test_load_by_date_rejects_path_traversal(tmp_path):
+    service = ConsensusService(directory=tmp_path)
+    with pytest.raises(UnsafePathComponent):
+        service.load_by_date("../etc/passwd")
