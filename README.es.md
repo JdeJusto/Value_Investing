@@ -104,7 +104,8 @@ El DCF es una valoración complementaria etiquetada como `not-from-canon`. Vive
 fuera del registro de metodologías y nunca modifica un veredicto de libro. Cinco
 rutas cubren el flujo de caja libre estándar, los fondos de operaciones de los
 REIT, modelos DDM financieros de dos y una etapa (con dividendos), y empresas de
-hipercrecimiento.
+hipercrecimiento. Véanse las [notas de diseño del DCF](backend/valuation/README.md)
+para supuestos y fórmulas.
 
 ![DCF con valor intrínseco, margen de seguridad, supuestos y sensibilidad](assets/screenshot_analysis_dcf.png)
 

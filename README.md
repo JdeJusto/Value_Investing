@@ -101,7 +101,8 @@ Lynch categories, and opens the disagreement zone for any ticker.
 The DCF is a supplementary valuation labeled `not-from-canon`. It lives outside
 the methodology registry and never changes a book verdict. Five routes cover
 standard free cash flow, REIT funds from operations, two-stage and single-stage
-financial dividend discount models, and hyper-growth companies.
+financial dividend discount models, and hyper-growth companies. See
+[the DCF design notes](backend/valuation/README.md) for assumptions and formulas.
 
 ![DCF with intrinsic value, margin of safety, assumptions, and sensitivity](assets/screenshot_analysis_dcf.png)
 
