@@ -16,6 +16,7 @@ from pathlib import Path
 from backend.domain.interfaces.financial_repository import FinancialRepository
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.repositories.source_selection import best_per_year, choose_history
+from backend.services.path_safety import safe_component, safe_join
 
 
 class JsonFinancialRepository(FinancialRepository):
@@ -127,7 +128,8 @@ class JsonFinancialRepository(FinancialRepository):
         )
 
     def _path(self, ticker: str) -> Path:
-        return self._dir / f"{ticker.upper()}.json"
+        """Validated ``<directory>/<TICKER>.json`` (rejects traversal)."""
+        return safe_join(self._dir, f"{safe_component(ticker).upper()}.json")
 
     def _read(self, ticker: str) -> dict:
         """years[<year>][<source>] -> record dict (legacy single-source migrated)."""

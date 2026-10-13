@@ -11,6 +11,7 @@ from backend.domain.value_objects.financials_normalized import (
 )
 from backend.repositories.financial_repository import SqlAlchemyFinancialRepository
 from backend.repositories.json_financial_repository import JsonFinancialRepository
+from backend.services.path_safety import UnsafePathComponent
 
 
 def _record(ticker: str, year: int, revenue: float) -> NormalizedFinancials:
@@ -155,3 +156,8 @@ def test_sql_repo_roundtrip_preserves_all_metrics(sql_repo):
     assert restored.total_liabilities == 115.2
     assert restored.operating_cash_flow == 91.3
     assert restored.free_cash_flow == record.free_cash_flow
+
+
+def test_json_repo_rejects_path_traversal(json_repo):
+    with pytest.raises(UnsafePathComponent):
+        json_repo.has_data("../etc/passwd")
