@@ -21,6 +21,7 @@ from backend.services.financial_insights_service import (
     MetricInsight,
     format_metric_value,
 )
+from backend.services.path_safety import safe_join
 
 #: Thresholds (see docs/financial_alerts.md).
 MIN_CASH_RUNWAY_MONTHS = 6.0
@@ -622,7 +623,7 @@ def alerts_from_payload(payload: dict) -> AlertsReport:
 
 def load_demo_alerts(ticker: str) -> AlertsReport | None:
     """The pinned alerts fixture for demo mode, or None when absent."""
-    path = DEMO_ROOT / "financials" / f"{ticker.upper().strip()}_alerts.json"
+    path = safe_join(DEMO_ROOT, "financials", f"{ticker.upper().strip()}_alerts.json")
     if not path.exists():
         return None
     try:

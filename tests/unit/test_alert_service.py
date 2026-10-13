@@ -6,7 +6,10 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from backend.services.alert_service import RULES, AlertService
+from backend.services.path_safety import UnsafePathComponent
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "financials"
 
@@ -242,3 +245,10 @@ def test_demo_alerts_payload_roundtrip_and_loader(monkeypatch, tmp_path):
     loaded = module.load_demo_alerts("DWN")
     assert loaded is not None and loaded.alerts
     assert module.load_demo_alerts("ZZZZ") is None
+
+
+def test_load_demo_alerts_rejects_path_traversal():
+    import backend.services.alert_service as module
+
+    with pytest.raises(UnsafePathComponent):
+        module.load_demo_alerts("../etc/passwd")
