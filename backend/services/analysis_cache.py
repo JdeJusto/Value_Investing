@@ -32,6 +32,7 @@ import time
 from pathlib import Path
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.services.path_safety import safe_component, safe_join
 
 logger = logging.getLogger("backend.analysis_cache")
 
@@ -104,8 +105,9 @@ class AnalysisCache:
 
     # ------------------------------------------------------------------
     def path_for(self, ticker: str) -> Path:
-        safe = "".join(ch for ch in ticker.upper() if ch.isalnum() or ch in "-._")
-        return self.directory / f"{safe}.json"
+        """Validated ``<directory>/<TICKER>.json`` (rejects traversal)."""
+        safe = safe_component(ticker).upper()
+        return safe_join(self.directory, f"{safe}.json")
 
     def fingerprint_for(self, ticker: str) -> str | None:
         """Cheap change-detector digest from the repository (None = no cache)."""
@@ -137,8 +139,11 @@ class AnalysisCache:
         if not self.enabled or not fingerprint:
             self._count("misses")
             return None
+        # Validate before the try: a traversal attempt is a programming error
+        # and must surface, not be swallowed as a cache miss.
+        path = self.path_for(ticker)
         try:
-            with open(self.path_for(ticker), encoding="utf-8") as handle:
+            with open(path, encoding="utf-8") as handle:
                 payload = json.load(handle)
         except FileNotFoundError:
             self._count("misses")
@@ -262,8 +267,9 @@ class AnalysisCache:
         """Raw entry for (ticker, fingerprint) or None — no stats side effects."""
         if not self.enabled or not fingerprint:
             return None
+        path = self.path_for(ticker)
         try:
-            with open(self.path_for(ticker), encoding="utf-8") as handle:
+            with open(path, encoding="utf-8") as handle:
                 payload = json.load(handle)
         except Exception:  # noqa: BLE001 — unreadable entry: treat as absent
             return None

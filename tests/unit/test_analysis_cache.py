@@ -12,12 +12,15 @@ import json
 import threading
 from datetime import UTC, datetime
 
+import pytest
+
 from backend.analytics.service import CompanyAnalysisService
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
     ProviderName,
 )
 from backend.services.analysis_cache import ANALYSIS_VERSION, AnalysisCache
+from backend.services.path_safety import UnsafePathComponent
 
 
 def _row(year: int, revenue: float | None = 100.0) -> NormalizedFinancials:
@@ -527,3 +530,10 @@ def test_available_years_work_without_a_cache():
     service = _service(_Repo(), None)
     result = service._data_reliability("AAPL", [_row(2024), _row(2023)])
     assert result["data_coverage"] == 1.0
+
+
+def test_get_rejects_path_traversal(tmp_path):
+    """A ticker that would escape the cache directory is rejected, not read."""
+    cache = AnalysisCache(repository=_Repo(), directory=tmp_path / "cache")
+    with pytest.raises(UnsafePathComponent):
+        cache.get("../etc/passwd", "fp-1")
