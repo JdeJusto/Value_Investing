@@ -1,105 +1,360 @@
-# Value Investing
+<p align="center">
+  <img src="assets/logo.png" alt="Logotipo de Value Investing" width="360">
+</p>
 
-[English](README.md) · [Español](README.es.md)
+<h1 align="center">Value Investing</h1>
 
-[![Version](https://img.shields.io/badge/version-0.16.6-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-1910%20passed-green)]()
+<p align="center">
+  <em>Análisis fundamental en la terminal con ocho marcos de libro independientes,
+  valoración DCF transparente y datos de presentaciones de la SEC.</em>
+</p>
 
-Herramienta determinista y explicable para el análisis fundamental de acciones. Combina estados financieros, métricas transparentes de valoración y calidad, filtros, seguimiento de carteras y backtesting mediante una interfaz de terminal y aplicaciones web.
+<p align="center">
+  <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Última versión"></a>
+  <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="Estado de CI"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1954%20passed-10A77A?style=for-the-badge" alt="1,954 tests passed"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Licencia MIT"></a>
+  <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 o superior">
+  <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
+  <img src="https://img.shields.io/badge/database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="Fuente de datos PostgreSQL">
+  <img src="https://img.shields.io/badge/code%20style-Ruff-261230?style=for-the-badge" alt="Comprobación y formato con Ruff">
+</p>
 
-> **Principio de diseño:** «Los tontos admiran la complejidad; los genios admiran la simpleza». Se prefieren reglas claras, componentes pequeños y datos trazables antes que complejidad que no aporte valor.
+<p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a></p>
 
-## Qué incluye la 0.1.0
+## Índice
 
-Primera release pública: siete metodologías derivadas de libros (Graham, Graham & Dodd, Buffett/Clark, Buffett Classic, Fisher, Lynch GARP y Greenblatt Magic Formula), valoración DCF con cuatro variantes, fundamentales de la SEC a través de Financial-DataBase, UI Streamlit de cinco páginas, screener, cartera, workflow diario y alertas. Los precios se obtienen bajo demanda y nunca se persisten. Véase [CHANGELOG.md](CHANGELOG.md) para la lista completa y las limitaciones conocidas.
+- [Qué es esto](#qué-es-esto)
+- [Inicio rápido](#inicio-rápido)
+- [Qué hace](#qué-hace)
+- [Las 8 metodologías](#las-8-metodologías)
+- [Instalación](#instalación)
+- [Uso](#uso)
+- [Arquitectura](#arquitectura)
+- [Motor de datos](#motor-de-datos)
+- [Aplicación móvil](#aplicación-móvil)
+- [Hoja de ruta](#hoja-de-ruta)
+- [Preguntas frecuentes](#preguntas-frecuentes)
 
-## Qué ofrece
+## Qué es esto
 
-- Carga y normalización de fundamentales de SEC EDGAR, Yahoo Finance o el proyecto complementario Financial-DataBase.
-- Cálculo de ratios, valoraciones DCF, calidad empresarial y moat, con puntuaciones explicables.
-- Filtros y ranking de empresas, oportunidades y alertas fundamentales.
-- Seguimiento de carteras y backtesting histórico determinista.
-- CLI, interfaz de análisis Streamlit y aplicación web FastAPI + React.
-
-Es una herramienta de análisis, **no asesoramiento financiero**. Los resultados dependen de la calidad y disponibilidad de los datos externos.
-
-## Fuentes de datos y servicios externos
-
-| Fuente | Uso |
-| --- | --- |
-| [SEC EDGAR](https://www.sec.gov/edgar) | Presentaciones regulatorias, hechos XBRL e identificadores de empresa/CIK. El proveedor directo usa `edgartools`; Financial-DataBase también puede actualizar datos SEC. Las peticiones requieren un `SEC_USER_AGENT` descriptivo con datos de contacto válidos. |
-| [Yahoo Finance](https://finance.yahoo.com/) mediante [`yfinance`](https://github.com/ranaroussi/yfinance) | Datos de mercado, precios bajo demanda y fuente alternativa de estados financieros. Los precios se guardan temporalmente en memoria y **este proyecto no los persiste**. Yahoo controla su disponibilidad y límites de uso. |
-| [Wikipedia](https://www.wikipedia.org/) | Listas de componentes para reconstruir los universos del S&P 500, Nasdaq-100 y algunos índices europeos. |
-| [iShares](https://www.ishares.com/) | Componentes del Russell 2000 a partir del fichero oficial de posiciones del ETF IWM. |
-| [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase) | Base de datos PostgreSQL complementaria, opcional, para fundamentales SEC y actualizaciones SEC dirigidas. Es un proyecto independiente y se configura con `FINANCIAL_DATABASE_URL`. |
-
-Los datos y marcas de terceros no están cubiertos por la licencia MIT de este repositorio. Respeta las condiciones, políticas de acceso y requisitos de atribución de cada proveedor. Los datos pueden estar retrasados, incompletos o no disponibles.
-
-Las integraciones Python usan `edgartools`, `yfinance` y SQLAlchemy. Las
-interfaces son Streamlit y FastAPI + React; la pila opcional de Compose también
-usa Redis y Celery. `Pipfile` y `Pipfile.lock` son la lista de dependencias
-Python de referencia.
+Value Investing ejecuta ocho marcos de inversión independientes sobre los mismos
+datos financieros. Cada marco procede de un libro publicado o de una regla
+interna documentada, así que puedes ver qué concluye cada uno, dónde discrepan y
+el razonamiento detrás de cada decisión. Lee fundamentales derivados de la SEC
+desde la base de datos complementaria Financial-DataBase, opcional, recurre a
+JSON local como alternativa y obtiene precios bajo demanda sin persistirlos
+nunca. Está pensado para inversores en valor que quieren un análisis trazable y
+determinista en lugar de una única puntuación opaca.
 
 ## Inicio rápido
 
-Requisitos: Python 3.13+ (versión usada en CI) y Pipenv. PostgreSQL y Docker Compose son opcionales para la CLI; Node.js 22+ solo hace falta para desarrollar el frontend React.
+Prueba el paquete offline con datos fijados, sin PostgreSQL, sin acceso a la SEC
+y sin Yahoo.
+
+![La demostración de analyze-full en la terminal](assets/analyze-full.gif)
 
 ```bash
 git clone https://github.com/JdeJusto/Value_Investing.git
 cd Value_Investing
 python -m pip install pipenv
-pipenv install --dev
-cp .env.example .env
+PIPENV_VENV_IN_PROJECT=1 pipenv install --dev
+
+python main.py analyze-full AAPL --demo
+VI_DEMO=1 ./run_ui.sh   # http://localhost:8501
 ```
 
-Edita `.env` antes de hacer peticiones a SEC. Sustituye el `SEC_USER_AGENT` de ejemplo por el nombre descriptivo de la aplicación y un correo real de contacto. Configura `SEC_EMAIL` y `SEC_NAME` para el proveedor directo `edgartools`. No publiques `.env` ni credenciales reales.
+El modo demo incluye ocho tickers fijados: AAPL, MSFT, KO, JNJ, JPM, XOM, PLD y
+TSLA. No usa servicios externos.
+
+## Qué hace
+
+Ocho marcos evalúan la misma empresa de forma independiente, así que lo
+interesante es el patrón de acuerdos y desacuerdos. La vista de consenso explica
+por qué las familias llegan a veredictos distintos en lugar de ocultar el
+conflicto dentro de una única puntuación promediada.
+
+![Panel de inicio con métricas de cartera, mejores oportunidades y alertas recientes](assets/screenshot_home.png)
+
+*La página de inicio: valor de la cartera, mejores oportunidades y alertas recientes.*
+
+![Navegación por Inicio, Análisis, Consenso y Cartera](assets/ui_navigation.gif)
+
+*Recorrido por las páginas de Inicio, Análisis, Consenso y Cartera.*
+
+Los estados financieros se pueden consultar por estado y ejercicio fiscal,
+incluidos conceptos que no se asignan a campos de análisis. Las ideas
+automáticas cubren crecimiento, variaciones interanuales, CAGR, tendencia,
+estabilidad y cambios de dirección. Las alertas deterministas sobre liquidez,
+margen, deuda, flujo de caja libre, ingresos, calidad de resultados y dividendos
+incluyen sus pruebas.
+
+![Cambio entre las vistas de estados financieros](assets/financials_tab.gif)
+
+*Pestañas de estados con datos interanuales e ideas automáticas.*
+
+El screener de consenso clasifica empresas según los ocho veredictos, compara
+las categorías de Lynch y abre la zona de desacuerdo de cualquier ticker.
+
+![Ranking de consenso con la tabla principal y las categorías de Lynch](assets/screenshot_consensus.png)
+
+*Ranking de consenso, desglose por categorías y zona de desacuerdo.*
+
+El DCF es una valoración complementaria etiquetada como `not-from-canon`. Vive
+fuera del registro de metodologías y nunca modifica un veredicto de libro. Cinco
+rutas cubren el flujo de caja libre estándar, los fondos de operaciones de los
+REIT, modelos DDM financieros de dos y una etapa (con dividendos), y empresas de
+hipercrecimiento.
+
+![DCF con valor intrínseco, margen de seguridad, supuestos y sensibilidad](assets/screenshot_analysis_dcf.png)
+
+*Valor intrínseco del DCF, margen de seguridad, supuestos y sensibilidad.*
+
+## Las 8 metodologías
+
+| Metodología | Fuente | Familia | Qué busca |
+|---|---|---|---|
+| `graham` | *The Intelligent Investor* (1949) | `DEEP_VALUE` | Criterios defensivos, solidez financiera y el test de valoración 22,5 |
+| `graham_dodd` | *Security Analysis* (1934) | `DEEP_VALUE` | Capital circulante neto, estabilidad de beneficios y cobertura de cargas fijas |
+| `buffett_classic` | Marco interno de cuatro pilares | `QUALITY_COMPOUNDER` | Rentabilidad, solidez financiera, generación de caja y estabilidad |
+| `buffett_clark` | *Warren Buffett and the Interpretation of Financial Statements* | `QUALITY_COMPOUNDER` | Márgenes duraderos, carga de intereses y señales de beneficio del propietario |
+| `fisher_quantitative_subset` | *Common Stocks and Uncommon Profits* (1958) | `QUALITY_COMPOUNDER` | Subconjunto cuantitativo: intensidad de I+D, márgenes y dilución |
+| `lynch_garp` | *One Up on Wall Street* (1989) | `GARP` | PEG, crecimiento de beneficios y categorías de empresa de Lynch |
+| `marks` | *The Most Important Thing* (2011) | `CYCLE_AWARE_VALUE` | Posición en el ciclo, resiliencia, apalancamiento y margen de seguridad |
+| `greenblatt` | *The Little Book That Beats the Market* (2005) | `MAGIC_FORMULA` | Ranking de rentabilidad sobre capital y rentabilidad de beneficios |
+
+Los marcos comparten los mismos fundamentales normalizados y la misma interfaz de
+precios, pero nunca leen la salida de los demás, así que dos de ellos pueden
+discrepar sin que ninguno esté equivocado. Las reglas de libro se abstienen en
+los tipos de empresa que no encajan con sus supuestos, incluidos bancos y
+aseguradoras.
+
+![Ocho veredictos de metodología para una misma empresa](assets/screenshot_analysis_methodologies.png)
+
+*Ocho veredictos independientes para una misma empresa.*
+
+![Por qué discrepan las familias de metodologías](assets/screenshot_analysis_overview.png)
+
+*Un resumen de desacuerdos que explica los veredictos en lugar de promediarlos.*
+
+Véanse las [decisiones de metodología](docs/methodology_decisions.md), la [metodología de puntuación](docs/scoring_methodology.md) y la [validación de puntuaciones](docs/scoring_validation.md).
+
+## Instalación
+
+Requisitos: Python 3.13+ y Pipenv. Se recomienda una instancia PostgreSQL de
+Financial-DataBase accesible para el conjunto completo de datos derivados de la
+SEC; las rutas de JSON local y la demo offline funcionan sin ella.
 
 ```bash
-./vi debug
-./vi load-data AAPL
-./vi analyze AAPL
-./vi screener --tickers AAPL,MSFT
-./run_ui.sh                 # interfaz Streamlit en http://localhost:8501
+python -m pip install pipenv
+PIPENV_VENV_IN_PROJECT=1 pipenv install --dev
+cp .env.example .env
+source .venv/bin/activate
 ```
 
-`./vi` utiliza el entorno virtual del proyecto sin necesitar `pipenv run`. La lista completa de variables está en [`.env.example`](.env.example). `FINANCIAL_DATABASE_URL` es opcional; si Financial-DataBase no está disponible, la aplicación puede usar su repositorio JSON local y los proveedores configurados.
+Antes de hacer peticiones a la SEC, configura `SEC_USER_AGENT` con el nombre
+descriptivo de la aplicación y una dirección de contacto real, y define
+`SEC_EMAIL` y `SEC_NAME` para el proveedor directo `edgartools`. No publiques
+`.env` ni credenciales. Todas las opciones están documentadas en
+[`.env.example`](.env.example).
 
-La CLI dibuja paneles, tablas y colores con [Rich](https://github.com/Textualize/rich): una salida redirigida nunca contiene códigos de color, y `NO_COLOR=1` o la bandera `--no-color` desactivan el color también en terminal. `./vi interactive` abre un menú con los comandos principales, pide sus argumentos y los ejecuta en el mismo proceso (`q` o Ctrl+C para salir).
+## Uso
 
-La pila opcional de Docker Compose incluye PostgreSQL, Redis, el servicio FastAPI, workers de Celery y el frontend React. Está pensada para desarrollo local, no para producción; configura secretos, migraciones de base de datos y acceso de red antes de exponer cualquier servicio.
+### CLI
+
+```bash
+./vi analyze-full AAPL
+./vi compare-methodologies AAPL
+./vi consensus AAPL
+./vi consensus-ranking --universe sp500 --top 20
+./vi consensus-by-category --universe sp500 --per-category 5
+```
+
+La salida se renderiza con [Rich](https://github.com/Textualize/rich): paneles
+con borde y tablas enmarcadas en la terminal, además de indicadores de progreso
+para ejecuciones largas. La salida redirigida nunca contiene códigos de color, y
+`NO_COLOR=1` o `--no-color` desactivan el color también en la terminal. Si
+prefieres un menú a las banderas, usa `./vi interactive`.
+
+Los comandos de consenso leen el último informe precalculado. Actualízalo con
+`python -m scripts.compute_consensus_rankings --universe sp500`.
+
+### Interfaz Streamlit
+
+```bash
+./run_ui.sh
+```
+
+Las seis páginas son Inicio, Análisis, Screener, Cartera, Informes y Consenso.
+Para un recorrido sin base de datos, usa `VI_DEMO=1 ./run_ui.sh`.
+
+### Filings
+
+```bash
+python main.py filings AAPL --form 10-K,10-Q --year 2025
+python main.py filing-statement AAPL --type balance_sheet
+python main.py filing-section AAPL --type risk_factors --word-limit 500
+```
+
+La pestaña Filings enlaza a los documentos originales de la SEC y puede cargar
+vistas previas de estados o narrativas. Los documentos analizados se almacenan en
+caché local bajo `data/raw/filings/`.
+
+![Presentaciones de la SEC con fechas, periodos, accesiones y enlaces de origen](assets/screenshot_filings.png)
+
+*Presentaciones de la SEC con enlaces de origen y vistas previas de estados.*
+
+Véanse la [extracción de filings](docs/filings_extraction.md) y las [notas de extracción de narrativas](docs/narrative_extraction.md).
+
+### Cartera y screener
+
+```bash
+./vi portfolio view
+./vi portfolio add AAPL 10 180.00 --thesis "moat"
+./vi screener --tickers AAPL,MSFT
+python -m scripts.daily_workflow --dry-run --limit 5 --top 3
+```
+
+![Comandos de consulta, alta y rendimiento de la cartera](assets/portfolio_workflow.gif)
+
+*Consulta, alta y rendimiento de la cartera desde la terminal.*
+
+![Resultados del screener filtrados por sector y veredicto](assets/screenshot_screener.png)
+
+*Resultados del screener filtrados por sector y veredicto.*
+
+Véase el [runbook diario](docs/runbook_daily.md) para opciones de actualización, reanudación e informes.
+
+## Arquitectura
+
+```mermaid
+flowchart TB
+    SEC[SEC EDGAR filings and XBRL] --> FDB[(Financial-DataBase)]
+    FDB --> Repo[FinancialDatabaseRepository]
+    Repo --> VO[NormalizedFinancials]
+    Yahoo[Yahoo Finance] --> Price[PriceService<br/>in-memory cache only]
+    VO --> Methods[8 book methodologies]
+    Price --> Methods
+    VO --> DCF[DCF<br/>not-from-canon]
+    Price --> DCF
+    Methods --> UI[CLI, Streamlit, FastAPI + React]
+    DCF --> UI
+    Methods --> Consensus[Consensus report JSON]
+    Price --> Consensus
+    Consensus --> UI
+```
+
+El dominio usa objetos Python simples, mientras que proveedores y repositorios
+viven en los bordes. Cada metodología recibe los mismos fundamentales
+normalizados y la misma interfaz de precios, y el DCF se mantiene separado de los
+veredictos de libro. Más detalle: [arquitectura](docs/architecture.md) y [diseño del consenso](docs/consensus_screener.md).
+
+## Motor de datos
+
+La aplicación lee fundamentales derivados de la SEC desde el proyecto
+complementario [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase)
+(PostgreSQL) como fuente de solo lectura, con JSON local como alternativa. Yahoo
+Finance proporciona precios bajo demanda que se almacenan en memoria y nunca se
+escriben en una base de datos; las instantáneas de precios del consenso son
+archivos de informe, no un almacén de precios. La demo offline no necesita
+servicios externos.
+
+Véanse las [fuentes de datos](docs/data-sources.md), la [investigación de lagunas de datos](docs/data_gaps_investigation.md), la [metodología de validación](docs/validation_methodology.md) y el [índice de documentación](docs/README.md).
+
+## Aplicación móvil
+
+Una aplicación nativa de Android consume el backend FastAPI. Su pantalla de
+inicio muestra datos de empresa en vivo, y la pantalla de detalle incluye cinco
+pestañas: Overview, Methodologies, DCF, Financials y Filings. Las pestañas
+principales Screener, Consensus y Portfolio están implementadas con un universo
+filtrable, rankings de consenso por categoría y una cartera en vivo. Requiere el
+servidor de API en ejecución local; véanse [`mobile/README.md`](mobile/README.md) y el
+[diseño de la API](docs/api_design.md).
+
+Descarga `value-investing-<version>-arm64-v8a.apk` desde la
+[última versión](https://github.com/JdeJusto/Value_Investing/releases/latest),
+instálala (habilitando «Instalar desde orígenes desconocidos») y configura la URL
+de la API en Ajustes.
+
+## Hoja de ruta
+
+- [x] Ocho metodologías de libro independientes y variantes DCF separadas
+- [x] Estados financieros, ideas, alertas deterministas y vistas previas de filings
+- [x] Rankings de consenso, instantáneas de precios y vista de zona de desacuerdo
+- [x] Backend FastAPI consumido por la aplicación móvil — véase [#27](https://github.com/JdeJusto/Value_Investing/issues/27) ([diseño](docs/api_design.md))
+- [ ] Automatización semanal de los rankings de consenso y Greenblatt
+- [ ] Notificaciones de alertas en tiempo real
+- [ ] Mayor cobertura de metodologías documentadas
+
+Véase el [backlog de ingeniería](docs/backlog.md) para los siguientes pasos.
+
+## Preguntas frecuentes
+
+**¿Por qué ocho metodologías en lugar de una única puntuación compuesta?**
+
+Una puntuación compuesta puede ocultar los desacuerdos. Los marcos independientes
+responden a preguntas distintas, y la interfaz muestra sus veredictos y razones
+lado a lado.
+
+**¿Por qué el DCF está etiquetado como `not-from-canon`?**
+
+Las metodologías de libro no prescriben este DCF. Es un modelo de valoración
+práctico, mantenido aparte para que no pueda alterar de forma silenciosa las
+puntuaciones derivadas de los libros.
+
+**¿Se guardan los precios de mercado?**
+
+Los precios nunca se escriben en una base de datos. Las cotizaciones se obtienen
+bajo demanda y se almacenan en memoria. Los informes JSON de consenso pueden
+incluir una instantánea de precio para reproducibilidad.
+
+**¿Puedo analizar bancos y aseguradoras?**
+
+Las reglas de libro se abstienen cuando sus supuestos no encajan con empresas
+financieras. La pestaña Financials sigue mostrando los datos almacenados, y el
+DCF tiene variantes de descuento de dividendos para financieras.
+
+**¿Necesito Financial-DataBase?**
+
+Es la fuente recomendada para fundamentales completos de la SEC. Las rutas de
+JSON local y la demo offline están disponibles para explorar.
+
+**¿El proyecto usa un LLM?**
+
+No. Las reglas de análisis, los veredictos, las ideas y las alertas son
+deterministas.
 
 ## Pruebas
 
 ```bash
-pipenv run python -m pytest tests/unit -q
+python -m pytest tests/unit -q
+python -m pytest tests/api -q
+ruff check .
+ruff format --check .
 ```
 
-Las pruebas unitarias no necesitan datos de mercado en vivo ni una base de datos. Las pruebas que requieren Financial-DataBase se omiten si no está configurado.
+La suite unitaria es hermética y no necesita base de datos. El script de release
+actualiza el badge con el conteo de tests. La cobertura aún no se mide.
 
-## Estructura del proyecto
+## Contribuir
 
-```text
-backend/      dominio, proveedores, repositorios, analítica, servicios y API
-cli/          comandos de terminal
-ui/           interfaz de análisis Streamlit
-frontend/     cliente React + TypeScript para el servicio FastAPI
-scripts/      flujo diario, construcción de universos, validación y utilidades de desarrollo
-config/       universo y configuración de ejecución
-tests/        pruebas automatizadas
-data/         datos del repositorio local, caché e informes
-```
-
-## Documentación
-
-- [Flujo diario](docs/runbook_daily.md)
-- [Metodología de puntuación](docs/scoring_methodology.md) y [validación](docs/scoring_validation.md)
-- [Metodología de validación entre fuentes](docs/validation_methodology.md)
-- [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Código de conducta](CODE_OF_CONDUCT.md)
-
-## Publicación de versiones
-
-Las versiones siguen [Versionado Semántico](https://semver.org/lang/es/). Consulta el proceso en [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
+Las incidencias y los pull requests son bienvenidos; véanse [CONTRIBUTING.md](CONTRIBUTING.md),
+el [Código de conducta](CODE_OF_CONDUCT.md) y [Seguridad](SECURITY.md). Las
+contribuciones pasadas aparecen en el
+[gráfico de colaboradores](https://github.com/JdeJusto/Value_Investing/graphs/contributors).
 
 ## Licencia
 
-[MIT](LICENSE). La licencia cubre el código de este proyecto, no los datos proporcionados por terceros.
+[MIT](LICENSE). La licencia cubre el código de este repositorio, no los datos
+proporcionados por proveedores externos.
+
+## Historial de estrellas
+
+[![Star History Chart](https://api.star-history.com/svg?repos=JdeJusto/Value_Investing&type=Date)](https://star-history.com/#JdeJusto/Value_Investing&Date)
+
+## Agradecimientos
+
+- Los autores cuyos libros inspiran las reglas de inversión documentadas.
+- [SEC EDGAR](https://www.sec.gov/edgar) por las presentaciones públicas y los datos de empresas.
+- [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBase) por el motor de datos complementario derivado de la SEC.
+- [Streamlit](https://streamlit.io/) por la interfaz y [yfinance](https://github.com/ranaroussi/yfinance) por los datos de mercado bajo demanda.
