@@ -26,6 +26,7 @@ from backend.repositories.fdb_concept_mapping import (
 )
 from backend.services.demo_mode import DEMO_ROOT
 from backend.services.financials_view_service import dedupe_facts, format_fact_value
+from backend.services.path_safety import safe_join
 from backend.services.ui_format import abbreviate_number
 
 #: How many of the newest values the 5-year average/stability window uses.
@@ -615,7 +616,7 @@ def report_from_payload(payload: dict[str, Any]) -> InsightsReport:
 
 def load_demo_insights(ticker: str) -> InsightsReport | None:
     """The pinned insights fixture for demo mode, or None when absent."""
-    path = DEMO_ROOT / "financials" / f"{ticker.upper().strip()}_insights.json"
+    path = safe_join(DEMO_ROOT, "financials", f"{ticker.upper().strip()}_insights.json")
     if not path.exists():
         return None
     try:

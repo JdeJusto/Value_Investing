@@ -6,6 +6,8 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from backend.services.financial_insights_service import (
     FinancialInsightsService,
     _cagr,
@@ -14,6 +16,7 @@ from backend.services.financial_insights_service import (
     report_from_payload,
     report_to_payload,
 )
+from backend.services.path_safety import UnsafePathComponent
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "financials"
 
@@ -348,3 +351,10 @@ def test_no_derived_gross_profit_without_a_cost_line():
     report = _report([_fact("Revenues", 2024, "2601846000")])
     assert _metric(report, "gross_profit").latest_value == "—"
     assert _metric(report, "gross_margin").latest_value == "—"
+
+
+def test_load_demo_insights_rejects_path_traversal():
+    import backend.services.financial_insights_service as module
+
+    with pytest.raises(UnsafePathComponent):
+        module.load_demo_insights("../etc/passwd")
