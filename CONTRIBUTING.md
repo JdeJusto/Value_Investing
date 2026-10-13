@@ -123,3 +123,10 @@ The package version must match the top `CHANGELOG.md` entry; that consistency
 Open an issue with the `.github/ISSUE_TEMPLATE/bug_report.md` template:
 command, expected vs actual, and the relevant part of
 `data/logs/daily_workflow.log` (never attach a `.env`).
+
+## README parity
+
+`README.md` and `README.es.md` must stay structurally in sync. When you edit one,
+edit the other in the same commit. A test in
+`tests/unit/test_readme_sync.py` enforces parity of heading levels and of the
+badge set; it does not verify prose translations.
