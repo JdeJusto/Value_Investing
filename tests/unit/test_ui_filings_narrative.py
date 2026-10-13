@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 from typing import ClassVar
+from urllib.parse import urlparse
 
 from streamlit.testing.v1 import AppTest
 
@@ -94,7 +95,11 @@ def test_preview_failure_returns_message_and_url():
     )
     assert preview["ok"] is False
     assert "does not contain" in preview["message"]
-    assert "https://www.sec.gov/" in preview["sec_url"]
+    # Inspect the parsed host, not a substring: `in` would accept
+    # "https://evil.example/https://www.sec.gov/..." as a match.
+    parsed = urlparse(preview["sec_url"])
+    assert parsed.scheme == "https"
+    assert parsed.hostname == "www.sec.gov"
 
 
 def test_preview_carries_the_document_url_when_available():
