@@ -1,3 +1,9 @@
+## [0.16.9] - 2026-10-14
+
+### Fixed
+
+- Scorecard tab in Streamlit (text-only)
+
 ## [0.16.8] - 2026-10-14
 
 ### Fixed
