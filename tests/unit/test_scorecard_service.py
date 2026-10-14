@@ -20,9 +20,11 @@ from backend.services.scorecard_service import (
     PASS,
     WATCH,
     DimensionRule,
+    DimensionScore,
     ScorecardService,
     _Alerts,
     _build_dimension,
+    _disagreements,
     _financial_health_rules,
     _growth_rules,
     _management_moat_rules,
@@ -78,6 +80,20 @@ def metric(
 def metrics(*items: MetricInsight) -> _Metrics:
     return _Metrics(
         InsightsReport(ticker="T", company_name="Test", metrics=list(items))
+    )
+
+
+def dim(key: str, label: str, score: int | None) -> DimensionScore:
+    return DimensionScore(
+        key=key,
+        label=label,
+        question="q",
+        score=score,
+        verdict="Strong" if score is not None else "Insufficient",
+        evaluable_rules=3 if score is not None else 0,
+        rules=(),
+        trend="stable",
+        summary="",
     )
 
 
@@ -290,6 +306,84 @@ def test_overall_is_a_label_not_a_number():
         _build_dimension(key, [rule(INSUFFICIENT)]) for key in DIMENSION_ORDER
     )
     assert _overall(insufficient) == "Insufficient data"
+
+
+# ---------------------------------------------------------------------------
+# cross-dimension disagreements (>=7 strong vs <=3 weak)
+# ---------------------------------------------------------------------------
+def test_disagreement_fires_for_a_strong_growth_expensive_price():
+    # AAPL-shaped: Growth 7, Valuation 2 — the pair the old >=8/<=4 rule missed.
+    out = _disagreements(
+        (
+            dim("growth", "Growth", 7),
+            dim("valuation", "Valuation", 2),
+        )
+    )
+    assert out
+    assert any("Growth" in message for message in out)
+    assert any("Valuation" in message for message in out)
+
+
+def test_disagreement_quiet_when_strong_side_is_only_six():
+    # KO-shaped: Growth 6 does not clear the >=7 strong bar.
+    out = _disagreements(
+        (
+            dim("growth", "Growth", 6),
+            dim("valuation", "Valuation", 2),
+        )
+    )
+    assert out == ()
+
+
+def test_disagreement_fires_for_cheap_but_unprofitable():
+    # F-shaped: Profitability 0, Valuation 7 — a non-adjacent pair.
+    out = _disagreements(
+        (
+            dim("profitability", "Profitability", 0),
+            dim("valuation", "Valuation", 7),
+        )
+    )
+    assert out
+    assert any("Profitability" in message for message in out)
+    assert any("Valuation" in message for message in out)
+
+
+def test_disagreement_fires_for_every_strong_weak_pair():
+    # TSLA-shaped: one strong (Growth 9) against two weak (Valuation 2,
+    # Shareholder Returns 0) yields one named message per pair.
+    out = _disagreements(
+        (
+            dim("growth", "Growth", 9),
+            dim("valuation", "Valuation", 2),
+            dim("shareholder_returns", "Shareholder Returns", 0),
+        )
+    )
+    assert len(out) == 2
+    assert any("Valuation" in message for message in out)
+    assert any("Shareholder Returns" in message for message in out)
+
+
+def test_disagreement_never_fires_on_insufficient_dimensions():
+    # Both sides INSUFFICIENT -> no pair.
+    assert (
+        _disagreements(
+            (
+                dim("growth", "Growth", None),
+                dim("valuation", "Valuation", None),
+            )
+        )
+        == ()
+    )
+    # A strong side paired with an INSUFFICIENT side is not evaluable either.
+    assert (
+        _disagreements(
+            (
+                dim("growth", "Growth", 9),
+                dim("valuation", "Valuation", None),
+            )
+        )
+        == ()
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -950,26 +950,18 @@ def _overall(dimensions: tuple[DimensionScore, ...]) -> str:
 
 
 def _disagreements(dimensions: tuple[DimensionScore, ...]) -> tuple[str, ...]:
-    by = {d.key: d for d in dimensions}
-
-    def high(key: str) -> bool:
-        score = by.get(key).score if by.get(key) else None
-        return score is not None and score >= 8
-
-    def low(key: str) -> bool:
-        score = by.get(key).score if by.get(key) else None
-        return score is not None and score <= 4
-
-    out: list[str] = []
-    if high("growth") and low("valuation"):
-        out.append("Growing, but the price already reflects it.")
-    if high("profitability") and low("financial_health"):
-        out.append("Profitable, but the balance sheet is stretched.")
-    if high("valuation") and low("growth"):
-        out.append("Cheap, but the business is not growing.")
-    if high("shareholder_returns") and low("financial_health"):
-        out.append("Shareholder-friendly, but financed at risk.")
-    return tuple(out)
+    # A disagreement is any pair with a strong side (>=7) and a weak
+    # side (<=3). This captures "grows fast but expensive" and
+    # "cheap but unprofitable" without firing on stable, mixed companies.
+    # INSUFFICIENT dimensions score None, so they never enter a pair.
+    strong = [d for d in dimensions if d.score is not None and d.score >= 7]
+    weak = [d for d in dimensions if d.score is not None and d.score <= 3]
+    return tuple(
+        f"{hi.label} is strong ({hi.score}/10) while "
+        f"{lo.label} is weak ({lo.score}/10)."
+        for hi in strong
+        for lo in weak
+    )
 
 
 def _data_quality(rows: list[NormalizedFinancials]) -> str:
