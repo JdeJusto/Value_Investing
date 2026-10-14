@@ -44,6 +44,7 @@ overview is [`README.es.md`](../README.es.md).
 | [Refactor audit](refactor_audit.md) | Repository and module refactor history. |
 | [Test report, Sep 23](reporte_pruebas_2026-09-23.md) | Spanish-language test and fix report. |
 | [Daily runbook](runbook_daily.md) | How to run, resume, and interpret the daily screening workflow. |
+| [Scorecard design](scorecard_design.md) | Dimensions, scoring contract, `ScorecardService` flow, peer comparison, and visualization. |
 | [Scheduled run, Sep 28](scheduled_run_2026-09-28.md) | Notes from a scheduled daily workflow run. |
 | [Scheduled-run verification](scheduled_run_verification_2026-09-28.md) | Verification of scheduled-run output and health. |
 | [Scoring methodology](scoring_methodology.md) | Screener scoring components, ranking, and signal semantics. |
