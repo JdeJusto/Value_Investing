@@ -3,6 +3,25 @@
 All P0/P1, the QA-session P2 items and the v0.1.0 hardening items are
 closed. This file now tracks what remains.
 
+## Quality debt
+
+Measured 2026-10-14 (stability/precision sprint):
+
+- **Unit coverage: 73.3%** — `python -m pytest tests/unit --cov`, threshold
+  `fail_under = 70` in `pyproject.toml` (the API suite is measured separately
+  and `backend/api/*` is omitted from the unit coverage config). Files at 0%:
+  `backend/analytics/ratios/revenue_growth.py`, `backend/core/database.py`,
+  `backend/core/security.py`, `backend/domain/interfaces/cache.py`,
+  `backend/domain/interfaces/repository.py`, `backend/logging_config/setup.py`,
+  `backend/providers/cache/memory.py`, `backend/repositories/financials.py`,
+  `backend/tasks/screener.py` and the `scripts/build_demo_*.py` generators.
+- **Pyright (basic): 73 errors / 12 warnings** on the narrowed scope
+  (`backend/services` + `backend/methodologies`, see `pyrightconfig.json`).
+  The full `backend` + `cli` + `scripts` scope reports 195 errors, so the
+  check is wired into CI as informational (`continue-on-error: true`) until
+  the debt is paid down. Hot spots: `backend/services/ui_adapter.py`,
+  `backend/services/yahoo_health.py`, `backend/services/price_service.py`.
+
 ## Closed in the v0.1.0 session (2026-09-30)
 
 | Item | Commit |

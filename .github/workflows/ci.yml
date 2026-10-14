@@ -45,6 +45,18 @@ jobs:
         # an empty string is NOT equivalent — it would be read as a URL.
         run: python -m pytest tests/unit -q
 
+      - name: Coverage report
+        # Fails the build when coverage drops below fail_under (pyproject.toml).
+        run: python -m pytest tests/unit -q --cov --cov-report=term-missing
+        continue-on-error: false
+
+      - name: Type check (pyright, basic)
+        # Informational while the existing type debt is cleared; see
+        # docs/backlog.md ("Quality debt"). Runs on backend/services and
+        # backend/methodologies (pyrightconfig.json).
+        run: pyright
+        continue-on-error: true
+
   compile:
     name: Compile check
     runs-on: ubuntu-24.04

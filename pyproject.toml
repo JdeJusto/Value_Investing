@@ -1,0 +1,28 @@
+# Coverage configuration for the unit-test suite (pytest-cov).
+#
+# The dependency set still lives in Pipfile/Pipfile.lock; this file only
+# carries tool configuration so `--cov` has a single source of truth.
+#
+# `backend/api/*` is omitted here on purpose: the API suite (tests/api) covers
+# it and is measured separately.
+
+[tool.coverage.run]
+source = ["backend", "cli", "scripts"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "backend/api/*",
+    "*/__init__.py",
+]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+fail_under = 70
+show_missing = true

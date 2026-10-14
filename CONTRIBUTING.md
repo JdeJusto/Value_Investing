@@ -86,6 +86,15 @@ your change in an unrelated diff. Adding a brand-new dependency does need
   a style preference: the Financial-DataBase `prices` table must stay
   untouched by this project.
 
+## Coverage and types
+
+- `pipenv run python -m pytest tests/unit --cov` runs the unit suite with
+  coverage. The threshold (`fail_under` in `pyproject.toml`) is enforced in
+  CI.
+- `pipenv run pyright` runs the basic type checker on `backend/services` and
+  `backend/methodologies` (`pyrightconfig.json`). It is informational while
+  the backlog is being cleared; see `docs/backlog.md` ("Quality debt").
+
 ## Pull requests
 
 1. Fork, branch from `main`.

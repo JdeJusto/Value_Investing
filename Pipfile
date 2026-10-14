@@ -41,6 +41,8 @@ isort = ">=6.0"
 flake8 = ">=7.0"
 pytest = ">=8.0"
 alembic = ">=1.13"
+pytest-cov = "*"
+pyright = "*"
 
 [scripts]
 ui = "streamlit run ui/app.py"
