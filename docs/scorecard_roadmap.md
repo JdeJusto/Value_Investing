@@ -61,6 +61,11 @@ non-payer and one bank/insurer.
 
 ## Phase 2 — API + CLI exposure
 
+**Shipped.** API `007fc9a` (`feat(api): expose GET /company/{ticker}/scorecard`);
+CLI `ea6c5f0` (`feat(cli): add scorecard command with rich rendering and json
+output`). Both return the frozen Phase 1 `Scorecard.to_dict()` verbatim — the
+API and the CLI add no computation of their own.
+
 **Deliverable.** `GET /api/v1/company/{ticker}/scorecard` (existing
 `{ok, data}` envelope, errors via `fail()`), and `./vi scorecard AAPL
 [--json] [--period FY]`.

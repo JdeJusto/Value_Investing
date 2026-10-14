@@ -393,3 +393,30 @@ All numbers come from the services; nothing is recomputed in the view.
    `sector`/`industry` for a ticker (the FDB `companies` table has both).
 4. **Valuation peer rule** — keep `pe_vs_peers` as a soft dependency (skipped
    without the artifact) or make Valuation peer-free until Phase 5?
+
+---
+
+## Appendix A — Worked example (AAPL, FY)
+
+A concrete reference of what `ScorecardService` produces. It is built from
+Financial-DataBase fundamentals plus a real-time Yahoo price; no figure below is
+computed by a view layer — the API, the CLI and the (Phase 3) Streamlit tab all
+render this same summary.
+
+| Dimension | Score | Verdict | Trend | Evaluable rules |
+|---|---|---|---|---|
+| Growth | 7/10 | Mixed | improving | 5 |
+| Profitability | 10/10 | Strong | improving | 6 |
+| Financial Health | 8/10 | Strong | stable | 3 |
+| Valuation | 2/10 | Weak | stable | 4 |
+| Shareholder Returns | 10/10 | Strong | stable | 4 |
+| Management/Moat | 7/10 | Mixed | stable | 3 |
+
+**Overall:** Mixed · **Sector:** Technology · **Industry:** Consumer Electronics
+· **Data quality:** HIGH.
+
+The spread (Profitability 10 vs Valuation 2) is the point: the roll-up is a
+**label**, not a master score, and this disagreement is carried in the
+`disagreements` field rather than averaged away. Two Financial Health rules
+(`interest_coverage`, `current_ratio`) degrade to `INSUFFICIENT` for AAPL, so
+that dimension scores on three rules, not five.
