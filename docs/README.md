@@ -8,6 +8,7 @@ overview is [`README.es.md`](../README.es.md).
 
 | Document | Description |
 |---|---|
+| [Analysis visualization audit](analysis_visualization_audit.md) | Inventory of analysis surfaces, chart primitives, and the Simply Wall St reference model. |
 | [Architecture](architecture.md) | System layers, data flow, methodology contracts, and service boundaries. |
 | [Audit round 3](audit_round3_2026-09-25.md) | Condensed platform audit and findings from September 25, 2026. |
 | [Backlog](backlog.md) | Product and engineering follow-up items. |
