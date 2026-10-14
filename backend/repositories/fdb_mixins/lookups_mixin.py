@@ -175,6 +175,33 @@ class LookupsMixin:
         except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
+    def _get_company_industry(self, ticker: str) -> str | None:
+        """Company industry label from the Financial-DataBase metadata.
+
+        Reads only ``companies.industry`` (populated by the Financial-DataBase
+        ``scripts/populate_sector_industry.py`` enrichment; None when unknown
+        or not yet populated). The finer-grained companion to
+        :meth:`_get_company_sector`; the scorecard peer comparison reads it.
+        Metadata only — never touches prices.
+        """
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT c.industry
+                    FROM companies c
+                    JOIN company_identifiers ci ON c.id = ci.company_id
+                    WHERE UPPER(ci.identifier_type) = 'TICKER'
+                      AND UPPER(ci.identifier_value) = %s
+                """,
+                    (ticker.upper(),),
+                )
+                result = cur.fetchone()
+                return result["industry"] if result else None
+        except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
+            return None
+
     def get_sector_map(
         self, tickers: list[str] | tuple[str, ...]
     ) -> dict[str, str | None]:

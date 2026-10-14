@@ -1,13 +1,13 @@
-"""Tests that ``sector`` flows from Financial-DataBase metadata into the VO.
+"""Tests that ``sector``/``industry`` flow from Financial-DataBase metadata.
 
 Two layers:
 
-* a hermetic check that the ``sector`` field survives the
+* a hermetic check that the ``sector`` and ``industry`` fields survive the
   ``to_dict``/``from_dict`` round trip used by storage and ``analyze``;
 * integration checks (skipped when the database is unreachable) asserting the
   repository stamps every reconstructed year with the company's
-  ``companies.sector`` value, matching the enrichment written by
-  Financial-DataBase's ``scripts/populate_sector_industry.py``.
+  ``companies.sector`` / ``companies.industry`` values, matching the
+  enrichment written by Financial-DataBase's ``scripts/populate_sector_industry.py``.
 """
 
 from __future__ import annotations
@@ -56,8 +56,29 @@ def test_sector_round_trips_through_json_storage():
     assert rebuilt.sector == "Technology"
 
 
+def test_industry_field_defaults_to_none():
+    row = NormalizedFinancials(ticker="T", fiscal_year=2024)
+    assert row.industry is None
+
+
+def test_industry_round_trips_through_json_storage():
+    row = NormalizedFinancials.from_dict(
+        {
+            "ticker": "T",
+            "fiscal_year": 2024,
+            "sector": "Technology",
+            "industry": "Consumer Electronics",
+        }
+    )
+    assert row.industry == "Consumer Electronics"
+    blob = json.dumps(row.to_dict())
+    rebuilt = NormalizedFinancials.from_dict(json.loads(blob))
+    assert rebuilt.sector == "Technology"
+    assert rebuilt.industry == "Consumer Electronics"
+
+
 # ---------------------------------------------------------------------------
-# integration: repository stamps rows with companies.sector
+# integration: repository stamps rows with companies.sector / .industry
 # ---------------------------------------------------------------------------
 @pytest.mark.integration
 class TestFdbSectorExposure:
@@ -84,6 +105,37 @@ class TestFdbSectorExposure:
             )
             row = cur.fetchone()
             return row["sector"] if row else None
+
+    def _db_industry(self, repo: FinancialDatabaseRepository, ticker: str):
+        """Independent companies.industry lookup (not via the code under test)."""
+        conn = repo._get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT c.industry
+                FROM companies c
+                JOIN company_identifiers ci ON c.id = ci.company_id
+                WHERE UPPER(ci.identifier_type) = 'TICKER'
+                  AND UPPER(ci.identifier_value) = %s
+                LIMIT 1
+                """,
+                (ticker.upper(),),
+            )
+            row = cur.fetchone()
+            return row["industry"] if row else None
+
+    def test_list_years_rows_carry_the_metadata_industry(self, repo):
+        if not repo.available():
+            pytest.skip("Financial-DataBase not available")
+
+        for ticker in VERIFICATION_TICKERS:
+            db_industry = self._db_industry(repo, ticker)
+            rows = repo.list_years(ticker)
+            if not rows:
+                continue
+            # Same invariant as sector: every reconstructed year carries the
+            # company's industry, including None when the enrichment is absent.
+            assert all(row.industry == db_industry for row in rows), ticker
 
     def test_list_years_rows_carry_the_metadata_sector(self, repo):
         if not repo.available():

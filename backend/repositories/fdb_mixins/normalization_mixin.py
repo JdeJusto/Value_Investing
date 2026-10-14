@@ -378,6 +378,7 @@ class NormalizationMixin:
         loaded_at: datetime | None = None,
         split_adjustment_factor: float = 1.0,
         sector: str | None = None,
+        industry: str | None = None,
     ) -> NormalizedFinancials:
         """Build a NormalizedFinancials object from statement data.
 
@@ -391,6 +392,8 @@ class NormalizationMixin:
                 ``_cumulative_split_multiplier``); 1.0 when unknown.
             sector: Company sector label from ``companies.sector`` (None when
                 the metadata layer does not supply one).
+            industry: Company industry label from ``companies.industry``
+                (None when the metadata layer does not supply one).
 
         Returns:
             NormalizedFinancials object
@@ -462,6 +465,7 @@ class NormalizationMixin:
             shares_outstanding=balance.get("shares_outstanding"),
             split_adjustment_factor=split_adjustment_factor,
             sector=sector,
+            industry=industry,
             period=ANNUAL_PERIOD,
             currency="USD",  # TODO: Get from actual unit/currency data
             source=ProviderName.EDGAR,  # Financial-DataBase primarily has SEC data

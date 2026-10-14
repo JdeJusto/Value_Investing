@@ -108,6 +108,12 @@ class NormalizedFinancials:
     #: when available, else None. Consumers must treat None as "unknown
     #: sector", never as a specific sector.
     sector: str | None = None
+    #: Finer-grained industry label (e.g. "Semiconductors", "Consumer
+    #: Electronics"); supplied by the same Financial-DataBase metadata as
+    #: ``sector`` when available, else None. Consumers must treat None as
+    #: "unknown industry", never as a specific industry. Used by the scorecard
+    #: peer comparison (industry first, sector fallback).
+    industry: str | None = None
     # Multiplier that restates this row's as-reported ``shares_outstanding``
     # on today's post-split basis: the product of every stock-split ratio
     # that took effect AFTER this row's fiscal year end. A 4:1 split means a
