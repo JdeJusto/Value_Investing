@@ -1,3 +1,9 @@
+## [0.16.7] - 2026-10-14
+
+### Fixed
+
+- Recurring data-sample validation against SEC EDGAR; CI coverage and pyright gates; structured API logs and global error handler; orphan asset cleanup; boot-triggered daily workflow
+
 ## [0.16.6] - 2026-10-13
 
 ### Fixed
