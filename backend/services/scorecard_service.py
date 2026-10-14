@@ -582,7 +582,11 @@ def _financial_health_rules(
     ):
         status, reason, value = FAIL, "A liquidity/debt alert is firing.", "firing"
     elif alerts.has("inventory_buildup"):
-        status, reason, value = WATCH, "The inventory-build-up alert is firing.", "firing"
+        status, reason, value = (
+            WATCH,
+            "The inventory-build-up alert is firing.",
+            "firing",
+        )
     else:
         status, reason, value = PASS, "No liquidity or debt alert.", "none"
     rules.append(
@@ -684,7 +688,10 @@ def _shareholder_returns_rules(
     if dilution is None:
         status, reason = INSUFFICIENT, "Share-count history is unavailable."
     elif dilution <= 0:
-        status, reason = PASS, f"Share count changed {dilution:+.1f}%/yr (flat/buyback)."
+        status, reason = (
+            PASS,
+            f"Share count changed {dilution:+.1f}%/yr (flat/buyback).",
+        )
     elif dilution <= 1:
         status, reason = WATCH, f"Share count grew {dilution:.1f}%/yr."
     else:
@@ -803,9 +810,7 @@ def _management_moat_rules(
         else:
             status = FAIL
         value = f"{hits}/{len(computable)} years"
-        reason = (
-            f"ROIC was at or above 10% in {hits} of {len(computable)} years."
-        )
+        reason = f"ROIC was at or above 10% in {hits} of {len(computable)} years."
     rules.append(
         _rule(
             "roic_persistence",
@@ -821,7 +826,11 @@ def _management_moat_rules(
     stability = metrics.stability("gross_margin")
     trend = metrics.trend("gross_margin")
     if not metrics.has_series("gross_margin"):
-        status, reason, value = INSUFFICIENT, "Gross-margin history is unavailable.", "—"
+        status, reason, value = (
+            INSUFFICIENT,
+            "Gross-margin history is unavailable.",
+            "—",
+        )
     elif trend == "declining":
         status, reason, value = FAIL, "Gross margin is declining.", "declining"
     elif stability == "stable":
@@ -851,7 +860,11 @@ def _management_moat_rules(
     elif len(red_flags) == 1:
         status, reason, value = WATCH, "One Buffett-Clark red flag.", "1"
     else:
-        status, reason, value = FAIL, f"{len(red_flags)} Buffett-Clark red flags.", str(len(red_flags))
+        status, reason, value = (
+            FAIL,
+            f"{len(red_flags)} Buffett-Clark red flags.",
+            str(len(red_flags)),
+        )
     rules.append(
         _rule(
             "management_red_flags",
@@ -983,9 +996,7 @@ def _notes(
     for dim in dimensions:
         skipped = sum(1 for rule in dim.rules if rule.status == INSUFFICIENT)
         if skipped:
-            notes.append(
-                f"{dim.label}: {skipped} rule(s) skipped for missing data."
-            )
+            notes.append(f"{dim.label}: {skipped} rule(s) skipped for missing data.")
     notes.append(
         "Current ratio is not computed yet; Financial Health skips it (backlog)."
     )
@@ -1038,7 +1049,9 @@ class ScorecardService:
         repository = self._repo()
         rows = [
             row
-            for row in (repository.get_best_available(symbol, max_years=self._max_years) or [])
+            for row in (
+                repository.get_best_available(symbol, max_years=self._max_years) or []
+            )
             if row is not None
         ]
         if not rows:
@@ -1125,9 +1138,7 @@ def _build_dimensions(
         _build_dimension(
             "financial_health", _financial_health_rules(metrics, alertset, rows)
         ),
-        _build_dimension(
-            "valuation", _valuation_rules(metrics, dcf, market_cap)
-        ),
+        _build_dimension("valuation", _valuation_rules(metrics, dcf, market_cap)),
         _build_dimension(
             "shareholder_returns", _shareholder_returns_rules(metrics, alertset)
         ),

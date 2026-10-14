@@ -257,15 +257,16 @@ def test_valuation_degrades_without_price():
 
 
 def test_management_roic_persistence_needs_three_years():
-    rules = {r.rule_id: r for r in _management_moat_rules(metrics(), [_row(2024), _row(2023)], None)}
+    rules = {
+        r.rule_id: r
+        for r in _management_moat_rules(metrics(), [_row(2024), _row(2023)], None)
+    }
     assert rules["roic_persistence"].status == INSUFFICIENT
 
 
 def test_management_roic_persistence_and_red_flags():
     rows = [_row(year) for year in (2024, 2023, 2022, 2021, 2020)]
-    rules = {
-        r.rule_id: r for r in _management_moat_rules(metrics(), rows, ["a", "b"])
-    }
+    rules = {r.rule_id: r for r in _management_moat_rules(metrics(), rows, ["a", "b"])}
     assert rules["roic_persistence"].status == PASS
     assert rules["management_red_flags"].status == FAIL
     assert rules["management_red_flags"].source_methodology == "buffett_clark"
