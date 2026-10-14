@@ -28,6 +28,7 @@ from backend.api.routes import (
     insights,
     methodologies,
     portfolio,
+    scorecard,
     screener,
     search,
     system,
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(financials.router)
     app.include_router(filings.router)
     app.include_router(insights.router)
+    app.include_router(scorecard.router)
     app.include_router(screener.router)
     app.include_router(consensus.router)
     app.include_router(search.router)
