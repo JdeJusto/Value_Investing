@@ -949,19 +949,73 @@ def _overall(dimensions: tuple[DimensionScore, ...]) -> str:
     return MIXED
 
 
+def _join_names(labels: list[str], *, cap: int = 3) -> str:
+    """Deterministic list join, capped at ``cap`` names + "and N others"."""
+    names = list(labels)
+    if not names:
+        return "no other dimension"
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    if len(names) <= cap:
+        return f"{', '.join(names[:-1])}, and {names[-1]}"
+    others = len(names) - cap
+    tail = "other" if others == 1 else "others"
+    return f"{', '.join(names[:cap])}, and {others} {tail}"
+
+
+#: Short noun for each dimension, used to summarize a strong set.
+_THEME_NOUN = {
+    "growth": "growth",
+    "profitability": "profitability",
+    "financial_health": "financial health",
+    "valuation": "value",
+    "shareholder_returns": "shareholder returns",
+    "management_moat": "quality",
+}
+
+
+def _short_theme(keys: list[str]) -> str:
+    """A short, deterministic theme for the strong dimensions.
+
+    Ordered by ``DIMENSION_ORDER``; prefers a "… and quality" pair when the
+    moat dimension is among them, otherwise the first two nouns.
+    """
+    ordered = [key for key in DIMENSION_ORDER if key in keys]
+    nouns = [_THEME_NOUN[key] for key in ordered]
+    if not nouns:
+        return "strength"
+    if len(nouns) == 1:
+        return nouns[0]
+    if "management_moat" in keys and ordered[0] != "management_moat":
+        return f"{nouns[0]} and quality"
+    return f"{nouns[0]} and {nouns[1]}"
+
+
 def _disagreements(dimensions: tuple[DimensionScore, ...]) -> tuple[str, ...]:
-    # A disagreement is any pair with a strong side (>=7) and a weak
-    # side (<=3). This captures "grows fast but expensive" and
-    # "cheap but unprofitable" without firing on stable, mixed companies.
-    # INSUFFICIENT dimensions score None, so they never enter a pair.
+    # A disagreement is a weak dimension (<=3) set against at least one
+    # strong dimension (>=7). Messages are grouped by the **weak** dimension:
+    # one weak side yields one message, not one per strong side, so "grows
+    # fast but expensive" reads as a single sentence instead of five.
+    # INSUFFICIENT dimensions score None, so they never participate.
     strong = [d for d in dimensions if d.score is not None and d.score >= 7]
-    weak = [d for d in dimensions if d.score is not None and d.score <= 3]
-    return tuple(
-        f"{hi.label} is strong ({hi.score}/10) while "
-        f"{lo.label} is weak ({lo.score}/10)."
-        for hi in strong
-        for lo in weak
-    )
+    if not strong:
+        return ()
+    out: list[str] = []
+    for weak in dimensions:
+        if weak.score is None or weak.score > 3:
+            continue
+        peers = [d for d in strong if d.key != weak.key]
+        if not peers:
+            continue
+        verb = "is" if len(peers) == 1 else "are"
+        out.append(
+            f"{weak.label} is weak ({weak.score}/10) while "
+            f"{_join_names([d.label for d in peers])} {verb} strong "
+            f"({_short_theme([d.key for d in peers])})."
+        )
+    return tuple(out)
 
 
 def _data_quality(rows: list[NormalizedFinancials]) -> str:

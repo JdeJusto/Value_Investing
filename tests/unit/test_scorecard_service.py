@@ -27,9 +27,11 @@ from backend.services.scorecard_service import (
     _disagreements,
     _financial_health_rules,
     _growth_rules,
+    _join_names,
     _management_moat_rules,
     _Metrics,
     _overall,
+    _short_theme,
     _shareholder_returns_rules,
     _valuation_rules,
     score_rules,
@@ -350,7 +352,7 @@ def test_disagreement_fires_for_cheap_but_unprofitable():
 
 def test_disagreement_fires_for_every_strong_weak_pair():
     # TSLA-shaped: one strong (Growth 9) against two weak (Valuation 2,
-    # Shareholder Returns 0) yields one named message per pair.
+    # Shareholder Returns 0) yields one message per weak dimension.
     out = _disagreements(
         (
             dim("growth", "Growth", 9),
@@ -361,6 +363,95 @@ def test_disagreement_fires_for_every_strong_weak_pair():
     assert len(out) == 2
     assert any("Valuation" in message for message in out)
     assert any("Shareholder Returns" in message for message in out)
+
+
+def test_disagreement_groups_by_the_weak_dimension():
+    # AAPL-shaped: five strong dimensions against a single weak Valuation
+    # must produce ONE message, not one per strong side.
+    out = _disagreements(
+        (
+            dim("growth", "Growth", 7),
+            dim("profitability", "Profitability", 10),
+            dim("financial_health", "Financial Health", 8),
+            dim("valuation", "Valuation", 2),
+            dim("shareholder_returns", "Shareholder Returns", 10),
+            dim("management_moat", "Management/Moat", 7),
+        )
+    )
+    assert len(out) == 1
+    message = out[0]
+    assert "Valuation" in message
+    assert "Growth" in message and "Profitability" in message
+
+
+def test_disagreement_one_message_per_weak_dimension():
+    # F-shaped: Profitability 0 and Management/Moat 2 are both weak.
+    out = _disagreements(
+        (
+            dim("growth", "Growth", 6),
+            dim("profitability", "Profitability", 0),
+            dim("financial_health", "Financial Health", 5),
+            dim("valuation", "Valuation", 7),
+            dim("shareholder_returns", "Shareholder Returns", 8),
+            dim("management_moat", "Management/Moat", 2),
+        )
+    )
+    assert len(out) == 2
+    assert any(message.startswith("Profitability") for message in out)
+    assert any(message.startswith("Management/Moat") for message in out)
+
+
+def test_disagreement_needs_at_least_one_strong_dimension():
+    assert (
+        _disagreements(
+            (
+                dim("growth", "Growth", 5),
+                dim("valuation", "Valuation", 2),
+            )
+        )
+        == ()
+    )
+
+
+def test_disagreement_caps_the_named_strong_dimensions():
+    # Five strong dimensions, one weak -> names at most three + a count.
+    out = _disagreements(
+        (
+            dim("growth", "Growth", 9),
+            dim("profitability", "Profitability", 9),
+            dim("financial_health", "Financial Health", 9),
+            dim("shareholder_returns", "Shareholder Returns", 9),
+            dim("management_moat", "Management/Moat", 9),
+            dim("valuation", "Valuation", 1),
+        )
+    )
+    assert len(out) == 1
+    assert "and 2 others" in out[0]
+    # Only three dimension names appear before the "and N others" tail.
+    assert "Growth" in out[0] and "Profitability" in out[0]
+    assert "Financial Health" in out[0]
+    assert "Shareholder Returns" not in out[0]
+    assert "Management/Moat" not in out[0]
+
+
+def test_join_names_is_deterministic_and_capped():
+    assert _join_names(["Growth"]) == "Growth"
+    assert _join_names(["Growth", "Valuation"]) == "Growth and Valuation"
+    assert (
+        _join_names(["Growth", "Valuation", "Profitability"])
+        == "Growth, Valuation, and Profitability"
+    )
+    assert _join_names(["A", "B", "C", "D", "E"]) == "A, B, C, and 2 others"
+
+
+def test_short_theme_prefers_growth_and_quality():
+    assert _short_theme(["growth"]) == "growth"
+    assert _short_theme(["growth", "management_moat"]) == "growth and quality"
+    assert (
+        _short_theme(["valuation", "shareholder_returns"])
+        == "value and shareholder returns"
+    )
+    assert _short_theme([]) == "strength"
 
 
 def test_disagreement_never_fires_on_insufficient_dimensions():
