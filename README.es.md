@@ -138,6 +138,10 @@ aseguradoras.
 
 *Un resumen de desacuerdos que explica los veredictos en lugar de promediarlos.*
 
+![Dos metodologías comparadas lado a lado sobre una misma empresa](assets/compare-methodologies.gif)
+
+*Comparar dos metodologías lado a lado: dónde coinciden y dónde no.*
+
 Véanse las [decisiones de metodología](docs/methodology_decisions.md), la [metodología de puntuación](docs/scoring_methodology.md) y la [validación de puntuaciones](docs/scoring_validation.md).
 
 ## Instalación
@@ -223,6 +227,10 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 ![Resultados del screener filtrados por sector y veredicto](assets/screenshot_screener.png)
 
 *Resultados del screener filtrados por sector y veredicto.*
+
+![Explorando y filtrando el screener](assets/screener.gif)
+
+*Filtrar el screener por sector y veredicto y leer las filas clasificadas.*
 
 Véase el [runbook diario](docs/runbook_daily.md) para opciones de actualización, reanudación e informes.
 

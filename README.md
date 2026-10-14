@@ -134,6 +134,10 @@ including banks and insurers.
 
 *A disagreement summary that explains the verdicts instead of averaging them.*
 
+![Two methodologies compared side by side on one company](assets/compare-methodologies.gif)
+
+*Comparing two methodologies side by side: where they agree and where they don't.*
+
 See the [methodology decisions](docs/methodology_decisions.md), [scoring methodology](docs/scoring_methodology.md), and [scoring validation](docs/scoring_validation.md).
 
 ## Installation
@@ -217,6 +221,10 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 ![Screener results filtered by sector and verdict](assets/screenshot_screener.png)
 
 *Screener results filtered by sector and verdict.*
+
+![Browsing and filtering the screener](assets/screener.gif)
+
+*Filtering the screener by sector and verdict, then reading the ranked rows.*
 
 See the [daily runbook](docs/runbook_daily.md) for refresh, resume, and reporting options.
 
