@@ -38,6 +38,7 @@ from ui.services import (
     load_fundamentals,
     load_historical_valuation,
     load_quote,
+    load_scorecard,
 )
 
 DCF_DISCLAIMER = (
@@ -201,6 +202,7 @@ def _render_single(ticker: str) -> None:
         [
             "Overview",
             "Methodologies",
+            "Scorecard",
             "DCF",
             "Historical",
             "Filings",
@@ -213,14 +215,16 @@ def _render_single(ticker: str) -> None:
     with tabs[1]:
         _methodologies(ticker, view)
     with tabs[2]:
-        _dcf_panel(dcf)
+        _render_scorecard(ticker)
     with tabs[3]:
-        _historical(ticker)
+        _dcf_panel(dcf)
     with tabs[4]:
-        _filings(ticker)
+        _historical(ticker)
     with tabs[5]:
-        _financials(ticker)
+        _filings(ticker)
     with tabs[6]:
+        _financials(ticker)
+    with tabs[7]:
         _raw(ticker)
 
 
@@ -589,6 +593,111 @@ def _methodologies(ticker: str, view) -> None:
                 st.markdown(f"- {reason}")
             for flag in detail.get("red_flags") or []:
                 st.markdown(f"- **{flag}**")
+
+
+#: Per-rule glyph (PASS / WATCH / FAIL / INSUFFICIENT) — mirrors the CLI.
+_SCORECARD_STATUS_MARK = {
+    "PASS": "✓",
+    "WATCH": "⚠",
+    "FAIL": "✗",
+    "INSUFFICIENT": "·",
+}
+
+
+def _render_scorecard(ticker: str) -> None:
+    """The six-dimension scorecard: dimension cards + rule tables.
+
+    Presentation only: everything shown comes from ``ScorecardService``
+    verbatim. The tab never recomputes a financial figure, and a missing
+    price or an unapplicable rule degrades instead of crashing the page.
+    Charts (the radar) arrive in Phase 4.
+    """
+    try:
+        card = load_scorecard(ticker, "FY")
+    except Exception as exc:  # noqa: BLE001 — report, never leak a traceback
+        st.error(f"Could not build the scorecard for {ticker}: {exc}")
+        return
+    if card is None:
+        _render_missing_fundamentals(ticker)
+        return
+
+    _scorecard_header(card)
+    st.caption("Based on the current fundamentals · FY data")
+    if card.get("period") != "FY":
+        st.caption("Quarterly data not available for all rules.")
+
+    dimensions = card["dimensions"]
+    for start in range(0, len(dimensions), 2):
+        columns = st.columns(2)
+        for column, dimension in zip(columns, dimensions[start : start + 2]):
+            with column:
+                _scorecard_dimension(dimension)
+
+    if card["disagreements"]:
+        st.warning("\n".join(f"- {item}" for item in card["disagreements"]))
+        st.caption(
+            "These dimensions point in different directions; read them "
+            "together, not as an average."
+        )
+
+    if card["overall"] in ("Strong", "Mixed") and any(
+        dimension["evaluable_rules"] < 3 for dimension in dimensions
+    ):
+        st.info(
+            "Some rules do not apply to this company type. See each dimension "
+            "for coverage details."
+        )
+
+    st.caption("Data: Financial-DataBase · FY · Prices not persisted")
+
+
+def _scorecard_header(card: dict) -> None:
+    """Company identity, live price, overall label and data-quality badge."""
+    st.markdown(f"**{card['ticker']} · {card['company']}**")
+    price = card.get("price")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
+    col2.metric("Overall", card["overall"])
+    col3.metric("Data quality", card["data_quality"])
+    sector = card.get("sector") or "—"
+    industry = card.get("industry") or "—"
+    st.caption(f"{sector} · {industry}")
+
+
+def _scorecard_dimension(dimension: dict) -> None:
+    """One dimension card: score, verdict, summary and the rule table."""
+    score = dimension["score"]
+    score_text = "—" if score is None else f"{score}/10"
+    with st.container(border=True):
+        left, right = st.columns([3, 2])
+        left.markdown(f"### {dimension['label']}")
+        right.markdown(f"## {score_text}")
+        st.markdown(f"**{dimension['verdict']}** · {dimension['trend']}")
+        st.caption(dimension["summary"])
+        with st.expander("Rules", expanded=False):
+            st.dataframe(
+                _scorecard_rule_rows(dimension["rules"]),
+                width="stretch",
+                hide_index=True,
+            )
+
+
+def _scorecard_rule_rows(rules: list[dict]) -> list[dict]:
+    """Flatten the frozen rules into plain rows for ``st.dataframe``."""
+    rows = []
+    for rule in rules:
+        mark = _SCORECARD_STATUS_MARK.get(rule["status"], "·")
+        rows.append(
+            {
+                "Status": f"{mark} {rule['status']}",
+                "Rule": rule["label"],
+                "Value": rule["value"],
+                "Threshold": rule["threshold"],
+                "Why": rule["reason"],
+                "Source": rule.get("source_methodology") or "analytics",
+            }
+        )
+    return rows
 
 
 def _dcf_panel(dcf) -> None:

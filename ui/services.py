@@ -67,6 +67,26 @@ def load_quote(ticker: str) -> dict:
     return {"price": price, "market_cap": market_cap}
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_scorecard(ticker: str, period: str = "FY") -> dict | None:
+    """Cached scorecard payload for one ticker (``Scorecard.to_dict()``).
+
+    Presentation only: the scorecard service is built from the same
+    repository and price service the rest of the analysis page uses, and
+    the frozen dataclass is converted to a plain dict so Streamlit's cacher
+    can serialize it. ``None`` means no fundamentals (the page shows its
+    usual warning); a service error propagates so the tab can report it.
+    """
+    from backend.services.scorecard_service import ScorecardService
+
+    service = ScorecardService(
+        repository=build_financial_repository(),
+        price_service=get_price_service(),
+    )
+    card = service.build(ticker, period)
+    return None if card is None else card.to_dict()
+
+
 @st.cache_data(ttl=3600)
 def load_historical_valuation(ticker: str) -> list:
     """Cached P/E and FCF-yield history for the valuation chart."""
