@@ -1,8 +1,9 @@
 # Scorecard roadmap — interactive, visual stock analysis
 
-**Status:** planning. Implements the [scorecard design](scorecard_design.md)
-on top of the current surfaces described in the
-[analysis visualization audit](analysis_visualization_audit.md).
+**Status:** Phases 1–2 shipped (backend + API/CLI); Phase 3 shipped in
+Streamlit (text only). Phases 4–7 planned. Implements the
+[scorecard design](scorecard_design.md) on top of the current surfaces
+described in the [analysis visualization audit](analysis_visualization_audit.md).
 
 **Principles for sequencing:** each phase is independently shippable; backend
 first (so both frontends share one contract); no phase adds a dependency
@@ -86,24 +87,40 @@ API and the CLI add no computation of their own.
 
 ## Phase 3 — Streamlit Scorecard tab (text only)
 
-**Deliverable.** A new **Scorecard** tab in `ui/pages/02_analysis.py`
-(appended, not default): header, one card per dimension with the rules table,
-the **disagreement panel**, and JSON/Markdown export. The radar renders as a
-dependency-free **altair bar** fallback (placeholder for Phase 4).
+**Status:** shipped ✅.
+
+**Shipped.** Disagreement gate `1203808` (`fix(scorecard): detect
+disagreements at (>=7, <=3) pair thresholds`); the tab `676409d`
+(`feat(ui): add Scorecard tab with dimension cards and rule tables`); tests
+`32f3eba` (`test(ui): cover the Scorecard tab cards, rule tables and panels`).
+The tab renders the frozen `Scorecard.to_dict()` verbatim through
+`ui.services.load_scorecard` (ttl 3600) — no view-side math. See
+[design §7 → Shipped in Streamlit](scorecard_design.md#shipped-in-streamlit-phase-3).
+
+**Deliverable.** A new **Scorecard** tab in `ui/pages/02_analysis.py`,
+**between `Methodologies` and `DCF`** (not default): header, one card per
+dimension with the rules table, the **disagreement panel**, and the
+financial-company note. Charts are **not** part of this phase.
 
 **Dependencies.** Phase 1 (Phase 2 optional).
 
 **Acceptance criteria.**
 
-- The tab renders for a warm-cache ticker in **< 3 s**; the header appears
-  before the (slower) valuation/peer sections.
+- The tab renders for a warm-cache ticker in **< 3 s** (measured ≈ 0.5 s;
+  cold ≈ 7.5 s).
 - Every displayed number traces to an existing service (no view-side math).
-- The tab is present but **not** the default; the existing 7 tabs are
-  unchanged.
+- The tab is present but **not** the default; the new order is Overview ·
+  Methodologies · **Scorecard** · DCF · Historical · Filings · Financials · Raw.
 
-**Tests.** Streamlit `AppTest`: the tab exists, renders without exceptions,
-and shows one card per dimension; a snapshot-ish assertion on the rule table
-shape.
+**Tests.** Streamlit `AppTest`: the tab sits between Methodologies and DCF,
+six cards render with score + verdict, the rule table has the expected columns,
+an `INSUFFICIENT` dimension renders `—` (never 0), the disagreement panel
+appears only when non-empty, and the data-quality badge/error path render.
+Phase A adds the disagreement-gate unit tests in `test_scorecard_service.py`.
+
+**Deviations from the original sketch.** No `altair` bar placeholder and no
+JSON/Markdown export shipped: charts are deferred to Phase 4 and export to
+Phase 7. Text-only cards are the deliberate deliverable here.
 
 ---
 

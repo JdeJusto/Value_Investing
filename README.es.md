@@ -111,6 +111,16 @@ para supuestos y fórmulas.
 
 *Valor intrínseco del DCF, margen de seguridad, supuestos y sensibilidad.*
 
+La pestaña **Scorecard** resume el mismo análisis en seis dimensiones —Crecimiento,
+Rentabilidad, Salud Financiera, Valoración, Retribución al Accionista,
+Gestión/Foso— como tarjetas de texto, cada una con las reglas detrás de su
+puntuación y un panel explícito cuando las dimensiones discrepan. Es un resumen de
+los servicios existentes, nunca una "puntuación maestra".
+
+![Pestaña Scorecard con seis tarjetas de dimensión y el panel de desacuerdo](assets/scorecard_tab.png)
+
+*La pestaña Scorecard: seis tarjetas de dimensión y el panel de desacuerdo.*
+
 ## Las 8 metodologías
 
 | Metodología | Fuente | Familia | Qué busca |

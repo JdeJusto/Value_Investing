@@ -152,12 +152,15 @@ else:
 - `Weak` — ≥ 3 dimensions ≤ 4.
 - `Mixed` — otherwise.
 
-**Disagreement list** (deterministic, from dimension scores) — examples:
+**Disagreement list** (deterministic, from dimension scores). A disagreement is
+*any* pair of evaluable dimensions where one side is strong (`≥ 7`) and the
+other weak (`≤ 3`); the message names both dimensions. The old fixed (`≥ 8`,
+`≤ 4`) pairs never fired for the most common real pattern — "grows fast but
+expensive" — which defeated the field, so the gate now covers every strong/weak
+pair. `INSUFFICIENT` dimensions (score `None`) never enter a pair.
 
-- `Growth ≥ 8 and Valuation ≤ 4` → "Growing, but the price already reflects it."
-- `Profitability ≥ 8 and Financial Health ≤ 4` → "Profitable, but the balance sheet is stretched."
-- `Valuation ≥ 8 and Growth ≤ 4` → "Cheap, but the business is not growing."
-- `Shareholder Returns ≥ 8 and Financial Health ≤ 4` → "Shareholder-friendly, but financed at risk."
+- `Growth 7 · Valuation 2` → "Growth is strong (7/10) while Valuation is weak (2/10)."
+- `Profitability 0 · Valuation 7` → "Valuation is strong (7/10) while Profitability is weak (0/10)."
 
 No numeric total is ever shown. This is the project's "disagreement is
 information" rule made concrete.
@@ -340,6 +343,44 @@ All numbers come from the services; nothing is recomputed in the view.
   </g>
 </svg>
 ```
+
+---
+
+### Shipped in Streamlit (Phase 3)
+
+The tab is the `Scorecard` position **between `Methodologies` and `DCF`** in
+`ui/pages/02_analysis.py` (8 tabs total: Overview · Methodologies · Scorecard ·
+DCF · Historical · Filings · Financials · Raw). Everything rendered comes from
+`ScorecardService.build(...)` → `Scorecard.to_dict()`; the view does no math.
+The payload is cached by `ui.services.load_scorecard(ticker, period)` for
+3600 s, so a warm tab renders in ≈ 0.5 s (cold ≈ 7.5 s, dominated by the FDB +
+price reads the service itself performs). Prices remain in-memory only.
+
+Layout, top to bottom:
+
+1. **Header** — `TICKER · Company`, live price (`—` when the quote is
+   unavailable), **Overall** label, **Data quality** badge, then a
+   `sector · industry` caption and "Based on the current fundamentals · FY data".
+2. **Dimension cards** — six cards in a two-column grid inside
+   `st.container(border=True)`. Each card shows the big score (`7/10`, or `—`
+   when `Insufficient`), the verdict · trend, the service `summary` verbatim,
+   and a collapsed **Rules** expander with the table
+   `Status · Rule · Value · Threshold · Why · Source` (`✓`/`⚠`/`✗`/`·` prefix,
+   `Source` = the rule's `source_methodology` or `analytics`).
+3. **Disagreement panel** — only when `disagreements` is non-empty: an amber
+   note listing the pairs, plus "read them together, not as an average".
+4. **Financial-company note** — shown when the overall label is `Strong`/`Mixed`
+   and any dimension has fewer than 3 evaluable rules: "Some rules do not apply
+   to this company type…".
+5. **Footer** — "Data: Financial-DataBase · FY · Prices not persisted".
+
+No charts, no custom CSS and no colored cells (Streamlit colors no individual
+dataframe cell without CSS, which the project does not add). **Open item:** the
+`DimensionScore` contract has no per-dimension confidence field, so the card
+shows the scorecard-level data-quality badge in the header instead; adding a
+per-dimension confidence would be a service change, not a view change.
+
+The radar and the four charts (with the `plotly` dependency) are **Phase 4**.
 
 ---
 

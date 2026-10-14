@@ -108,6 +108,16 @@ financial dividend discount models, and hyper-growth companies. See
 
 *DCF intrinsic value, margin of safety, assumptions, and sensitivity.*
 
+The **Scorecard** tab summarizes the same analysis as six dimensions — Growth,
+Profitability, Financial Health, Valuation, Shareholder Returns, Management/Moat —
+as text cards, each with the rules behind its score, plus an explicit panel when
+the dimensions disagree. It is a summary of the existing services, never a
+"master score".
+
+![Scorecard tab with six dimension cards and the disagreement panel](assets/scorecard_tab.png)
+
+*The Scorecard tab: six dimension cards and the disagreement panel.*
+
 ## The 8 methodologies
 
 | Methodology | Source | Family | What it looks for |
