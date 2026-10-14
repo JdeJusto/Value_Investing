@@ -83,6 +83,18 @@ def _sanitize_tax_rate(rate: float | None, default: float) -> float:
     return min(max(rate, 0.0), 1.0)
 
 
+def effective_tax_rate(
+    financials: NormalizedFinancials | None, default: float = DEFAULT_TAX_RATE
+) -> float:
+    """The sanitized effective tax rate — the input the ratio calculators use.
+
+    Mirrors the tax rate ``CompanyAnalysisService.analyze`` passes to
+    ``RoicCalculator`` so any other consumer (e.g. the scorecard) computes the
+    same ROIC as the analytics page instead of re-deriving the tax rate.
+    """
+    return _sanitize_tax_rate(_effective_tax_rate(financials), default)
+
+
 class CompanyAnalysisService:
     """Computes valuation metrics from persisted normalized financials."""
 
@@ -161,7 +173,7 @@ class CompanyAnalysisService:
             ebitda = ebit + da
 
         gross_margins = self._gross_margins(rows)
-        tax_rate = _sanitize_tax_rate(_effective_tax_rate(last), self._default_tax_rate)
+        tax_rate = effective_tax_rate(last, self._default_tax_rate)
         wacc = self._wacc(ticker, last) or self._default_wacc
 
         roa_current = None

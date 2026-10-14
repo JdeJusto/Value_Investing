@@ -74,6 +74,14 @@ Measured 2026-10-14 (stability/precision sprint):
    fixes touch React state flow, so they were deferred ahead of v0.1.1.
    *Effort*: S-M.
 
+6. **Wire ROIC / interest coverage / current ratio into
+   `FinancialInsightsService`.** The scorecard's Financial Health dimension
+   marks `current_ratio` `INSUFFICIENT` because no calculator exposes it. ROIC
+   and interest coverage are already wired through `backend/analytics/ratios`
+   (the scorecard calls `RoicCalculator` / `InterestCoverageCalculator`
+   directly on the latest row). Promoting all three to first-class insights
+   would remove the scorecard's only direct calculator calls. *Effort*: S.
+
 ### P3 — deferred / future
 
 5. ~~**Marks cycle positioning**~~ — shipped in v0.3.0 as the 8th
