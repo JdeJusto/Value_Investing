@@ -273,6 +273,39 @@ Verified on 2026-09-27 with a manual `systemctl --user start`:
 (confirming the same-day sweep), 2 450 tickers screened, 279 alerts and the
 report written to `data/reports/daily_2026-09-27.md`.
 
+### Boot catch-up (`run_daily_on_boot.sh`)
+
+`Persistent=true` replays a run missed while the machine was off, but only
+once the timer's own service is triggered. On a desktop that is only online
+for short stretches, `scripts/run_daily_on_boot.sh` (systemd user unit
+`deploy/systemd/value-investing-daily-boot.service`) starts the workflow at
+login and is a no-op when the day's run already happened — the timer and the
+boot unit never double-run:
+
+- **Per-day stamp.** The wrapper writes the date to `logs/.last_daily_run`
+  after a run and exits immediately if that date is today, so a reboot later
+  the same day does nothing. `--force` ignores the stamp (manual run).
+- **Exclusive lock.** `flock` on `logs/.run_daily_on_boot.lock` stops two
+  boots from starting concurrent runs.
+- **10-minute network wait.** It polls a TCP connection to `data.sec.gov`
+  before starting, instead of launching a run that would only see timeouts.
+- **`--resume`.** It calls `python -m scripts.daily_workflow --universe all
+  --max-refresh 200 --resume`, so it shares the scheduled run's checkpoint.
+- **Post-run validation.** It runs `scripts/validate_data_sample --sample 10`
+  (never fatal) and writes `logs/run_<date>.log`.
+
+It needs **no sudo** (a user unit) and does not run from the agent.
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp deploy/systemd/value-investing-daily-boot.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable value-investing-daily-boot.service   # run at each login
+systemctl --user status value-investing-daily-boot.service
+journalctl --user -u value-investing-daily-boot.service --since today
+scripts/run_daily_on_boot.sh --force                         # manual run now
+```
+
 ### nohup / tmux alternative
 
 ```bash

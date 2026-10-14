@@ -1,0 +1,52 @@
+# Value Investing — daily workflow boot catch-up (systemd user unit).
+#
+# The timer (value-investing-daily.timer) already covers the case where the
+# machine is off at 06:00: Persistent=true replays the missed run after the
+# next boot. This unit is the belt-and-braces version for desktops that are
+# only briefly online: it runs the workflow at login/boot and the wrapper
+# (scripts/run_daily_on_boot.sh) is a no-op when the day's run already
+# happened, so the two never double-run.
+#
+# Install per-user (NO sudo) and enable:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/systemd/value-investing-daily-boot.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable value-investing-daily-boot.service
+#   systemctl --user start  value-investing-daily-boot.service    # run once now
+#   systemctl --user status value-investing-daily-boot.service
+#   journalctl --user -u value-investing-daily-boot.service -f
+#
+# SEC_USER_AGENT is deliberately absent: it must carry a real e-mail and
+# belongs in the gitignored .env, loaded through EnvironmentFile below.
+#
+# No sudo, no system-wide unit: everything is user-scoped and the wrapper
+# waits for the network itself (so no network-online.target dependency).
+
+[Unit]
+Description=Value Investing Daily Workflow (boot catch-up)
+Documentation=file://%h/Value_Investing/docs/runbook_daily.md
+After=default.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Value_Investing
+Environment="PATH=%h/Value_Investing/.venv/bin:/usr/bin"
+# Optional: repo .env (same keys) — the leading '-' tolerates a missing file
+EnvironmentFile=-%h/Value_Investing/.env
+ExecStart=%h/Value_Investing/scripts/run_daily_on_boot.sh
+# The wrapper writes its own logs/run_<date>.log; this captures anything it
+# prints before that (and the wrapper's own stdout/stderr).
+StandardOutput=append:%h/Value_Investing/logs/boot.log
+StandardError=append:%h/Value_Investing/logs/boot.log
+# Long universes must never time out; stopping sends SIGTERM so the workflow
+# can checkpoint the current ticker and exit cleanly.
+TimeoutStartSec=0
+TimeoutStopSec=600
+KillSignal=SIGTERM
+Restart=no
+# Desktop-friendly
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target
