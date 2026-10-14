@@ -170,3 +170,28 @@ Current run (200-sample): 60 discrepancy rows — 0 HIGH, 16 MEDIUM, 22 LOW,
 22 EXCLUDED. See `docs/validation_report_200_sp500.md` for the breakdown and
 the full classification of every excluded row. The repo's `AGENTS.md` policy
 requires validations to respect `config/validation_exclusions.yaml`.
+
+## 8. Recurring validation
+
+```
+python -m scripts.validate_data_sample --sample 20
+```
+
+Runs once per week (see `docs/runbook_daily.md`'s boot-triggered workflow).
+`scripts/validate_data_sample.py` draws a reproducible sample of S&P 500
+tickers (seed 42) and, for each company's latest completed fiscal year,
+compares five fundamentals — revenue, net income, total assets, total
+liabilities and operating cash flow — between Financial-DataBase (read-only),
+SEC EDGAR's `companyconcept` API and (optionally) Yahoo Finance. It flags any
+field that differs by more than 5%, writes
+`logs/validation_<YYYY-MM-DD>.{log,json}`, never writes to any database, and
+paces its SEC requests below the 10 req/s guidance.
+
+Exit codes:
+
+- 0: no discrepancies
+- 1: at least one field differs > 5%
+- 2: the script could not run (no DB, no network)
+
+`--no-yahoo` limits the comparison to SEC EDGAR; `--seed` / `--sample` control
+the sample.
