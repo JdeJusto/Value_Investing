@@ -1,3 +1,9 @@
+## [0.16.8] - 2026-10-14
+
+### Fixed
+
+- Scorecard API endpoint and CLI command
+
 ## [0.16.7] - 2026-10-14
 
 ### Fixed
