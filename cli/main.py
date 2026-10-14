@@ -101,6 +101,7 @@ def main():
         momentum,
         opportunities,
         portfolio,
+        scorecard,
         screener,
         sql_analysis,
         watchlist,
@@ -119,6 +120,7 @@ def main():
     load_data.register(sub)
     data_status.register(sub)
     dcf.register(sub)
+    scorecard.register(sub)
     opportunities.register(sub)
     anomalies.register(sub)
     momentum.register(sub)
