@@ -208,6 +208,25 @@ class Cache:
 - Exposed to LAN via `http://<arch-lan-ip>:8000`
 - Mobile app connects to LAN IP when at home
 
+#### Uvicorn invocation (keep-alive)
+
+The production/LAN entry point is::
+
+```
+uvicorn backend.api.app:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 75
+```
+
+`--timeout-keep-alive 75` keeps each idle client connection open for 75 s
+between requests. The uvicorn default (5 s) closes a keep-alive connection
+after 5 s of quiet, so a client that reuses a pooled connection slightly later
+gets a reset and has to retry; the app's own calls can take seconds (a Yahoo
+quote round-trip, a DB-backed reconstruction), so a longer window avoids
+spurious `ConnectionResetError`s on the client without holding threads open
+indefinitely.
+
+Logging is JSON-per-line (see `backend/api/logging_config.py`, wired in
+`create_app`), so `journalctl -u value-investing-api -o cat` is indexable as-is.
+
 ### Phase 2: Tailscale (Later)
 ```
 Mobile (anywhere) → Tailscale IP:8000 → FastAPI

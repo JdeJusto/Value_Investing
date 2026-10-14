@@ -8,6 +8,7 @@ Streamlit UI, and it never persists prices. Run locally with::
 
 from __future__ import annotations
 
+import logging
 import os
 
 from fastapi import FastAPI, Request
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import backend
+from backend.api.logging_config import configure_logging
 from backend.api.responses import ApiError, fail
 from backend.api.routes import (
     alerts,
@@ -33,6 +35,8 @@ from backend.api.routes import (
 
 DEFAULT_CORS_ORIGINS = "http://localhost:8501"
 
+logger = logging.getLogger("backend.api")
+
 
 def _docs_enabled() -> bool:
     """OpenAPI docs are on unless ``API_ENABLE_DOCS`` says otherwise."""
@@ -48,6 +52,7 @@ def _cors_origins() -> list[str]:
 
 def create_app() -> FastAPI:
     """Build the FastAPI app (a factory so tests can create isolated apps)."""
+    configure_logging()
     docs = _docs_enabled()
     app = FastAPI(
         title="Value Investing API",
@@ -70,6 +75,15 @@ def create_app() -> FastAPI:
     @app.exception_handler(ApiError)
     async def _api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
         return fail(exc.status_code, exc.code, exc.message)
+
+    @app.exception_handler(Exception)
+    async def _unhandled_exception_handler(
+        request: Request, _exc: Exception
+    ) -> JSONResponse:
+        # The traceback stays server-side; the client only gets the generic
+        # error envelope so internal details are never leaked.
+        logger.exception("unhandled error", extra={"path": str(request.url)})
+        return fail(500, "INTERNAL_ERROR", "Unexpected server error")
 
     app.include_router(system.router)
     app.include_router(company.router)

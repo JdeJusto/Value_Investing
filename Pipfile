@@ -34,6 +34,7 @@ lxml = ">=6.0"
 # Terminal rendering (tables, panels, spinners) for the CLI. Pure Python, no
 # C extensions; it is the only output-formatting dependency (no colorama).
 rich = ">=14.0"
+python-json-logger = "*"
 
 [dev-packages]
 black = ">=25.0"
