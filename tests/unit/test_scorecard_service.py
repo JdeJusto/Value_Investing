@@ -9,10 +9,14 @@ behaviour of :class:`ScorecardService`.
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
+
+import pytest
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.services.financial_insights_service import InsightsReport, MetricInsight
+from backend.services.peer_stats_service import PeerStatsService
 from backend.services.scorecard_service import (
     CONFIDENCE_HIGH,
     CONFIDENCE_LOW,
@@ -26,6 +30,7 @@ from backend.services.scorecard_service import (
     DimensionScore,
     ScorecardService,
     _Alerts,
+    _attach_peers,
     _build_dimension,
     _confidence_for,
     _disagreements,
@@ -591,3 +596,228 @@ def test_build_reads_prices_but_never_writes():
     svc.build("T")
     assert prices.calls, "expected a price read"
     assert set(prices.calls) <= {"get_current_price", "get_market_cap"}
+
+
+# ---------------------------------------------------------------------------
+# peer comparison (Phase 5B): additive annotation, never a scoring input
+# ---------------------------------------------------------------------------
+def _peer_stats(tmp_path, count: int = 12) -> PeerStatsService:
+    """A synthetic artifact: ``count`` peers at P/E 10.. and net margin 5%.."""
+    metrics = {
+        "pe_ratio": {
+            "n": count,
+            "median": 10.0 + (count - 1) / 2,
+            "unit": "multiple",
+            "values": [10.0 + index for index in range(count)],
+        },
+        "net_margin": {
+            "n": count,
+            "median": 0.05 + (count - 1) / 200,
+            "unit": "fraction",
+            "values": [0.05 + index / 100 for index in range(count)],
+        },
+    }
+    (tmp_path / "industry_widgets.json").write_text(
+        json.dumps(
+            {
+                "level": "industry",
+                "group": "Widgets",
+                "slug": "widgets",
+                "company_count": count,
+                "generated_at": "2026-10-15T08:00:00Z",
+                "metrics": metrics,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "sector_technology.json").write_text(
+        json.dumps(
+            {
+                "level": "sector",
+                "group": "Technology",
+                "slug": "technology",
+                "company_count": count,
+                "generated_at": "2026-10-15T08:00:00Z",
+                "metrics": metrics,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return PeerStatsService(tmp_path)
+
+
+class _FakeFactsRepository:
+    """Repository exposing a small, self-consistent annual fact history."""
+
+    def __init__(self, rows: list[NormalizedFinancials]) -> None:
+        self._rows = list(rows)
+
+    def get_best_available(self, ticker: str, max_years: int = 10):
+        return list(self._rows)
+
+    def get_company_name(self, ticker: str) -> str:
+        return "Test Co"
+
+    def list_all_facts(self, ticker: str, fiscal_period: str = "FY", max_years=None):
+        facts = []
+        for row in self._rows:
+            for concept, value in (
+                ("Revenues", row.revenue),
+                ("NetIncomeLoss", row.net_income),
+                ("StockholdersEquity", row.stockholders_equity),
+            ):
+                if value is None:
+                    continue
+                facts.append(
+                    {
+                        "concept": concept,
+                        "fiscal_year": row.fiscal_year,
+                        "fiscal_period": "FY",
+                        "value": float(value),
+                        "unit": "USD",
+                        "period_end": f"{row.fiscal_year}-12-31",
+                        "namespace": "us-gaap",
+                        "frame": None,
+                    }
+                )
+        return facts
+
+
+def _fact_rows() -> list[NormalizedFinancials]:
+    """Six growing years: net margin 13.3%, ROE 33.3% in the latest."""
+    return [
+        _row(
+            2020 + index,
+            revenue=100.0 + 10 * index,
+            net_income=10.0 + 2 * index,
+            stockholders_equity=40.0 + 4 * index,
+            sector="Technology",
+            industry="Widgets",
+        )
+        for index in range(6)
+    ]
+
+
+def _peered_rule(card, rule_id: str):
+    for dimension in card.dimensions:
+        for rule in dimension.rules:
+            if rule.rule_id == rule_id:
+                return rule
+    raise AssertionError(f"rule {rule_id} not found")
+
+
+def test_attach_peers_annotates_only_the_mapped_rules(tmp_path):
+    peers = _peer_stats(tmp_path)
+    dimension = _build_dimension(
+        "profitability",
+        [rule(PASS, rule_id="net_margin"), rule(PASS, rule_id="roic")],
+    )
+    (annotated,) = _attach_peers(
+        (dimension,),
+        peers,
+        sector="Technology",
+        industry="Widgets",
+        metrics=metrics(metric("net_margin", series={2025: 0.105})),
+        market_cap=1000.0,
+    )
+    assert annotated.peer_group == "Widgets"
+    assert annotated.peer_group_level == "industry"
+    assert annotated.peer_group_size == 12
+    net_margin, roic = annotated.rules
+    assert net_margin.peer_median == "10.5%"  # median of 5%..16%
+    assert net_margin.peer_percentile == pytest.approx(0.5)
+    # A rule whose metric is not in the artifact is left untouched.
+    assert roic.peer_median is None
+    assert roic.peer_percentile is None
+    assert annotated.score == dimension.score
+
+
+def test_attach_peers_is_a_noop_without_a_group(tmp_path):
+    peers = _peer_stats(tmp_path)
+    dimension = _build_dimension("valuation", [rule(PASS, rule_id="pe_absolute")])
+    (annotated,) = _attach_peers(
+        (dimension,),
+        peers,
+        sector=None,
+        industry=None,
+        metrics=metrics(),
+        market_cap=None,
+    )
+    assert annotated == dimension
+    assert annotated.peer_group is None
+
+
+def test_build_populates_peer_fields_without_changing_the_score(tmp_path):
+    rows = _fact_rows()
+    peers = _peer_stats(tmp_path)
+    svc = ScorecardService(
+        repository=_FakeFactsRepository(rows),
+        price_service=_FakePrices(price=32.0, market_cap=320.0),
+        peer_stats=peers,
+    )
+    card = svc.build("T")
+    assert card is not None
+
+    # P/E = 320 / 20 = 16.0 -> scored, and ranked against the artifact.
+    per = _peered_rule(card, "pe_absolute")
+    assert per.peer_percentile == pytest.approx(round(6.5 / 12, 4))
+    assert per.peer_median == "15.50x"
+    roe = _peered_rule(card, "roe")
+    assert roe.peer_percentile is None  # the artifact has no ROE column
+    assert roe.peer_median is None
+    # Every dimension carries the resolved group.
+    assert {d.peer_group for d in card.dimensions} == {"Widgets"}
+    assert {d.peer_group_size for d in card.dimensions} == {12}
+
+    plain = ScorecardService(
+        repository=_FakeFactsRepository(rows),
+        price_service=_FakePrices(price=32.0, market_cap=320.0),
+        peer_stats=PeerStatsService(tmp_path / "empty"),
+    ).build("T")
+    assert plain is not None
+    assert [d.score for d in card.dimensions] == [d.score for d in plain.dimensions]
+    assert all(
+        rule.peer_percentile is None
+        for dimension in plain.dimensions
+        for rule in dimension.rules
+    )
+    assert {d.peer_group for d in plain.dimensions} == {None}
+
+
+def test_build_serializes_the_peer_fields(tmp_path):
+    svc = ScorecardService(
+        repository=_FakeFactsRepository(_fact_rows()),
+        price_service=_FakePrices(price=32.0, market_cap=320.0),
+        peer_stats=_peer_stats(tmp_path),
+    )
+    payload = svc.build("T").to_dict()
+    rules = [rule for d in payload["dimensions"] for rule in d["rules"]]
+    assert any(rule["peer_median"] for rule in rules)
+    assert any(rule["peer_percentile"] is not None for rule in rules)
+    assert all("peer_group" in d for d in payload["dimensions"])
+
+
+def test_build_without_an_artifact_still_works(tmp_path):
+    svc = ScorecardService(
+        repository=_FakeFactsRepository(_fact_rows()),
+        price_service=_FakePrices(),
+        peer_stats=PeerStatsService(tmp_path / "missing"),
+    )
+    card = svc.build("T")
+    assert card is not None
+    assert all(dimension.peer_group is None for dimension in card.dimensions)
+
+
+def test_build_survives_a_broken_peer_service(tmp_path):
+    class _Broken:
+        def group_for(self, **_):
+            raise RuntimeError("boom")
+
+    svc = ScorecardService(
+        repository=_FakeFactsRepository(_fact_rows()),
+        price_service=_FakePrices(),
+        peer_stats=_Broken(),
+    )
+    card = svc.build("T")
+    assert card is not None  # a broken peer source never breaks the card
+    assert {d.peer_group for d in card.dimensions} == {None}

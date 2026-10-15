@@ -22,7 +22,7 @@ Design rules (see ``docs/scorecard_design.md``):
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from backend.analytics.ratios.leverage import InterestCoverageCalculator
@@ -103,6 +103,13 @@ class DimensionRule:
     source_metric: str | None = None
     source_methodology: str | None = None
     source_book: str | None = None
+    #: The peer group's median for this rule's metric, formatted like
+    #: ``value`` (``"15.20x"`` / ``"24.0%"``). ``None`` when no peer artifact
+    #: applies. Additive: it never changes ``status`` or the dimension score.
+    peer_median: str | None = None
+    #: Where this company sits in the peer distribution (0..1). ``None`` when
+    #: no peer artifact applies.
+    peer_percentile: float | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +126,11 @@ class DimensionScore:
     rules: tuple[DimensionRule, ...]
     trend: str
     summary: str
+    #: The peer group this dimension was compared against (industry first,
+    #: sector fallback), or ``None`` when no artifact applied.
+    peer_group: str | None = None
+    peer_group_level: str | None = None
+    peer_group_size: int | None = None
 
 
 @dataclass(frozen=True)
@@ -1090,10 +1102,12 @@ class ScorecardService:
         price_service: Any = None,
         *,
         max_years: int = HISTORY_YEARS,
+        peer_stats: Any = None,
     ) -> None:
         self._repository = repository
         self._price_service = price_service
         self._max_years = max(1, int(max_years))
+        self._peer_stats = peer_stats
 
     # -- lazy collaborators (mirrors FinancialsViewService) ---------------
     def _repo(self) -> Any:
@@ -1109,6 +1123,13 @@ class ScorecardService:
 
             self._price_service = PriceService()
         return self._price_service
+
+    def _peers(self) -> Any:
+        if self._peer_stats is None:
+            from backend.services.peer_stats_service import PeerStatsService
+
+            self._peer_stats = PeerStatsService()
+        return self._peer_stats
 
     # -- public API -------------------------------------------------------
     def build(self, ticker: str, period: str = "FY") -> Scorecard | None:
@@ -1155,6 +1176,18 @@ class ScorecardService:
         dimensions = _build_dimensions(
             metrics, alertset, rows, dcf, market_cap, red_flags
         )
+        peered = _safe(
+            lambda: _attach_peers(
+                dimensions,
+                self._peers(),
+                sector=rows[0].sector,
+                industry=rows[0].industry,
+                metrics=metrics,
+                market_cap=market_cap,
+            )
+        )
+        if peered is not None:
+            dimensions = peered
         overall = _overall(dimensions)
         disagreements = _disagreements(dimensions)
         notes = _notes(dimensions, insights)
@@ -1241,6 +1274,98 @@ def _safe(fn: Callable[[], Any]) -> Any:
         return fn()
     except Exception:  # noqa: BLE001 — one failing source must not break the card
         return None
+
+
+# ---------------------------------------------------------------------------
+# peer comparison (additive: it annotates rules, it never scores)
+# ---------------------------------------------------------------------------
+#: The scorecard rules compared against the peer artifact, and the artifact
+#: metric each one reads (``docs/scorecard_design.md`` §5). Everything else
+#: stays absolute. The comparison is informational: it never changes a rule's
+#: status nor a dimension's score.
+PEER_RULE_METRICS: dict[str, str] = {
+    "pe_absolute": "pe_ratio",
+    "fcf_yield": "fcf_yield",
+    "net_margin": "net_margin",
+    "roe": "roe",
+    "revenue_cagr_5y": "revenue_cagr_5y",
+}
+
+
+def _peer_raw_values(
+    metrics: _Metrics, market_cap: float | None
+) -> dict[str, float | None]:
+    """The rule values a peer percentile is looked up against.
+
+    Built from the same inputs the rules use (the scorecard's own
+    calculators); ``revenue_cagr_5y`` is converted from its percent display
+    unit to the fraction the artifact stores.
+    """
+    net_income = metrics.latest("net_income")
+    per = PerCalculator().calculate(market_cap=market_cap, net_income=net_income)
+    cagr = metrics.cagr("revenue")
+    return {
+        "pe_absolute": per if (per is not None and per > 0) else None,
+        "fcf_yield": FcfYieldCalculator().calculate(
+            free_cash_flow=metrics.latest("free_cash_flow", "fcf"),
+            market_cap=market_cap,
+        ),
+        "net_margin": metrics.latest("net_margin"),
+        "roe": metrics.latest("roe"),
+        "revenue_cagr_5y": (cagr / 100.0) if cagr is not None else None,
+    }
+
+
+def _peer_rule(
+    rule: DimensionRule,
+    peers: Any,
+    group: Any,
+    raw_values: dict[str, float | None],
+) -> DimensionRule:
+    """One rule, annotated with its peer median and percentile."""
+    metric = PEER_RULE_METRICS.get(rule.rule_id)
+    value = raw_values.get(rule.rule_id) if metric else None
+    if metric is None or value is None:
+        return rule
+    percentile = peers.percentile(group.level, group.name, metric, value)
+    median = peers.median(group.level, group.name, metric)
+    if percentile is None or median is None:
+        return rule
+    formatter = _x if rule.rule_id == "pe_absolute" else _pct
+    return replace(
+        rule,
+        peer_median=formatter(median),
+        peer_percentile=round(float(percentile), 4),
+    )
+
+
+def _attach_peers(
+    dimensions: tuple[DimensionScore, ...],
+    peers: Any,
+    *,
+    sector: str | None,
+    industry: str | None,
+    metrics: _Metrics,
+    market_cap: float | None,
+) -> tuple[DimensionScore, ...]:
+    """Annotate every dimension with its peer group and every rule with its
+    position inside that group. No score is read or written here."""
+    group = peers.group_for(sector=sector, industry=industry)
+    if group is None:
+        return dimensions
+    raw_values = _peer_raw_values(metrics, market_cap)
+    return tuple(
+        replace(
+            dimension,
+            rules=tuple(
+                _peer_rule(rule, peers, group, raw_values) for rule in dimension.rules
+            ),
+            peer_group=group.name,
+            peer_group_level=group.level,
+            peer_group_size=group.size,
+        )
+        for dimension in dimensions
+    )
 
 
 def _evaluate_dcf(
