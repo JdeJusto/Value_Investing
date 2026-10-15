@@ -10,7 +10,9 @@
 #   3. waits up to 10 minutes for the network (a desktop is often online a
 #      few seconds after login, but not always);
 #   4. runs `python -m scripts.daily_workflow --resume`;
-#   5. runs a small data-sample validation (non-fatal — see docs/validation_
+#   5. on the weekly day (Sunday by default), regenerates the peer-statistics
+#      artifact the Scorecard tab reads (best-effort, non-fatal);
+#   6. runs a small data-sample validation (non-fatal — see docs/validation_
 #      methodology.md §8).
 #
 # It needs NO sudo and never touches a database directly; the daily workflow
@@ -30,6 +32,9 @@
 #   VI_SKIP_NETWORK_WAIT        default 0; set to 1 to skip the wait
 #   VI_WORKFLOW_EXTRA_ARGS      extra args, e.g. "--dry-run --limit 5"
 #   VI_VALIDATION_SAMPLE        default 10; 0 disables the post-run validation
+#   VI_PEER_STATS_DAY           ISO weekday (1=Mon .. 7=Sun) to rebuild the
+#                               peer artifact; default 7; 0 disables it
+#   VI_PEER_STATS_EXTRA_ARGS    extra args, e.g. "--limit 200"
 # =============================================================================
 set -euo pipefail
 
@@ -44,9 +49,13 @@ NETWORK_TIMEOUT_SECONDS="${VI_NETWORK_TIMEOUT_SECONDS:-600}"
 SKIP_NETWORK_WAIT="${VI_SKIP_NETWORK_WAIT:-0}"
 WORKFLOW_EXTRA_ARGS="${VI_WORKFLOW_EXTRA_ARGS:-}"
 VALIDATION_SAMPLE="${VI_VALIDATION_SAMPLE:-10}"
+PEER_STATS_DAY="${VI_PEER_STATS_DAY:-7}"
+PEER_STATS_EXTRA_ARGS="${VI_PEER_STATS_EXTRA_ARGS:-}"
 
 usage() {
-    sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    # Print the leading comment block, prefixed by "# " removal only. Stops at
+    # the first non-comment line so the range never has to be kept in sync.
+    awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 FORCE=0
@@ -137,6 +146,19 @@ if [[ "$VALIDATION_SAMPLE" != "0" ]]; then
         --out "$LOGS_DIR" >>"$RUN_LOG" 2>&1; then
         log "data-sample validation flagged discrepancies (see $LOGS_DIR)"
     fi
+fi
+
+# Weekly (Sunday by default): rebuild the peer-statistics artifact the
+# Scorecard tab reads. Additive and best-effort — a failure here never changes
+# the workflow's exit status, and the artifact is a local build product.
+if [[ "$PEER_STATS_DAY" != "0" && "$(date +%u)" == "$PEER_STATS_DAY" ]]; then
+    log "regenerating peer statistics (weekly; day $PEER_STATS_DAY)"
+    set +e
+    # shellcheck disable=SC2086  # splitting VI_PEER_STATS_EXTRA_ARGS is intentional
+    "$PYTHON" -m scripts.build_peer_stats $PEER_STATS_EXTRA_ARGS >>"$RUN_LOG" 2>&1
+    PEER_STATUS=$?
+    set -e
+    log "peer statistics finished with status $PEER_STATUS"
 fi
 
 exit "$WORKFLOW_STATUS"

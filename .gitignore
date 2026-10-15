@@ -164,6 +164,9 @@ data/rankings/*
 !data/logs/.gitkeep
 data/reports/daily_run_state*.json
 
+# Peer statistics (weekly local build product; scripts/build_peer_stats.py)
+data/peer_stats/
+
 # Daily run artifacts (regenerated every run; git history keeps the old ones)
 data/reports/daily_*.md
 data/reports/daily_state.json
