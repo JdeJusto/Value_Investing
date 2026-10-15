@@ -90,6 +90,8 @@ def _render(card):
     print_header(f"{card.ticker} · {card.company} · {sector} · overall {card.overall}")
     console = cli_output.get_console()
 
+    print(f"  {_peer_summary(card)}")
+
     rows = []
     for dim in card.dimensions:
         rows.append(
@@ -145,6 +147,22 @@ def _render_dimension(console, dim) -> None:
         console.print(_rule_line(rule), soft_wrap=True)
 
 
+def _peer_summary(card) -> str:
+    """The resolved peer group, or a hint, from the card's dimensions.
+
+    Peers are additive: the line is always printed so a missing artifact is
+    explained instead of silently absent.
+    """
+    for dim in card.dimensions:
+        group = getattr(dim, "peer_group", None)
+        if group:
+            size = getattr(dim, "peer_group_size", None)
+            level = getattr(dim, "peer_group_level", None) or "industry"
+            size_text = f"{size} companies" if size else "size unknown"
+            return f"Peer group: {group} ({size_text}, {level})"
+    return "Peer group: not available (run scripts/build_peer_stats.py)"
+
+
 def _rule_line(rule) -> Text:
     mark, style = _STATUS_MARK.get(rule.status, ("·", cli_output.MUTED))
     line = Text("  ")
@@ -152,4 +170,11 @@ def _rule_line(rule) -> Text:
     line.append(f"{rule.label:<30}")
     line.append(f"{rule.value:>10}")
     line.append(f"   {rule.threshold}", style=cli_output.MUTED)
+    percentile = getattr(rule, "peer_percentile", None)
+    median = getattr(rule, "peer_median", None)
+    if median and percentile is not None:
+        line.append(
+            f"   vs peers {median} · p{round(percentile * 100)}",
+            style=cli_output.MUTED,
+        )
     return line

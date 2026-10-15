@@ -28,7 +28,9 @@ _LABELS = {
 }
 
 
-def _card(ticker: str = "AAPL", overall: str = "Mixed") -> Scorecard:
+def _card(
+    ticker: str = "AAPL", overall: str = "Mixed", peers: bool = False
+) -> Scorecard:
     dimensions = tuple(
         DimensionScore(
             key=key,
@@ -46,10 +48,15 @@ def _card(ticker: str = "AAPL", overall: str = "Mixed") -> Scorecard:
                     value="12.4%",
                     threshold="≥ 10%",
                     reason="r",
+                    peer_median="15.50x" if peers else None,
+                    peer_percentile=0.62 if peers else None,
                 ),
             ),
             trend="improving",
             summary="7/10 — Mixed (5 rules).",
+            peer_group="Consumer Electronics" if peers else None,
+            peer_group_level="industry" if peers else None,
+            peer_group_size=14 if peers else None,
         )
         for key in DIMENSION_ORDER
     )
@@ -192,3 +199,30 @@ def test_no_color_env_strips_ansi(monkeypatch):
     monkeypatch.setenv("NO_COLOR", "1")
     _run("scorecard", "AAPL")
     assert "\x1b" not in out.getvalue()
+
+
+def test_peer_group_line_says_not_available_without_an_artifact(capsys):
+    _run("scorecard", "AAPL")
+    out = capsys.readouterr().out
+    assert "Peer group: not available (run scripts/build_peer_stats.py)" in out
+    assert "vs peers" not in out
+
+
+def test_peer_group_line_and_rule_percentile_are_rendered(capsys):
+    _FakeService.card = _card(peers=True)
+    _run("scorecard", "AAPL")
+    out = capsys.readouterr().out
+    assert "Peer group: Consumer Electronics (14 companies, industry)" in out
+    assert "vs peers 15.50x · p62" in out
+
+
+def test_json_payload_carries_the_peer_fields(capsys):
+    _FakeService.card = _card(peers=True)
+    _run("scorecard", "AAPL", "--json")
+    payload = json.loads(capsys.readouterr().out)
+    dimension = payload["dimensions"][0]
+    assert dimension["peer_group"] == "Consumer Electronics"
+    assert dimension["peer_group_size"] == 14
+    rule = dimension["rules"][0]
+    assert rule["peer_median"] == "15.50x"
+    assert rule["peer_percentile"] == pytest.approx(0.62)
