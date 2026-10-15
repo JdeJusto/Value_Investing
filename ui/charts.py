@@ -169,3 +169,65 @@ def value_vs_price_figure(payload: dict[str, Any]) -> Any | None:
     )
     figure.update_layout(showlegend=False)
     return _style(figure, y_title="USD / share")
+
+
+def pe_multiple(text: Any) -> float | None:
+    """Parse a formatted P/E (``"15.50x"``) back into a number.
+
+    The peer median travels as a display string (same formatting as the rule
+    value), so the chart reads it back. Anything unparseable is ``None`` and
+    the caller hides the chart.
+    """
+    if text is None:
+        return None
+    cleaned = str(text).strip().lower().removesuffix("x").strip()
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def peer_pe_values(card: dict[str, Any]) -> tuple[float, float, str | None] | None:
+    """``(company P/E, peer median P/E, peer group)`` from a scorecard payload.
+
+    ``None`` unless the valuation rule carries a peer percentile *and* both
+    multiples parse: no artifact, no comparison.
+    """
+    for dimension in card.get("dimensions", []):
+        for rule in dimension.get("rules", []):
+            if rule.get("rule_id") != "pe_absolute":
+                continue
+            if rule.get("peer_percentile") is None:
+                return None
+            company = pe_multiple(rule.get("value"))
+            median = pe_multiple(rule.get("peer_median"))
+            if company is None or median is None or company <= 0 or median <= 0:
+                return None
+            return company, median, dimension.get("peer_group")
+    return None
+
+
+def peer_pe_figure(card: dict[str, Any]) -> Any | None:
+    """Two bars: the company's P/E next to its peer group's median P/E.
+
+    Deliberately its own small chart rather than a third bar on the DCF
+    panel: the DCF bars are dollars per share and these are multiples.
+    """
+    values = peer_pe_values(card)
+    if values is None:
+        return None
+    import plotly.graph_objects as go
+
+    company, median, group = values
+    peer_label = f"Peer median ({group})" if group else "Peer median"
+    figure = go.Figure(
+        go.Bar(
+            x=[company, median],
+            y=[str(card.get("ticker") or "Company"), peer_label],
+            orientation="h",
+            marker={"color": ["#2563eb", "#94a3b8"]},
+            hovertemplate="%{y}: %{x:.2f}x<extra></extra>",
+        )
+    )
+    figure.update_layout(showlegend=False)
+    return _style(figure, y_title="")

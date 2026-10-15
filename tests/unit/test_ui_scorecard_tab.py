@@ -373,3 +373,131 @@ def test_focus_selector_lists_the_dimensions(monkeypatch):
     at = _run(monkeypatch, _payload())
     focus = next(box for box in at.selectbox if "Focus a dimension" in box.label)
     assert focus.options == ["—", *_DIMENSION_LABELS]
+
+
+def _payload_with_peers(*, percentile: float | None = 0.62) -> dict:
+    """The AAPL payload with a peer-covered Valuation rule and a group."""
+    payload = _payload()
+    for dimension in payload["dimensions"]:
+        dimension.update(
+            {
+                "peer_group": "Consumer Electronics",
+                "peer_group_level": "industry",
+                "peer_group_size": 14,
+            }
+        )
+    payload["dimensions"][3]["rules"] = [
+        {
+            "rule_id": "pe_absolute",
+            "label": "P/E vs 20x",
+            "status": "WATCH",
+            "value": "17.86x",
+            "threshold": "≤ 20x",
+            "reason": "Cheaper than the absolute cap.",
+            "source_metric": "valuation.pe_ratio",
+            "source_methodology": None,
+            "source_book": None,
+            "peer_median": "15.50x",
+            "peer_percentile": percentile,
+        }
+    ]
+    return payload
+
+
+def _rule_frames(at: AppTest) -> list:
+    expanders = [element for element in at.expander if element.label == "Rules"]
+    return [expander.dataframe[0].value for expander in expanders]
+
+
+def test_rule_table_shows_peer_columns_for_a_covered_dimension(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    frame = _rule_frames(at)[3]  # Valuation
+    assert list(frame.columns) == [
+        "Status",
+        "Rule",
+        "Value",
+        "Peer median",
+        "Peer pct",
+        "Threshold",
+        "Why",
+        "Source",
+    ]
+    assert frame["Peer median"].tolist() == ["15.50x"]
+    assert frame["Peer pct"].tolist() == ["62%"]
+
+
+def test_rule_table_hides_peer_columns_without_a_percentile(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    # Growth carries the group but no percentile: the table keeps its shape.
+    assert "Peer median" not in _rule_frames(at)[0].columns
+
+
+def test_rule_table_dashes_a_metric_the_artifact_lacks(monkeypatch):
+    payload = _payload_with_peers(percentile=None)
+    payload["dimensions"][3]["rules"].append(
+        {
+            "rule_id": "pb_absolute",
+            "label": "P/B vs 5x",
+            "status": "PASS",
+            "value": "3.00x",
+            "threshold": "≤ 5x",
+            "reason": "Cheap on book.",
+            "source_metric": "valuation.pb_ratio",
+            "source_methodology": None,
+            "source_book": None,
+            "peer_median": None,
+            "peer_percentile": None,
+        }
+    )
+    # One covered rule re-enables the columns; the uncovered one shows dashes.
+    payload["dimensions"][3]["rules"][0]["peer_percentile"] = 0.62
+    frame = _rule_frames(_run(monkeypatch, payload))[3]
+    assert frame["Peer median"].tolist()[1] == "—"
+    assert frame["Peer pct"].tolist()[1] == "—"
+
+
+def test_peer_header_line_names_the_group_and_size(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "Peer group: Consumer Electronics (14 companies, industry)" in captions
+
+
+def test_peer_header_says_not_available_without_the_artifact(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "not available (run scripts/build_peer_stats.py)" in captions
+
+
+def test_peer_pe_chart_is_added_when_the_artifact_covers_the_company(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    assert "**P/E vs peer median**" in _markdown(at)
+    # radar + four history charts + the peer comparison
+    assert len(at.get("plotly_chart")) == 6
+
+
+def test_peer_pe_chart_is_absent_without_the_artifact(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    assert "**P/E vs peer median**" not in _markdown(at)
+    assert len(at.get("plotly_chart")) == 5
+
+
+def test_peer_pe_values_parses_the_display_multiple():
+    from ui.charts import pe_multiple, peer_pe_values
+
+    assert pe_multiple("15.50x") == pytest.approx(15.5)
+    assert pe_multiple("n/a") is None
+    assert pe_multiple(None) is None
+
+    company, median, group = peer_pe_values(_payload_with_peers())
+    assert company == pytest.approx(17.86)
+    assert median == pytest.approx(15.5)
+    assert group == "Consumer Electronics"
+    assert peer_pe_values(_payload()) is None
+
+
+def test_peer_pe_values_rejects_a_non_positive_multiple():
+    from ui.charts import peer_pe_values
+
+    payload = _payload_with_peers()
+    payload["dimensions"][3]["rules"][0]["peer_median"] = "0.00x"
+    assert peer_pe_values(payload) is None

@@ -637,7 +637,7 @@ def _render_scorecard(ticker: str) -> None:
             with column:
                 _scorecard_dimension(dimension, expanded=focus == dimension["label"])
 
-    _scorecard_charts(ticker)
+    _scorecard_charts(ticker, card)
 
     if card["disagreements"]:
         st.warning("\n".join(f"- {item}" for item in card["disagreements"]))
@@ -698,8 +698,9 @@ def _scorecard_radar(dimensions: list[dict]) -> None:
         st.caption("Not scored (insufficient data): " + ", ".join(missing))
 
 
-def _scorecard_charts(ticker: str) -> None:
-    """The four history charts (revenue/income, margins, returns, DCF/price)."""
+def _scorecard_charts(ticker: str, card: dict) -> None:
+    """The four history charts (revenue/income, margins, returns, DCF/price),
+    plus the peer P/E comparison when the artifact covers this company."""
     try:
         payload = load_scorecard_charts(ticker)
     except Exception:  # noqa: BLE001 — charts are additive; never break the tab
@@ -733,6 +734,21 @@ def _scorecard_charts(ticker: str) -> None:
                 st.caption(empty)
             else:
                 st.plotly_chart(figure, config={"displayModeBar": False})
+    _scorecard_peer_chart(card)
+
+
+def _scorecard_peer_chart(card: dict) -> None:
+    """P/E next to the peer median, only when the artifact covers the company."""
+    from ui.charts import peer_pe_figure
+
+    try:
+        figure = peer_pe_figure(card)
+    except Exception:  # noqa: BLE001 — peers are additive; never break the tab
+        figure = None
+    if figure is None:
+        return
+    st.markdown("**P/E vs peer median**")
+    st.plotly_chart(figure, config={"displayModeBar": False})
 
 
 def _scorecard_download(card: dict, ticker: str) -> None:
@@ -759,6 +775,21 @@ def _scorecard_header(card: dict) -> None:
     sector = card.get("sector") or "—"
     industry = card.get("industry") or "—"
     st.caption(f"{sector} · {industry}")
+    _scorecard_peer_caption(card)
+
+
+def _scorecard_peer_caption(card: dict) -> None:
+    """The peer group the weekly artifact resolved, or how to produce one."""
+    for dimension in card.get("dimensions") or []:
+        group = dimension.get("peer_group")
+        if not group:
+            continue
+        size = dimension.get("peer_group_size")
+        level = dimension.get("peer_group_level") or "industry"
+        size_text = f"{size} companies" if size else "size unknown"
+        st.caption(f"Peer group: {group} ({size_text}, {level}) · source: FDB")
+        return
+    st.caption("Peer group: not available (run scripts/build_peer_stats.py)")
 
 
 def _scorecard_dimension(dimension: dict, expanded: bool = False) -> None:
@@ -780,20 +811,36 @@ def _scorecard_dimension(dimension: dict, expanded: bool = False) -> None:
 
 
 def _scorecard_rule_rows(rules: list[dict]) -> list[dict]:
-    """Flatten the frozen rules into plain rows for ``st.dataframe``."""
+    """Flatten the frozen rules into plain rows for ``st.dataframe``.
+
+    Peer columns appear only for dimensions the artifact actually covers
+    (at least one rule with a peer percentile); otherwise the table keeps its
+    historical shape. A rule the artifact does not measure shows a dash
+    rather than a zero.
+    """
+    show_peers = any(rule.get("peer_percentile") is not None for rule in rules)
     rows = []
     for rule in rules:
         mark = _SCORECARD_STATUS_MARK.get(rule["status"], "·")
-        rows.append(
+        row = {
+            "Status": f"{mark} {rule['status']}",
+            "Rule": rule["label"],
+            "Value": rule["value"],
+        }
+        if show_peers:
+            percentile = rule.get("peer_percentile")
+            row["Peer median"] = rule.get("peer_median") or "—"
+            row["Peer pct"] = (
+                f"{percentile * 100:.0f}%" if percentile is not None else "—"
+            )
+        row.update(
             {
-                "Status": f"{mark} {rule['status']}",
-                "Rule": rule["label"],
-                "Value": rule["value"],
                 "Threshold": rule["threshold"],
                 "Why": rule["reason"],
                 "Source": rule.get("source_methodology") or "analytics",
             }
         )
+        rows.append(row)
     return rows
 
 
