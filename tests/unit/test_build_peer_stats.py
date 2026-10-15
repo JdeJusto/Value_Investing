@@ -19,11 +19,11 @@ from backend.analytics.peer_stats import (
     decimate,
     percentile_rank,
     quantile,
+    slugify,
     summarize,
 )
 from scripts.build_peer_stats import (
     PeerCompany,
-    _slugify,
     build_artifacts,
     load_universe,
     metrics_for,
@@ -108,9 +108,9 @@ def test_summarize_of_an_empty_sample_is_empty():
 # slug / universe helpers
 # ---------------------------------------------------------------------------
 def test_slugify_is_filesystem_safe():
-    assert _slugify("Consumer Electronics") == "consumer-electronics"
-    assert _slugify("Semiconductors & Equipment") == "semiconductors-equipment"
-    assert _slugify("  ") == "unknown"
+    assert slugify("Consumer Electronics") == "consumer-electronics"
+    assert slugify("Semiconductors & Equipment") == "semiconductors-equipment"
+    assert slugify("  ") == "unknown"
 
 
 def test_load_universe_dedupes_and_uppercases(tmp_path: Path):

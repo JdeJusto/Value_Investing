@@ -85,6 +85,22 @@ def decimate(ordered: Sequence[float], cap: int = MAX_VALUES) -> list[float]:
     return [ordered[round(i * step)] for i in range(cap)]
 
 
+def slugify(name: str) -> str:
+    """A peer group name as a filename fragment.
+
+    ``"Consumer Electronics"`` -> ``"consumer-electronics"``. Shared by the
+    generator (which writes ``<level>_<slug>.json``) and the reader (which
+    resolves the same path).
+    """
+    out: list[str] = []
+    for char in str(name).strip().lower():
+        if char.isalnum():
+            out.append(char)
+        elif out and out[-1] != "-":
+            out.append("-")
+    return "".join(out).strip("-") or "unknown"
+
+
 def summarize(values: Iterable[float], *, cap: int = MAX_VALUES) -> dict[str, Any]:
     """One metric's artifact entry: ``n``, quantiles, and the sorted values."""
     ordered = sorted(float(v) for v in values)

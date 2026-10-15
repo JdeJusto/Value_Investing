@@ -57,6 +57,7 @@ if str(ROOT) not in sys.path:
 from backend.analytics.peer_stats import (
     METRIC_UNITS,
     MIN_GROUP_COMPANIES,
+    slugify,
     summarize,
 )
 from backend.analytics.ratios.margins import FcfYieldCalculator
@@ -89,17 +90,6 @@ class PeerCompany:
     sector: str | None
     industry: str | None
     metrics: dict[str, float] = field(default_factory=dict)
-
-
-def _slugify(name: str) -> str:
-    """``"Consumer Electronics"`` -> ``"consumer-electronics"``."""
-    out: list[str] = []
-    for char in str(name).strip().lower():
-        if char.isalnum():
-            out.append(char)
-        elif out and out[-1] != "-":
-            out.append("-")
-    return "".join(out).strip("-") or "unknown"
 
 
 def _group_name(company: PeerCompany, level: str) -> str | None:
@@ -141,7 +131,7 @@ def peer_artifact(
     return {
         "level": level,
         "group": name,
-        "slug": _slugify(name),
+        "slug": slugify(name),
         "company_count": len(contributing),
         "generated_at": generated_at,
         "metrics": metrics,
