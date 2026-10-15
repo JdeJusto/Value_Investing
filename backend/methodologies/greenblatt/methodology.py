@@ -209,7 +209,8 @@ class GreenblattMethodology(Methodology):
         # in use (an explicit dir — tests, custom runs — is respected).
         from backend.services.demo_mode import demo_rankings_dir, is_demo
 
-        if is_demo() and directory == RANKINGS_DIR:
+        demo = is_demo() and directory == RANKINGS_DIR
+        if demo:
             directory = demo_rankings_dir()
         if not directory.exists():
             return None, (
@@ -236,7 +237,7 @@ class GreenblattMethodology(Methodology):
             ).days
         except ValueError:
             return None, f"Greenblatt ranking file {path.name} has a bad date"
-        if age_days > STALE_DAYS:
+        if age_days > STALE_DAYS and not demo:
             return None, (
                 f"Greenblatt rankings are stale ({age_days} days old); re-run "
                 "scripts/compute_greenblatt_rankings.py"

@@ -348,12 +348,16 @@ def build_financial_repository() -> FinancialRepository:
     # fallback share the name, and an import inside the `if` would make it a
     # function-local that is unbound on the fallback path.
     from backend.repositories.json_financial_repository import JsonFinancialRepository
-    from backend.services.demo_mode import DEMO_FUNDAMENTALS, is_demo
+    from backend.services.demo_mode import (
+        DEMO_FUNDAMENTALS,
+        DemoFinancialRepository,
+        is_demo,
+    )
 
     # Demo mode: the pinned offline bundle, never the database.
     if is_demo():
         logger.info("Using demo financial repository (offline bundle)")
-        return JsonFinancialRepository(DEMO_FUNDAMENTALS)
+        return DemoFinancialRepository(DEMO_FUNDAMENTALS)
 
     # Try Financial-DataBase repository first
     try:

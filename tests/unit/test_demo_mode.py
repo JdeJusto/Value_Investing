@@ -58,6 +58,18 @@ def test_demo_repository_reads_ten_years(monkeypatch):
     assert len(rows) == 10
 
 
+def test_demo_repository_exposes_facts(monkeypatch):
+    """The demo store answers ``list_all_facts`` like the database one."""
+    monkeypatch.setenv("VI_DEMO", "1")
+    from backend.app.cli import build_financial_repository
+
+    repository = build_financial_repository()
+    facts = repository.list_all_facts("AAPL", "FY")
+    assert facts
+    assert {"concept", "value", "fiscal_year", "fiscal_period"} <= set(facts[0])
+    assert facts == repository.list_all_facts("AAPL", "FY")
+
+
 def test_without_the_flag_the_database_path_is_used(monkeypatch):
     monkeypatch.delenv("VI_DEMO", raising=False)
     from backend.app.cli import build_financial_repository
@@ -101,6 +113,26 @@ def test_greenblatt_reads_the_demo_rankings(monkeypatch):
     assert error is None
     assert payload is not None and "AAPL" in payload["rankings"]
     assert payload["universe_size"] > len(DEMO_TICKERS)  # filler makes it meaningful
+
+
+def test_demo_rankings_are_never_stale(monkeypatch, tmp_path):
+    """Pinned demo fixtures must not age out like the live weekly file."""
+    import json
+
+    monkeypatch.setenv("VI_DEMO", "1")
+    stale = tmp_path / "greenblatt_stale.json"
+    stale.write_text(
+        json.dumps({"date": "2020-01-01", "rankings": {}, "universe_size": 0}),
+        encoding="utf-8",
+    )
+    from backend.services import demo_mode
+
+    monkeypatch.setattr(demo_mode, "demo_rankings_dir", lambda: tmp_path)
+    from backend.methodologies.greenblatt.methodology import GreenblattMethodology
+
+    payload, error = GreenblattMethodology()._load_rankings()
+    assert error is None
+    assert payload is not None
 
 
 def test_demo_portfolio_has_three_positions():

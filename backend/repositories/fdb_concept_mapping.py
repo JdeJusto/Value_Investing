@@ -410,3 +410,36 @@ CORE_STATEMENT_CONCEPTS = sorted(
 _COMMON_ONLY_DIVIDEND_CONCEPTS = frozenset(
     {"PaymentsOfDividendsCommonStock", "DividendsCommonStockCash"}
 )
+
+
+# --- the inverse map: one canonical concept per normalized field -----------
+# Financial-DataBase reconstructs ``NormalizedFinancials`` from raw facts;
+# the file-based stores keep only the normalized fields. Readers that expect
+# the raw-fact shape (``FinancialsViewService.fetch_facts`` → the insights,
+# alerts and scorecard) can rebuild it by re-labelling each field with its
+# highest-priority concept. Field priority lists win, then the statement
+# tables, so the chosen tag always matches the normalizer's choice.
+_FIELD_PRIORITY: dict[str, list[str]] = {
+    **INCOME_FIELD_PRIORITY,
+    **CASH_FLOW_FIELD_PRIORITY,
+}
+
+
+def _representative_concepts() -> dict[str, str]:
+    """One canonical XBRL concept per normalized field (first wins)."""
+    concepts: dict[str, str] = {}
+    for field, names in _FIELD_PRIORITY.items():
+        if names:
+            concepts.setdefault(field, names[0])
+    for table in (
+        BALANCE_SHEET_CONCEPTS,
+        INCOME_STATEMENT_CONCEPTS,
+        CASH_FLOW_CONCEPTS,
+    ):
+        for concept, field in table.items():
+            concepts.setdefault(field, concept)
+    return concepts
+
+
+#: normalized field -> the XBRL concept used to re-emit it as a fact.
+FIELD_CONCEPT: dict[str, str] = _representative_concepts()
