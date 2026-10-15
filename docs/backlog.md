@@ -108,6 +108,13 @@ Measured 2026-10-14 (stability/precision sprint):
 - **Ubuntu 26 migration (2026-10-19)**: GitHub Actions `ubuntu-latest`
   migrates to Ubuntu 26. Workflows are pinned to `ubuntu-24.04` (done);
   review and test on `ubuntu-26.04` when available.
+- **Hand-written `Pipfile.lock` entry for `plotly` (v0.17.0)**: to avoid
+  churning ~40 unrelated packages, the `plotly` entry was written by hand and
+  `_meta.hash.sha256` recomputed with pipenv's own algorithm (verified by the
+  `pipenv install --deploy` step in CI, which passed). Correct today, but a
+  hand-written lock is brittle if pipenv's hashing changes. Follow-up: on a
+  clean branch run a full `pipenv lock`, review the bumps one by one, and
+  merge. Priority: low.
 
 ## Shipped: real-time financial alerts (v0.10.1)
 
