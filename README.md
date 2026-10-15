@@ -110,13 +110,15 @@ financial dividend discount models, and hyper-growth companies. See
 
 The **Scorecard** tab summarizes the same analysis as six dimensions — Growth,
 Profitability, Financial Health, Valuation, Shareholder Returns, Management/Moat —
-as text cards, each with the rules behind its score, plus an explicit panel when
-the dimensions disagree. It is a summary of the existing services, never a
-"master score".
+with a six-axis radar, cards that show the rules behind each score, four history
+charts (revenue & net income, margins, ROE & ROIC, DCF value vs price) and an
+explicit panel when the dimensions disagree. It is a summary of the existing
+services, never a "master score", and the frozen payload can be downloaded as
+JSON.
 
-![Scorecard tab with six dimension cards and the disagreement panel](assets/scorecard_tab.png)
+![Scorecard tab: the six-axis radar, the dimension charts and the disagreement panel](assets/scorecard_tab.png)
 
-*The Scorecard tab: six dimension cards and the disagreement panel.*
+*The Scorecard tab: the radar, the dimension cards and the history charts.*
 
 ## The 8 methodologies
 

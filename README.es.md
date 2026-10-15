@@ -113,13 +113,15 @@ para supuestos y fórmulas.
 
 La pestaña **Scorecard** resume el mismo análisis en seis dimensiones —Crecimiento,
 Rentabilidad, Salud Financiera, Valoración, Retribución al Accionista,
-Gestión/Foso— como tarjetas de texto, cada una con las reglas detrás de su
-puntuación y un panel explícito cuando las dimensiones discrepan. Es un resumen de
-los servicios existentes, nunca una "puntuación maestra".
+Gestión/Foso— con un radar de seis ejes, tarjetas que muestran las reglas detrás
+de cada puntuación, cuatro gráficos de histórico (ingresos y beneficio neto,
+márgenes, ROE y ROIC, valor DCF frente a precio) y un panel explícito cuando las
+dimensiones discrepan. Es un resumen de los servicios existentes, nunca una
+"puntuación maestra", y la carga congelada se puede descargar como JSON.
 
-![Pestaña Scorecard con seis tarjetas de dimensión y el panel de desacuerdo](assets/scorecard_tab.png)
+![Pestaña Scorecard: el radar de seis ejes, los gráficos de dimensión y el panel de desacuerdo](assets/scorecard_tab.png)
 
-*La pestaña Scorecard: seis tarjetas de dimensión y el panel de desacuerdo.*
+*La pestaña Scorecard: el radar, las tarjetas de dimensión y los gráficos.*
 
 ## Las 8 metodologías
 
