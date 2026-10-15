@@ -14,6 +14,9 @@ from types import SimpleNamespace
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.services.financial_insights_service import InsightsReport, MetricInsight
 from backend.services.scorecard_service import (
+    CONFIDENCE_HIGH,
+    CONFIDENCE_LOW,
+    CONFIDENCE_MEDIUM,
     DIMENSION_ORDER,
     FAIL,
     INSUFFICIENT,
@@ -24,6 +27,7 @@ from backend.services.scorecard_service import (
     ScorecardService,
     _Alerts,
     _build_dimension,
+    _confidence_for,
     _disagreements,
     _financial_health_rules,
     _growth_rules,
@@ -31,8 +35,8 @@ from backend.services.scorecard_service import (
     _management_moat_rules,
     _Metrics,
     _overall,
-    _short_theme,
     _shareholder_returns_rules,
+    _short_theme,
     _valuation_rules,
     score_rules,
 )
@@ -92,6 +96,7 @@ def dim(key: str, label: str, score: int | None) -> DimensionScore:
         question="q",
         score=score,
         verdict="Strong" if score is not None else "Insufficient",
+        confidence="HIGH",
         evaluable_rules=3 if score is not None else 0,
         rules=(),
         trend="stable",
@@ -171,6 +176,28 @@ def test_verdict_bands():
     assert score_rules([rule(FAIL)] * 5)[1] == "Weak"  # 0
     assert score_rules([rule(PASS)] * 4 + [rule(FAIL)])[1] == "Strong"  # 8
     assert score_rules([rule(PASS)] * 3 + [rule(FAIL)] * 2)[1] == "Mixed"  # 6
+
+
+# ---------------------------------------------------------------------------
+# per-dimension confidence
+# ---------------------------------------------------------------------------
+def test_confidence_high_with_every_rule_evaluated():
+    assert _confidence_for([rule(PASS), rule(FAIL), rule(WATCH)]) == CONFIDENCE_HIGH
+
+
+def test_confidence_medium_with_one_skipped_rule():
+    assert _confidence_for([rule(PASS), rule(INSUFFICIENT)]) == CONFIDENCE_MEDIUM
+
+
+def test_confidence_low_with_two_or_more_skipped_rules():
+    assert _confidence_for([rule(PASS), rule(INSUFFICIENT)] * 2) == CONFIDENCE_LOW
+
+
+def test_build_dimension_sets_confidence():
+    strong = _build_dimension("growth", [rule(PASS), rule(PASS)])
+    assert strong.confidence == CONFIDENCE_HIGH
+    partial = _build_dimension("growth", [rule(PASS), rule(INSUFFICIENT)] * 2)
+    assert partial.confidence == CONFIDENCE_LOW
 
 
 # ---------------------------------------------------------------------------
@@ -522,6 +549,21 @@ def test_build_returns_six_dimensions_in_fixed_order():
     assert [d.key for d in card.dimensions] == list(DIMENSION_ORDER)
     # Methodology columns are carried through independently of the dimensions.
     assert card.methodologies
+
+
+def test_build_sets_a_confidence_per_dimension_and_serializes_it():
+    svc = ScorecardService(
+        repository=_FakeRepository([_row(2024), _row(2023)]),
+        price_service=_FakePrices(),
+    )
+    card = svc.build("t")
+    assert card is not None
+    allowed = {CONFIDENCE_HIGH, CONFIDENCE_MEDIUM, CONFIDENCE_LOW}
+    assert all(d.confidence in allowed for d in card.dimensions)
+    payload = card.to_dict()
+    assert all("confidence" in d for d in payload["dimensions"])
+    # The badge stays scorecard-level; confidence is per dimension.
+    assert payload["data_quality"]
 
 
 def test_build_is_deterministic():

@@ -673,7 +673,7 @@ def _scorecard_dimension(dimension: dict) -> None:
         left.markdown(f"### {dimension['label']}")
         right.markdown(f"## {score_text}")
         st.markdown(f"**{dimension['verdict']}** · {dimension['trend']}")
-        st.caption(dimension["summary"])
+        st.caption(f"{dimension['confidence']} confidence · {dimension['summary']}")
         with st.expander("Rules", expanded=False):
             st.dataframe(
                 _scorecard_rule_rows(dimension["rules"]),

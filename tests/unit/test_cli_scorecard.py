@@ -36,6 +36,7 @@ def _card(ticker: str = "AAPL", overall: str = "Mixed") -> Scorecard:
             question="q",
             score=7,
             verdict="Mixed",
+            confidence="HIGH",
             evaluable_rules=5,
             rules=(
                 DimensionRule(
@@ -144,6 +145,8 @@ def test_default_rendering_shows_dimensions_scores_and_verdicts(capsys):
     assert "7/10" in out
     assert "Mixed" in out
     assert "AAPL" in out
+    assert "HIGH" in out  # per-dimension confidence, distinct from data quality
+    assert "Confidence" in out
     assert "Data: Financial-DataBase · FY · Prices not persisted." in out
 
 

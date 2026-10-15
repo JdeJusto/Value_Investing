@@ -98,6 +98,7 @@ def _render(card):
                 "—" if dim.score is None else f"{dim.score}/10",
                 Text(dim.verdict, style=_VERDICT_STYLE.get(dim.verdict, "")),
                 dim.trend,
+                dim.confidence,
             ]
         )
     console.print()
@@ -108,6 +109,7 @@ def _render(card):
                 ("Score", 1),
                 ("Verdict", 0),
                 ("Trend", 0),
+                ("Confidence", 0),
             ],
             rows,
         )
@@ -133,7 +135,9 @@ def _render_dimension(console, dim) -> None:
     line.append(dim.label, style=cli_output.HEADER)
     line.append(f"  (score {score} · ")
     line.append(dim.verdict, style=_VERDICT_STYLE.get(dim.verdict, ""))
-    line.append(f" · {dim.evaluable_rules} rules · {dim.trend})")
+    line.append(
+        f" · {dim.evaluable_rules} rules · {dim.trend} · {dim.confidence} confidence)"
+    )
     console.print()
     console.print(line, soft_wrap=True)
     console.print(cli_output.rule())

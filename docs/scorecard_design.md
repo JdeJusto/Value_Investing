@@ -186,6 +186,7 @@ DimensionScore
   key, label, question str          # "growth", "Growth", "Is the business getting bigger?"
   score                int | None   # 0..10, None when INSUFFICIENT
   verdict              str          # Strong | Mixed | Weak | Insufficient
+  confidence           str          # HIGH | MEDIUM | LOW (rules not evaluable)
   evaluable_rules      int
   rules                list[DimensionRule]
   trend                str          # improving | stable | deteriorating
@@ -363,8 +364,10 @@ Layout, top to bottom:
    `sector · industry` caption and "Based on the current fundamentals · FY data".
 2. **Dimension cards** — six cards in a two-column grid inside
    `st.container(border=True)`. Each card shows the big score (`7/10`, or `—`
-   when `Insufficient`), the verdict · trend, the service `summary` verbatim,
-   and a collapsed **Rules** expander with the table
+   when `Insufficient`), the verdict · trend · per-dimension confidence
+   (`HIGH`/`MEDIUM`/`LOW`, from the rules that were **not** evaluable), the
+   service `summary` verbatim, and a collapsed **Rules** expander with the
+   table
    `Status · Rule · Value · Threshold · Why · Source` (`✓`/`⚠`/`✗`/`·` prefix,
    `Source` = the rule's `source_methodology` or `analytics`).
 3. **Disagreement panel** — only when `disagreements` is non-empty: an amber
@@ -375,10 +378,10 @@ Layout, top to bottom:
 5. **Footer** — "Data: Financial-DataBase · FY · Prices not persisted".
 
 No charts, no custom CSS and no colored cells (Streamlit colors no individual
-dataframe cell without CSS, which the project does not add). **Open item:** the
-`DimensionScore` contract has no per-dimension confidence field, so the card
-shows the scorecard-level data-quality badge in the header instead; adding a
-per-dimension confidence would be a service change, not a view change.
+dataframe cell without CSS, which the project does not add). The header keeps
+the scorecard-level **data-quality** badge (history depth + coverage); the
+card's confidence is a *per-dimension* signal (how many of that dimension's
+rules could not be evaluated), and the two are deliberately independent.
 
 The radar and the four charts (with the `plotly` dependency) are **Phase 4**.
 

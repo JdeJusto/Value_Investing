@@ -68,6 +68,7 @@ def _dimension(
         "question": "q",
         "score": score,
         "verdict": verdict,
+        "confidence": "LOW" if score is None else "HIGH",
         "evaluable_rules": evaluable,
         "rules": [
             {
@@ -178,6 +179,22 @@ def test_six_dimension_cards_render_with_scores(monkeypatch):
     assert "**Mixed**" in joined
     assert "**Strong**" in joined
     assert "**Weak**" in joined
+
+
+def test_dimension_cards_show_confidence(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "HIGH confidence" in captions
+
+
+def test_insufficient_dimension_shows_low_confidence(monkeypatch):
+    payload = _payload()
+    payload["dimensions"][1] = _dimension(
+        "profitability", "Profitability", None, evaluable=1
+    )
+    at = _run(monkeypatch, payload)
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "LOW confidence" in captions
 
 
 def test_rule_table_has_the_expected_columns(monkeypatch):

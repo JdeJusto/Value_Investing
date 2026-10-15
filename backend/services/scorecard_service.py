@@ -62,6 +62,13 @@ MIXED = "Mixed"
 WEAK = "Weak"
 INSUFFICIENT_VERDICT = "Insufficient"
 
+#: Per-dimension confidence, derived from how many of its rules could not be
+#: evaluated (``INSUFFICIENT``). Deliberately independent from the
+#: scorecard-level ``data_quality`` badge (history depth + coverage).
+CONFIDENCE_HIGH = "HIGH"
+CONFIDENCE_MEDIUM = "MEDIUM"
+CONFIDENCE_LOW = "LOW"
+
 #: Fixed dimension order (the radar axes).
 DIMENSION_ORDER = (
     "growth",
@@ -107,6 +114,7 @@ class DimensionScore:
     question: str
     score: int | None
     verdict: str
+    confidence: str
     evaluable_rules: int
     rules: tuple[DimensionRule, ...]
     trend: str
@@ -899,6 +907,21 @@ def _summary(score: int | None, verdict: str, evaluable: int) -> str:
     return f"{score}/10 — {verdict} ({evaluable} rules)."
 
 
+def _confidence_for(rules: list[DimensionRule]) -> str:
+    """HIGH with no skipped rule, MEDIUM with one, LOW with two or more.
+
+    A rule is skipped when its input is missing (``INSUFFICIENT``); the more
+    of them, the less the dimension's score should be trusted. This is per
+    dimension and separate from the scorecard-level ``data_quality``.
+    """
+    skipped = sum(1 for rule in rules if rule.status == INSUFFICIENT)
+    if skipped == 0:
+        return CONFIDENCE_HIGH
+    if skipped == 1:
+        return CONFIDENCE_MEDIUM
+    return CONFIDENCE_LOW
+
+
 def _build_dimension(
     key: str,
     rules: list[DimensionRule],
@@ -913,6 +936,7 @@ def _build_dimension(
         question=question,
         score=score,
         verdict=verdict,
+        confidence=_confidence_for(rules),
         evaluable_rules=evaluable,
         rules=tuple(rules),
         trend=trend,
