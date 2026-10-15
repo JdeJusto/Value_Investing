@@ -1,3 +1,9 @@
+## [0.17.0] - 2026-10-15
+
+### Added
+
+- Scorecard radar, four dimension history charts and JSON export
+
 ## [0.16.9] - 2026-10-14
 
 ### Fixed
