@@ -126,6 +126,13 @@ Phase 7. Text-only cards are the deliberate deliverable here.
 
 ## Phase 4 — Radar + charts (adds plotly)
 
+**Status:** shipped ✅.
+
+**Shipped.** `chore(deps): add plotly for the scorecard charts` (Pipfile +
+lock, one new entry); the radar, four charts and JSON export in the Scorecard
+tab, backed by `ScorecardChartService` (fundamentals history; prices read
+through `PriceService`, never persisted) and the pure `ui/charts.py` builders.
+
 **Deliverable.** Add **plotly** to `Pipfile`/`Pipfile.lock` in a **separate
 dependency commit**, then the 6-axis radar (`go.Scatterpolar`, 0–10) and the
 4 charts (revenue & net income bars; margin lines; ROE & ROIC lines; DCF value
@@ -144,6 +151,13 @@ vs price). Axis-click expands the matching card.
 **Tests.** `AppTest` smoke with plotly present; a unit test on the radar
 axis/radius data shaping; a test that the tab degrades cleanly when the price
 service returns `None`.
+
+**Deviations.** Axis-click was not wired (`st.plotly_chart(on_select=...)`);
+the documented `st.selectbox` fallback ships instead. Markdown export is
+deferred to Phase 7 — JSON export shipped here. The charts use plotly, not
+altair, for a consistent look; the radar-only fallback uses Streamlit's native
+bar chart.
+
 
 ---
 

@@ -1,7 +1,8 @@
-"""The Scorecard tab: six dimension cards and their rule tables (text only).
+"""The Scorecard tab: radar, dimension cards, charts and their rule tables.
 
-The tab renders ``ScorecardService`` verbatim, so these tests mock the cached
-loader (``ui.services.load_scorecard``) with a crafted payload — no FDB, no
+The tab renders ``ScorecardService`` and ``ScorecardChartService`` verbatim, so
+these tests mock the cached loaders (``ui.services.load_scorecard`` and
+``ui.services.load_scorecard_charts``) with crafted payloads — no FDB, no
 Yahoo, no scorecard computation. Demo mode supplies the fundamentals the
 analysis page needs before the tabs are built.
 """
@@ -144,9 +145,40 @@ def _isolate(monkeypatch):
     streamlit.cache_data.clear()
 
 
-def _run(monkeypatch, payload: dict) -> AppTest:
+def _charts_payload(*, price: float | None = 340.0, dcf: float | None = 300.0) -> dict:
+    """A two-year chart payload shaped like ``ScorecardChartService.to_dict``."""
+    years = [
+        {
+            "fiscal_year": 2024,
+            "revenue": 100.0,
+            "net_income": 20.0,
+            "gross_margin": 0.5,
+            "operating_margin": 0.3,
+            "net_margin": 0.2,
+            "roe": 0.25,
+            "roic": 0.2,
+        },
+        {
+            "fiscal_year": 2025,
+            "revenue": 120.0,
+            "net_income": 26.0,
+            "gross_margin": 0.52,
+            "operating_margin": 0.32,
+            "net_margin": 0.22,
+            "roe": 0.27,
+            "roic": 0.22,
+        },
+    ]
+    return {"ticker": "AAPL", "years": years, "dcf_value": dcf, "price": price}
+
+
+def _run(monkeypatch, payload: dict, charts: dict | None = None) -> AppTest:
     monkeypatch.setattr(
         "ui.services.load_scorecard", lambda ticker, period="FY": payload
+    )
+    monkeypatch.setattr(
+        "ui.services.load_scorecard_charts",
+        lambda ticker: _charts_payload() if charts is None else charts,
     )
     at = AppTest.from_file(str(PAGE), default_timeout=120)
     at.run()
@@ -285,3 +317,59 @@ def test_missing_scorecard_uses_the_shared_warning(monkeypatch):
     assert any("returned no data" in error.value for error in at.error) or any(
         "No fundamentals" in warning.value for warning in at.warning
     )
+
+
+def test_radar_renders_as_a_plotly_chart(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    assert len(at.get("plotly_chart")) >= 1
+
+
+def test_radar_data_keeps_unscored_axes_as_gaps(monkeypatch):
+    from ui.charts import radar_data, radar_missing
+
+    dimensions = _payload()["dimensions"]
+    dimensions[4]["score"] = None  # Shareholder Returns
+    labels, radii = radar_data(dimensions)
+    assert labels == list(_DIMENSION_LABELS)
+    assert radii[4] is None  # not 0
+    assert radar_missing(labels, radii) == ["Shareholder Returns"]
+
+
+def test_radar_falls_back_when_plotly_is_unavailable(monkeypatch):
+    def _boom(dimensions):
+        raise ImportError("no plotly")
+
+    monkeypatch.setattr("ui.charts.radar_figure", _boom)
+    at = _run(monkeypatch, _payload())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "Radar unavailable" in captions
+
+
+def test_four_history_charts_have_titles(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    values = _markdown(at)
+    for title in (
+        "Revenue & net income",
+        "Margins",
+        "ROE & ROIC",
+        "DCF value vs price",
+    ):
+        assert f"**{title}**" in values
+
+
+def test_valuation_chart_says_price_unavailable_without_a_price(monkeypatch):
+    at = _run(monkeypatch, _payload(), charts=_charts_payload(price=None))
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "price unavailable" in captions
+
+
+def test_scorecard_has_a_json_download(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    downloads = at.get("download_button")
+    assert any(button.label == "Download scorecard JSON" for button in downloads)
+
+
+def test_focus_selector_lists_the_dimensions(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    focus = next(box for box in at.selectbox if "Focus a dimension" in box.label)
+    assert focus.options == ["—", *_DIMENSION_LABELS]

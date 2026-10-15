@@ -39,6 +39,7 @@ from ui.services import (
     load_historical_valuation,
     load_quote,
     load_scorecard,
+    load_scorecard_charts,
 )
 
 DCF_DISCLAIMER = (
@@ -605,12 +606,12 @@ _SCORECARD_STATUS_MARK = {
 
 
 def _render_scorecard(ticker: str) -> None:
-    """The six-dimension scorecard: dimension cards + rule tables.
+    """The six-dimension scorecard: radar, cards, charts and rule tables.
 
-    Presentation only: everything shown comes from ``ScorecardService``
-    verbatim. The tab never recomputes a financial figure, and a missing
-    price or an unapplicable rule degrades instead of crashing the page.
-    Charts (the radar) arrive in Phase 4.
+    Presentation only: everything shown comes from ``ScorecardService`` and
+    ``ScorecardChartService`` verbatim. The tab never recomputes a financial
+    figure, and a missing price or an unapplicable rule degrades instead of
+    crashing the page.
     """
     try:
         card = load_scorecard(ticker, "FY")
@@ -627,11 +628,16 @@ def _render_scorecard(ticker: str) -> None:
         st.caption("Quarterly data not available for all rules.")
 
     dimensions = card["dimensions"]
+    focus = _scorecard_focus(dimensions, ticker)
+    _scorecard_radar(dimensions)
+
     for start in range(0, len(dimensions), 2):
         columns = st.columns(2)
         for column, dimension in zip(columns, dimensions[start : start + 2]):
             with column:
-                _scorecard_dimension(dimension)
+                _scorecard_dimension(dimension, expanded=focus == dimension["label"])
+
+    _scorecard_charts(ticker)
 
     if card["disagreements"]:
         st.warning("\n".join(f"- {item}" for item in card["disagreements"]))
@@ -648,7 +654,98 @@ def _render_scorecard(ticker: str) -> None:
             "for coverage details."
         )
 
+    _scorecard_download(card, ticker)
     st.caption("Data: Financial-DataBase · FY · Prices not persisted")
+
+
+def _scorecard_focus(dimensions: list[dict], ticker: str) -> str | None:
+    """Picker that opens one dimension's rules (radar axis-click fallback).
+
+    Streamlit's ``on_select`` axis-click is deliberately not wired yet; the
+    documented fallback is this selector.
+    """
+    labels = [dimension["label"] for dimension in dimensions]
+    choice = st.selectbox(
+        "Focus a dimension (opens its rules)",
+        ["—", *labels],
+        key=f"scorecard_focus_{ticker}",
+    )
+    return None if choice == "—" else choice
+
+
+def _scorecard_radar(dimensions: list[dict]) -> None:
+    """Six-axis radar of the dimension scores, with a text-only fallback."""
+    from ui.charts import radar_data, radar_figure, radar_missing
+
+    labels, radii = radar_data(dimensions)
+    try:
+        figure = radar_figure(dimensions)
+    except Exception:  # noqa: BLE001 — plotly missing/old: fall back, never crash
+        figure = None
+    if figure is None:
+        st.caption("Radar unavailable — showing the dimension scores instead.")
+        import pandas as pd
+
+        st.bar_chart(
+            pd.DataFrame({"Dimension": labels, "Score": radii}),
+            x="Dimension",
+            y="Score",
+        )
+    else:
+        st.plotly_chart(figure, config={"displayModeBar": False})
+    missing = radar_missing(labels, radii)
+    if missing:
+        st.caption("Not scored (insufficient data): " + ", ".join(missing))
+
+
+def _scorecard_charts(ticker: str) -> None:
+    """The four history charts (revenue/income, margins, returns, DCF/price)."""
+    try:
+        payload = load_scorecard_charts(ticker)
+    except Exception:  # noqa: BLE001 — charts are additive; never break the tab
+        payload = None
+    st.markdown("##### Charts")
+    if not payload or not payload.get("years"):
+        st.caption("No fundamentals history to chart yet.")
+        return
+    from ui.charts import (
+        margin_figure,
+        returns_figure,
+        revenue_income_figure,
+        value_vs_price_figure,
+    )
+
+    panels = [
+        ("Revenue & net income", revenue_income_figure, "not enough data"),
+        ("Margins", margin_figure, "not enough data"),
+        ("ROE & ROIC", returns_figure, "not enough data"),
+        ("DCF value vs price", value_vs_price_figure, "price unavailable"),
+    ]
+    columns = st.columns(2)
+    for index, (title, builder, empty) in enumerate(panels):
+        with columns[index % 2]:
+            st.markdown(f"**{title}**")
+            try:
+                figure = builder(payload)
+            except Exception:  # noqa: BLE001 — one bad chart must not blank the tab
+                figure = None
+            if figure is None:
+                st.caption(empty)
+            else:
+                st.plotly_chart(figure, config={"displayModeBar": False})
+
+
+def _scorecard_download(card: dict, ticker: str) -> None:
+    """Offer the frozen payload as JSON (the raw contract, no rendering)."""
+    import json
+
+    st.download_button(
+        "Download scorecard JSON",
+        data=json.dumps(card, indent=2),
+        file_name=f"{ticker.lower()}_scorecard.json",
+        mime="application/json",
+        key=f"scorecard_download_{ticker}",
+    )
 
 
 def _scorecard_header(card: dict) -> None:
@@ -664,7 +761,7 @@ def _scorecard_header(card: dict) -> None:
     st.caption(f"{sector} · {industry}")
 
 
-def _scorecard_dimension(dimension: dict) -> None:
+def _scorecard_dimension(dimension: dict, expanded: bool = False) -> None:
     """One dimension card: score, verdict, summary and the rule table."""
     score = dimension["score"]
     score_text = "—" if score is None else f"{score}/10"
@@ -674,7 +771,7 @@ def _scorecard_dimension(dimension: dict) -> None:
         right.markdown(f"## {score_text}")
         st.markdown(f"**{dimension['verdict']}** · {dimension['trend']}")
         st.caption(f"{dimension['confidence']} confidence · {dimension['summary']}")
-        with st.expander("Rules", expanded=False):
+        with st.expander("Rules", expanded=expanded):
             st.dataframe(
                 _scorecard_rule_rows(dimension["rules"]),
                 width="stretch",

@@ -383,7 +383,16 @@ the scorecard-level **data-quality** badge (history depth + coverage); the
 card's confidence is a *per-dimension* signal (how many of that dimension's
 rules could not be evaluated), and the two are deliberately independent.
 
-The radar and the four charts (with the `plotly` dependency) are **Phase 4**.
+**Shipped (Phase 4).** The radar is a plotly `go.Scatterpolar` (six axes,
+0–10) built from the dimension scores; a dimension with no score stays a gap
+(never 0). If plotly cannot be imported the tab falls back to Streamlit's own
+bar chart. Below the cards, four plotly charts render the fundamentals history
+— revenue & net income (bars), margins (gross/operating/net lines), ROE & ROIC
+(lines) and DCF value vs price — from ``ScorecardChartService``, the only new
+service. The valuation chart reads "price unavailable" when the quote is
+missing. Axis-click is replaced by the documented ``st.selectbox`` fallback
+above the radar, which opens the chosen dimension's rules; a
+``st.download_button`` exports the frozen payload as JSON.
 
 ---
 
@@ -391,12 +400,12 @@ The radar and the four charts (with the `plotly` dependency) are **Phase 4**.
 
 | Interaction | Streamlit mechanism | Fallback if unsupported |
 |---|---|---|
-| Click a radar axis → expand its card | plotly `on_select="rerun"` (Streamlit ≥ 1.35) | `st.selectbox` axis picker above the radar |
+| Click a radar axis → expand its card | plotly `on_select="rerun"` (Streamlit ≥ 1.35) | **shipped:** `st.selectbox` axis picker above the radar |
 | Click a card → show rules | `st.expander` | — |
 | Click a rule → show its chart | nested `st.expander` | — |
 | Toggle absolute / vs sector | `st.toggle` → swaps thresholds / overlays peer markers | — |
 | Toggle FY (quarterly deferred) | disabled control + note | — |
-| Export JSON / Markdown | `st.download_button` (payload + rendered table) | — |
+| Export JSON / Markdown | `st.download_button` | **shipped:** JSON; Markdown deferred |
 
 ---
 
