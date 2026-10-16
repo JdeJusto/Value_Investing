@@ -1,3 +1,9 @@
+## [0.17.1] - 2026-10-17
+
+### Fixed
+
+- Peer comparison in the scorecard
+
 ## [0.17.0] - 2026-10-15
 
 ### Added
