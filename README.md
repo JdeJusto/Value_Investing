@@ -116,6 +116,13 @@ explicit panel when the dimensions disagree. It is a summary of the existing
 services, never a "master score", and the frozen payload can be downloaded as
 JSON.
 
+Where a peer group is available (a weekly Sunday artifact built from
+Financial-DataBase over the master universe, cached locally and never
+committed), each rule also shows its **peer median** and the percentile it
+sits at, and the valuation panel compares its P/E with the group's. Peers are
+an annotation only: no percentile changes a score or a threshold, and a
+company without a large enough peer group is scored exactly as before.
+
 ![Scorecard tab: the six-axis radar, the dimension charts and the disagreement panel](assets/scorecard_tab.png)
 
 *The Scorecard tab: the radar, the dimension cards and the history charts.*

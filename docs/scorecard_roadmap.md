@@ -1,7 +1,7 @@
 # Scorecard roadmap — interactive, visual stock analysis
 
-**Status:** Phases 1–2 shipped (backend + API/CLI); Phase 3 shipped in
-Streamlit (text only). Phases 4–7 planned. Implements the
+**Status:** Phases 1–5 shipped (backend, API/CLI, Streamlit tab with radar and
+charts, peer percentiles). Phases 6–7 planned. Implements the
 [scorecard design](scorecard_design.md) on top of the current surfaces
 described in the [analysis visualization audit](analysis_visualization_audit.md).
 
@@ -163,6 +163,14 @@ bar chart.
 
 ## Phase 5 — Peer percentiles
 
+**Status:** shipped ✅.
+
+**Shipped.** The weekly generator (`scripts/build_peer_stats.py`, with the pure
+math in `backend/analytics/peer_stats.py`), the read-only reader
+(`backend/services/peer_stats_service.py`), peer annotations on the scorecard
+rules (`ScorecardService`), the Streamlit peer columns/header/P-E chart, and a
+Sunday regeneration step in `scripts/run_daily_on_boot.sh`.
+
 **Deliverable.** `scripts/build_peer_stats.py` producing
 `data/peer_stats/<level>_<slug>.json` (+ `_index.json`) on a **weekly
 (Sunday)** schedule; a `.gitignore` entry for `data/peer_stats/`; the
@@ -184,13 +192,33 @@ table.
 edges); artifact schema validation; <10-member gating. Integration: optional
 live-FDB test that **skips** when the DB is unavailable.
 
+**Deviations.**
+
+- **No `pe_vs_peers` rule.** Peer data is an *additive annotation*: the
+  valuation/quality rules the artifact covers gain a peer median and a
+  percentile (`DimensionRule.peer_median` / `peer_percentile`). No percentile
+  feeds a score, so peer coverage can never move a verdict.
+- **Skips are recorded in `_index.json`**, not in the scorecard's `notes`,
+  because the peer artifact and the scorecard are separate processes.
+- **Groups below 10 members are not written**; the reader also rejects a
+  stale or hand-edited artifact below the minimum.
+- The peer median P/E is its **own two-bar chart** instead of a third bar in
+  the DCF panel — the DCF bars are dollars per share and these are multiples.
+- No live-FDB integration test: the reader is exercised against synthetic
+  artifacts, and the live path is verified with a real `--limit` run.
+
+**Deviations from the design's `pe_vs_peers` rule.** The user's Phase B brief
+superseded the design: peer comparison is additive annotation only. See
+§5 of the [design](scorecard_design.md).
+
+
+
 ---
 
 ## Phase 5.5 note — `.gitignore`
 
-Measured: `data/` is *selectively* ignored (`data/logs/*`, `data/reports/daily_*.md`,
-…) and `data/peer_stats/` is **not** ignored today. Phase 5 adds
-`data/peer_stats/` to `.gitignore` so peer stats stay a local build product.
+**Done ✅.** `data/peer_stats/` is now ignored (`chore(ops): regenerate peer
+stats weekly on Sunday`), so the artifact stays a local build product.
 
 ---
 

@@ -293,6 +293,11 @@ boot unit never double-run:
   --max-refresh 200 --resume`, so it shares the scheduled run's checkpoint.
 - **Post-run validation.** It runs `scripts/validate_data_sample --sample 10`
   (never fatal) and writes `logs/run_<date>.log`.
+- **Weekly peer artifact.** On Sundays (`VI_PEER_STATS_DAY`, ISO weekday; `0`
+  disables) it also runs `python -m scripts.build_peer_stats` to refresh the
+  Scorecard's peer comparison. Best-effort: a failure is logged and never
+  changes the run's exit status. `VI_PEER_STATS_EXTRA_ARGS` passes through,
+  e.g. `--limit 200` for a quick partial rebuild.
 
 It needs **no sudo** (a user unit) and does not run from the agent.
 

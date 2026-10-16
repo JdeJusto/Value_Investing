@@ -119,6 +119,13 @@ márgenes, ROE y ROIC, valor DCF frente a precio) y un panel explícito cuando l
 dimensiones discrepan. Es un resumen de los servicios existentes, nunca una
 "puntuación maestra", y la carga congelada se puede descargar como JSON.
 
+Cuando existe un grupo de comparación (*peers*) —un artefacto que se regenera
+los domingos a partir de Financial-DataBase sobre el universo maestro y que se
+guarda en caché local, nunca en el repositorio— la tabla de reglas añade la
+**mediana del grupo** y el percentil de la empresa, y la valoración compara su
+PER con el del grupo. La comparación es solo informativa: ningún percentil
+cambia una puntuación ni un umbral.
+
 ![Pestaña Scorecard: el radar de seis ejes, los gráficos de dimensión y el panel de desacuerdo](assets/scorecard_tab.png)
 
 *La pestaña Scorecard: el radar, las tarjetas de dimensión y los gráficos.*
