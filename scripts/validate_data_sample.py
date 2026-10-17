@@ -33,7 +33,7 @@ import random
 import sys
 import time
 import urllib.request
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -53,6 +53,7 @@ SEC_MIN_INTERVAL_SECONDS = 0.12
 COMPANYCONCEPT_URL = (
     "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/us-gaap/{tag}.json"
 )
+COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 
 # (metric, ordered SEC us-gaap tags). First tag that yields an annual fact wins.
 METRICS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -110,6 +111,24 @@ def _duration_days(start: Any, end: Any) -> int | None:
     if start_date is None or end_date is None:
         return None
     return (end_date - start_date).days
+
+
+def concept_has_facts(concept: Mapping[str, Any] | None) -> bool:
+    """True when a concept payload actually carries at least one fact.
+
+    Both SEC endpoints normally return ``units: {"USD": [ ...facts... ]}``. The
+    per-tag ``companyconcept`` endpoint, however, occasionally answers ``200``
+    with an *empty envelope* — ``units: {"USD": {}}`` — for an issuer whose facts
+    are all present in ``companyfacts`` (observed for Coca-Cola, 2026-10). An
+    empty envelope means "no data from this endpoint", never "the filing has no
+    value", so callers must not read it as a missing fact.
+    """
+    if not concept:
+        return False
+    for unit in (concept.get("units") or {}).values():
+        if isinstance(unit, list) and unit:
+            return True
+    return False
 
 
 def pct_difference(db_value: float | None, ext_value: float | None) -> float | None:
@@ -223,12 +242,8 @@ def choose_sample(
 # ---------------------------------------------------------------------------
 # SEC EDGAR client
 # ---------------------------------------------------------------------------
-class SecConceptClient:
-    """Minimal SEC ``companyconcept`` client with request pacing.
-
-    Every failure (HTTP error, timeout, malformed JSON) degrades to ``None`` so
-    one bad tag never aborts the validation.
-    """
+class _SecJsonClient:
+    """Shared SEC JSON plumbing: polite pacing, failure degrades to ``None``."""
 
     def __init__(
         self,
@@ -244,10 +259,9 @@ class SecConceptClient:
         self._opener = opener or urllib.request.urlopen
         self._last_request = 0.0
 
-    def fetch(self, cik: str, tag: str) -> dict | None:
-        """Fetch one concept for one CIK, or None on any failure."""
+    def _get_json(self, url: str) -> dict | None:
+        """GET one SEC JSON document, or None on any failure."""
         self._pace()
-        url = COMPANYCONCEPT_URL.format(cik=str(cik).zfill(10), tag=tag)
         request = urllib.request.Request(
             url,
             headers={"User-Agent": self._user_agent, "Accept": "application/json"},
@@ -268,6 +282,43 @@ class SecConceptClient:
         if elapsed < self._min_interval:
             time.sleep(self._min_interval - elapsed)
         self._last_request = time.monotonic()
+
+
+class SecConceptClient(_SecJsonClient):
+    """Minimal SEC ``companyconcept`` client with request pacing.
+
+    Every failure (HTTP error, timeout, malformed JSON) degrades to ``None`` so
+    one bad tag never aborts the validation. A ``200`` with an empty envelope is
+    *not* a failure here — use :func:`concept_has_facts` to tell no-data from
+    no-facts.
+    """
+
+    def fetch(self, cik: str, tag: str) -> dict | None:
+        """Fetch one concept for one CIK, or None on any failure."""
+        url = COMPANYCONCEPT_URL.format(cik=str(cik).zfill(10), tag=tag)
+        return self._get_json(url)
+
+
+class SecCompanyFactsClient(_SecJsonClient):
+    """SEC ``companyfacts`` client: one request for every tag of a company.
+
+    Used as the fallback when ``companyconcept`` returns an empty envelope for
+    an issuer (see :func:`concept_has_facts`). The whole company document is
+    several megabytes, so callers fetch it at most once per company.
+    """
+
+    def concepts(self, cik: str, taxonomy: str = "us-gaap") -> dict[str, dict] | None:
+        """All ``taxonomy`` concepts for one CIK, as ``{tag: {"units": ...}}``."""
+        url = COMPANYFACTS_URL.format(cik=str(cik).zfill(10))
+        payload = self._get_json(url)
+        if payload is None:
+            return None
+        facts = payload.get("facts") or {}
+        entries = facts.get(taxonomy) or {}
+        return {
+            tag: {"units": (entry or {}).get("units") or {}}
+            for tag, entry in entries.items()
+        }
 
 
 def _match_yahoo_index(provider: Any, ticker: str, fiscal_year_end: date | None) -> int:
