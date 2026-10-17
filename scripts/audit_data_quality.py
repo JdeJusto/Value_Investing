@@ -125,10 +125,14 @@ ANNUAL_MAX_DAYS = 400
 class MetricSpec:
     """One audited metric: how to read it and how much difference is noise.
 
-    ``tags`` are the SEC ``us-gaap`` concepts tried in order (the first with an
-    annual fact wins, exactly like the existing validation). ``attribute`` names
-    the Financial-DataBase/``NormalizedFinancials`` field; ``derive`` names a
-    formula in :data:`DERIVATIONS` for metrics with no direct field.
+    ``tags`` are the SEC concepts tried in order and listed **most current
+    first**. The audit prefers the tag with the most recent filing that covers
+    the audited fiscal period (:func:`_preferred`); this order only breaks a
+    tie between tags filed the same day, so the current taxonomy concept wins
+    (ASC 606 revenue over the retired ``Revenues``/``SalesRevenueNet``).
+    ``attribute`` names the Financial-DataBase/``NormalizedFinancials`` field;
+    ``derive`` names a formula in :data:`DERIVATIONS` for metrics with no direct
+    field.
 
     ``strict`` means "every filer discloses this line", so a value that traces
     to no SEC filing is a defect; a non-strict metric simply may not be tagged.
@@ -149,10 +153,12 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
         "revenue",
         2.0,
         (
-            "Revenues",
+            # ASC 606 concepts are current; ``Revenues``/``SalesRevenueNet`` were
+            # retired around 2018 but their old facts linger in the SEC feed.
             "RevenueFromContractWithCustomerExcludingAssessedTax",
-            "SalesRevenueNet",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
+            "Revenues",
+            "SalesRevenueNet",
         ),
         attribute="revenue",
     ),
@@ -369,12 +375,35 @@ def sec_metric_facts(
     return by_tag
 
 
-def _preferred(by_tag: Mapping[str, list[Fact]]) -> tuple[str | None, list[Fact]]:
-    """The first tag with an annual fact, or ``(None, [])`` when none has."""
-    for tag, facts in by_tag.items():
-        if facts:
-            return tag, facts
-    return None, []
+def _preferred(
+    by_tag: Mapping[str, list[Fact]], period: date | None = None
+) -> tuple[str | None, list[Fact]]:
+    """The tag whose annual fact best represents the audited fiscal period.
+
+    Prefer the tag with the most recent filing that covers the fiscal period
+    being compared. When several tags cover it, the most recently filed wins;
+    ties (same ``filed`` date) fall back to the declared tag order, which lists
+    the current taxonomy concept first (ASC 606 revenue, for instance). A tag
+    whose best fact does not cover the period is only used when no tag does, so
+    a retired tag with a recent re-filing, or a value from an old period, cannot
+    mask the tag that is actually being filed today.
+    """
+    best_key: tuple[bool, str, int] | None = None
+    best_tag: str | None = None
+    best_facts: list[Fact] = []
+    for index, (tag, facts) in enumerate(by_tag.items()):
+        if not facts:
+            continue
+        chosen = facts[0]
+        covers = (
+            period is None
+            or chosen.period_end is None
+            or _distance(chosen.period_end, period) <= PERIOD_MATCH_DAYS
+        )
+        key = (covers, chosen.filed or "", -index)
+        if best_key is None or key > best_key:
+            best_key, best_tag, best_facts = key, tag, facts
+    return best_tag, best_facts
 
 
 # ---------------------------------------------------------------------------
@@ -726,7 +755,7 @@ def _audit_sec_side(
             continue
 
         by_tag = sec_metric_facts(cik, spec, counted, period_a)
-        tag, facts = _preferred(by_tag)
+        tag, facts = _preferred(by_tag, period_a)
         if not facts:
             # No filing carries the line at all: a defect for a strict metric,
             # inconclusive for one filers may legitimately not tag.

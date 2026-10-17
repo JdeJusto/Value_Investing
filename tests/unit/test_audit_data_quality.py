@@ -428,12 +428,14 @@ def test_the_sec_side_flags_a_different_period():
 
 
 def test_the_sec_side_flags_a_different_tag():
+    # The current (ASC 606) tag is preferred, so a matching retired tag is what
+    # explains the value: the DB figure lives under ``Revenues``.
     mapping = dict(_SEC_GOOD)
-    mapping["Revenues"] = ("USD", [_annual(111.0)])
     mapping["RevenueFromContractWithCustomerExcludingAssessedTax"] = (
         "USD",
-        [_annual(100.0)],
+        [_annual(111.0)],
     )
+    mapping["Revenues"] = ("USD", [_annual(100.0)])
     row = _audit(_sec_fetcher(mapping))
     assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == DIFFERENT_TAG
 
@@ -778,7 +780,8 @@ def test_an_issuer_whose_endpoint_is_empty_is_an_outage_not_a_defect():
 
 def test_a_tag_retired_years_ago_does_not_mask_a_tag_switch():
     # AAPL stopped filing ``Revenues`` after FY2018; the audited value lives
-    # under the ASC 606 tag. Seven years of drift is not a period artifact.
+    # under the ASC 606 tag, so that is the tag the audit prefers and the
+    # comparison is a plain match.
     row = _audit(
         _sec_fetcher(
             {
@@ -793,7 +796,63 @@ def test_a_tag_retired_years_ago_does_not_mask_a_tag_switch():
             }
         )
     )
-    assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == DIFFERENT_TAG
+    assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == MATCH
+
+
+def test_the_current_tag_wins_a_same_day_filing_tie():
+    # Both tags cover FY2024 and were filed the same day: the declared order
+    # (ASC 606 first) breaks the tie, so the DB value is a match, not a switch.
+    row = _audit(
+        _sec_fetcher(
+            {
+                "Revenues": ("USD", [_annual(111.0)]),
+                "RevenueFromContractWithCustomerExcludingAssessedTax": (
+                    "USD",
+                    [_annual(100.0)],
+                ),
+            }
+        )
+    )
+    classes = _classes(row["comparisons"])
+    assert classes[("revenue", "sec_edgar")] == MATCH
+    reason = next(
+        item["reason"]
+        for item in row["comparisons"]
+        if item["metric"] == "revenue" and item["source_b"] == "sec_edgar"
+    )
+    assert "RevenueFromContractWithCustomerExcludingAssessedTax" in reason
+
+
+def test_a_recent_re_filing_of_a_retired_tag_does_not_win():
+    # The retired tag was re-filed *later* than the current one, but its fact is
+    # from an old period: filing date alone must not promote it.
+    row = _audit(
+        _sec_fetcher(
+            {
+                "Revenues": (
+                    "USD",
+                    [
+                        _annual(
+                            265.0,
+                            end=date(2018, 9, 29),
+                            start=date(2017, 10, 1),
+                            filed="2024-12-01",
+                        )
+                    ],
+                ),
+                "RevenueFromContractWithCustomerExcludingAssessedTax": (
+                    "USD",
+                    [_annual(100.0, filed="2024-06-01")],
+                ),
+            }
+        )
+    )
+    assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == MATCH
+
+
+def test_a_retired_tag_is_still_used_when_it_is_the_only_candidate():
+    row = _audit(_sec_fetcher({"Revenues": ("USD", [_annual(100.0)])}))
+    assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == MATCH
 
 
 def test_a_tag_with_the_wrong_period_cannot_explain_the_value():
