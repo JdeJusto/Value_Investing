@@ -1,3 +1,9 @@
+## [0.18.1] - 2026-10-17
+
+### Fixed
+
+- Close audit follow-ups and scorecard Phase 3.5 gaps
+
 ## [0.18.0] - 2026-10-17
 
 ### Added
