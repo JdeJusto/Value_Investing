@@ -73,6 +73,18 @@ def test_boot_script_never_uses_sudo():
     assert _never_invokes_sudo(SCRIPT)
 
 
+def test_boot_script_runs_the_monthly_audit_in_the_first_week():
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "scripts.audit_data_quality" in text
+    assert "VI_AUDIT_SAMPLE" in text
+    assert "VI_AUDIT_WEEKDAY" in text
+    assert "VI_AUDIT_FIRST_DAY_MAX" in text
+    assert "date +%d" in text  # the "first week of the month" gate
+    # A finding (exit 1) is news for the log, never a failure of the day.
+    assert "AUDIT_STATUS" in text
+    assert 'exit "$WORKFLOW_STATUS"' in text
+
+
 def test_boot_script_passes_bash_syntax_check():
     if shutil.which("bash") is None:  # pragma: no cover - bash is required to run it
         pytest.skip("bash not available")
@@ -299,3 +311,127 @@ def test_boot_script_peer_stats_failure_is_not_fatal(tmp_path, fake_python):
 
 def _local_isoweekday() -> int:
     return datetime.now(UTC).astimezone().isoweekday()
+
+
+def _today_day() -> int:
+    return datetime.now(UTC).astimezone().day
+
+
+def test_boot_script_runs_the_audit_in_the_first_week(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert (
+        "scripts.audit_data_quality --sample 30 --sources sec,yahoo"
+        in calls.read_text(encoding="utf-8")
+    )
+
+
+def test_boot_script_skips_the_audit_after_the_first_week(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            # Below today's day of month, so the "first week" gate is shut.
+            "VI_AUDIT_FIRST_DAY_MAX": str(_today_day() - 1),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.audit_data_quality" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_skips_the_audit_on_other_weekdays(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday() % 7 + 1),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.audit_data_quality" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_can_disable_the_audit(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_SAMPLE": "0",
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.audit_data_quality" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_audit_defaults_to_the_first_sunday(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(tmp_path, fake_python)
+    assert result.returncode == 0, result.stderr
+    ran = "scripts.audit_data_quality" in calls.read_text(encoding="utf-8")
+    assert ran is (_local_isoweekday() == 7 and _today_day() <= 7)
+
+
+def test_boot_script_accepts_extra_audit_args(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+            "VI_AUDIT_EXTRA_ARGS": "--sample 3",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--sample 3" in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_audit_finding_is_not_fatal(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+            "FAKE_PYTHON_FAIL_ON": "audit_data_quality",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    run_log = (tmp_path / "logs" / f"run_{_today()}.log").read_text(encoding="utf-8")
+    assert "data-quality audit finished with status 1" in run_log

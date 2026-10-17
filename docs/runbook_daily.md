@@ -298,6 +298,18 @@ boot unit never double-run:
   Scorecard's peer comparison. Best-effort: a failure is logged and never
   changes the run's exit status. `VI_PEER_STATS_EXTRA_ARGS` passes through,
   e.g. `--limit 200` for a quick partial rebuild.
+- **Monthly data-quality audit.** On the **first Sunday of the month** (gate:
+  `VI_AUDIT_WEEKDAY`, ISO weekday, default 7, and `VI_AUDIT_FIRST_DAY_MAX`,
+  default 7, so only the first seven days count) it runs
+  `python -m scripts.audit_data_quality --sample 30 --sources sec,yahoo --out
+  logs`. `VI_AUDIT_SAMPLE=0` disables it and `VI_AUDIT_EXTRA_ARGS` passes
+  through. Exit `0` means only expected cross-source differences, `1` means at
+  least one `DATA_ERROR_FDB` (a value that traces to no SEC filing — news for
+  the log, **never** a failure of the day, exactly like the validation), and `2`
+  means the audit could not run (no database, no `SEC_USER_AGENT`, no network).
+  Read the results with `logs/audit_data_quality_<date>.log`; every flagged
+  class is explained in `docs/data_gaps_investigation.md`
+  (§ Cross-source expected differences).
 
 It needs **no sudo** (a user unit) and does not run from the agent.
 
@@ -461,6 +473,28 @@ keeps only companies with a CIK (the project derives fundamentals exclusively
 from SEC filings, so European names without an EDGAR presence and share-class
 variants missing from FDB are excluded but remain visible in their per-index
 files).
+
+## 7. Monthly data-quality audit
+
+The boot wrapper runs `scripts/audit_data_quality.py` on the first Sunday of the
+month (see *Boot catch-up* above); to run it by hand:
+
+```bash
+# Cross-source audit of 50 sampled companies, SEC + Yahoo (read-only).
+python -m scripts.audit_data_quality --sample 50 --sources sec,yahoo --out logs
+
+# A specific list, SEC only — handy while chasing one finding
+python -m scripts.audit_data_quality --tickers AAPL,KO --sources sec --out logs
+```
+
+Reports are written to `logs/audit_data_quality_<YYYY-MM-DD>.{log,json,csv}`.
+Exit codes: `0` only expected differences, `1` at least one `DATA_ERROR_FDB`
+(a value that traces to no SEC filing — the code to investigate), `2` the audit
+could not run (database, `SEC_USER_AGENT`, or network). Every expected
+difference class is documented in `docs/data_gaps_investigation.md`
+("Cross-source expected differences"); a `DATA_ERROR_FDB` is not — work each one
+against SEC `companyconcept` and fix the mapping (see
+`docs/validation_methodology.md` §8 for the companion threshold report).
 
 ## Troubleshooting
 

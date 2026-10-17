@@ -10,10 +10,12 @@
 #   3. waits up to 10 minutes for the network (a desktop is often online a
 #      few seconds after login, but not always);
 #   4. runs `python -m scripts.daily_workflow --resume`;
-#   5. on the weekly day (Sunday by default), regenerates the peer-statistics
+#   5. runs a small data-sample validation (non-fatal — see docs/validation_
+#      methodology.md §8);
+#   6. on the weekly day (Sunday by default), regenerates the peer-statistics
 #      artifact the Scorecard tab reads (best-effort, non-fatal);
-#   6. runs a small data-sample validation (non-fatal — see docs/validation_
-#      methodology.md §8).
+#   7. on the first Sunday of the month, runs the cross-source data-quality
+#      audit (best-effort, non-fatal — see docs/data_gaps_investigation.md).
 #
 # It needs NO sudo and never touches a database directly; the daily workflow
 # keeps its usual contract (prices are fetched, never persisted).
@@ -35,6 +37,12 @@
 #   VI_PEER_STATS_DAY           ISO weekday (1=Mon .. 7=Sun) to rebuild the
 #                               peer artifact; default 7; 0 disables it
 #   VI_PEER_STATS_EXTRA_ARGS    extra args, e.g. "--limit 200"
+#   VI_AUDIT_SAMPLE             default 30; 0 disables the monthly audit
+#   VI_AUDIT_WEEKDAY            ISO weekday the audit runs on; default 7 (Sun)
+#   VI_AUDIT_FIRST_DAY_MAX      only run within the first N days of the month;
+#                               default 7 (the first Sunday of the month)
+#   VI_AUDIT_EXTRA_ARGS         extra args, e.g. "--no-prices"
+# =============================================================================
 # =============================================================================
 set -euo pipefail
 
@@ -51,6 +59,10 @@ WORKFLOW_EXTRA_ARGS="${VI_WORKFLOW_EXTRA_ARGS:-}"
 VALIDATION_SAMPLE="${VI_VALIDATION_SAMPLE:-10}"
 PEER_STATS_DAY="${VI_PEER_STATS_DAY:-7}"
 PEER_STATS_EXTRA_ARGS="${VI_PEER_STATS_EXTRA_ARGS:-}"
+AUDIT_SAMPLE="${VI_AUDIT_SAMPLE:-30}"
+AUDIT_WEEKDAY="${VI_AUDIT_WEEKDAY:-7}"
+AUDIT_FIRST_DAY_MAX="${VI_AUDIT_FIRST_DAY_MAX:-7}"
+AUDIT_EXTRA_ARGS="${VI_AUDIT_EXTRA_ARGS:-}"
 
 usage() {
     # Print the leading comment block, prefixed by "# " removal only. Stops at
@@ -159,6 +171,24 @@ if [[ "$PEER_STATS_DAY" != "0" && "$(date +%u)" == "$PEER_STATS_DAY" ]]; then
     PEER_STATUS=$?
     set -e
     log "peer statistics finished with status $PEER_STATUS"
+fi
+
+# Monthly (the first Sunday by default): the cross-source data-quality audit.
+# Like the peer build it is best-effort — a DATA_ERROR_FDB finding (exit 1) is
+# news for the log, never a reason to fail the day.
+if [[ "$AUDIT_SAMPLE" != "0" && "$(date +%u)" == "$AUDIT_WEEKDAY" ]] &&
+    ((10#$(date +%d) <= AUDIT_FIRST_DAY_MAX)); then
+    log "running the monthly data-quality audit (sample $AUDIT_SAMPLE; first $AUDIT_FIRST_DAY_MAX day(s) of the month)"
+    set +e
+    # shellcheck disable=SC2086  # splitting VI_AUDIT_EXTRA_ARGS is intentional
+    "$PYTHON" -m scripts.audit_data_quality \
+        --sample "$AUDIT_SAMPLE" \
+        --sources sec,yahoo \
+        --out "$LOGS_DIR" \
+        $AUDIT_EXTRA_ARGS >>"$RUN_LOG" 2>&1
+    AUDIT_STATUS=$?
+    set -e
+    log "data-quality audit finished with status $AUDIT_STATUS"
 fi
 
 exit "$WORKFLOW_STATUS"
