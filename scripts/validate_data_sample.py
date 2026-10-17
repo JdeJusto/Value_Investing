@@ -51,7 +51,7 @@ SEC_TIMEOUT_SECONDS = 15.0
 # SEC asks for <= 10 requests/second; 0.12 s between calls keeps us under it.
 SEC_MIN_INTERVAL_SECONDS = 0.12
 COMPANYCONCEPT_URL = (
-    "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/us-gaap/{tag}.json"
+    "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/{taxonomy}/{tag}.json"
 )
 COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 
@@ -294,8 +294,17 @@ class SecConceptClient(_SecJsonClient):
     """
 
     def fetch(self, cik: str, tag: str) -> dict | None:
-        """Fetch one concept for one CIK, or None on any failure."""
-        url = COMPANYCONCEPT_URL.format(cik=str(cik).zfill(10), tag=tag)
+        """Fetch one concept for one CIK, or None on any failure.
+
+        ``tag`` may name a taxonomy (``dei:EntityCommonStockSharesOutstanding``);
+        the SEC endpoint defaults to ``us-gaap`` when it does not.
+        """
+        taxonomy, _, concept = tag.partition(":")
+        if not concept:
+            taxonomy, concept = "us-gaap", tag
+        url = COMPANYCONCEPT_URL.format(
+            cik=str(cik).zfill(10), taxonomy=taxonomy, tag=concept
+        )
         return self._get_json(url)
 
 

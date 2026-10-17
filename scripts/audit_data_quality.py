@@ -16,6 +16,8 @@ Yahoo Finance, and classifies every discrepancy with a deterministic heuristic:
 ``RESTATEMENT``          the value matches a superseded filing of the same period
 ``DATA_ERROR_FDB``       the DB value traces to no SEC filing at all (a bug)
 ``DATA_ERROR_EXTERNAL``  the authoritative source confirms the DB, the other is wrong
+``INFORMATIONAL``        a market-data field (shares) differs from an informative
+                         SEC fallback; reported but never a defect
 ``UNCLASSIFIED``         explained by none of the above; needs manual review
 
 The classifier is heuristic, never an LLM, and never writes to a database: the
@@ -92,6 +94,7 @@ SPLIT_ADJUSTMENT = "SPLIT_ADJUSTMENT"
 RESTATEMENT = "RESTATEMENT"
 DATA_ERROR_FDB = "DATA_ERROR_FDB"
 DATA_ERROR_EXTERNAL = "DATA_ERROR_EXTERNAL"
+INFORMATIONAL = "INFORMATIONAL"
 UNCLASSIFIED = "UNCLASSIFIED"
 SKIPPED = "SKIPPED"
 
@@ -104,13 +107,21 @@ ACTIONS: dict[str, str] = {
     RESTATEMENT: "none, expected",
     DATA_ERROR_FDB: "investigate and fix",
     DATA_ERROR_EXTERNAL: "none, log",
+    INFORMATIONAL: "none, informational only (market-data field)",
     UNCLASSIFIED: "manual review",
     SKIPPED: "none, not comparable",
 }
 
 #: Classifications that mean "nothing to fix".
 EXPECTED = frozenset(
-    {MATCH, DIFFERENT_PERIOD, DIFFERENT_TAG, SPLIT_ADJUSTMENT, RESTATEMENT}
+    {
+        MATCH,
+        DIFFERENT_PERIOD,
+        DIFFERENT_TAG,
+        SPLIT_ADJUSTMENT,
+        RESTATEMENT,
+        INFORMATIONAL,
+    }
 )
 
 #: Annual facts span a full year; a Q4 figure must not pass as the annual one.
@@ -137,6 +148,9 @@ class MetricSpec:
     ``strict`` means "every filer discloses this line", so a value that traces
     to no SEC filing is a defect; a non-strict metric simply may not be tagged.
     ``magnitude_only`` tolerates a pure sign flip (cash-flow convention).
+    ``informational`` marks a market-data field the database does not source
+    from SEC (shares outstanding): a mismatch against the SEC fallback is
+    reported as ``INFORMATIONAL`` rather than as an unexplained difference.
     """
 
     metric: str
@@ -146,6 +160,7 @@ class MetricSpec:
     derive: str | None = None
     magnitude_only: bool = False
     strict: bool = True
+    informational: bool = False
 
 
 AUDIT_METRICS: tuple[MetricSpec, ...] = (
@@ -206,9 +221,18 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
     MetricSpec(
         "shares_outstanding",
         2.0,
-        ("CommonStockSharesOutstanding", "CommonStockSharesIssued"),
+        (
+            # The cover-page count (dei) is what a reader calls "shares
+            # outstanding"; the us-gaap tags are the fallback, and a mismatch
+            # against them is informational only (the DB sources shares from
+            # market data, not from SEC).
+            "dei:EntityCommonStockSharesOutstanding",
+            "CommonStockSharesOutstanding",
+            "CommonStockSharesIssued",
+        ),
         attribute="shares_outstanding",
         strict=False,
+        informational=True,
     ),
     MetricSpec(
         "eps_diluted",
@@ -435,6 +459,7 @@ def classify_comparison(
     upstream_available: bool = True,
     strict: bool = True,
     magnitude_only: bool = False,
+    informational: bool = False,
     alternative_tags: Mapping[str, Sequence[Fact]] | None = None,
     restated: Sequence[Fact] = (),
     split_factor: float | None = None,
@@ -451,6 +476,9 @@ def classify_comparison(
     that the two periods disagree. A missing value is ``SKIPPED`` — except when
     the caller knows the authoritative source has no fact at all
     (``upstream_available=False``), which is what a strict metric calls a defect.
+    ``informational`` downgrades what would be an unexplained difference to
+    ``INFORMATIONAL``: the field is market data the database does not source
+    from SEC, so the SEC fallback is a note, not a discrepancy.
     """
     if value_a is None:
         return SKIPPED, "value missing on the Financial-DataBase side"
@@ -522,6 +550,12 @@ def classify_comparison(
             return DATA_ERROR_EXTERNAL, "the authoritative source confirms the DB value"
         return UNCLASSIFIED, "no authoritative reference to attribute the difference to"
 
+    if informational:
+        return (
+            INFORMATIONAL,
+            "informational only: the database sources this field from market data",
+        )
+
     return UNCLASSIFIED, "the SEC value differs and no heuristic explains why"
 
 
@@ -575,23 +609,32 @@ class SecFallbackFetcher:
     def __init__(
         self,
         concept_fetch: Callable[[str, str], dict | None],
-        concepts_loader: Callable[[str], dict[str, dict] | None],
+        concepts_loader: Callable[[str, str], dict[str, dict] | None],
     ) -> None:
         self._concept_fetch = concept_fetch
         self._concepts_loader = concepts_loader
-        self._concepts: dict[str, dict[str, dict]] = {}
+        self._concepts: dict[tuple[str, str], dict[str, dict]] = {}
         self.fallback_issuers: set[str] = set()
 
     def __call__(self, cik: str, tag: str) -> dict | None:
-        """The concept payload for ``tag``, from either SEC endpoint."""
+        """The concept payload for ``tag``, from either SEC endpoint.
+
+        ``tag`` may name a taxonomy (``dei:EntityCommonStockSharesOutstanding``);
+        the concept endpoint defaults to ``us-gaap`` and the fallback loads the
+        matching taxonomy from ``companyfacts``.
+        """
         key = str(cik)
-        if key in self._concepts:
-            return self._concepts[key].get(tag)
+        taxonomy, _, concept = tag.partition(":")
+        if not concept:
+            taxonomy, concept = "us-gaap", tag
+        cache_key = (key, taxonomy)
+        if cache_key in self._concepts:
+            return self._concepts[cache_key].get(concept)
         payload = self._concept_fetch(key, tag)
         if payload is not None and not concept_has_facts(payload):
             self.fallback_issuers.add(key)
-            self._concepts[key] = self._concepts_loader(key) or {}
-            return self._concepts[key].get(tag)
+            self._concepts[cache_key] = self._concepts_loader(key, taxonomy) or {}
+            return self._concepts[cache_key].get(concept)
         return payload
 
 
@@ -756,6 +799,9 @@ def _audit_sec_side(
 
         by_tag = sec_metric_facts(cik, spec, counted, period_a)
         tag, facts = _preferred(by_tag, period_a)
+        # Shares are a market-data field: only the cover-page ``dei`` fact is
+        # authoritative. A mismatch against the us-gaap fallback is informational.
+        informational = spec.informational and not (tag or "").startswith("dei:")
         if not facts:
             # No filing carries the line at all: a defect for a strict metric,
             # inconclusive for one filers may legitimately not tag.
@@ -766,6 +812,7 @@ def _audit_sec_side(
                 authoritative=True,
                 upstream_available=False,
                 strict=spec.strict,
+                informational=informational,
             )
             row["comparisons"].append(
                 comparison_row(
@@ -801,6 +848,7 @@ def _audit_sec_side(
                 name: items for name, items in by_tag.items() if name != tag
             },
             restated=restated,
+            informational=informational,
         )
         row["comparisons"].append(
             comparison_row(
@@ -963,6 +1011,7 @@ def build_report(
         "expected": sum(count for key, count in breakdown.items() if key in EXPECTED),
         "data_error_fdb": breakdown.get(DATA_ERROR_FDB, 0),
         "data_error_external": breakdown.get(DATA_ERROR_EXTERNAL, 0),
+        "informational": breakdown.get(INFORMATIONAL, 0),
         "unclassified": breakdown.get(UNCLASSIFIED, 0),
         "sec_tickers": sum(
             1
@@ -1069,6 +1118,7 @@ def format_report(report: Mapping[str, Any]) -> str:
         f"expected={summary['expected']} "
         f"data_error_fdb={summary['data_error_fdb']} "
         f"data_error_external={summary['data_error_external']} "
+        f"informational={summary['informational']} "
         f"unclassified={summary['unclassified']} "
         f"sec={summary['sec_tickers']} "
         f"yahoo={summary['yahoo_tickers']}"

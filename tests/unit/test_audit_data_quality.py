@@ -23,6 +23,7 @@ from scripts.audit_data_quality import (
     DATA_ERROR_FDB,
     DIFFERENT_PERIOD,
     DIFFERENT_TAG,
+    INFORMATIONAL,
     MATCH,
     RESTATEMENT,
     SKIPPED,
@@ -616,6 +617,7 @@ def test_every_classification_has_a_documented_action():
         RESTATEMENT,
         DATA_ERROR_FDB,
         DATA_ERROR_EXTERNAL,
+        INFORMATIONAL,
         UNCLASSIFIED,
         SKIPPED,
     ):
@@ -718,7 +720,8 @@ def test_main_records_that_the_companyfacts_fallback_was_used(
     monkeypatch, tmp_path, capsys
 ):
     fetcher = SecFallbackFetcher(
-        lambda cik, tag: {"units": {"USD": {}}}, lambda cik: _concepts(_SEC_GOOD)
+        lambda cik, tag: {"units": {"USD": {}}},
+        lambda cik, taxonomy: _concepts(_SEC_GOOD),
     )
     audit, out = _patch_main(monkeypatch, _SEC_GOOD, tmp_path, fetcher=fetcher)
     assert audit.main(["--tickers", "AAPL", "--sources", "sec", "--out", str(out)]) == 0
@@ -736,11 +739,9 @@ def _concepts(mapping: dict[str, tuple[str, list[dict]]]) -> dict[str, dict]:
     """A ``companyfacts``-shaped ``{tag: {"units": ...}}`` document."""
     return {tag: {"units": {unit: facts}} for tag, (unit, facts) in mapping.items()}
 
-
-def test_an_empty_envelope_switches_the_issuer_to_companyfacts():
     asked: list[str] = []
 
-    def loader(cik: str):
+    def loader(cik: str, taxonomy: str):
         asked.append(cik)
         return _concepts(_SEC_GOOD)
 
@@ -755,7 +756,7 @@ def test_an_empty_envelope_switches_the_issuer_to_companyfacts():
 
 
 def test_a_real_envelope_never_triggers_the_fallback():
-    def loader(cik: str):  # pragma: no cover - must never run
+    def loader(cik: str, taxonomy: str):  # pragma: no cover - must never run
         raise AssertionError("companyfacts must not be fetched")
 
     fetcher = SecFallbackFetcher(lambda cik, tag: _concept(_annual(100.0)), loader)
@@ -765,11 +766,83 @@ def test_a_real_envelope_never_triggers_the_fallback():
 
 def test_a_failed_fallback_degrades_to_no_data():
     fetcher = SecFallbackFetcher(
-        lambda cik, tag: {"units": {"USD": {}}}, lambda cik: None
+        lambda cik, tag: {"units": {"USD": {}}}, lambda cik, taxonomy: None
     )
     assert fetcher("0000021344", "Revenues") is None
     assert fetcher("0000021344", "Assets") is None
     assert fetcher.fallback_issuers == {"0000021344"}
+
+
+def test_the_fallback_loads_the_taxonomy_named_by_the_tag():
+    seen: list[str] = []
+
+    def loader(cik: str, taxonomy: str):
+        seen.append(taxonomy)
+        return {"EntityCommonStockSharesOutstanding": _concept(_annual(100.0))}
+
+    fetcher = SecFallbackFetcher(lambda cik, tag: {"units": {"shares": {}}}, loader)
+    payload = fetcher("0000021344", "dei:EntityCommonStockSharesOutstanding")
+    assert payload == {"units": {"USD": [_annual(100.0)]}}
+    assert seen == ["dei"]
+
+
+# ---------------------------------------------------------------------------
+# shares outstanding: the cover-page (dei) count is authoritative
+# ---------------------------------------------------------------------------
+def test_the_cover_page_share_count_is_compared_and_matches():
+    mapping = dict(_SEC_GOOD)
+    del mapping["CommonStockSharesOutstanding"]
+    mapping["dei:EntityCommonStockSharesOutstanding"] = (
+        "shares",
+        [_annual(100.0, start=None)],
+    )
+    row = _audit(_sec_fetcher(mapping))
+    assert _classes(row["comparisons"])[("shares_outstanding", "sec_edgar")] == MATCH
+
+
+def test_the_us_gaap_share_fallback_is_informational_on_a_mismatch():
+    # No ``dei`` fact: the us-gaap count differs, but shares are market data the
+    # database does not source from SEC, so this is a note, not a discrepancy.
+    mapping = dict(_SEC_GOOD)
+    mapping["CommonStockSharesOutstanding"] = (
+        "shares",
+        [_annual(200.0, start=None)],
+    )
+    row = _audit(_sec_fetcher(mapping))
+    assert (
+        _classes(row["comparisons"])[("shares_outstanding", "sec_edgar")]
+        == INFORMATIONAL
+    )
+    item = next(
+        entry for entry in row["comparisons"] if entry["metric"] == "shares_outstanding"
+    )
+    assert item["action"] == ACTIONS[INFORMATIONAL]
+
+
+def test_a_cover_page_share_count_mismatch_is_not_informational():
+    mapping = dict(_SEC_GOOD)
+    del mapping["CommonStockSharesOutstanding"]
+    mapping["dei:EntityCommonStockSharesOutstanding"] = (
+        "shares",
+        [_annual(200.0, start=None)],
+    )
+    row = _audit(_sec_fetcher(mapping))
+    assert (
+        _classes(row["comparisons"])[("shares_outstanding", "sec_edgar")]
+        == UNCLASSIFIED
+    )
+
+
+def test_an_informational_shares_difference_is_expected_not_a_defect():
+    mapping = dict(_SEC_GOOD)
+    mapping["CommonStockSharesOutstanding"] = ("shares", [_annual(200.0, start=None)])
+    report = build_report(
+        [("AAPL", "0000320193")], repo=_Repo(), sec_fetcher=_sec_fetcher(mapping)
+    )
+    summary = report["summary"]
+    assert summary["informational"] == 1
+    assert summary["data_error_fdb"] == 0
+    assert INFORMATIONAL in summary["by_classification"]
 
 
 def test_an_issuer_whose_endpoint_is_empty_is_an_outage_not_a_defect():
