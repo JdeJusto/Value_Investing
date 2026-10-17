@@ -151,6 +151,8 @@ class MetricSpec:
     ``informational`` marks a market-data field the database does not source
     from SEC (shares outstanding): a mismatch against the SEC fallback is
     reported as ``INFORMATIONAL`` rather than as an unexplained difference.
+    ``keep_zero`` keeps a genuinely zero annual fact (diluted EPS, where zero is
+    a real result); every other metric drops zero-valued facts as placeholders.
     """
 
     metric: str
@@ -161,6 +163,7 @@ class MetricSpec:
     magnitude_only: bool = False
     strict: bool = True
     informational: bool = False
+    keep_zero: bool = False
 
 
 AUDIT_METRICS: tuple[MetricSpec, ...] = (
@@ -240,6 +243,8 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
         ("EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"),
         derive="eps_diluted",
         strict=False,
+        # A zero-EPS year is a legitimate result, not a placeholder.
+        keep_zero=True,
     ),
     MetricSpec(
         "dividends_per_share",
@@ -389,14 +394,27 @@ def sec_metric_facts(
     spec: MetricSpec,
     sec_fetcher: Callable[[str, str], dict | None],
     fiscal_year_end: date | None,
-) -> dict[str, list[Fact]]:
-    """Annual facts for one metric, keyed by tag (empty tags dropped)."""
+) -> tuple[dict[str, list[Fact]], bool]:
+    """Annual facts for one metric, keyed by tag.
+
+    A zero value in the SEC feed is either a placeholder or a missing-data
+    artifact. Skip it for aggregate metrics; keep it for EPS where a zero is a
+    legitimate result. The second element reports whether a tag had facts but
+    *all* of them were dropped as zeros, so the caller can say so instead of
+    inventing a ``DATA_ERROR_FDB``.
+    """
     by_tag: dict[str, list[Fact]] = {}
+    dropped_zero = False
     for tag in spec.tags:
         facts = annual_facts(sec_fetcher(str(cik), tag), fiscal_year_end)
+        if not spec.keep_zero:
+            kept = [fact for fact in facts if fact.value != 0]
+            if facts and not kept:
+                dropped_zero = True
+            facts = kept
         if facts:
             by_tag[tag] = facts
-    return by_tag
+    return by_tag, dropped_zero
 
 
 def _preferred(
@@ -482,6 +500,10 @@ def classify_comparison(
     """
     if value_a is None:
         return SKIPPED, "value missing on the Financial-DataBase side"
+    if value_b is not None and value_a == value_b:
+        # Identical values agree, including 0 == 0 where the relative
+        # difference is undefined.
+        return MATCH, "identical values on both sides"
     if value_b is None:
         if not upstream_available and authoritative:
             if strict:
@@ -797,23 +819,31 @@ def _audit_sec_side(
         if value_a is None:
             continue
 
-        by_tag = sec_metric_facts(cik, spec, counted, period_a)
+        by_tag, dropped_zero = sec_metric_facts(cik, spec, counted, period_a)
         tag, facts = _preferred(by_tag, period_a)
         # Shares are a market-data field: only the cover-page ``dei`` fact is
         # authoritative. A mismatch against the us-gaap fallback is informational.
         informational = spec.informational and not (tag or "").startswith("dei:")
         if not facts:
-            # No filing carries the line at all: a defect for a strict metric,
-            # inconclusive for one filers may legitimately not tag.
-            classification, reason = classify_comparison(
-                value_a=value_a,
-                value_b=None,
-                tolerance_pct=spec.tolerance_pct,
-                authoritative=True,
-                upstream_available=False,
-                strict=spec.strict,
-                informational=informational,
-            )
+            if dropped_zero:
+                # A zero value in the SEC feed is either a placeholder or a
+                # missing-data artifact, not a comparison value.
+                classification, reason = (
+                    SKIPPED,
+                    "only a zero-valued SEC fact for this period; skipped",
+                )
+            else:
+                # No filing carries the line at all: a defect for a strict
+                # metric, inconclusive for one filers may legitimately not tag.
+                classification, reason = classify_comparison(
+                    value_a=value_a,
+                    value_b=None,
+                    tolerance_pct=spec.tolerance_pct,
+                    authoritative=True,
+                    upstream_available=False,
+                    strict=spec.strict,
+                    informational=informational,
+                )
             row["comparisons"].append(
                 comparison_row(
                     ticker=ticker,

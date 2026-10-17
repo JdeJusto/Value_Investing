@@ -845,6 +845,47 @@ def test_an_informational_shares_difference_is_expected_not_a_defect():
     assert INFORMATIONAL in summary["by_classification"]
 
 
+# ---------------------------------------------------------------------------
+# zero-valued facts
+# ---------------------------------------------------------------------------
+def test_a_zero_valued_aggregate_fact_is_not_used_as_the_year_value():
+    # A placeholder 0 for FY2024 must not be compared; the audit falls back to
+    # the previous year, which is a period artifact rather than a wrong value.
+    mapping = dict(_SEC_GOOD)
+    mapping["Revenues"] = (
+        "USD",
+        [
+            _annual(0.0),
+            _annual(90.0, end=date(2023, 9, 30), start=date(2022, 10, 1)),
+        ],
+    )
+    row = _audit(_sec_fetcher(mapping))
+    item = next(entry for entry in row["comparisons"] if entry["metric"] == "revenue")
+    assert item["classification"] == DIFFERENT_PERIOD
+    assert item["value_b"] == 90.0
+
+
+def test_a_zero_only_strict_metric_is_skipped_not_a_database_error():
+    mapping = dict(_SEC_GOOD)
+    mapping["Assets"] = ("USD", [_annual(0.0, start=None)])
+    row = _audit(_sec_fetcher(mapping))
+    item = next(
+        entry for entry in row["comparisons"] if entry["metric"] == "total_assets"
+    )
+    assert item["classification"] == SKIPPED
+    assert "zero" in item["reason"]
+
+
+def test_a_zero_eps_year_is_a_valid_comparison():
+    mapping = dict(_SEC_GOOD)
+    mapping["EarningsPerShareDiluted"] = ("USD/shares", [_annual(0.0)])
+    row = _audit(
+        _sec_fetcher(mapping),
+        financials=_financials(net_income=0.0, shares_outstanding=100.0),
+    )
+    assert _classes(row["comparisons"])[("eps_diluted", "sec_edgar")] == MATCH
+
+
 def test_an_issuer_whose_endpoint_is_empty_is_an_outage_not_a_defect():
     row = _audit(lambda cik, tag: {"units": {"USD": {}}})
     assert row["error"] == "SEC EDGAR returned no data"
