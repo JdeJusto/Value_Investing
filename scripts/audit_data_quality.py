@@ -54,13 +54,28 @@ PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from backend.services.sec_facts_client import (
+    PERIOD_MATCH_DAYS,
+    SEC_TIMEOUT_SECONDS,
+    Fact,
+    SecFactsClient,
+    SecFallbackFetcher,
+    annual_facts,
+    concept_has_facts,
+    drop_zero_facts,
+)
+from backend.services.sec_facts_client import (
+    parse_date as _parse_date,
+)
+from backend.services.sec_facts_client import (
+    period_distance as _distance,
+)
+from backend.services.sec_facts_client import (
+    preferred_facts as _preferred,
+)
 from scripts.validate_data_sample import (
     DEFAULT_UNIVERSE,
-    SEC_TIMEOUT_SECONDS,
-    SecCompanyFactsClient,
-    SecConceptClient,
     choose_sample,
-    concept_has_facts,
     load_sp500_universe,
     pct_difference,
 )
@@ -70,8 +85,8 @@ DEFAULT_SAMPLE_SIZE = 50
 DEFAULT_SEED = 42
 DEFAULT_SOURCES = "sec,yahoo"
 
-#: Two period ends closer than this are considered the same fiscal period.
-PERIOD_MATCH_DAYS = 45
+#: Two period ends closer than this are considered the same fiscal period
+#: (:data:`backend.services.sec_facts_client.PERIOD_MATCH_DAYS`).
 
 #: A larger drift than this is not a period artifact but a tag that simply has no
 #: fact for the audited year (revenue tags retired after ASC 606, say). Treating
@@ -123,10 +138,6 @@ EXPECTED = frozenset(
         INFORMATIONAL,
     }
 )
-
-#: Annual facts span a full year; a Q4 figure must not pass as the annual one.
-ANNUAL_MIN_DAYS = 300
-ANNUAL_MAX_DAYS = 400
 
 
 # ---------------------------------------------------------------------------
@@ -306,89 +317,9 @@ def metric_value(financials: Any, spec: MetricSpec) -> float | None:
 # ---------------------------------------------------------------------------
 # facts
 # ---------------------------------------------------------------------------
-@dataclass(frozen=True)
-class Fact:
-    """One annual value as filed: the value plus the period it belongs to."""
-
-    value: float
-    period_end: date | None = None
-    tag: str | None = None
-    form: str | None = None
-    filed: str | None = None
-
-
-def _parse_date(value: Any) -> date | None:
-    """Parse an ISO date (tolerating a trailing time component), else None."""
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(str(value)[:10])
-    except (TypeError, ValueError):
-        return None
-
-
-def annual_facts(
-    concept: Mapping[str, Any] | None, fiscal_year_end: date | None
-) -> list[Fact]:
-    """Every annual (10-K / 10-K/A) fact in one ``companyconcept`` payload.
-
-    Sorted so ``facts[0]`` is the value a reader takes from the filing series:
-    the annual fact whose period end is closest to ``fiscal_year_end``, ties
-    broken by the most recently filed fact. A later entry for the *same* period
-    is therefore a superseded (pre-restatement) number.
-    """
-    if not concept:
-        return []
-    units = concept.get("units") or {}
-    raw_facts = units.get("USD") or next(
-        (unit for unit in units.values() if unit), None
-    )
-    if not raw_facts:
-        return []
-
-    facts: list[Fact] = []
-    for raw in raw_facts:
-        form = str(raw.get("form") or "").upper()
-        if not form.startswith("10-K"):
-            continue
-        value = raw.get("val")
-        if value is None:
-            continue
-        span = _duration_days(raw.get("start"), raw.get("end"))
-        if span is not None and not (ANNUAL_MIN_DAYS <= span <= ANNUAL_MAX_DAYS):
-            continue
-        facts.append(
-            Fact(
-                value=float(value),
-                period_end=_parse_date(raw.get("end")),
-                tag=None,
-                form=form,
-                filed=str(raw.get("filed") or "") or None,
-            )
-        )
-
-    # Stable sorts, applied in reverse priority: filed desc, then distance asc.
-    facts.sort(key=lambda fact: fact.filed or "", reverse=True)
-    facts.sort(key=lambda fact: _distance(fact.period_end, fiscal_year_end))
-    return facts
-
-
-def _distance(period: date | None, reference: date | None) -> int:
-    """Calendar-day distance between two periods (0 when either is missing)."""
-    if period is None or reference is None:
-        return 0
-    return abs((period - reference).days)
-
-
-def _duration_days(start: Any, end: Any) -> int | None:
-    """Days between two ISO dates, or None when either is missing."""
-    start_date = _parse_date(start)
-    end_date = _parse_date(end)
-    if start_date is None or end_date is None:
-        return None
-    return (end_date - start_date).days
-
-
+# ``Fact``, ``annual_facts`` and the date helpers live in
+# :mod:`backend.services.sec_facts_client` so the audit and the validation
+# scripts read the same filing the same way. They are re-exported here.
 def sec_metric_facts(
     cik: str,
     spec: MetricSpec,
@@ -406,46 +337,13 @@ def sec_metric_facts(
     by_tag: dict[str, list[Fact]] = {}
     dropped_zero = False
     for tag in spec.tags:
-        facts = annual_facts(sec_fetcher(str(cik), tag), fiscal_year_end)
-        if not spec.keep_zero:
-            kept = [fact for fact in facts if fact.value != 0]
-            if facts and not kept:
-                dropped_zero = True
-            facts = kept
+        raw = annual_facts(sec_fetcher(str(cik), tag), fiscal_year_end)
+        facts = raw if spec.keep_zero else drop_zero_facts(raw)
+        if raw and not facts:
+            dropped_zero = True
         if facts:
             by_tag[tag] = facts
     return by_tag, dropped_zero
-
-
-def _preferred(
-    by_tag: Mapping[str, list[Fact]], period: date | None = None
-) -> tuple[str | None, list[Fact]]:
-    """The tag whose annual fact best represents the audited fiscal period.
-
-    Prefer the tag with the most recent filing that covers the fiscal period
-    being compared. When several tags cover it, the most recently filed wins;
-    ties (same ``filed`` date) fall back to the declared tag order, which lists
-    the current taxonomy concept first (ASC 606 revenue, for instance). A tag
-    whose best fact does not cover the period is only used when no tag does, so
-    a retired tag with a recent re-filing, or a value from an old period, cannot
-    mask the tag that is actually being filed today.
-    """
-    best_key: tuple[bool, str, int] | None = None
-    best_tag: str | None = None
-    best_facts: list[Fact] = []
-    for index, (tag, facts) in enumerate(by_tag.items()):
-        if not facts:
-            continue
-        chosen = facts[0]
-        covers = (
-            period is None
-            or chosen.period_end is None
-            or _distance(chosen.period_end, period) <= PERIOD_MATCH_DAYS
-        )
-        key = (covers, chosen.filed or "", -index)
-        if best_key is None or key > best_key:
-            best_key, best_tag, best_facts = key, tag, facts
-    return best_tag, best_facts
 
 
 # ---------------------------------------------------------------------------
@@ -616,57 +514,16 @@ def comparison_row(
 # ---------------------------------------------------------------------------
 # sources
 # ---------------------------------------------------------------------------
-class SecFallbackFetcher:
-    """Per-tag SEC fetch that recovers issuers with an empty concept endpoint.
-
-    ``companyconcept`` occasionally answers ``200`` with an empty envelope for
-    every tag of an issuer while its ``companyfacts`` document holds them all
-    (Coca-Cola, observed 2026-10). Reading that emptiness as "no filing carries
-    the figure" invents ``DATA_ERROR_FDB`` rows, so the first empty envelope
-    switches that issuer to ``companyfacts`` for the rest of the run. The
-    fallback costs one extra request per affected issuer and is recorded in the
-    report so the substitution is never silent.
-    """
-
-    def __init__(
-        self,
-        concept_fetch: Callable[[str, str], dict | None],
-        concepts_loader: Callable[[str, str], dict[str, dict] | None],
-    ) -> None:
-        self._concept_fetch = concept_fetch
-        self._concepts_loader = concepts_loader
-        self._concepts: dict[tuple[str, str], dict[str, dict]] = {}
-        self.fallback_issuers: set[str] = set()
-
-    def __call__(self, cik: str, tag: str) -> dict | None:
-        """The concept payload for ``tag``, from either SEC endpoint.
-
-        ``tag`` may name a taxonomy (``dei:EntityCommonStockSharesOutstanding``);
-        the concept endpoint defaults to ``us-gaap`` and the fallback loads the
-        matching taxonomy from ``companyfacts``.
-        """
-        key = str(cik)
-        taxonomy, _, concept = tag.partition(":")
-        if not concept:
-            taxonomy, concept = "us-gaap", tag
-        cache_key = (key, taxonomy)
-        if cache_key in self._concepts:
-            return self._concepts[cache_key].get(concept)
-        payload = self._concept_fetch(key, tag)
-        if payload is not None and not concept_has_facts(payload):
-            self.fallback_issuers.add(key)
-            self._concepts[cache_key] = self._concepts_loader(key, taxonomy) or {}
-            return self._concepts[cache_key].get(concept)
-        return payload
-
-
+# sources
+# ---------------------------------------------------------------------------
+# ``SecFallbackFetcher`` (the per-tag fetch with the ``companyfacts`` recovery)
+# lives in :mod:`backend.services.sec_facts_client`, shared with the validation
+# script. It is re-exported here.
 def default_sec_fetcher(
     user_agent: str, *, timeout: float = SEC_TIMEOUT_SECONDS
 ) -> SecFallbackFetcher:
     """The live SEC fetcher: per-tag concepts with the ``companyfacts`` fallback."""
-    concept_client = SecConceptClient(user_agent, timeout=timeout)
-    facts_client = SecCompanyFactsClient(user_agent, timeout=timeout)
-    return SecFallbackFetcher(concept_client.fetch, facts_client.concepts)
+    return SecFactsClient(user_agent, timeout=timeout).fetcher
 
 
 def default_yahoo_fetcher(
