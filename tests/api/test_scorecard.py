@@ -116,6 +116,51 @@ def test_envelope_and_dimension_order(monkeypatch):
     assert [dim["key"] for dim in data["dimensions"]] == list(DIMENSION_ORDER)
 
 
+# ---------------------------------------------------------------------------
+# ?format=markdown (the portable report; JSON stays the default)
+# ---------------------------------------------------------------------------
+def test_json_stays_the_default_content_type(monkeypatch):
+    client, _ = _client(monkeypatch, _repo())
+    for params in ({}, {"format": "json"}):
+        response = _get(client, **params)
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/json")
+        assert set(response.json()) == {"data", "meta"}
+
+
+def test_markdown_returns_the_export_as_text_markdown(monkeypatch):
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    repo = _repo()
+    client, prices = _client(monkeypatch, repo)
+    card = ScorecardService(repo, price_service=prices).build("AAPL", "FY")
+    assert card is not None
+
+    response = _get(client, format="markdown")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/markdown; charset=utf-8"
+    assert response.text == scorecard_to_markdown(card.to_dict())
+    assert response.text.startswith("# AAPL — Apple Inc.\n")
+
+
+def test_markdown_is_not_wrapped_in_the_envelope(monkeypatch):
+    client, _ = _client(monkeypatch, _repo())
+    assert not _get(client, format="markdown").text.startswith("{")
+
+
+def test_unknown_format_is_rejected(monkeypatch):
+    client, _ = _client(monkeypatch, _repo())
+    response = _get(client, format="pdf")
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_FORMAT"
+    assert "markdown" in response.json()["error"]["message"]
+
+
+def test_markdown_still_requires_the_api_key(monkeypatch):
+    client, _ = _client(monkeypatch, _repo())
+    assert _get(client, format="markdown", key=None).status_code == 401
+
+
 def test_data_is_the_service_payload_verbatim(monkeypatch):
     repo = _repo()
     client, prices = _client(monkeypatch, repo)

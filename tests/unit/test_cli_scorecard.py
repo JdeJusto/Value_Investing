@@ -226,3 +226,48 @@ def test_json_payload_carries_the_peer_fields(capsys):
     rule = dimension["rules"][0]
     assert rule["peer_median"] == "15.50x"
     assert rule["peer_percentile"] == pytest.approx(0.62)
+
+
+def test_markdown_output_is_the_exporter_verbatim(capsys):
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    _run("scorecard", "AAPL", "--markdown")
+    out = capsys.readouterr().out
+    assert out == scorecard_to_markdown(_card().to_dict())
+    assert out.startswith("# AAPL — Apple Inc.\n")
+    assert out.endswith("Not investment advice.\n")
+
+
+def test_markdown_renders_no_ansi_even_on_a_terminal(monkeypatch):
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    out = _TTY()
+    monkeypatch.setattr(sys, "stdout", out)
+    _run("scorecard", "AAPL", "--markdown")
+    assert out.getvalue() == scorecard_to_markdown(_card().to_dict())
+    assert "\x1b" not in out.getvalue()
+
+
+def test_markdown_out_writes_the_file_and_prints_nothing(tmp_path, capsys):
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    target = tmp_path / "AAPL_scorecard.md"
+    _run("scorecard", "AAPL", "--markdown", "--out", str(target))
+    assert capsys.readouterr().out == ""
+    assert target.read_text(encoding="utf-8") == scorecard_to_markdown(
+        _card().to_dict()
+    )
+
+
+def test_markdown_and_json_are_mutually_exclusive(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        _run("scorecard", "AAPL", "--markdown", "--json")
+    assert excinfo.value.code == 2
+    assert "not allowed with" in capsys.readouterr().err
+
+
+def test_out_without_markdown_is_rejected(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        _run("scorecard", "AAPL", "--out", "/tmp/x.md")
+    assert excinfo.value.code == 2
+    assert "--out requires --markdown" in capsys.readouterr().out

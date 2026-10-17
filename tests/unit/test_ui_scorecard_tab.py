@@ -369,6 +369,30 @@ def test_scorecard_has_a_json_download(monkeypatch):
     assert any(button.label == "Download scorecard JSON" for button in downloads)
 
 
+def test_scorecard_has_a_markdown_download(monkeypatch):
+    import streamlit as st
+
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    payload = _payload()
+    recorded: list[dict] = []
+    real = st.download_button
+
+    def spy(*args, **kwargs):
+        recorded.append({"label": args[0] if args else kwargs.get("label"), **kwargs})
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(st, "download_button", spy)
+    _run(monkeypatch, payload)
+    button = next(
+        item for item in recorded if item["label"] == "Download scorecard Markdown"
+    )
+    markdown = scorecard_to_markdown(payload)
+    assert button["file_name"] == "scorecard_AAPL.md"
+    assert button["mime"] == "text/markdown"
+    assert button["data"] == markdown
+
+
 def test_focus_selector_lists_the_dimensions(monkeypatch):
     at = _run(monkeypatch, _payload())
     focus = next(box for box in at.selectbox if "Focus a dimension" in box.label)

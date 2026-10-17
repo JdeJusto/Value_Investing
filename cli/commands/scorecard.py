@@ -10,6 +10,7 @@ Exit codes: ``0`` success, ``2`` unknown ticker, ``3`` any other error.
 from __future__ import annotations
 
 import json
+import sys
 
 from rich.text import Text
 
@@ -50,10 +51,22 @@ def register(subparsers):
         default="FY",
         help="Fiscal period (default: FY; Q1-Q4 where stored)",
     )
-    p.add_argument(
+    output = p.add_mutually_exclusive_group()
+    output.add_argument(
         "--json",
         action="store_true",
         help="Print the raw Scorecard payload as JSON (skips rendering)",
+    )
+    output.add_argument(
+        "--markdown",
+        action="store_true",
+        help="Print a portable Markdown report (stdout, or --out FILE)",
+    )
+    p.add_argument(
+        "--out",
+        metavar="FILE",
+        default=None,
+        help="With --markdown: write the report to FILE instead of stdout",
     )
     p.set_defaults(func=_run)
     return p
@@ -62,7 +75,12 @@ def register(subparsers):
 def _run(args):
     from backend.app.cli import build_financial_repository
     from backend.services.price_service import get_price_service
+    from backend.services.scorecard_export import scorecard_to_markdown
     from backend.services.scorecard_service import ScorecardService
+
+    if args.out and not args.markdown:
+        print(f"  {red('ERROR:')} --out requires --markdown")
+        raise SystemExit(2)
 
     ticker = args.ticker.upper().strip()
     try:
@@ -80,6 +98,16 @@ def _run(args):
 
     if args.json:
         print(json.dumps(card.to_dict(), indent=2))
+        return
+
+    if args.markdown:
+        report = scorecard_to_markdown(card.to_dict())
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as handle:
+                handle.write(report)
+            return
+        # Raw stdout, never through rich: the report is already formatted.
+        sys.stdout.write(report)
         return
 
     _render(card)

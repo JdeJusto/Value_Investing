@@ -752,16 +752,32 @@ def _scorecard_peer_chart(card: dict) -> None:
 
 
 def _scorecard_download(card: dict, ticker: str) -> None:
-    """Offer the frozen payload as JSON (the raw contract, no rendering)."""
+    """Offer the frozen payload: JSON (the raw contract) and Markdown (a report).
+
+    Both are built from the same ``to_dict()`` payload, so the download can
+    never disagree with what the tab renders.
+    """
     import json
 
-    st.download_button(
-        "Download scorecard JSON",
-        data=json.dumps(card, indent=2),
-        file_name=f"{ticker.lower()}_scorecard.json",
-        mime="application/json",
-        key=f"scorecard_download_{ticker}",
-    )
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    json_column, markdown_column = st.columns(2)
+    with json_column:
+        st.download_button(
+            "Download scorecard JSON",
+            data=json.dumps(card, indent=2),
+            file_name=f"{ticker.lower()}_scorecard.json",
+            mime="application/json",
+            key=f"scorecard_download_{ticker}",
+        )
+    with markdown_column:
+        st.download_button(
+            "Download scorecard Markdown",
+            data=scorecard_to_markdown(card),
+            file_name=f"scorecard_{ticker}.md",
+            mime="text/markdown",
+            key=f"scorecard_download_md_{ticker}",
+        )
 
 
 def _scorecard_header(card: dict) -> None:
