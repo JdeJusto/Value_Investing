@@ -1,3 +1,9 @@
+## [0.18.0] - 2026-10-17
+
+### Added
+
+- Markdown scorecard export and monthly data-quality audit
+
 ## [0.17.1] - 2026-10-17
 
 ### Fixed
