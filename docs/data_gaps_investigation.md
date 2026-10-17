@@ -183,3 +183,114 @@ Latest run (2026-10-06, after the 17-concept batch): **54/300 concepts mapped,
 actionable coverage 100%, 246 informational note/disclosure tags**.
 
 Recommended cadence: monthly, or after each large `sec sync` run.
+
+## Cross-source expected differences (monthly data-quality audit)
+
+`scripts/audit_data_quality.py` compares Financial-DataBase fundamentals with
+SEC EDGAR (and, optionally, Yahoo Finance) and classifies each difference. It is
+the *why* companion to `scripts/validate_data_sample.py` (the *does it differ*
+one). Run it with:
+
+```bash
+python -m scripts.audit_data_quality --sample 50 --sources sec,yahoo --out logs
+```
+
+Artifacts land in `logs/audit_data_quality_<YYYY-MM-DD>.{log,json,csv}`. Exit `0`
+means "only expected differences", `1` means at least one `DATA_ERROR_FDB` (the
+DB value traces to no SEC filing at all — a genuine defect), `2` means the audit
+could not run. See `docs/runbook_daily.md` for the monthly cadence.
+
+Baseline run — **2026-10-17**, 50 companies, 744 comparisons:
+
+| Classification | Count | Meaning |
+| --- | ---: | --- |
+| `MATCH` | 658 | within tolerance (or a cash-flow sign convention) |
+| `DIFFERENT_TAG` | 27 | the DB value is real but filed under another XBRL tag |
+| `DIFFERENT_PERIOD` | 5 | the two sources anchor on different fiscal periods |
+| `DATA_ERROR_EXTERNAL` | 10 | Yahoo contradicts a value SEC confirms |
+| `UNCLASSIFIED` | 35 | no heuristic applies — manual review |
+| `SKIPPED` | 9 | the SEC filing does not tag the line |
+| **`DATA_ERROR_FDB`** | **0** | no database defect found |
+
+**`DATA_ERROR_FDB` was zero across all 744 comparisons** — every flagged
+difference below is a *definitional* one, and none of it is a bug in the
+Financial-DataBase mapping.
+
+### Expected difference classes, by root cause
+
+1. **Revenue tag retired after ASC 606.** `Revenues` / `SalesRevenueNet` stopped
+   being filed around 2018 while their old facts remain, so the audit's
+   preferred tag returns a stale value and the classifier resolves it against
+   `RevenueFromContractWithCustomerExcludingAssessedTax` (or the
+   `...IncludingAssessedTax` variant). 16 of the 50 companies (AVGO, BALL, BEN,
+   CCL, CRM, CTAS, JKHY, LUV, META, NEM, NOW, RMD, STLD, UNP, …) — all
+   `DIFFERENT_TAG`, all expected. The classifier only accepts an alternative tag
+   whose own period matches the audited fiscal year (a drift beyond
+   `PERIOD_SHIFT_DAYS`, 400 days, is not a period artifact), so a retired tag can
+   no longer hide a genuinely wrong value as `DIFFERENT_PERIOD`.
+2. **Net-income attribution.** FDB matches
+   `NetIncomeLossAvailableToCommonStockholdersBasic` where the preferred
+   `NetIncomeLoss` fact is stale or absent (AEE, AEP, BALL, BEN, MET) — expected.
+3. **CapEx and dividend-per-share tag variants.** `PaymentsToAcquireProductiveAssets`
+   instead of `PaymentsToAcquirePropertyPlantAndEquipment` (CBRE, LUV) and
+   `CommonStockDividendsPerShareCashPaid` instead of `...Declared` (AVGO, BALL,
+   NEM) — expected.
+4. **Shares outstanding is a market-data field, not an SEC one.** The 27
+   `UNCLASSIFIED shares_outstanding` rows are the largest bucket and are *not*
+   an FDB defect: FDB's `shares_outstanding` is a point-in-time market figure
+   (see AGENTS.md — shares come from market data, aligned by
+   `PriceService.get_split_adjustment`), while the SEC side is the 10-K share
+   count. Two visible sub-patterns:
+   - when the undimensioned `CommonStockSharesOutstanding` fact is absent the
+     audit falls back to `CommonStockSharesIssued`, which includes treasury
+     stock, so the gap is large (AZO 33.0%, BALL 59.7%, DOW 10.0%, GWW 56.2%,
+     HAS 36.4%, JKHY 31.1%, LUV 37.2%, PSX 38.1%);
+   - otherwise the drift is small (< 13%) and reflects the vintage difference
+     (10-K cover/balance-sheet date vs the market-data date) and, for
+     multi-class issuers, `companyfacts` carrying only one undimensioned class
+     (AFL 3.1%, AIG 6.0%, AVGO 2.4%, AXON 2.7%, CPRT 2.7%, CRH 4.2%, CRM 2.9%,
+     D 2.7%, EXPE 12.8%, HSIC 5.1%, LIN 7.2%, MET 2.7%, ON 3.8%, PFG 3.8%,
+     PLTR 7.3%, RJF 4.3%, STLD 2.4%).
+5. **A zero or partial SEC fact for an aggregate line.** AEP's
+   `PaymentsToAcquirePropertyPlantAndEquipment` is filed as `0` for FY2025
+   (capex sits under another tag) and CPT's
+   `RevenueFromContractWithCustomerExcludingAssessedTax` carries a component
+   (`12.97M` vs FDB's `1.57B` consolidated). Both `UNCLASSIFIED`, both expected
+   concept-granularity differences.
+6. **Period shifts.** 5 rows where one side is exactly one fiscal year back: the
+   Yahoo side for CPRT (total liabilities, operating cash flow, capex) and the
+   SEC comparative facts for AVGO (net income) and TT (shares outstanding).
+   `DIFFERENT_PERIOD`, expected.
+7. **`SKIPPED`, never guessed.** 9 rows where the SEC filing simply does not tag
+   the line — diluted EPS (ABNB, CRM, FE, PEP, TT), dividends per share (AEE,
+   CRM) and shares outstanding (ABNB, META). The audit reports the gap instead
+   of inventing a comparison.
+8. **Yahoo-side artifacts.** 10 `DATA_ERROR_EXTERNAL` rows (revenue x3, net
+   income x2, capex x5) where Yahoo disagrees with a value SEC confirms. Action
+   is "none, log": the FDB side is the corroborated one.
+
+### Two endpoint findings uncovered by the first run
+
+- **`companyconcept` returns an empty envelope for some issuers.** For one of the
+  50 companies (CIK 0001126328) the per-tag endpoint answered `200` with
+  `units: {"USD": {}}` — no facts at all — for every tag while `companyfacts`
+  held them. Reading that emptiness as "no filing carries the figure" invented
+  4 `DATA_ERROR_FDB` rows (Coca-Cola, CIK 0000021344, showed the same shape in
+  the pre-fix smoke run). `SecFallbackFetcher` now switches such an issuer to
+  `companyfacts` once and records the substitution in the report's `notes`.
+- **A retired tag is not a period artifact.** See root cause 1 above; the
+  400-day `PERIOD_SHIFT_DAYS` window was added with the same commit.
+
+### Follow-ups (documented, not fixed here)
+
+- Prefer the tag that is still being filed (ASC 606 revenue, common-stockholder
+  net income) in `AUDIT_METRICS`' tag order, which would turn the largest
+  `DIFFERENT_TAG` bucket into `MATCH` without losing the evidence.
+- Add `dei:EntityCommonStockSharesOutstanding` to the shares metric (the
+  `companyfacts` client reads only the `us-gaap` taxonomy) or mark
+  `shares_outstanding` informational, since FDB does not source it from SEC.
+- Treat a `0`-valued SEC annual fact for a derived/aggregate metric as "not
+  usable" rather than as a value.
+- `scripts/validate_data_sample.py` still polls `companyconcept` per tag; it can
+  now reuse `SecFallbackFetcher` so empty-envelope issuers stop reading as
+  missing SEC values.
