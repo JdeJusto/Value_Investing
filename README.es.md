@@ -117,7 +117,9 @@ Gestión/Foso— con un radar de seis ejes, tarjetas que muestran las reglas det
 de cada puntuación, cuatro gráficos de histórico (ingresos y beneficio neto,
 márgenes, ROE y ROIC, valor DCF frente a precio) y un panel explícito cuando las
 dimensiones discrepan. Es un resumen de los servicios existentes, nunca una
-"puntuación maestra", y la carga congelada se puede descargar como JSON.
+"puntuación maestra", y la carga congelada se puede descargar como JSON o
+Markdown (`--markdown` en la CLI, `?format=markdown` en la API o el botón de
+descarga de la pestaña).
 
 Cuando existe un grupo de comparación (*peers*) —un artefacto que se regenera
 los domingos a partir de Financial-DataBase sobre el universo maestro y que se
@@ -285,7 +287,11 @@ complementario [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBa
 Finance proporciona precios bajo demanda que se almacenan en memoria y nunca se
 escriben en una base de datos; las instantáneas de precios del consenso son
 archivos de informe, no un almacén de precios. La demo offline no necesita
-servicios externos.
+servicios externos. Una **auditoría de calidad de datos** recurrente —una
+validación semanal por muestreo y una clasificación mensual de cada diferencia
+Financial-DataBase ↔ SEC ↔ Yahoo— vigila el pipeline; sus clases de diferencias
+esperadas están documentadas en la
+[investigación de lagunas de datos](docs/data_gaps_investigation.md).
 
 Véanse las [fuentes de datos](docs/data-sources.md), la [investigación de lagunas de datos](docs/data_gaps_investigation.md), la [metodología de validación](docs/validation_methodology.md) y el [índice de documentación](docs/README.md).
 

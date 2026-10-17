@@ -1,7 +1,9 @@
 # Scorecard roadmap — interactive, visual stock analysis
 
 **Status:** Phases 1–5 shipped (backend, API/CLI, Streamlit tab with radar and
-charts, peer percentiles). Phases 6–7 planned. Implements the
+charts, peer percentiles). Phase 7's exports shipped (the scorecard downloads as
+JSON or Markdown from all three surfaces); its remaining interactions and
+Phase 6 (mobile parity) are still pending. Implements the
 [scorecard design](scorecard_design.md) on top of the current surfaces
 described in the [analysis visualization audit](analysis_visualization_audit.md).
 
@@ -250,6 +252,23 @@ Markdown export. Docs: `docs/` index rows, a `docs/runbook_daily.md` note, and
 a README mention.
 
 **Dependencies.** Phases 3–6.
+
+**Shipped (v0.18.0).** The Markdown export: `scorecard_to_markdown()` in
+`backend/services/scorecard_export.py`, `--markdown`/`--out` on
+`main.py scorecard`, `?format=markdown` on the API (JSON remains the default),
+and a second "Download scorecard Markdown" button beside the JSON one in the
+Streamlit tab. The exporter is a pure function of the frozen payload — the same
+input produces the same bytes on every surface — and adds no dependency (charts,
+when enabled, are an inline text block, not a rendered image). The remaining
+interactions (radar-click, card/rule expansion, the absolute↔sector and FY
+toggles) are still pending.
+
+The same release added a companion to the recurring validation: the monthly
+cross-source **data-quality audit** (`scripts/audit_data_quality.py`), which
+classifies every Financial-DataBase ↔ SEC ↔ Yahoo difference as expected or a
+genuine defect instead of only counting it. See
+`docs/data_gaps_investigation.md` (Cross-source expected differences) and
+`docs/runbook_daily.md`.
 
 **Acceptance criteria.**
 

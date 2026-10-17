@@ -114,7 +114,8 @@ with a six-axis radar, cards that show the rules behind each score, four history
 charts (revenue & net income, margins, ROE & ROIC, DCF value vs price) and an
 explicit panel when the dimensions disagree. It is a summary of the existing
 services, never a "master score", and the frozen payload can be downloaded as
-JSON.
+JSON or Markdown (`--markdown` in the CLI, `?format=markdown` on the API, or the
+download button in the tab).
 
 Where a peer group is available (a weekly Sunday artifact built from
 Financial-DataBase over the master universe, cached locally and never
@@ -278,7 +279,11 @@ The app reads SEC-derived fundamentals from the companion
 project as a read-only source, with local JSON as a fallback. Yahoo Finance
 provides on-demand prices that are cached in memory and never written to a
 database; consensus price snapshots are report files, not a price store. The
-offline demo needs no external services.
+offline demo needs no external services. A recurring cross-source **data-quality
+audit** — a weekly sample validation plus a monthly classification of every
+Financial-DataBase ↔ SEC ↔ Yahoo difference — guards the pipeline; its expected
+difference classes are documented in the
+[data-gap investigation](docs/data_gaps_investigation.md).
 
 See [data sources](docs/data-sources.md), the [data-gap investigation](docs/data_gaps_investigation.md), the [validation methodology](docs/validation_methodology.md), and the full [documentation index](docs/README.md).
 
