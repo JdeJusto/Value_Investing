@@ -63,7 +63,8 @@ def main() -> None:
         mime="text/markdown",
         key="report_download",
     )
-    st.markdown(text)
+    with st.container(border=True):
+        st.markdown(text)
 
 
 main()
