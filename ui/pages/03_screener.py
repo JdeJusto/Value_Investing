@@ -45,6 +45,7 @@ from ui.services import (
     load_sector_map_bulk,
     load_sector_options,
 )
+from ui.theme import VERDICT_COLORS
 
 DEFAULT_METHODOLOGY = "buffett_classic"
 VERDICTS = ["BUY", "WATCH", "HOLD", "AVOID", "N/A", "INSUFFICIENT_DATA"]
@@ -300,7 +301,11 @@ def _results() -> None:
         csv_row.pop("Category Short", None)
         csv_rows.append(csv_row)
     dataframe_with_download(
-        display, "screener_results.csv", "screener_results", csv_rows=csv_rows
+        display,
+        "screener_results.csv",
+        "screener_results",
+        csv_rows=csv_rows,
+        color_map={"Verdict": VERDICT_COLORS},
     )
 
 
