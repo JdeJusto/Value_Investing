@@ -984,15 +984,19 @@ def test_a_tag_with_the_wrong_period_cannot_explain_the_value():
     assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == UNCLASSIFIED
 
 
-def test_a_period_gap_beyond_the_window_is_not_a_period_artifact():
-    classification, _ = classify_comparison(
+def test_a_stale_sec_fact_is_skipped_not_compared():
+    # A preferred fact from years earlier carries no information about the
+    # audited period; comparing against it would invent a discrepancy (or
+    # hide one). The audit marks the row SKIPPED instead of UNCLASSIFIED.
+    classification, reason = classify_comparison(
         value_a=100.0,
         value_b=265.0,
         tolerance_pct=2.0,
         period_a=FY_END,
         period_b=date(2018, 9, 29),
     )
-    assert classification == UNCLASSIFIED
+    assert classification == SKIPPED
+    assert "stale" in reason
 
 
 def test_a_period_gap_inside_the_window_is_expected():
@@ -1012,7 +1016,23 @@ def test_an_alternative_tag_without_a_period_is_still_accepted():
         value_b=111.0,
         tolerance_pct=2.0,
         period_a=FY_END,
-        period_b=date(2018, 9, 29),
+        period_b=FY_END,
         alternative_tags={"SalesRevenueNet": [Fact(100.0)]},
     )
     assert classification == DIFFERENT_TAG
+
+
+def test_a_stale_preferred_fact_short_circuits_the_tag_loop():
+    # When the preferred fact is stale (drift > period_shift_days) the row is
+    # SKIPPED outright: in the real pipeline a stale preferred fact means no
+    # tag has a covering fact, so the alternative-tags loop could not match
+    # either. A synthetic alt tag with no period cannot override that.
+    classification, _ = classify_comparison(
+        value_a=100.0,
+        value_b=111.0,
+        tolerance_pct=2.0,
+        period_a=FY_END,
+        period_b=date(2018, 9, 29),
+        alternative_tags={"SalesRevenueNet": [Fact(100.0)]},
+    )
+    assert classification == SKIPPED

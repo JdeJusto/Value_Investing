@@ -428,6 +428,19 @@ def classify_comparison(
             return SKIPPED, "the SEC filing does not tag this line"
         return SKIPPED, "value missing on the other side"
 
+    # A stale preferred fact that does not cover the audited period cannot
+    # be a basis for comparison. Treat as SKIPPED when authoritative; this
+    # gates before tolerance so a 7-year-old revenue/dividend figure is not
+    # treated as "different" at all.
+    if authoritative and period_a and period_b:
+        drift = _distance(period_a, period_b)
+        if drift > period_shift_days:
+            return (
+                SKIPPED,
+                f"preferred SEC fact is from {period_b.isoformat()}, "
+                f"{drift} days away from {period_a.isoformat()}; stale",
+            )
+
     difference = pct_difference(value_a, value_b)
     if difference is not None and difference <= tolerance_pct:
         return MATCH, f"within the {tolerance_pct:g}% tolerance"
