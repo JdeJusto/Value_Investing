@@ -134,6 +134,28 @@ def normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return normalized
 
 
+def _color_dataframe(rows: list[dict], color_map: dict[str, dict[str, str]]):
+    """Build a pandas Styler that paints cell text per value.
+
+    ``color_map`` is ``{column: {cell_value: css_color}}``. Values not in the
+    inner dict keep the default text color. Used for verdict/severity badges.
+    """
+    import pandas as pd
+
+    frame = pd.DataFrame(rows)
+    styler = frame.style
+    for column, mapping in color_map.items():
+        if column not in frame.columns:
+            continue
+        styler = styler.map(
+            lambda value, m=mapping: f"color: {m[str(value)]};"
+            if str(value) in m
+            else "",
+            subset=[column],
+        )
+    return styler
+
+
 def dataframe_with_download(
     rows: list[dict[str, Any]],
     filename: str,
@@ -141,12 +163,14 @@ def dataframe_with_download(
     *,
     height: int | None = None,
     csv_rows: list[dict[str, Any]] | None = None,
+    color_map: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """Sortable dataframe plus a CSV download button.
 
     By default the CSV contains the same rows as the displayed table. Pass
     ``csv_rows`` to customize the CSV content (e.g. different column values
-    for export) while the UI still shows ``rows``.
+    for export) while the UI still shows ``rows``. ``color_map`` paints
+    selected cell text (verdict/severity) with the theme palette.
     """
     if not rows:
         st.info("No rows to display.")
@@ -155,7 +179,10 @@ def dataframe_with_download(
     kwargs: dict[str, Any] = {"width": "stretch", "hide_index": True}
     if height is not None:
         kwargs["height"] = height
-    st.dataframe(rows, **kwargs)
+    if color_map:
+        st.dataframe(_color_dataframe(rows, color_map), **kwargs)
+    else:
+        st.dataframe(rows, **kwargs)
     download_data = rows_to_csv(csv_rows if csv_rows is not None else rows).encode(
         "utf-8"
     )

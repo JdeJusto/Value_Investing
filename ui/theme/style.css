@@ -25,20 +25,45 @@
   --vi-dim: #4a4a6a;
 }
 
-/* Body: deep night, mono font, cream text. */
+/* Body: deep night, mono font, cream text.
+ * Streamlit pins its own font (Source Code Pro) on the app container and on
+ * captions via emotion-cache rules, so the text selectors are scoped under
+ * [data-testid="stAppViewContainer"] to win on specificity without
+ * specificity battle, with no important-flagged rules. */
 body {
   background-color: var(--vi-bg);
   color: var(--vi-cream);
   font-family: 'JetBrains Mono', monospace;
 }
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] p,
+[data-testid="stAppViewContainer"] li,
+[data-testid="stAppViewContainer"] label,
+[data-testid="stAppViewContainer"] [data-testid="stText"],
+[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] {
+  font-family: 'JetBrains Mono', monospace;
+}
 
-/* Headings: bold serif (80s annual report). Gradient only on h1. */
-h1, h2, h3 {
+/* Headings: bold serif (80s annual report). Gradient only on h1.
+ * Streamlit renders titles with an inner <span data-heading-text> that
+ * carries its own emotion-cache font, so both the element and the inner
+ * span are targeted to win the specificity battle without important-flagged
+ * rules. */
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3 {
   font-family: 'Playfair Display', serif;
   font-weight: 700;
   color: var(--vi-cream);
 }
-h1 {
+[data-testid="stAppViewContainer"] h1 span[data-heading-text],
+[data-testid="stAppViewContainer"] h2 span[data-heading-text],
+[data-testid="stAppViewContainer"] h3 span[data-heading-text] {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+}
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h1 span[data-heading-text] {
   font-weight: 900;
   background: linear-gradient(90deg, var(--vi-neon-pink) 0%, var(--vi-neon-cyan) 100%);
   -webkit-background-clip: text;

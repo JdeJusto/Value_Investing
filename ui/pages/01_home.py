@@ -29,6 +29,7 @@ from ui._shared import (
     page_link,
 )
 from ui.services import get_price_service, load_portfolio, load_sector_map
+from ui.theme import SEVERITY_COLORS, VERDICT_COLORS
 
 PORTFOLIO_PATH = str(DEMO_PORTFOLIO) if is_demo() else "data/portfolio.json"
 
@@ -139,7 +140,10 @@ def _latest_report() -> None:
             for row in report["screened"][:10]
         ]
         dataframe_with_download(
-            opportunities, "top_opportunities.csv", "home_opportunities"
+            opportunities,
+            "top_opportunities.csv",
+            "home_opportunities",
+            color_map={"Rating": VERDICT_COLORS},
         )
 
     st.subheader("Recent alerts")
@@ -155,7 +159,12 @@ def _latest_report() -> None:
             }
             for alert in report["alerts"][:10]
         ]
-        dataframe_with_download(alerts, "recent_alerts.csv", "home_alerts")
+        dataframe_with_download(
+            alerts,
+            "recent_alerts.csv",
+            "home_alerts",
+            color_map={"Severity": SEVERITY_COLORS},
+        )
 
 
 def _quick_actions() -> None:

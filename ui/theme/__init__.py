@@ -43,6 +43,13 @@ VERDICT_COLORS = {
     "N/A": PALETTE["dim"],
 }
 
+#: Alert severity colors (CRITICAL = neon-pink, WARNING = gold, INFO = cyan).
+SEVERITY_COLORS = {
+    "CRITICAL": PALETTE["neon_pink"],
+    "WARNING": PALETTE["gold"],
+    "INFO": PALETTE["neon_cyan"],
+}
+
 
 def inject_theme() -> None:
     """Inject the synthwave CSS once per page run (idempotent)."""
