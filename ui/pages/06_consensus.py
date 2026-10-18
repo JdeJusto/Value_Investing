@@ -23,7 +23,8 @@ from backend.services.consensus_service import (
     ConsensusService,
     default_consensus_dir,
 )
-from ui._shared import dataframe_with_download, page_header
+from ui._shared import _color_dataframe, dataframe_with_download, page_header
+from ui.theme import VERDICT_COLORS
 
 _PAGE_CAPTION = (
     "Aggregates verdicts from all 8 book methodologies. The default ranking "
@@ -179,7 +180,20 @@ def main() -> None:
             "One row per company, one column per methodology: BUY, WATCH, "
             "HOLD, AVOID, N/A (not applicable) or INSUFFICIENT_DATA."
         )
-        st.dataframe(service.verdict_matrix(), hide_index=True, width="stretch")
+        matrix = service.verdict_matrix()
+        # Every column except the identifiers carries a verdict value.
+        verdict_columns = [
+            column for column in (matrix[0].keys() if matrix else ())
+            if column not in ("Ticker", "Name")
+        ]
+        st.dataframe(
+            _color_dataframe(
+                matrix,
+                color_map={column: VERDICT_COLORS for column in verdict_columns},
+            ),
+            hide_index=True,
+            width="stretch",
+        )
 
 
 main()
