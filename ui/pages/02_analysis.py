@@ -27,11 +27,13 @@ from backend.services.ui_adapter import (
 )
 from backend.services.ui_format import abbreviate_number
 from ui._shared import (
+    _color_dataframe,
     dataframe_with_download,
     format_pct,
     metric_row,
     page_header,
 )
+from ui.theme import VERDICT_COLORS, header as theme_header
 from ui.services import (
     get_price_service,
     load_filings,
@@ -458,7 +460,7 @@ def _price_header(ticker: str, rows: list, quote: dict) -> None:
     price = quote.get("price")
     market_cap = quote.get("market_cap")
     sector = getattr(rows[0], "sector", None) if rows else None
-    st.markdown(f"**{ticker}**")
+    theme_header(ticker, sector or "")
     col1, col2, col3 = st.columns(3)
     col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
     col2.metric(
@@ -543,7 +545,11 @@ def _consensus_entry(ticker: str) -> None:
 def _methodologies(ticker: str, view) -> None:
     with st.expander("Consensus entry", expanded=False):
         _consensus_entry(ticker)
-    st.dataframe(view.table, width="stretch", hide_index=True)
+    st.dataframe(
+        _color_dataframe(view.table, {"Verdict": VERDICT_COLORS}),
+        width="stretch",
+        hide_index=True,
+    )
     for detail in view.details:
         title = f"{detail['methodology']} — {detail['verdict']} ({detail['family']})"
         with st.expander(title):
@@ -781,16 +787,27 @@ def _scorecard_download(card: dict, ticker: str) -> None:
 
 
 def _scorecard_header(card: dict) -> None:
-    """Company identity, live price, overall label and data-quality badge."""
+    """Company identity, live price, overall label and data-quality badge.
+
+    The overall verdict is the one chrome "big number" spotlight (pulsing
+    via CSS, used nowhere else).
+    """
     st.markdown(f"**{card['ticker']} · {card['company']}**")
     price = card.get("price")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
-    col2.metric("Overall", card["overall"])
-    col3.metric("Data quality", card["data_quality"])
-    sector = card.get("sector") or "—"
-    industry = card.get("industry") or "—"
-    st.caption(f"{sector} · {industry}")
+    left, spot = st.columns([3, 1])
+    with left:
+        col1, col2 = st.columns(2)
+        col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
+        col2.metric("Data quality", card["data_quality"])
+        sector = card.get("sector") or "—"
+        industry = card.get("industry") or "—"
+        st.caption(f"{sector} · {industry}")
+    with spot:
+        st.markdown(
+            f'<div class="vi-big-number">{card["overall"]}</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Overall")
     _scorecard_peer_caption(card)
 
 
@@ -861,7 +878,11 @@ def _scorecard_rule_rows(rules: list[dict]) -> list[dict]:
 
 
 def _dcf_panel(dcf) -> None:
-    st.warning(DCF_DISCLAIMER)
+    st.markdown(
+        '<span class="vi-chip">not-from-canon</span>',
+        unsafe_allow_html=True,
+    )
+    st.caption(DCF_DISCLAIMER.replace("**not-from-canon** — ", ""))
     st.caption(f"Variant: **{dcf.variant_label}**")
     if dcf.is_insufficient:
         st.metric("Verdict", "INSUFFICIENT_DATA")
