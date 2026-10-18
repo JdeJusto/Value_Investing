@@ -1,0 +1,171 @@
+/* Synthwave-yuppie design system for the Value Investing Streamlit UI.
+ *
+ * Contract (see docs/ui_design_system.md):
+ *   - Custom markup uses the .vi-* prefix.
+ *   - Streamlit-owned leaf widgets (tables, metrics, dataframe grid) are
+ *     styled through their stable data-testid, which is targeted and cannot
+ *     disturb layout. Layout containers (stAppViewContainer, block-container,
+ *     columns) are deliberately left alone.
+ *   - No important-flagged rules anywhere, so Streamlit keeps the last word
+ *     on layout.
+ */
+
+/* Google Fonts: Playfair Display (headings) + JetBrains Mono (body/numbers). */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --vi-bg: #0a0a1a;
+  --vi-surface: #14142b;
+  --vi-neon-pink: #ff2d95;
+  --vi-neon-cyan: #00f0ff;
+  --vi-neon-purple: #9b4dff;
+  --vi-gold: #d4af37;
+  --vi-cream: #f0e6d2;
+  --vi-chrome: #c0c0d0;
+  --vi-dim: #4a4a6a;
+}
+
+/* Body: deep night, mono font, cream text. */
+body {
+  background-color: var(--vi-bg);
+  color: var(--vi-cream);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Headings: bold serif (80s annual report). Gradient only on h1. */
+h1, h2, h3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  color: var(--vi-cream);
+}
+h1 {
+  font-weight: 900;
+  background: linear-gradient(90deg, var(--vi-neon-pink) 0%, var(--vi-neon-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Header band: gradient + low-opacity perspective grid + sunset strip. */
+.vi-header {
+  position: relative;
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  background: linear-gradient(135deg, #1c1038 0%, #14142b 55%, #0a0a1a 100%);
+  overflow: hidden;
+}
+.vi-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 240, 255, 0.09) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(0deg, rgba(255, 45, 149, 0.07) 0 1px, transparent 1px 44px);
+}
+.vi-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--vi-neon-pink), var(--vi-neon-purple), var(--vi-neon-cyan));
+}
+.vi-header h1 {
+  margin: 0;
+}
+.vi-header p {
+  margin: 0.2rem 0 0;
+  color: var(--vi-chrome);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Cards: surface + 1px neon border, hover raises with shadow. */
+.vi-card {
+  background: var(--vi-surface);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1.1rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.vi-card:hover {
+  border-color: var(--vi-neon-cyan);
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.35);
+  transform: translateY(-2px);
+}
+
+/* st.metric widgets get the card look (leaf widget, not a layout block). */
+[data-testid="stMetric"] {
+  background: var(--vi-surface);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.9rem;
+}
+[data-testid="stMetricLabel"] {
+  color: var(--vi-chrome);
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stMetricValue"] {
+  color: var(--vi-cream);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Tables (st.table): mono font, gold header underline, zebra rows. */
+[data-testid="stTable"] table,
+[data-testid="stTable"] th,
+[data-testid="stTable"] td {
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stTable"] thead th {
+  border-bottom: 2px solid var(--vi-gold);
+  color: var(--vi-gold);
+}
+[data-testid="stTable"] tbody tr:nth-child(even) {
+  background-color: rgba(0, 240, 255, 0.05);
+}
+
+/* st.dataframe grid: mono font + gold header underline. */
+[data-testid="stDataFrame"] {
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stDataFrame"] [role="columnheader"] {
+  border-bottom: 2px solid var(--vi-gold);
+  color: var(--vi-gold);
+}
+
+/* Big chrome number: the single spotlight (overall verdict). */
+.vi-big-number {
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: 3.2rem;
+  line-height: 1.1;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff 0%, #c0c0d0 38%, #7f7f9c 54%, #c0c0d0 70%, #ffffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: vi-pulse 2s ease-in-out infinite;
+}
+@keyframes vi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+/* Small inline chip (e.g. DCF disclaimer). */
+.vi-chip {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--vi-gold);
+  color: var(--vi-gold);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+/* Links: neon cyan. */
+a {
+  color: var(--vi-neon-cyan);
+}

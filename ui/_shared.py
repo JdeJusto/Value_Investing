@@ -15,6 +15,8 @@ from typing import Any
 import streamlit as st
 
 from backend.services.demo_mode import DEMO_REPORTS, is_demo
+from ui.theme import header as theme_header
+from ui.theme import inject_theme
 
 DASH = "—"
 UNIVERSE_PATH = Path("config/universe.csv")
@@ -23,10 +25,9 @@ REPORTS_DIR = DEMO_REPORTS if is_demo() else Path("data/reports")
 
 
 def page_header(title: str, subtitle: str | None = None) -> None:
-    """Consistent page header."""
-    st.title(title)
-    if subtitle:
-        st.caption(subtitle)
+    """Consistent page header (synthwave band, themed)."""
+    inject_theme()
+    theme_header(title, subtitle or "")
 
 
 def format_value(value: Any, unit: str | None = None) -> str:
