@@ -134,17 +134,23 @@ def normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return normalized
 
 
-def _color_dataframe(rows: list[dict], color_map: dict[str, dict[str, str]]):
+def _color_dataframe(
+    rows: list[dict],
+    color_map: dict[str, dict[str, str]] | None = None,
+    sign_map: dict[str, tuple[str, str]] | None = None,
+):
     """Build a pandas Styler that paints cell text per value.
 
-    ``color_map`` is ``{column: {cell_value: css_color}}``. Values not in the
-    inner dict keep the default text color. Used for verdict/severity badges.
+    ``color_map`` is ``{column: {cell_value: css_color}}``. ``sign_map`` is
+    ``{column: (positive_color, negative_color)}`` for numeric-ish string
+    columns (PnL): the sign of the parsed number picks the color. Values with
+    no match keep the default text color.
     """
     import pandas as pd
 
     frame = pd.DataFrame(rows)
     styler = frame.style
-    for column, mapping in color_map.items():
+    for column, mapping in (color_map or {}).items():
         if column not in frame.columns:
             continue
         styler = styler.map(
@@ -153,7 +159,33 @@ def _color_dataframe(rows: list[dict], color_map: dict[str, dict[str, str]]):
             else "",
             subset=[column],
         )
+    for column, (pos, neg) in (sign_map or {}).items():
+        if column not in frame.columns:
+            continue
+
+        def _sign_color(value, p=pos, n=neg):
+            parsed = _parse_number(value)
+            if parsed is None:
+                return ""
+            return f"color: {p};" if parsed > 0 else f"color: {n};" if parsed < 0 else ""
+
+        styler = styler.map(_sign_color, subset=[column])
     return styler
+
+
+def _parse_number(value) -> float | None:
+    """Best-effort parse of a formatted number ("1,234.56", "-3%", "—")."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    if not isinstance(value, str):
+        return None
+    text = value.strip().replace(",", "").replace("%", "").replace("$", "")
+    if not text or text == DASH:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
 
 
 def dataframe_with_download(
@@ -164,13 +196,15 @@ def dataframe_with_download(
     height: int | None = None,
     csv_rows: list[dict[str, Any]] | None = None,
     color_map: dict[str, dict[str, str]] | None = None,
+    sign_map: dict[str, tuple[str, str]] | None = None,
 ) -> None:
     """Sortable dataframe plus a CSV download button.
 
     By default the CSV contains the same rows as the displayed table. Pass
     ``csv_rows`` to customize the CSV content (e.g. different column values
     for export) while the UI still shows ``rows``. ``color_map`` paints
-    selected cell text (verdict/severity) with the theme palette.
+    selected cell text (verdict/severity) with the theme palette, and
+    ``sign_map`` colors a numeric-ish column by sign (PnL profit/loss).
     """
     if not rows:
         st.info("No rows to display.")
@@ -179,8 +213,8 @@ def dataframe_with_download(
     kwargs: dict[str, Any] = {"width": "stretch", "hide_index": True}
     if height is not None:
         kwargs["height"] = height
-    if color_map:
-        st.dataframe(_color_dataframe(rows, color_map), **kwargs)
+    if color_map or sign_map:
+        st.dataframe(_color_dataframe(rows, color_map, sign_map), **kwargs)
     else:
         st.dataframe(rows, **kwargs)
     download_data = rows_to_csv(csv_rows if csv_rows is not None else rows).encode(

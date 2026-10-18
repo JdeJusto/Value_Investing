@@ -28,7 +28,8 @@ from backend.services.ui_adapter import (
     fmt_or_dash,
     remove_position,
 )
-from ui._shared import format_pct, metric_row, page_header
+from ui._shared import _color_dataframe, format_pct, metric_row, page_header
+from ui.theme import PALETTE
 from ui.services import (
     load_fundamentals,
     load_portfolio,
@@ -73,7 +74,17 @@ def _positions_tab(portfolio, path: str) -> None:
     if view.is_empty:
         st.info("No positions yet — add your first one with the form below.")
     else:
-        st.dataframe(view.positions, width="stretch", hide_index=True)
+        st.dataframe(
+            _color_dataframe(
+                view.positions,
+                sign_map={
+                    "PnL": (PALETTE["neon_cyan"], PALETTE["neon_pink"]),
+                    "PnL%": (PALETTE["neon_cyan"], PALETTE["neon_pink"]),
+                },
+            ),
+            width="stretch",
+            hide_index=True,
+        )
         _render_position_actions(portfolio, path)
         _render_refresh_prices(portfolio, path)
     st.subheader("Add position")
