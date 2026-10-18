@@ -194,3 +194,86 @@ body {
 a {
   color: var(--vi-neon-cyan);
 }
+
+/* --- Balance sheet T-view ---------------------------------------------- */
+/* Vertical separator between the two sides of the T (the right column is
+   the one that carries the PASIVO header). */
+div[data-testid="stHorizontalBlock"]:has(> div:nth-child(2) .vi-bs-head)
+  > div:nth-child(2) {
+  border-left: 1px solid var(--vi-dim);
+}
+/* Column headers (ACTIVO / PASIVO Y PATRIMONIO NETO). */
+.vi-bs-head {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: var(--vi-gold);
+  border-top: 2px solid var(--vi-gold);
+  padding: 0.4rem 0 0.3rem;
+  margin-bottom: 0.2rem;
+}
+/* Line-item tables: quiet borders, hierarchy by weight, mono numbers. */
+.vi-bs-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.vi-bs-lines th {
+  color: var(--vi-dim);
+  font-weight: 400;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--vi-dim);
+}
+.vi-bs-lines td {
+  padding: 0.28rem 0.4rem;
+  border-bottom: 1px solid rgba(74, 74, 106, 0.35);
+}
+.vi-bs-label { text-align: left; }
+.vi-bs-num {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+.vi-bs-lines tr.vi-bs-subtotal td {
+  border-top: 1px solid var(--vi-chrome);
+  border-bottom: none;
+  font-weight: 700;
+  background: var(--vi-surface);
+}
+/* Footer totals: anchored, gold rule, larger mono figures. */
+.vi-bs-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  border-top: 2px solid var(--vi-gold);
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.4rem;
+  background: var(--vi-surface);
+}
+.vi-bs-total-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: var(--vi-gold);
+}
+.vi-bs-total .vi-bs-num { font-size: 1.15rem; font-weight: 700; }
+/* YoY arrows: explicit sign in the markup, color as reinforcement. */
+.vi-bs-up { color: var(--vi-neon-cyan); }
+.vi-bs-down { color: var(--vi-neon-pink); }
+/* Unmapped leftovers: muted, clearly separated from the curated masses. */
+.vi-bs-other {
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--vi-dim);
+}
+.vi-bs-other-title {
+  color: var(--vi-dim);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
