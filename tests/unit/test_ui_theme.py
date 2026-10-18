@@ -6,6 +6,7 @@ template registration. The idempotency test runs a tiny script under AppTest.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -81,6 +82,34 @@ def test_plotly_template_registered_as_synthwave():
     import ui.theme  # noqa: F401 — importing registers the template
 
     assert "synthwave" in pio.templates
+
+
+def test_new_figures_inherit_the_synthwave_template():
+    """A figure built after ``import ui.theme`` carries the template."""
+    import plotly.graph_objects as go
+
+    import ui.theme  # noqa: F401 — importing sets the default template
+
+    layout = go.Figure(go.Bar(x=["a"], y=[1])).layout.template.layout
+    assert layout.paper_bgcolor == "rgba(0,0,0,0)"
+    assert "JetBrains Mono" in (layout.font.family or "")
+
+
+def test_plotly_palette_constants_match_the_theme_palette():
+    """The chart-trace constants mirror ``PALETTE`` (single source of truth)."""
+    from ui.theme import PALETTE
+    from ui.theme.plotly_template import CHROME, GOLD, NEON_CYAN, NEON_PINK
+
+    assert NEON_CYAN == PALETTE["neon_cyan"]
+    assert NEON_PINK == PALETTE["neon_pink"]
+    assert GOLD == PALETTE["gold"]
+    assert CHROME == PALETTE["chrome"]
+
+
+def test_charts_hardcode_no_colors_outside_the_theme():
+    """``ui/charts.py`` takes every trace color from the theme module."""
+    charts_source = (_THEME_DIR.parent / "charts.py").read_text(encoding="utf-8")
+    assert re.search(r"#[0-9a-fA-F]{6}", charts_source) is None
 
 
 # --- Palette contrast (WCAG AA) ---------------------------------------------

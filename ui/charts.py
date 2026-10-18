@@ -40,6 +40,8 @@ def radar_figure(dimensions: list[dict[str, Any]]) -> Any:
     """Six-axis plotly radar of the dimension scores (0-10)."""
     import plotly.graph_objects as go
 
+    from ui.theme.plotly_template import NEON_CYAN
+
     labels, radii = radar_data(dimensions)
     closed_labels = [*labels, labels[0]]
     closed_radii = [*radii, radii[0]]
@@ -51,8 +53,8 @@ def radar_figure(dimensions: list[dict[str, Any]]) -> Any:
             mode="lines+markers",
             connectgaps=False,
             fill=None if has_gap else "toself",
-            line={"color": "#2563eb", "width": 2},
-            marker={"size": 7, "color": "#2563eb"},
+            line={"color": NEON_CYAN, "width": 2},
+            marker={"size": 7, "color": NEON_CYAN},
             name="Score",
             hovertemplate="%{theta}: %{r}/10<extra></extra>",
         )
@@ -155,6 +157,8 @@ def value_vs_price_figure(payload: dict[str, Any]) -> Any | None:
     """
     import plotly.graph_objects as go
 
+    from ui.theme.plotly_template import CHROME, GOLD
+
     dcf_value = payload.get("dcf_value")
     price = payload.get("price")
     if dcf_value is None or price is None:
@@ -163,7 +167,7 @@ def value_vs_price_figure(payload: dict[str, Any]) -> Any | None:
         go.Bar(
             x=["DCF value", "Price"],
             y=[dcf_value, price],
-            marker={"color": ["#16a34a", "#2563eb"]},
+            marker={"color": [GOLD, CHROME]},
             hovertemplate="%{x}: $%{y:,.2f}<extra></extra>",
         )
     )
@@ -218,6 +222,8 @@ def peer_pe_figure(card: dict[str, Any]) -> Any | None:
         return None
     import plotly.graph_objects as go
 
+    from ui.theme.plotly_template import CHROME, NEON_CYAN
+
     company, median, group = values
     peer_label = f"Peer median ({group})" if group else "Peer median"
     figure = go.Figure(
@@ -225,7 +231,7 @@ def peer_pe_figure(card: dict[str, Any]) -> Any | None:
             x=[company, median],
             y=[str(card.get("ticker") or "Company"), peer_label],
             orientation="h",
-            marker={"color": ["#2563eb", "#94a3b8"]},
+            marker={"color": [NEON_CYAN, CHROME]},
             hovertemplate="%{y}: %{x:.2f}x<extra></extra>",
         )
     )

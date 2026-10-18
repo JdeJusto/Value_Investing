@@ -18,8 +18,16 @@ import plotly.io as pio
 TRANSPARENT = "rgba(0,0,0,0)"
 #: Cyan grid at low opacity (design-system spec).
 GRID_COLOR = "rgba(0,240,255,0.15)"
+#: Neon cyan: the subject series (score radar, company P/E).
+NEON_CYAN = "#00f0ff"
+#: Neon pink: the synthwave counterpoint accent.
+NEON_PINK = "#ff2d95"
+#: Gold: intrinsic value (the DCF bars, matching the gold DCF chip).
+GOLD = "#d4af37"
+#: Chrome: the neutral reference bar (market price, peer median).
+CHROME = "#c0c0d0"
 #: Neon colorway: pink, cyan, purple, gold.
-COLORWAY = ["#ff2d95", "#00f0ff", "#9b4dff", "#d4af37"]
+COLORWAY = [NEON_PINK, NEON_CYAN, "#9b4dff", GOLD]
 
 synthwave = go.layout.Template()
 synthwave.layout = dict(
