@@ -208,6 +208,15 @@ Consensus commands read the latest precomputed report. Refresh it with
 The six pages are Home, Analysis, Screener, Portfolio, Reports, and Consensus.
 For a database-free walkthrough, use `VI_DEMO=1 ./run_ui.sh`.
 
+The interface follows the synthwave design system: deep-night background,
+neon pink/cyan accents, gold highlights, serif headings, and a mono body font.
+The palette, component classes, and accessibility rules are documented in
+[docs/ui_design_system.md](docs/ui_design_system.md).
+
+![Synthwave-themed Home page with metrics, opportunities, and colored alerts](assets/ui_v2_home.png)
+
+*The theme on Home: header band, metric cards, and alert severities in neon.*
+
 ### Filings
 
 ```bash

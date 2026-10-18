@@ -214,6 +214,16 @@ Los comandos de consenso leen el último informe precalculado. Actualízalo con
 Las seis páginas son Inicio, Análisis, Screener, Cartera, Informes y Consenso.
 Para un recorrido sin base de datos, usa `VI_DEMO=1 ./run_ui.sh`.
 
+La interfaz sigue el sistema de diseño synthwave: fondo de noche profunda,
+acentos rosa/cian neón, toques dorados, cabeceras serif y tipografía
+monoespaciada en el cuerpo. La paleta, las clases de componentes y las reglas
+de accesibilidad están documentadas en
+[docs/ui_design_system.md](docs/ui_design_system.md).
+
+![Página de inicio con tema synthwave: métricas, oportunidades y alertas en color](assets/ui_v2_home.png)
+
+*El tema en Inicio: banda de cabecera, tarjetas de métricas y severidades de alerta en neón.*
+
 ### Filings
 
 ```bash
