@@ -186,6 +186,11 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
             # retired around 2018 but their old facts linger in the SEC feed.
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
+            # Banks and broker-dealers report a net-of-interest top line; the
+            # itemized revenue net of interest expense is the closest
+            # comparable to a consolidated revenue figure (JPM/GS/MS, and
+            # European-style financials such as IBKR/FITB variants).
+            "RevenuesNetOfInterestExpense",
             "Revenues",
             "SalesRevenueNet",
         ),
@@ -227,6 +232,11 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
             "PaymentsToAcquirePropertyPlantAndEquipment",
             "PaymentsToAcquireProductiveAssets",
             "PaymentsForCapitalImprovements",
+            # A small subset of utilities and industrials tag segment-level
+            # additions to long-lived assets under this item. For those filers
+            # the segment fact is the figure that matches the provider's
+            # ``CapitalExpenditures`` aggregation.
+            "SegmentExpenditureAdditionToLongLivedAssets",
         ),
         attribute="capital_expenditure",
         magnitude_only=True,
@@ -243,6 +253,14 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
             "dei:EntityCommonStockSharesOutstanding",
             "CommonStockSharesOutstanding",
             "CommonStockSharesIssued",
+            # Many filers tag no point-in-time count at all — only the annual
+            # weighted-average share counts, which is what the database stores
+            # for them. The weighted average of the same year (diluted first,
+            # the EPS basis, then basic) is then the honest comparison: with
+            # these tags a stale cover-page fact defers to the covering
+            # weighted average instead of comparing against a decade-old count.
+            "WeightedAverageNumberOfDilutedSharesOutstanding",
+            "WeightedAverageNumberOfSharesOutstandingBasic",
         ),
         attribute="shares_outstanding",
         strict=False,
@@ -259,7 +277,7 @@ AUDIT_METRICS: tuple[MetricSpec, ...] = (
     ),
     MetricSpec(
         "dividends_per_share",
-        5.0,
+        15.0,
         (
             "CommonStockDividendsPerShareDeclared",
             "CommonStockDividendsPerShareCashPaid",
