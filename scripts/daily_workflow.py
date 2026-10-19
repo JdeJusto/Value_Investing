@@ -54,6 +54,7 @@ try:
 except ImportError:  # dotenv is optional; env vars may be set externally
     load_dotenv = None
 
+from backend.api.logging_config import configure_logging
 from backend.services._retry import with_retry
 from backend.services.price_service import (
     PRICE_FAILURE_DELISTED,
@@ -1361,10 +1362,20 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _configure_logging(verbose: bool) -> None:
+    """Install the API's JSON logging config for the workflow.
+
+    Reuses :func:`backend.api.logging_config.configure_logging` (no second
+    logger): every line becomes a JSON object so the boot-run log
+    (``logs/run_<date>.log``) is machine-readable. ``--verbose`` lowers the
+    level to DEBUG; the default is INFO.
+    """
+    configure_logging(level="DEBUG" if verbose else "INFO")
+
+
 def main() -> None:
     args = build_parser().parse_args()
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO)
+    _configure_logging(args.verbose)
     if args.fdb_python is None:
         args.fdb_python = str(Path(args.fdb_dir) / ".venv" / "bin" / "python")
     try:
