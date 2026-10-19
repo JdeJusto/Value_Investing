@@ -1054,14 +1054,14 @@ def _financials(ticker: str) -> None:
             if label == "Balance Sheet" and balance_numeric:
                 # Classic T view by default; the flat table stays one click away.
                 view_mode = st.radio(
-                    "Vista",
-                    ["Vista en T", "Vista tabla"],
+                    "View",
+                    ["T-view", "Table view"],
                     horizontal=True,
                     key=f"financials_bs_mode_{ticker}",
                 )
-                if view_mode == "Vista en T":
+                if view_mode == "T-view":
                     year = st.selectbox(
-                        "Ejercicio",
+                        "Fiscal year",
                         view.years,
                         key=f"financials_bs_year_{ticker}",
                     )

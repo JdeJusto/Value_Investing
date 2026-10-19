@@ -1,9 +1,9 @@
 """Shared flat-table rendering for the financial statements.
 
-Transversal readability pass (Balance Sheet "Vista tabla", Income
+Transversal readability pass (Balance Sheet table view, Income
 Statement, Cash Flow and Other):
 
-* **Labels** — the ``Label`` column shows the ES name from
+* **Labels** — the ``Label`` column shows the English name from
   ``ui.theme.labels`` when known, falling back to the backend
   humanization. The flat tables then speak the same language as the
   T view; the technical XBRL tag keeps living in the ``Concept``
@@ -34,8 +34,8 @@ MAX_NATURAL_ROWS = 18
 TABLE_MAX_HEIGHT = 640
 
 COLUMN_HELP = {
-    "Unit": "Unidad del hecho (USD, shares, USD/shares, pure)",
-    "Concept": "Etiqueta XBRL original — se usa en la búsqueda y en el CSV",
+    "Unit": "Unit of the fact (USD, shares, USD/shares, pure)",
+    "Concept": "Original XBRL tag — used by search and the CSV export",
 }
 
 

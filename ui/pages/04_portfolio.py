@@ -98,12 +98,12 @@ def _performance_tab(portfolio) -> None:
         return
     metric_row(
         [
-            ("Valor de mercado", fmt_money_short(view.totals["market_value"])),
-            ("Coste", fmt_money_short(view.totals["cost_basis"])),
-            ("PnL total", fmt_money_short(view.totals["total_pnl"])),
-            ("Retorno total", format_pct(view.totals["total_return"])),
-            ("PnL no realizado", fmt_money_short(view.totals["unrealized_pnl"])),
-            ("PnL realizado", fmt_money_short(view.totals["realized_pnl"])),
+            ("Market value", fmt_money_short(view.totals["market_value"])),
+            ("Cost basis", fmt_money_short(view.totals["cost_basis"])),
+            ("Total PnL", fmt_money_short(view.totals["total_pnl"])),
+            ("Total return", format_pct(view.totals["total_return"])),
+            ("Unrealized PnL", fmt_money_short(view.totals["unrealized_pnl"])),
+            ("Realized PnL", fmt_money_short(view.totals["realized_pnl"])),
         ]
     )
     st.subheader("Sector exposure")

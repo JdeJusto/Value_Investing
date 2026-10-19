@@ -197,12 +197,12 @@ a {
 
 /* --- Balance sheet T-view ---------------------------------------------- */
 /* Vertical separator between the two sides of the T (the right column is
-   the one that carries the PASIVO header). */
+   the one that carries the LIABILITIES header). */
 div[data-testid="stHorizontalBlock"]:has(> div:nth-child(2) .vi-bs-head)
   > div:nth-child(2) {
   border-left: 1px solid var(--vi-dim);
 }
-/* Column headers (ACTIVO / PASIVO Y PATRIMONIO NETO). */
+/* Column headers (ASSETS / LIABILITIES + EQUITY). */
 .vi-bs-head {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;

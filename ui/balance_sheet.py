@@ -1,4 +1,4 @@
-"""Classic T-format balance sheet (Activo | Pasivo + PN) for the Financials tab.
+"""Classic T-format balance sheet (Assets | Liabilities + Equity) for the Financials tab.
 
 Pure model (``build_balance_model``) + Streamlit renderer
 (``render_balance_sheet``). The model consumes a *numeric* fact matrix —
@@ -49,10 +49,10 @@ BALANCE_TOLERANCE_MIN = 1.0
 
 #: Display scales offered by the unit selector (label -> scale key).
 SCALE_CHOICES = {
-    "Como se reporta": "raw",
-    "miles (k)": "k",
-    "millones (M)": "M",
-    "miles de millones (B)": "B",
+    "As reported": "raw",
+    "thousands (k)": "k",
+    "millions (M)": "M",
+    "billions (B)": "B",
 }
 
 _SUFFIX_FACTORS = {"T": 1e12, "B": 1e9, "M": 1e6, "K": 1e3}
@@ -131,7 +131,7 @@ def numeric_from_view(view: object) -> tuple[dict[str, dict[int, float]], dict[s
 
 @dataclass(frozen=True)
 class BalanceLine:
-    """One partida: the winning concept of a slot and its value (None = missing)."""
+    """One line item: the winning concept of a slot and its value (None = missing)."""
 
     concept: str
     label: str
@@ -141,7 +141,7 @@ class BalanceLine:
 
 @dataclass(frozen=True)
 class BalanceMass:
-    """One masa patrimonial with its lines and resolved subtotal."""
+    """One balance-sheet mass with its lines and resolved subtotal."""
 
     key: str
     label: str
@@ -186,7 +186,6 @@ def _slot_line(
     numeric: dict[str, dict[int, float]],
     year: int,
     prev_year: int | None,
-    lang: str,
 ) -> BalanceLine | None:
     """Resolve one alias-slot to its line (any-year presence keeps it visible).
 
@@ -202,7 +201,7 @@ def _slot_line(
         prev_value = years_values.get(prev_year) if prev_year else None
         return BalanceLine(
             concept=concept,
-            label=human_label(concept, lang),
+            label=human_label(concept),
             value=sign * value if value is not None else None,
             prev_value=sign * prev_value if prev_value is not None else None,
         )
@@ -214,13 +213,12 @@ def _resolve_mass(
     numeric: dict[str, dict[int, float]],
     year: int,
     prev_year: int | None,
-    lang: str,
 ) -> tuple[BalanceMass, bool]:
     """Lines + subtotal of one mass; returns (mass, partial_flag)."""
     lines: list[BalanceLine] = []
     partial = False
     for slot in BALANCE_MAP[mass]:
-        line = _slot_line(slot, numeric, year, prev_year, lang)
+        line = _slot_line(slot, numeric, year, prev_year)
         if line is None:
             continue
         if line.value is None:
@@ -237,7 +235,7 @@ def _resolve_mass(
     return (
         BalanceMass(
             key=mass,
-            label=mass_labels(mass, lang),
+            label=mass_labels(mass),
             lines=lines,
             subtotal=subtotal,
             subtotal_reported=reported_flag,
@@ -251,7 +249,7 @@ def _unmapped_column(concept: str) -> str:
 
     Liability-side keywords first, then the equity-side family (capital,
     stock, retained earnings, minority interest…) so leftovers never land
-    in the Activo column by accident. The rest defaults to Activo.
+    in the Assets column by accident. The rest defaults to Assets.
     """
     lowered = concept.lower()
     liability_terms = (
@@ -278,7 +276,6 @@ def build_balance_model(
     units: dict[str, str],
     year: int,
     years: list[int] | None = None,
-    lang: str = "es",
 ) -> BalanceModel:
     """Build the T model for ``year`` from the numeric fact matrix.
 
@@ -295,7 +292,7 @@ def build_balance_model(
     masses: list[BalanceMass] = []
     partial = False
     for mass in MASS_ORDER:
-        resolved, mass_partial = _resolve_mass(mass, numeric, year, prev_year, lang)
+        resolved, mass_partial = _resolve_mass(mass, numeric, year, prev_year)
         masses.append(resolved)
         partial = partial or mass_partial
 
@@ -317,7 +314,7 @@ def build_balance_model(
             continue
         column = _unmapped_column(concept)
         unmapped[column].append(
-            BalanceLine(concept, human_label(concept, lang), years_values.get(year), None)
+            BalanceLine(concept, human_label(concept), years_values.get(year), None)
         )
 
     by_key = {mass.key: mass for mass in masses}
@@ -349,7 +346,7 @@ def build_balance_model(
         partial = True
 
     memoranda = [
-        BalanceLine(concept, human_label(concept, lang), values.get(year), None)
+        BalanceLine(concept, human_label(concept), values.get(year), None)
         for concept, values in sorted(numeric.items())
         if is_memorandum(concept)
     ]
@@ -411,10 +408,10 @@ def _lines_table(
     with_yoy: bool,
 ) -> str:
     unit = model.currency
-    headers = '<th class="vi-bs-label">Partida</th>'
+    headers = '<th class="vi-bs-label">Line item</th>'
     headers += f'<th class="vi-bs-num">FY{model.year}</th>'
     if with_percent:
-        headers += '<th class="vi-bs-num">% masa</th>'
+        headers += '<th class="vi-bs-num">% of mass</th>'
     if with_yoy:
         headers += '<th class="vi-bs-num">YoY</th>'
     rows = [f"<tr>{headers}</tr>"]
@@ -451,7 +448,7 @@ def _lines_table(
         total_cells.append(f'<td class="vi-bs-num">{DASH}</td>')
     rows.append(f'<tr class="vi-bs-subtotal">{"".join(total_cells)}</tr>')
 
-    computed = "" if mass.subtotal_reported else "calculado"
+    computed = "" if mass.subtotal_reported else "computed"
     aria = f"Subtotal {computed} de {mass.label}".strip()
     return f'<table class="vi-bs-lines" role="table" aria-label="{escape(aria)}">' + "".join(rows) + "</table>"
 
@@ -467,8 +464,8 @@ def _other_block(lines: list[BalanceLine], model: BalanceModel, scale: str) -> s
     return (
         '<div class="vi-bs-other">'
         '<div class="vi-bs-other-title" role="heading" aria-level="3">'
-        "Otras partidas (sin clasificar)</div>"
-        '<table class="vi-bs-lines" role="table" aria-label="Otras partidas sin clasificar">'
+        "Other items (unclassified)</div>"
+        '<table class="vi-bs-lines" role="table" aria-label="Other items unclassified">'
         + "".join(rows)
         + "</table></div>"
     )
@@ -501,19 +498,18 @@ def render_balance_sheet(
     *,
     ticker: str,
     source: str,
-    lang: str = "es",
 ) -> None:
     """Render the T balance for ``year`` with scale selector and balance chip."""
-    model = build_balance_model(numeric, units, year, years, lang=lang)
+    model = build_balance_model(numeric, units, year, years)
 
     head_left, head_right = st.columns([3, 1])
     head_left.caption(
-        f"Balance — FY{year} · {model.currency} · fuente: {source}"
-        + (" · datos parciales" if model.partial else "")
+        f"Balance — FY{year} · {model.currency} · source: {source}"
+        + (" · partial data" if model.partial else "")
     )
     with head_right:
         scale_label = st.selectbox(
-            "Escala",
+            "Scale",
             list(SCALE_CHOICES),
             key=f"bs_scale_{ticker}_{year}",
             label_visibility="collapsed",
@@ -522,15 +518,15 @@ def render_balance_sheet(
 
     toggle_a, toggle_b, _spacer = st.columns([1, 1, 3])
     with toggle_a:
-        with_percent = st.checkbox("% de masa", key=f"bs_pct_{ticker}_{year}")
+        with_percent = st.checkbox("% of mass", key=f"bs_pct_{ticker}_{year}")
     with toggle_b:
         with_yoy = st.checkbox(
-            "Variación YoY", key=f"bs_yoy_{ticker}_{year}", disabled=len(years) < 2
+            "YoY change", key=f"bs_yoy_{ticker}_{year}", disabled=len(years) < 2
         )
 
     left_column, right_column = st.columns(2)
     with left_column:
-        st.markdown('<div class="vi-bs-head">ACTIVO</div>', unsafe_allow_html=True)
+        st.markdown('<div class="vi-bs-head">ASSETS</div>', unsafe_allow_html=True)
         for mass in model.masses:
             if MASS_COLUMN[mass.key] != "assets":
                 continue
@@ -545,7 +541,7 @@ def render_balance_sheet(
         st.markdown(_other_block(model.other_assets, model, scale), unsafe_allow_html=True)
         st.markdown(
             _total_row(
-                "TOTAL ACTIVO",
+                "TOTAL ASSETS",
                 model.total_assets,
                 model,
                 scale,
@@ -555,7 +551,7 @@ def render_balance_sheet(
         )
     with right_column:
         st.markdown(
-            '<div class="vi-bs-head">PASIVO Y PATRIMONIO NETO</div>', unsafe_allow_html=True
+            '<div class="vi-bs-head">LIABILITIES + EQUITY</div>', unsafe_allow_html=True
         )
         for mass in model.masses:
             if MASS_COLUMN[mass.key] != "liabilities":
@@ -576,7 +572,7 @@ def render_balance_sheet(
             right_total = model.total_liabilities + model.total_equity
         st.markdown(
             _total_row(
-                "TOTAL PASIVO + PATRIMONIO NETO",
+                "TOTAL LIABILITIES + EQUITY",
                 right_total,
                 model,
                 scale,
@@ -588,16 +584,16 @@ def render_balance_sheet(
         )
 
     if model.balanced is True:
-        st.success(f"✓ Cuadra (Δ = {fmt_delta(model.delta, model.currency, scale=scale)})")
+        st.success(f"✓ Balanced (Δ = {fmt_delta(model.delta, model.currency, scale=scale)})")
     elif model.balanced is False:
         st.error(
-            "No cuadra — datos posiblemente incompletos · "
+            "Does not balance — data possibly incomplete · "
             f"Δ = {fmt_delta(model.delta, model.currency, scale=scale)}"
         )
     else:
         st.info(
-            "Cuadre parcial — faltan totales para verificar "
-            "(datos posiblemente incompletos)"
+            "Partial balance — totals missing to verify "
+            "(data possibly incomplete)"
         )
 
     memoranda_text = " · ".join(
@@ -606,8 +602,8 @@ def render_balance_sheet(
         if line.value is not None
     )
     if memoranda_text:
-        st.caption(f"Nota memoranda (no forma parte del balance) · {memoranda_text}")
+        st.caption(f"Memorandum note (not part of the balance) · {memoranda_text}")
     st.caption(
-        "* Subtotal calculado a partir de las partidas cuando el formulario "
-        "no lo declara."
+        "* Subtotal computed from the line items when the filing "
+        "does not report it."
     )

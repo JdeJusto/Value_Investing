@@ -133,20 +133,19 @@ MASS_COLUMN: dict[str, str] = {
     "equity": "liabilities",
 }
 
-#: Human mass headers (ES primary, EN fallback).
-MASS_LABELS: dict[str, dict[str, str]] = {
-    "assets_current": {"es": "Activo corriente", "en": "Current assets"},
-    "assets_noncurrent": {"es": "Activo no corriente", "en": "Non-current assets"},
-    "liab_current": {"es": "Pasivo corriente", "en": "Current liabilities"},
-    "liab_noncurrent": {"es": "Pasivo no corriente", "en": "Non-current liabilities"},
-    "equity": {"es": "Patrimonio neto", "en": "Equity"},
+#: Mass key -> English header label.
+MASS_LABELS: dict[str, str] = {
+    "assets_current": "Current assets",
+    "assets_noncurrent": "Non-current assets",
+    "liab_current": "Current liabilities",
+    "liab_noncurrent": "Non-current liabilities",
+    "equity": "Shareholders' equity",
 }
 
 
-def mass_labels(key: str, lang: str = "es") -> dict[str, str]:
-    """Mass header label in ``lang`` (fallback: English)."""
-    entry = MASS_LABELS.get(key, {})
-    return entry.get(lang) or entry.get("en", "")
+def mass_labels(key: str) -> str:
+    """Mass header label in English."""
+    return MASS_LABELS.get(key, "")
 
 
 def concept_mass(concept: str) -> str | None:
