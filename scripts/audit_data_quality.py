@@ -437,8 +437,10 @@ def classify_comparison(
         if drift > period_shift_days:
             return (
                 SKIPPED,
-                f"preferred SEC fact is from {period_b.isoformat()}, "
-                f"{drift} days away from {period_a.isoformat()}; stale",
+                (
+                    f"preferred SEC fact is from {period_b.isoformat()}, "
+                    f"{drift} days away from {period_a.isoformat()}; stale"
+                ),
             )
 
     difference = pct_difference(value_a, value_b)
