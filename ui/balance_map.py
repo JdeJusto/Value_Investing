@@ -179,4 +179,6 @@ def is_memorandum(concept: str) -> bool:
 
 def mapped_concepts() -> set[str]:
     """Every concept the map can place in a mass (aliases flattened)."""
-    return {concept for slots in BALANCE_MAP.values() for slot in slots for concept in slot}
+    return {
+        concept for slots in BALANCE_MAP.values() for slot in slots for concept in slot
+    }

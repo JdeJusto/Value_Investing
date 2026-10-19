@@ -111,7 +111,9 @@ def numeric_from_facts(
     return numeric, units
 
 
-def numeric_from_view(view: object) -> tuple[dict[str, dict[int, float]], dict[str, str]]:
+def numeric_from_view(
+    view: object,
+) -> tuple[dict[str, dict[int, float]], dict[str, str]]:
     """Numeric matrix by parsing the view's display strings (demo mode).
 
     Deterministic (the backend format is), but only as precise as the
@@ -324,7 +326,9 @@ def build_balance_model(
         noncurrent = by_key["assets_noncurrent"].subtotal
         if current is not None and noncurrent is not None:
             total_assets = current + noncurrent
-    total_liabilities, liab_reported = _resolve_total("total_liabilities", numeric, year)
+    total_liabilities, liab_reported = _resolve_total(
+        "total_liabilities", numeric, year
+    )
     if total_liabilities is None:
         current = by_key["liab_current"].subtotal
         noncurrent = by_key["liab_noncurrent"].subtotal
@@ -389,6 +393,7 @@ def _resolve_total(
 # Renderer
 # ---------------------------------------------------------------------------
 
+
 def _arrow_span(delta: float | None) -> str:
     """▲/▼ with an explicit sign — color is never the only signal."""
     if delta is None:
@@ -431,7 +436,7 @@ def _lines_table(
                 change = (line.value - line.prev_value) / abs(line.prev_value)
                 cells.append(
                     f'<td class="vi-bs-num">{_arrow_span(change)}'
-                    f'{escape(fmt_pct(change))}</td>'
+                    f"{escape(fmt_pct(change))}</td>"
                 )
             else:
                 cells.append(f'<td class="vi-bs-num">{DASH}</td>')
@@ -450,7 +455,11 @@ def _lines_table(
 
     computed = "" if mass.subtotal_reported else "computed"
     aria = f"Subtotal {computed} de {mass.label}".strip()
-    return f'<table class="vi-bs-lines" role="table" aria-label="{escape(aria)}">' + "".join(rows) + "</table>"
+    return (
+        f'<table class="vi-bs-lines" role="table" aria-label="{escape(aria)}">'
+        + "".join(rows)
+        + "</table>"
+    )
 
 
 def _other_block(lines: list[BalanceLine], model: BalanceModel, scale: str) -> str:
@@ -538,7 +547,9 @@ def render_balance_sheet(
                     _lines_table(mass, model, scale, with_percent, with_yoy),
                     unsafe_allow_html=True,
                 )
-        st.markdown(_other_block(model.other_assets, model, scale), unsafe_allow_html=True)
+        st.markdown(
+            _other_block(model.other_assets, model, scale), unsafe_allow_html=True
+        )
         st.markdown(
             _total_row(
                 "TOTAL ASSETS",
@@ -584,17 +595,16 @@ def render_balance_sheet(
         )
 
     if model.balanced is True:
-        st.success(f"✓ Balanced (Δ = {fmt_delta(model.delta, model.currency, scale=scale)})")
+        st.success(
+            f"✓ Balanced (Δ = {fmt_delta(model.delta, model.currency, scale=scale)})"
+        )
     elif model.balanced is False:
         st.error(
             "Does not balance — data possibly incomplete · "
             f"Δ = {fmt_delta(model.delta, model.currency, scale=scale)}"
         )
     else:
-        st.info(
-            "Partial balance — totals missing to verify "
-            "(data possibly incomplete)"
-        )
+        st.info("Partial balance — totals missing to verify (data possibly incomplete)")
 
     memoranda_text = " · ".join(
         f"{line.label}: {abbreviate_number(line.value, _memoranda_unit(line, units))}"
@@ -604,6 +614,5 @@ def render_balance_sheet(
     if memoranda_text:
         st.caption(f"Memorandum note (not part of the balance) · {memoranda_text}")
     st.caption(
-        "* Subtotal computed from the line items when the filing "
-        "does not report it."
+        "* Subtotal computed from the line items when the filing does not report it."
     )

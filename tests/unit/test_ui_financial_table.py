@@ -1,7 +1,7 @@
 """Transversal readability pass over the flat financial tables.
 
 ``ui.financial_table`` is the shared renderer for the Balance Sheet
-"Vista tabla", Income Statement, Cash Flow and Other sub-tabs: ES
+table view, Income Statement, Cash Flow and Other sub-tabs: English
 labels, DASH for gaps, filing-format values untouched.
 """
 
@@ -25,7 +25,7 @@ PAGE = REPO / "ui" / "pages" / "02_analysis.py"
 # ---------------------------------------------------------------------------
 
 
-def test_financial_table_rows_uses_es_labels_and_dash_for_gaps():
+def test_financial_table_rows_uses_labels_and_dash_for_gaps():
     rows = [
         FinancialsRow(
             concept="NetIncomeLoss",
@@ -37,7 +37,7 @@ def test_financial_table_rows_uses_es_labels_and_dash_for_gaps():
     display = financial_table_rows(rows, [2025, 2024])
 
     assert list(display[0]) == ["Label", "FY2025", "FY2024", "Unit", "Concept"]
-    assert display[0]["Label"] == "Resultado neto"  # FIELD_LABELS, ES
+    assert display[0]["Label"] == "Net income (loss)"  # FIELD_LABELS, English
     assert display[0]["FY2025"] == "$1.00B"  # filing format preserved
     assert display[0]["FY2024"] == DASH  # gap never renders blank
     assert display[0]["Unit"] == "USD"
@@ -69,7 +69,7 @@ def test_financial_table_rows_handles_empty_input():
 
 
 def test_labels_cover_fixture_income_cash_and_other_concepts():
-    """Every IS/CF/other concept in the demo fixtures has ES + EN labels."""
+    """Every IS/CF/other concept in the demo fixtures has an English label."""
     fixtures: set[str] = set()
     for path in sorted(DEMO_FINANCIALS.glob("*.json")):
         if path.name.endswith(("_alerts.json", "_insights.json")):
@@ -81,9 +81,7 @@ def test_labels_cover_fixture_income_cash_and_other_concepts():
     unlabeled = sorted(
         concept
         for concept in fixtures
-        if concept not in FIELD_LABELS
-        or not FIELD_LABELS[concept].get("es")
-        or not FIELD_LABELS[concept].get("en")
+        if concept not in FIELD_LABELS or not FIELD_LABELS[concept]
     )
     assert unlabeled == [], f"missing FIELD_LABELS entries: {unlabeled}"
 
@@ -94,7 +92,7 @@ def test_labels_cover_fixture_income_cash_and_other_concepts():
 
 
 def test_flat_statement_tables_render_through_the_component(monkeypatch):
-    """Income shows ES labels; the flat balance renders DASH for gaps."""
+    """Income shows English labels; the flat balance renders DASH for gaps."""
     from streamlit.testing.v1 import AppTest
 
     monkeypatch.setenv("VI_DEMO", "1")
@@ -110,16 +108,16 @@ def test_flat_statement_tables_render_through_the_component(monkeypatch):
         if "Concept" in list(element.value.columns)
     ]
 
-    # Income Statement: ES label, XBRL tag still in the Concept column.
+    # Income Statement: English label, XBRL tag still in the Concept column.
     income = next(
         frame for frame in frames if (frame["Concept"] == "NetIncomeLoss").any()
     )
     label = income[income["Concept"] == "NetIncomeLoss"].iloc[0]["Label"]
-    assert label == "Resultado neto"
+    assert label == "Net income (loss)"
 
     # Balance Sheet: switch to the flat view; gaps show DASH, not blanks.
-    mode = next(radio for radio in at.radio if radio.label == "Vista")
-    mode.set_value("Vista tabla")
+    mode = next(radio for radio in at.radio if radio.label == "View")
+    mode.set_value("Table view")
     at.run()
     assert not at.exception, at.exception
     frames = [

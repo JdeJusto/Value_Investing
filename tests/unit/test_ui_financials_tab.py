@@ -79,8 +79,8 @@ def test_income_statement_rows_render(monkeypatch):
         frame for frame in frames if (frame["Concept"] == "NetIncomeLoss").any()
     )
     row = income[income["Concept"] == "NetIncomeLoss"].iloc[0]
-    # Readability pass: the flat tables show the ES label (FIELD_LABELS).
-    assert row["Label"] == "Resultado neto"
+    # Readability pass: the flat tables show the English label (FIELD_LABELS).
+    assert row["Label"] == "Net income (loss)"
     assert row["FY2025"].startswith("$")
     assert row["Unit"] == "USD"
 

@@ -169,7 +169,9 @@ def test_balance_sheet_missing_line_renders_none_and_flags_partial():
     model = build_balance_model(numeric, _units(), YEAR, [PRIOR_YEAR, YEAR])
 
     line = next(
-        ln for ln in _masses(model)["assets_current"].lines if ln.concept == "OtherAssetsCurrent"
+        ln
+        for ln in _masses(model)["assets_current"].lines
+        if ln.concept == "OtherAssetsCurrent"
     )
     assert line.value is None
     assert model.partial is True
@@ -256,7 +258,9 @@ def test_balance_map_covers_all_fields():
         payload = json.loads(path.read_text())
         fixtures |= {row["concept"] for row in payload.get("balance_sheet", [])}
     missing_fixtures = fixtures - allowed
-    assert not missing_fixtures, f"demo fixture concepts without a T slot: {sorted(missing_fixtures)}"
+    assert not missing_fixtures, (
+        f"demo fixture concepts without a T slot: {sorted(missing_fixtures)}"
+    )
 
 
 def test_balance_map_has_no_concept_in_two_slots():
@@ -273,16 +277,14 @@ def test_balance_map_has_no_concept_in_two_slots():
 def test_balance_map_keeps_memoranda_out_of_the_masses():
     assert not (mapped_concepts() & MEMORANDUM_CONCEPTS)
     # Totals/subtotals are resolved separately and must not appear as lines.
-    assert not mapped_concepts() & {
-        c for cs in TOTAL_CONCEPTS.values() for c in cs
-    }
+    assert not mapped_concepts() & {c for cs in TOTAL_CONCEPTS.values() for c in cs}
     assert not mapped_concepts() & {
         c for cs in MASS_SUBTOTAL_CONCEPTS.values() for c in cs
     }
 
 
 def test_labels_completeness():
-    """Every concept the T-view can render has an ES and EN label."""
+    """Every concept the T-view can render has an English label."""
     required = (
         mapped_concepts()
         | {c for cs in TOTAL_CONCEPTS.values() for c in cs}
@@ -292,12 +294,10 @@ def test_labels_completeness():
     for concept in sorted(required):
         entry = FIELD_LABELS.get(concept)
         assert entry, f"no label for {concept}"
-        assert entry.get("es"), f"no ES label for {concept}"
-        assert entry.get("en"), f"no EN label for {concept}"
 
 
 def test_label_never_returns_the_technical_name():
-    assert label("CashAndCashEquivalentsAtCarryingValue") == "Efectivo y equivalentes"
+    assert label("CashAndCashEquivalentsAtCarryingValue") == "Cash and cash equivalents"
     assert label("UnknownConceptXYZ") != "UnknownConceptXYZ"  # humanized fallback
 
 
@@ -375,7 +375,7 @@ def test_numeric_from_view_parses_demo_fixture(monkeypatch):
     assert model.total_assets is not None
     assert model.total_assets > 0
     # The hand-extended fixture ties exactly: every subtotal reported,
-    # delta 0, no missing lines -> the chip reports "Cuadra".
+    # delta 0, no missing lines -> the chip reports "Balanced".
     assert model.balanced is True
     assert model.delta == pytest.approx(0.0)
     assert model.partial is False
@@ -401,29 +401,29 @@ def test_financials_tab_defaults_to_the_t_balance(monkeypatch):
     at.run()
     assert not at.exception, at.exception
 
-    mode = next(radio for radio in at.radio if radio.label == "Vista")
-    assert list(mode.options) == ["Vista en T", "Vista tabla"]
-    assert mode.value == "Vista en T"
+    mode = next(radio for radio in at.radio if radio.label == "View")
+    assert list(mode.options) == ["T-view", "Table view"]
+    assert mode.value == "T-view"
 
-    year = next(box for box in at.selectbox if box.label == "Ejercicio")
+    year = next(box for box in at.selectbox if box.label == "Fiscal year")
     assert year.value == 2025
 
     rendered = " ".join(str(element.value) for element in at.markdown)
-    assert "TOTAL ACTIVO" in rendered
-    assert "PASIVO Y PATRIMONIO NETO" in rendered
+    assert "TOTAL ASSETS" in rendered
+    assert "LIABILITIES + EQUITY" in rendered
     header_caption = next(
         (c.value for c in at.caption if "Balance — FY2025" in c.value), None
     )
     assert header_caption is not None
-    assert "datos parciales" not in header_caption  # fixture is complete
-    assert any("Cuadra" in block.value for block in at.success)
+    assert "partial data" not in header_caption  # fixture is complete
+    assert any("Balanced" in block.value for block in at.success)
 
     labels = [box.label for box in at.selectbox]
-    assert "Escala" in labels  # scale selector of the T view
-    assert {c.label for c in at.checkbox} >= {"% de masa", "Variación YoY"}
+    assert "Scale" in labels  # scale selector of the T view
+    assert {c.label for c in at.checkbox} >= {"% of mass", "YoY change"}
 
     # The flat table remains one click away and carries the new rows.
-    mode.set_value("Vista tabla")
+    mode.set_value("Table view")
     at.run()
     assert not at.exception, at.exception
     frames = [
