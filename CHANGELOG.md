@@ -1,3 +1,38 @@
+## [0.19.0] - 2026-10-19
+
+### Added
+
+- English-only UI strings across all Streamlit pages (balance T-view, flat
+  financial tables, tooltips, headers).
+- Demo bundle expanded from 8 to 76 tickers, with size cap (2 MB) and
+  manifest-consistency guardrails in tests.
+- STALE classification in `audit_data_quality.py` (companies whose latest FY
+  is >15 months old are flagged and excluded from metric comparisons).
+- Workflow robustness: shared retry helper on network calls, structured JSON
+  logs from `backend/api/logging_config.py`, pre-stage health checks for
+  SEC and Yahoo, `EXIT_OK` / `EXIT_PARTIAL` / `EXIT_FAILED` propagated from
+  `run_daily_on_boot.sh`, documented resume behaviour.
+
+### Changed
+
+- `dei:EntityCommonStockSharesOutstanding` used as last-resort fallback in
+  share-count mapping; cross-concept scale repair for share counts filed in
+  scaled units (e.g. MCD FY2025).
+- Audit classifier: weighted-average share counts, bank/REIT revenue,
+  segment capex, and derived dividends now classified; stale-fact guard at
+  400 days.
+
+### Fixed
+
+- UNCLASSIFIED comparisons in the monthly audit dropped from 43 to 2.
+- Bank demo tickers now compute valuation in the scorecard (AFL, AIG, BAC,
+  BRK-B).
+
+### Notes
+
+- Two UNCLASSIFIED cases remain by design (TKO dual-class, IBKR revenue
+  coverage); documented in `docs/data_gaps_investigation.md`.
+
 ## [0.18.1] - 2026-10-17
 
 ### Fixed
