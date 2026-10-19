@@ -54,6 +54,7 @@ try:
 except ImportError:  # dotenv is optional; env vars may be set externally
     load_dotenv = None
 
+from backend.services._retry import with_retry
 from backend.services.price_service import (
     PRICE_FAILURE_DELISTED,
     PRICE_FAILURE_GLITCH,
@@ -66,6 +67,8 @@ from backend.services.run_state import (
     is_transient_failure,
     options_fingerprint,
 )
+from backend.services.sec_health import check_sec_availability
+from backend.services.yahoo_health import check_yahoo_availability
 
 if load_dotenv is not None:
     load_dotenv()
@@ -95,6 +98,45 @@ EUROPEAN_INDEX_SOURCES = frozenset(
         "OMXC25",
     }
 )
+
+# Pre-stage health checks probe SEC and Yahoo before their network stages so a
+# provider outage becomes a clear per-stage skip instead of a burst of doomed
+# requests. The timeout is deliberately short (3s): a slow provider must never
+# hold the run hostage. The probes reuse the existing domain-aware preflights
+# (backend/services/{sec,yahoo}_health.py) — no second mechanism.
+HEALTH_CHECK_TIMEOUT_S = 3.0
+
+
+def _raise_if_transient(health) -> None:
+    """Raise ``ConnectionError`` for a transient (no-HTTP-status) verdict.
+
+    A probe that timed out or could not connect (no HTTP status) is worth the
+    shared helper's retry; an HTTP verdict (403/429/5xx) is final and must not
+    be retried — hammering a rate limit only makes it worse.
+    """
+    if not health.available and getattr(health, "http_status", None) is None:
+        raise ConnectionError(health.reason)
+
+
+def _retry_sleep(delay: float) -> None:
+    """Backoff sleep for the probes (indirection so tests can patch it out)."""
+    time.sleep(delay)
+
+
+@with_retry(attempts=3, base_delay=0.5, sleep=_retry_sleep)
+def _probe_sec() -> bool:
+    """One SEC reachability probe; a transient failure raises (for the retry)."""
+    health = check_sec_availability(timeout=HEALTH_CHECK_TIMEOUT_S, attempts=1)
+    _raise_if_transient(health)
+    return health.available
+
+
+@with_retry(attempts=3, base_delay=0.5, sleep=_retry_sleep)
+def _probe_yahoo() -> bool:
+    """One Yahoo reachability probe; a transient failure raises (for the retry)."""
+    health = check_yahoo_availability(timeout=HEALTH_CHECK_TIMEOUT_S, attempts=1)
+    _raise_if_transient(health)
+    return health.available
 
 
 def _load_universe(path: str) -> list[str]:
@@ -524,7 +566,6 @@ def _run(args) -> None:
     # per-attempt Yahoo counters (backend/services/network_metrics.py). They
     # end up in the run state and the report; nothing else reads them.
     from backend.services.network_metrics import NetworkMetrics
-    from backend.services.yahoo_health import check_yahoo_availability
 
     network_metrics = NetworkMetrics()
     if price_service is not None:
