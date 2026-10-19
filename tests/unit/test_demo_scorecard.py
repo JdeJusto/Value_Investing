@@ -24,8 +24,14 @@ def _repository() -> DemoFinancialRepository:
     return DemoFinancialRepository(DEMO_FUNDAMENTALS)
 
 
-def test_bundle_exposes_the_eight_tickers():
-    assert len(DEMO_TICKERS) == 8
+def test_bundle_exposes_all_tickers():
+    """Every bundled fixture is exposed as a demo ticker.
+
+    The original contract was exactly eight tickers; the 76-ticker
+    expansion keeps eight as the floor while ``test_bundle_manifest_
+    matches_files`` pins the exact disk contents.
+    """
+    assert len(DEMO_TICKERS) >= 8
     assert all(is_demo_ticker(ticker) for ticker in DEMO_TICKERS)
 
 

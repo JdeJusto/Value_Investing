@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -15,18 +16,33 @@ from backend.services.demo_mode import (
     load_demo_prices,
 )
 
+#: The eight tickers the offline demo bundle originally shipped with
+#: (v0.18 fixture, commit c7e4768). The bundle has since grown to 76
+#: tickers, but these eight remain a historical contract: prices and the
+#: Greenblatt rankings must keep covering them.
+ORIGINAL_DEMO_TICKERS = (
+    "AAPL",
+    "JNJ",
+    "JPM",
+    "KO",
+    "MSFT",
+    "PLD",
+    "TSLA",
+    "XOM",
+)
 
-def test_bundle_is_complete_and_small():
+
+def test_bundle_is_complete_and_within_size_cap():
+    """The bundle ships its files; the byte ceiling lives in the cap test."""
     files = [path for path in Path("data/demo").rglob("*") if path.is_file()]
     assert len(files) >= 10
-    total = sum(path.stat().st_size for path in files)
-    # Original budget was 500 KB; raised once for the compact 30-company
-    # consensus fixture (data/demo/consensus/).
-    assert total < 520 * 1024, f"demo bundle too heavy: {total / 1024:.0f} KB"
 
 
-def test_bundle_covers_the_eight_tickers():
-    assert sorted(load_demo_prices()) == list(DEMO_TICKERS)
+def test_bundle_covers_the_original_eight_tickers():
+    """Prices still cover the original cohort, all inside the bundle."""
+    prices = set(load_demo_prices())
+    assert set(ORIGINAL_DEMO_TICKERS) <= prices
+    assert prices <= set(DEMO_TICKERS)
 
 
 def test_demo_tickers_is_non_empty_and_sorted():
@@ -34,10 +50,45 @@ def test_demo_tickers_is_non_empty_and_sorted():
     assert list(DEMO_TICKERS) == sorted(DEMO_TICKERS)
 
 
-def test_demo_tickers_match_the_fixture_filenames():
+def test_bundle_manifest_matches_files():
+    """``DEMO_TICKERS`` and the fixture files on disk never drift apart."""
     fixture_dir = Path("data/demo/fundamentals")
     expected = tuple(sorted(path.stem.upper() for path in fixture_dir.glob("*.json")))
     assert DEMO_TICKERS == expected
+
+
+BUNDLE_SIZE_CAP_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
+def test_bundle_size_under_cap():
+    """Hard ceiling for the whole offline demo bundle.
+
+    The bundle started at ~500 KB for eight tickers; commit ``4a96233``
+    took it to ~1.5 MB with the 76-ticker expansion, and Streamlit pays
+    for every byte at demo startup. 2 MB leaves room for roughly one
+    more expansion of this size while catching an accidental "commit
+    the whole history" regression. If the growth is intentional, raise
+    this cap explicitly here and document why in the commit message.
+    """
+    total = sum(
+        path.stat().st_size for path in Path("data/demo").rglob("*") if path.is_file()
+    )
+    assert total < BUNDLE_SIZE_CAP_BYTES, (
+        f"demo bundle is {total} bytes, over the {BUNDLE_SIZE_CAP_BYTES} byte cap; "
+        f"raise the cap deliberately if the growth is intentional"
+    )
+
+
+def test_bundle_has_no_duplicate_or_empty_files():
+    """Every fundamentals fixture is non-empty, parses, and is unique."""
+    seen: set[str] = set()
+    for path in sorted(Path("data/demo/fundamentals").glob("*.json")):
+        assert path.stat().st_size > 0, f"{path} is empty"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        assert payload, f"{path} parses to empty content"
+        key = path.stem.upper()
+        assert key not in seen, f"duplicate fixture for {key} ({path.name})"
+        seen.add(key)
 
 
 def test_is_demo_ticker_supports_the_bundle_case_insensitively():
@@ -112,7 +163,13 @@ def test_greenblatt_reads_the_demo_rankings(monkeypatch):
     payload, error = GreenblattMethodology()._load_rankings()
     assert error is None
     assert payload is not None and "AAPL" in payload["rankings"]
-    assert payload["universe_size"] > len(DEMO_TICKERS)  # filler makes it meaningful
+    ranked = set(payload["rankings"])
+    # The pinned fixture ranks the original eight demo companies plus
+    # filler beyond them (filler makes the ranking meaningful), and the
+    # universe covers every entry it ranks.
+    assert set(ORIGINAL_DEMO_TICKERS) <= ranked
+    assert ranked - set(ORIGINAL_DEMO_TICKERS), "rankings have no filler"
+    assert payload["universe_size"] >= len(ranked)
 
 
 def test_demo_rankings_are_never_stale(monkeypatch, tmp_path):
