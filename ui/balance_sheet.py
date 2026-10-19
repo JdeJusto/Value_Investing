@@ -248,9 +248,28 @@ def _resolve_mass(
 
 
 def _unmapped_column(concept: str) -> str:
-    """Which T column an unmapped monetary concept belongs to."""
+    """Which T column an unmapped monetary concept belongs to.
+
+    Liability-side keywords first, then the equity-side family (capital,
+    stock, retained earnings, minority interest…) so leftovers never land
+    in the Activo column by accident. The rest defaults to Activo.
+    """
     lowered = concept.lower()
-    if "liabilit" in lowered or "payable" in lowered or "equity" in lowered:
+    liability_terms = (
+        "liabilit",
+        "payable",
+        "equity",
+        "capital",
+        "stock",
+        "preferred",
+        "treasury",
+        "retained",
+        "earnings",
+        "deficit",
+        "comprehensive",
+        "minority",
+    )
+    if any(term in lowered for term in liability_terms):
         return "liabilities"
     return "assets"
 
@@ -288,6 +307,8 @@ def build_balance_model(
     )
     for subtotal_list in MASS_SUBTOTAL_CONCEPTS.values():
         resolved_concepts.update(subtotal_list)
+    # Unmapped *extras* are shown separately but are not "missing data" —
+    # ``partial`` is reserved for lines/totals the filing leaves out.
     for concept, years_values in numeric.items():
         if concept in resolved_concepts:
             continue
@@ -299,8 +320,6 @@ def build_balance_model(
         unmapped[column].append(
             BalanceLine(concept, human_label(concept, lang), years_values.get(year), None)
         )
-    if unmapped["assets"] or unmapped["liabilities"]:
-        partial = True
 
     by_key = {mass.key: mass for mass in masses}
     total_assets, assets_reported = _resolve_total("total_assets", numeric, year)
@@ -456,6 +475,13 @@ def _other_block(lines: list[BalanceLine], model: BalanceModel, scale: str) -> s
     )
 
 
+def _memoranda_unit(line: BalanceLine, units: dict[str, str]) -> str:
+    """Abbreviate memoranda in their own unit (shares stay ``sh``, public
+    float is money) instead of forcing ``shares``."""
+    unit = units.get(line.concept, "")
+    return unit or "shares"
+
+
 def _total_row(
     text: str, value: float | None, model: BalanceModel, scale: str, computed: bool
 ) -> str:
@@ -576,7 +602,7 @@ def render_balance_sheet(
         )
 
     memoranda_text = " · ".join(
-        f"{line.label}: {abbreviate_number(line.value, 'shares')}"
+        f"{line.label}: {abbreviate_number(line.value, _memoranda_unit(line, units))}"
         for line in model.memoranda
         if line.value is not None
     )

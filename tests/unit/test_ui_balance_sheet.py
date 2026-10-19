@@ -31,6 +31,7 @@ from ui.theme.labels import FIELD_LABELS, label
 
 REPO = Path(__file__).resolve().parents[2]
 DEMO_FINANCIALS = REPO / "data" / "demo" / "financials"
+PAGE = REPO / "ui" / "pages" / "02_analysis.py"
 YEAR, PRIOR_YEAR = 2025, 2024
 
 
@@ -373,5 +374,64 @@ def test_numeric_from_view_parses_demo_fixture(monkeypatch):
     model = build_balance_model(numeric, units, max(view.years), list(view.years))
     assert model.total_assets is not None
     assert model.total_assets > 0
-    # The un-extended fixture lacks equity/debt detail: the chip may report
-    # an imbalance until the demo fixture is completed (Fase 2 asserts True).
+    # The hand-extended fixture ties exactly: every subtotal reported,
+    # delta 0, no missing lines -> the chip reports "Cuadra".
+    assert model.balanced is True
+    assert model.delta == pytest.approx(0.0)
+    assert model.partial is False
+    assert model.total_assets_reported
+    assert model.total_liabilities_reported
+    assert model.total_equity_reported
+    assert all(mass.subtotal_reported for mass in model.masses)
+
+
+# ---------------------------------------------------------------------------
+# Financials tab integration (demo mode)
+# ---------------------------------------------------------------------------
+
+
+def test_financials_tab_defaults_to_the_t_balance(monkeypatch):
+    """The Balance Sheet sub-tab opens in T view; the flat table stays."""
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setenv("VI_DEMO", "1")
+    at = AppTest.from_file(str(PAGE), default_timeout=120)
+    at.run()
+    next(button for button in at.button if button.label == "Analyze").click()
+    at.run()
+    assert not at.exception, at.exception
+
+    mode = next(radio for radio in at.radio if radio.label == "Vista")
+    assert list(mode.options) == ["Vista en T", "Vista tabla"]
+    assert mode.value == "Vista en T"
+
+    year = next(box for box in at.selectbox if box.label == "Ejercicio")
+    assert year.value == 2025
+
+    rendered = " ".join(str(element.value) for element in at.markdown)
+    assert "TOTAL ACTIVO" in rendered
+    assert "PASIVO Y PATRIMONIO NETO" in rendered
+    header_caption = next(
+        (c.value for c in at.caption if "Balance — FY2025" in c.value), None
+    )
+    assert header_caption is not None
+    assert "datos parciales" not in header_caption  # fixture is complete
+    assert any("Cuadra" in block.value for block in at.success)
+
+    labels = [box.label for box in at.selectbox]
+    assert "Escala" in labels  # scale selector of the T view
+    assert {c.label for c in at.checkbox} >= {"% de masa", "Variación YoY"}
+
+    # The flat table remains one click away and carries the new rows.
+    mode.set_value("Vista tabla")
+    at.run()
+    assert not at.exception, at.exception
+    frames = [
+        element.value
+        for element in at.dataframe
+        if "Concept" in list(element.value.columns)
+    ]
+    balance = next(frame for frame in frames if (frame["Concept"] == "Assets").any())
+    row = balance[balance["Concept"] == "Assets"].iloc[0]
+    assert row["FY2025"] == "$359.24B"
+    assert row["Unit"] == "USD"

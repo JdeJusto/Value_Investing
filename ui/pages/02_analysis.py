@@ -32,6 +32,7 @@ from ui._shared import (
     format_pct,
     metric_row,
     page_header,
+    rows_to_csv,
 )
 from ui.theme import VERDICT_COLORS, header as theme_header
 from ui.services import (
@@ -72,11 +73,12 @@ def _load_narrative_cached(record_key: tuple, section_value: str) -> dict:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
-    """Cached (view, insights, alerts) keyed by (ticker, period, years).
+    """Cached (view, insights, alerts, balance numeric, units) per ticker.
 
-    One fact read feeds the tables, the Summary panel and the sidebar alerts
-    — no second source. Renders within the TTL reuse it; the data only
-    changes on a SEC sync. Demo mode reads the pinned fixtures instead.
+    One fact read feeds the tables, the T-format balance, the Summary panel
+    and the sidebar alerts — no second source. Renders within the TTL reuse
+    it; the data only changes on a SEC sync. Demo mode reads the pinned
+    fixtures instead (its display strings are parsed back to numbers).
     """
     from backend.services.alert_service import AlertService, load_demo_alerts
     from backend.services.financial_insights_service import (
@@ -84,25 +86,31 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
         load_demo_insights,
     )
     from backend.services.financials_view_service import FinancialsViewService
+    from ui.balance_sheet import numeric_from_facts, numeric_from_view
 
     service = FinancialsViewService()
     if is_demo():
+        view = service.build(ticker, fiscal_period, max_years)
+        balance_numeric, balance_units = numeric_from_view(view) if view else ({}, {})
         return (
-            service.build(ticker, fiscal_period, max_years),
+            view,
             load_demo_insights(ticker),
             load_demo_alerts(ticker),
+            balance_numeric,
+            balance_units,
         )
     facts = service.fetch_facts(ticker, fiscal_period, max_years)
     view = service.build(ticker, fiscal_period, max_years, facts=facts, abbreviate=True)
     if view is None or not facts:
-        return view, None, None
+        return view, None, None, {}, {}
     report = FinancialInsightsService(facts, ticker, view.company_name).build(
         abbreviate=True
     )
     alerts = AlertService(facts).build(
         ticker, view.company_name, fiscal_period, abbreviate=True
     )
-    return view, report, alerts
+    balance_numeric, balance_units = numeric_from_facts(facts, view.years)
+    return view, report, alerts, balance_numeric, balance_units
 
 
 def main() -> None:
@@ -950,6 +958,7 @@ def _historical(ticker: str) -> None:
 def _financials(ticker: str) -> None:
     """Every FDB fact for the company: one row per concept, one column/year."""
     from backend.services.financials_view_service import filter_rows, table_rows
+    from ui.balance_sheet import render_balance_sheet
 
     st.caption(
         "Fiscal data from Financial-DataBase — every fact stored for the "
@@ -975,7 +984,13 @@ def _financials(ticker: str) -> None:
             )
         )
 
-    view, report, alerts = _load_financials_cached(ticker, period, max_years)
+    (
+        view,
+        report,
+        alerts,
+        balance_numeric,
+        balance_units,
+    ) = _load_financials_cached(ticker, period, max_years)
     if view is None:
         st.info(
             "No financial facts stored for this company (or the demo fixture "
@@ -1033,10 +1048,49 @@ def _financials(ticker: str) -> None:
     for sub_tab, (label, bucket) in zip(sub_tabs, buckets):
         with sub_tab:
             rows = filter_rows(bucket, query=query, units=selected_units)
+            filename = f"{ticker}_{label.lower().replace(' ', '_')}.csv"
+            download_key = f"financials_{label}_{ticker}"
+            if label == "Balance Sheet" and balance_numeric:
+                # Classic T view by default; the flat table stays one click away.
+                view_mode = st.radio(
+                    "Vista",
+                    ["Vista en T", "Vista tabla"],
+                    horizontal=True,
+                    key=f"financials_bs_mode_{ticker}",
+                )
+                if view_mode == "Vista en T":
+                    year = st.selectbox(
+                        "Ejercicio",
+                        view.years,
+                        key=f"financials_bs_year_{ticker}",
+                    )
+                    render_balance_sheet(
+                        balance_numeric,
+                        balance_units,
+                        view.years,
+                        year,
+                        ticker=ticker,
+                        source=(
+                            "demo fixture (Financial-DataBase)"
+                            if is_demo()
+                            else "Financial-DataBase (SEC EDGAR)"
+                        ),
+                    )
+                    if rows:
+                        st.download_button(
+                            "Download CSV",
+                            data=rows_to_csv(table_rows(rows, view.years)).encode(
+                                "utf-8"
+                            ),
+                            file_name=filename,
+                            mime="text/csv",
+                            key=download_key,
+                        )
+                    continue
             dataframe_with_download(
                 table_rows(rows, view.years),
-                f"{ticker}_{label.lower().replace(' ', '_')}.csv",
-                f"financials_{label}_{ticker}",
+                filename,
+                download_key,
             )
     st.caption(
         "Source: Financial-DataBase (SEC EDGAR) · Fiscal period: "

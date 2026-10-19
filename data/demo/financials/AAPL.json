@@ -14,7 +14,7 @@
     2017,
     2016
   ],
-  "note": "Demo fixture: top 32 of 337 concepts by year coverage, 10 most recent fiscal years.",
+  "note": "Demo fixture: top 32 of 337 concepts by year coverage, 10 most recent fiscal years. Balance sheet extended by hand with real Financial-DataBase facts (totals, non-current subtotals, equity breakdown, debt and securities) for the T-format view.",
   "balance_sheet": [
     {
       "concept": "AccountsPayableCurrent",
@@ -217,6 +217,153 @@
         "2018": "$45.18B",
         "2017": "$40.41B",
         "2016": "$36.07B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "Assets",
+      "label": "Total Assets",
+      "values": {
+        "2025": "$359.24B",
+        "2024": "$364.98B",
+        "2023": "$352.58B",
+        "2022": "$352.75B",
+        "2021": "$351.00B",
+        "2020": "$323.89B",
+        "2019": "$338.52B",
+        "2018": "$365.73B",
+        "2017": "$375.32B",
+        "2016": "$321.69B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AssetsNoncurrent",
+      "label": "Assets Noncurrent",
+      "values": {
+        "2025": "$211.28B",
+        "2024": "$211.99B",
+        "2023": "$209.02B",
+        "2022": "$217.35B",
+        "2021": "$216.17B",
+        "2020": "$180.18B",
+        "2019": "$175.70B",
+        "2018": "$234.39B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "Liabilities",
+      "label": "Total Liabilities",
+      "values": {
+        "2025": "$285.51B",
+        "2024": "$308.03B",
+        "2023": "$290.44B",
+        "2022": "$302.08B",
+        "2021": "$287.91B",
+        "2020": "$258.55B",
+        "2019": "$248.03B",
+        "2018": "$258.58B",
+        "2017": "$241.27B",
+        "2016": "$193.44B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LiabilitiesNoncurrent",
+      "label": "Liabilities Noncurrent",
+      "values": {
+        "2025": "$119.88B",
+        "2024": "$131.64B",
+        "2023": "$145.13B",
+        "2022": "$148.10B",
+        "2021": "$162.43B",
+        "2020": "$153.16B",
+        "2019": "$142.31B",
+        "2018": "$141.71B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "StockholdersEquity",
+      "label": "Stockholders' Equity",
+      "values": {
+        "2025": "$73.73B",
+        "2024": "$56.95B",
+        "2023": "$62.15B",
+        "2022": "$50.67B",
+        "2021": "$63.09B",
+        "2020": "$65.34B",
+        "2019": "$90.49B",
+        "2018": "$107.15B",
+        "2017": "$134.05B",
+        "2016": "$128.25B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PropertyPlantAndEquipmentNet",
+      "label": "Property Plant And Equipment Net",
+      "values": {
+        "2025": "$49.83B",
+        "2024": "$45.68B",
+        "2023": "$43.72B",
+        "2022": "$42.12B",
+        "2021": "$39.44B",
+        "2020": "$36.77B",
+        "2019": "$37.38B",
+        "2018": "$41.30B",
+        "2017": "$33.78B",
+        "2016": "$27.01B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LongTermDebtNoncurrent",
+      "label": "Long Term Debt Noncurrent",
+      "values": {
+        "2025": "$78.33B",
+        "2024": "$85.75B",
+        "2023": "$95.28B",
+        "2022": "$98.96B",
+        "2021": "$109.11B",
+        "2020": "$98.67B",
+        "2019": "$91.81B",
+        "2018": "$93.73B",
+        "2017": "$97.21B",
+        "2016": "$75.43B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "RetainedEarningsAccumulatedDeficit",
+      "label": "Retained Earnings (Accumulated Deficit)",
+      "values": {
+        "2025": "($14.26B)",
+        "2024": "($19.15B)",
+        "2023": "($214.00M)",
+        "2022": "($3.07B)",
+        "2021": "$5.56B",
+        "2020": "$14.97B",
+        "2019": "$45.90B",
+        "2018": "$70.40B",
+        "2017": "$98.33B",
+        "2016": "$96.36B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OtherLiabilitiesCurrent",
+      "label": "Other Liabilities Current",
+      "values": {
+        "2025": "$66.39B",
+        "2024": "$78.30B",
+        "2023": "$58.83B",
+        "2022": "$60.84B",
+        "2021": "$47.49B",
+        "2020": "$42.68B",
+        "2019": "$37.72B",
+        "2018": "$32.69B"
       },
       "unit": "USD"
     }
@@ -565,7 +712,86 @@
         "2016": "$578.81B"
       },
       "unit": "USD"
+    },
+    {
+      "concept": "MarketableSecuritiesCurrent",
+      "label": "Marketable Securities Current",
+      "values": {
+        "2025": "$18.76B",
+        "2024": "$35.23B",
+        "2023": "$31.59B",
+        "2022": "$24.66B",
+        "2021": "$27.70B",
+        "2020": "$52.93B",
+        "2019": "$51.71B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "MarketableSecuritiesNoncurrent",
+      "label": "Marketable Securities Noncurrent",
+      "values": {
+        "2025": "$77.72B",
+        "2024": "$91.48B",
+        "2023": "$100.54B",
+        "2022": "$120.81B",
+        "2021": "$127.88B",
+        "2020": "$100.89B",
+        "2019": "$105.34B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LongTermDebtCurrent",
+      "label": "Long Term Debt Current",
+      "values": {
+        "2025": "$12.35B",
+        "2024": "$10.91B",
+        "2023": "$9.82B",
+        "2022": "$11.13B",
+        "2021": "$9.61B",
+        "2020": "$8.77B",
+        "2019": "$10.26B",
+        "2018": "$8.78B",
+        "2017": "$6.50B",
+        "2016": "$3.50B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "CommonStocksIncludingAdditionalPaidInCapital",
+      "label": "Common Stocks Including Additional Paid In Capital",
+      "values": {
+        "2025": "$93.57B",
+        "2024": "$83.28B",
+        "2023": "$73.81B",
+        "2022": "$64.85B",
+        "2021": "$57.37B",
+        "2020": "$50.78B",
+        "2019": "$45.17B",
+        "2018": "$40.20B",
+        "2017": "$35.87B",
+        "2016": "$31.25B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "NontradeReceivablesCurrent",
+      "label": "Nontrade Receivables Current",
+      "values": {
+        "2025": "$33.18B",
+        "2024": "$32.83B",
+        "2023": "$31.48B",
+        "2022": "$32.75B",
+        "2021": "$25.23B",
+        "2020": "$21.32B",
+        "2019": "$22.88B",
+        "2018": "$25.81B",
+        "2017": "$17.80B",
+        "2016": "$13.54B"
+      },
+      "unit": "USD"
     }
   ],
-  "unmatched_count": 4
+  "unmatched_count": 9
 }

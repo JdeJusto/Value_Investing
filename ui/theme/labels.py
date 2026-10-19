@@ -24,9 +24,17 @@ FIELD_LABELS: dict[str, dict[str, str]] = {
     "LiabilitiesTotal": {"es": "Total pasivo", "en": "Total liabilities"},
     # --- Subtotals (reported masses) ------------------------------------
     "AssetsCurrent": {"es": "Total activo corriente", "en": "Total current assets"},
+    "AssetsNoncurrent": {
+        "es": "Total activo no corriente",
+        "en": "Total non-current assets",
+    },
     "LiabilitiesCurrent": {
         "es": "Total pasivo corriente",
         "en": "Total current liabilities",
+    },
+    "LiabilitiesNoncurrent": {
+        "es": "Total pasivo no corriente",
+        "en": "Total non-current liabilities",
     },
     "StockholdersEquity": {
         "es": "Total patrimonio neto",
@@ -173,6 +181,10 @@ FIELD_LABELS: dict[str, dict[str, str]] = {
     # --- Equity ----------------------------------------------------------
     "PreferredStockValue": {"es": "Acciones preferentes", "en": "Preferred stock"},
     "CommonStockValue": {"es": "Acciones ordinarias", "en": "Common stock"},
+    "CommonStocksIncludingAdditionalPaidInCapital": {
+        "es": "Acciones ordinarias (incl. prima de emisión)",
+        "en": "Common stock incl. additional paid-in capital",
+    },
     "AdditionalPaidInCapital": {
         "es": "Prima de emisión",
         "en": "Additional paid-in capital",

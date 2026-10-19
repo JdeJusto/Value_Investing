@@ -61,7 +61,9 @@ BALANCE_MAP: dict[str, list[list[str]]] = {
     ],
     "equity": [
         ["PreferredStockValue"],
-        ["CommonStockValue"],
+        # Combined tag (e.g. Apple files common stock + APIC as one line);
+        # filers using the separate tags still resolve the usual two lines.
+        ["CommonStockValue", "CommonStocksIncludingAdditionalPaidInCapital"],
         ["AdditionalPaidInCapital", "PaidInCapital"],
         ["RetainedEarningsAccumulatedDeficit", "RetainedEarnings"],
         ["TreasuryStockValue"],
@@ -75,9 +77,9 @@ BALANCE_MAP: dict[str, list[list[str]]] = {
 #: the subtotal from the lines and labels it as computed.
 MASS_SUBTOTAL_CONCEPTS: dict[str, list[str]] = {
     "assets_current": ["AssetsCurrent"],
-    "assets_noncurrent": [],
+    "assets_noncurrent": ["AssetsNoncurrent"],
     "liab_current": ["LiabilitiesCurrent"],
-    "liab_noncurrent": [],
+    "liab_noncurrent": ["LiabilitiesNoncurrent"],
     "equity": [
         "StockholdersEquity",
         "ShareholdersEquity",
