@@ -28,6 +28,7 @@ from scripts.audit_data_quality import (
     RESTATEMENT,
     SKIPPED,
     SPLIT_ADJUSTMENT,
+    STALE,
     UNCLASSIFIED,
     Fact,
     MetricSpec,
@@ -36,7 +37,10 @@ from scripts.audit_data_quality import (
     audit_company,
     build_report,
     classify_comparison,
+    exit_code_for,
+    fiscal_year_age_months,
     format_report,
+    is_stale,
     load_universe_map,
     metric_value,
     write_reports,
@@ -984,15 +988,19 @@ def test_a_tag_with_the_wrong_period_cannot_explain_the_value():
     assert _classes(row["comparisons"])[("revenue", "sec_edgar")] == UNCLASSIFIED
 
 
-def test_a_period_gap_beyond_the_window_is_not_a_period_artifact():
-    classification, _ = classify_comparison(
+def test_a_stale_sec_fact_is_skipped_not_compared():
+    # A preferred fact from years earlier carries no information about the
+    # audited period; comparing against it would invent a discrepancy (or
+    # hide one). The audit marks the row SKIPPED instead of UNCLASSIFIED.
+    classification, reason = classify_comparison(
         value_a=100.0,
         value_b=265.0,
         tolerance_pct=2.0,
         period_a=FY_END,
         period_b=date(2018, 9, 29),
     )
-    assert classification == UNCLASSIFIED
+    assert classification == SKIPPED
+    assert "stale" in reason
 
 
 def test_a_period_gap_inside_the_window_is_expected():
@@ -1012,7 +1020,68 @@ def test_an_alternative_tag_without_a_period_is_still_accepted():
         value_b=111.0,
         tolerance_pct=2.0,
         period_a=FY_END,
-        period_b=date(2018, 9, 29),
+        period_b=FY_END,
         alternative_tags={"SalesRevenueNet": [Fact(100.0)]},
     )
     assert classification == DIFFERENT_TAG
+
+
+def test_a_stale_preferred_fact_short_circuits_the_tag_loop():
+    # When the preferred fact is stale (drift > period_shift_days) the row is
+    # SKIPPED outright: in the real pipeline a stale preferred fact means no
+    # tag has a covering fact, so the alternative-tags loop could not match
+    # either. A synthetic alt tag with no period cannot override that.
+    classification, _ = classify_comparison(
+        value_a=100.0,
+        value_b=111.0,
+        tolerance_pct=2.0,
+        period_a=FY_END,
+        period_b=date(2018, 9, 29),
+        alternative_tags={"SalesRevenueNet": [Fact(100.0)]},
+    )
+    assert classification == SKIPPED
+
+
+# ---------------------------------------------------------------------------
+# freshness: stale companies (A4)
+# ---------------------------------------------------------------------------
+def test_fiscal_year_age_months_counts_full_months():
+    assert fiscal_year_age_months(date(2025, 1, 31), date(2026, 4, 30)) == 14.0
+    assert fiscal_year_age_months(date(2025, 1, 31), date(2026, 5, 1)) == 15.0
+    assert fiscal_year_age_months(date(2025, 1, 31), date(2026, 5, 31)) == 16.0
+    assert fiscal_year_age_months(None, date(2026, 5, 31)) is None
+
+
+def test_is_stale_is_exclusive_at_fifteen_months_and_clamps_month_ends():
+    # FY_END is 2024-09-28, so exactly 15 months later is 2025-12-28.
+    assert is_stale(FY_END, date(2025, 12, 27)) is False
+    assert is_stale(FY_END, date(2025, 12, 28)) is False  # exactly 15 months
+    assert is_stale(FY_END, date(2025, 12, 29)) is True  # just over 15 months
+    # A fiscal year ending on the 31st clamps to the target month's end.
+    assert is_stale(date(2024, 1, 31), date(2025, 4, 30)) is False
+    assert is_stale(date(2024, 1, 31), date(2025, 5, 1)) is True
+    assert is_stale(None, date(2026, 3, 28)) is False
+
+
+def test_report_flags_stale_companies_and_counts_them():
+    fresh = _report(generated_at="2025-11-28T00:00:00Z")  # 14 months after FY_END
+    stale = _report(generated_at="2026-03-28T00:00:00Z")  # 18 months
+    assert fresh["tickers"][0]["stale"] is False
+    assert stale["tickers"][0]["stale"] is True
+    assert stale["tickers"][0]["fy_end_age_months"] == 18.0
+    assert stale["summary"]["stale_companies"] == 1
+    assert stale["summary"]["stale_tickers"] == ["AAPL"]
+    text = format_report(stale)
+    assert f"{STALE}:" in text
+    assert "stale=1" in text
+
+
+def test_exit_code_is_zero_when_only_stale():
+    report = _report(generated_at="2026-03-28T00:00:00Z")
+    assert report["tickers"][0]["stale"] is True
+    assert report["summary"]["data_error_fdb"] == 0
+    assert exit_code_for(report["summary"]) == 0
+
+
+def test_exit_code_is_one_on_data_error_fdb():
+    assert exit_code_for({"data_error_fdb": 2}) == 1
