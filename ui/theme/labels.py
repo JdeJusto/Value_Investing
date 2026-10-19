@@ -245,6 +245,111 @@ FIELD_LABELS: dict[str, dict[str, str]] = {
         "es": "Acciones medias (básico y diluido)",
         "en": "Weighted-average shares outstanding (basic and diluted)",
     },
+    # --- Income statement ------------------------------------------------
+    "Revenues": {"es": "Ingresos", "en": "Revenues"},
+    "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "es": "Ingresos por contratos con clientes",
+        "en": "Revenue from contracts with customers (excl. assessed tax)",
+    },
+    "CostOfGoodsAndServicesSold": {
+        "es": "Coste de ventas",
+        "en": "Cost of goods and services sold",
+    },
+    "GrossProfit": {"es": "Beneficio bruto", "en": "Gross profit"},
+    "SellingGeneralAndAdministrativeExpense": {
+        "es": "Gastos de ventas, generales y administrativos",
+        "en": "Selling, general and administrative expense",
+    },
+    "OperatingIncomeLoss": {
+        "es": "Resultado operativo",
+        "en": "Operating income (loss)",
+    },
+    "NonoperatingIncomeExpense": {
+        "es": "Resultados no operativos",
+        "en": "Non-operating income (expense)",
+    },
+    "IncomeTaxExpenseBenefit": {
+        "es": "Impuesto sobre sociedades",
+        "en": "Income tax expense (benefit)",
+    },
+    "NetIncomeLoss": {"es": "Resultado neto", "en": "Net income (loss)"},
+    "ComprehensiveIncomeNetOfTax": {
+        "es": "Resultado integral total (neto de impuestos)",
+        "en": "Comprehensive income, net of tax",
+    },
+    "EarningsPerShareBasic": {
+        "es": "BPA básico",
+        "en": "Earnings per share, basic",
+    },
+    "EarningsPerShareDiluted": {
+        "es": "BPA diluido",
+        "en": "Earnings per share, diluted",
+    },
+    "AmortizationMethodQualifiedAffordableHousingProjectInvestments": {
+        "es": "Amortización — inversiones en vivienda asequible calificada",
+        "en": "Amortization — qualified affordable housing project investments",
+    },
+    "AmortizationMethodQualifiedAffordableHousingProjectInvestmentsAmortization": {
+        "es": "Amortización — vivienda asequible calificada (detalle)",
+        "en": "Amortization — qualified affordable housing investments (detail)",
+    },
+    # --- Cash flow -------------------------------------------------------
+    "NetCashProvidedByUsedInOperatingActivities": {
+        "es": "Flujo de caja neto de operaciones",
+        "en": "Net cash provided by (used in) operating activities",
+    },
+    "NetCashProvidedByUsedInInvestingActivities": {
+        "es": "Flujo de caja neto de inversión",
+        "en": "Net cash provided by (used in) investing activities",
+    },
+    "NetCashProvidedByUsedInFinancingActivities": {
+        "es": "Flujo de caja neto de financiación",
+        "en": "Net cash provided by (used in) financing activities",
+    },
+    "DepreciationAmortizationAndAccretionNet": {
+        "es": "Depreciación, amortización y agotamiento (neto)",
+        "en": "Depreciation, amortization and accretion, net",
+    },
+    "PaymentsToAcquirePropertyPlantAndEquipment": {
+        "es": "Adquisición de inmovilizado (CapEx)",
+        "en": "Payments to acquire property, plant and equipment",
+    },
+    "ProceedsFromMaturitiesPrepaymentsAndCallsOfAvailableForSaleSecurities": {
+        "es": "Cobros por vencimientos de valores disponibles para la venta",
+        "en": "Proceeds from maturities of available-for-sale securities",
+    },
+    "PaymentsForProceedsFromOtherInvestingActivities": {
+        "es": "Pagos y cobros de otras actividades de inversión",
+        "en": "Payments for / proceeds from other investing activities",
+    },
+    "IncreaseDecreaseInAccountsReceivable": {
+        "es": "Variación de deudores",
+        "en": "Increase (decrease) in accounts receivable",
+    },
+    "IncreaseDecreaseInInventories": {
+        "es": "Variación de inventarios",
+        "en": "Increase (decrease) in inventories",
+    },
+    "IncreaseDecreaseInAccountsPayable": {
+        "es": "Variación de proveedores",
+        "en": "Increase (decrease) in accounts payable",
+    },
+    "IncreaseDecreaseInOtherOperatingAssets": {
+        "es": "Variación de otros activos operativos",
+        "en": "Increase (decrease) in other operating assets",
+    },
+    "IncreaseDecreaseInOtherOperatingLiabilities": {
+        "es": "Variación de otros pasivos operativos",
+        "en": "Increase (decrease) in other operating liabilities",
+    },
+    "IncreaseDecreaseInDeposits": {
+        "es": "Variación de depósitos",
+        "en": "Increase (decrease) in deposits",
+    },
+    "IncreaseDecreaseInCashCollateralForBorrowedSecurities": {
+        "es": "Variación de garantías en efectivo sobre préstamos",
+        "en": "Increase (decrease) in cash collateral for borrowed securities",
+    },
 }
 
 

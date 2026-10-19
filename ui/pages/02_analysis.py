@@ -957,8 +957,9 @@ def _historical(ticker: str) -> None:
 
 def _financials(ticker: str) -> None:
     """Every FDB fact for the company: one row per concept, one column/year."""
-    from backend.services.financials_view_service import filter_rows, table_rows
+    from backend.services.financials_view_service import filter_rows
     from ui.balance_sheet import render_balance_sheet
+    from ui.financial_table import financial_table, financial_table_rows
 
     st.caption(
         "Fiscal data from Financial-DataBase — every fact stored for the "
@@ -1079,19 +1080,15 @@ def _financials(ticker: str) -> None:
                     if rows:
                         st.download_button(
                             "Download CSV",
-                            data=rows_to_csv(table_rows(rows, view.years)).encode(
-                                "utf-8"
-                            ),
+                            data=rows_to_csv(
+                                financial_table_rows(rows, view.years)
+                            ).encode("utf-8"),
                             file_name=filename,
                             mime="text/csv",
                             key=download_key,
                         )
                     continue
-            dataframe_with_download(
-                table_rows(rows, view.years),
-                filename,
-                download_key,
-            )
+            financial_table(rows, view.years, filename, download_key)
     st.caption(
         "Source: Financial-DataBase (SEC EDGAR) · Fiscal period: "
         f"{view.fiscal_period} · Values preserve the original filing format."

@@ -277,3 +277,15 @@ div[data-testid="stHorizontalBlock"]:has(> div:nth-child(2) .vi-bs-head)
   text-transform: uppercase;
   margin-bottom: 0.2rem;
 }
+
+/* --- Statement sub-tab density ---------------------------------------- */
+/* Second-level tab panels (the statement sub-tabs under Financials)
+   tighten their vertical rhythm so each flat table sits close to its
+   captions and download button. Scoped to nested panels so the main
+   tab bars keep their default breathing room. */
+[data-testid="stTabs"]
+  [role="tabpanel"]
+  [data-testid="stTabs"]
+  [role="tabpanel"] > div[data-testid="stVerticalBlock"] {
+  gap: 0.4rem;
+}

@@ -197,6 +197,7 @@ def dataframe_with_download(
     csv_rows: list[dict[str, Any]] | None = None,
     color_map: dict[str, dict[str, str]] | None = None,
     sign_map: dict[str, tuple[str, str]] | None = None,
+    column_config: dict[str, Any] | None = None,
 ) -> None:
     """Sortable dataframe plus a CSV download button.
 
@@ -205,6 +206,8 @@ def dataframe_with_download(
     for export) while the UI still shows ``rows``. ``color_map`` paints
     selected cell text (verdict/severity) with the theme palette, and
     ``sign_map`` colors a numeric-ish column by sign (PnL profit/loss).
+    ``column_config`` forwards Streamlit column configuration (labels,
+    help tooltips) — display-only, never touches the data or the CSV.
     """
     if not rows:
         st.info("No rows to display.")
@@ -213,6 +216,8 @@ def dataframe_with_download(
     kwargs: dict[str, Any] = {"width": "stretch", "hide_index": True}
     if height is not None:
         kwargs["height"] = height
+    if column_config:
+        kwargs["column_config"] = column_config
     if color_map or sign_map:
         st.dataframe(_color_dataframe(rows, color_map, sign_map), **kwargs)
     else:

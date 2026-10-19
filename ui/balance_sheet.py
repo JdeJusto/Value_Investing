@@ -35,7 +35,6 @@ from ui.balance_map import (
 )
 from ui.theme.format import (
     DASH,
-    currency_symbol,
     fmt_delta,
     fmt_money,
     fmt_pct,
