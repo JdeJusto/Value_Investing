@@ -20,6 +20,14 @@
 # It needs NO sudo and never touches a database directly; the daily workflow
 # keeps its usual contract (prices are fetched, never persisted).
 #
+# Exit status: the workflow's own code is propagated verbatim at the end of
+# this script (the code is never masked by a shell fallback), so a systemd/ops
+# alert fires on a non-zero day:
+#   0  every stage ran
+#   1  partial — a network stage was skipped (SEC or Yahoo unreachable)
+#   2  failed to start (broken config / unreachable database)
+# The best-effort steps (validation, peer stats, audit) never change it.
+#
 # Usage:
 #   scripts/run_daily_on_boot.sh           # no-op if it already ran today
 #   scripts/run_daily_on_boot.sh --force   # ignore the "already ran today" stamp
@@ -144,7 +152,13 @@ set +e
     $WORKFLOW_EXTRA_ARGS >>"$RUN_LOG" 2>&1
 WORKFLOW_STATUS=$?
 set -e
-log "daily workflow finished with status $WORKFLOW_STATUS"
+case "$WORKFLOW_STATUS" in
+    0) WORKFLOW_STATUS_MEANING="ok" ;;
+    1) WORKFLOW_STATUS_MEANING="partial (a network stage was skipped)" ;;
+    2) WORKFLOW_STATUS_MEANING="failed to start" ;;
+    *) WORKFLOW_STATUS_MEANING="unexpected (see the run log)" ;;
+esac
+log "daily workflow finished with status $WORKFLOW_STATUS ($WORKFLOW_STATUS_MEANING)"
 
 # Stamp the day even when the run failed: re-running every boot would only
 # repeat the same failure. The failure is in the run log and the workflow's

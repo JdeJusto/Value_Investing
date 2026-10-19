@@ -107,6 +107,19 @@ EUROPEAN_INDEX_SOURCES = frozenset(
 # (backend/services/{sec,yahoo}_health.py) — no second mechanism.
 HEALTH_CHECK_TIMEOUT_S = 3.0
 
+# Process exit codes returned by main() and propagated by
+# scripts/run_daily_on_boot.sh (which must never mask them). The boot wrapper
+# exits with the same code, so a systemd/ops alert fires on 1 or 2.
+# See docs/runbook_daily.md.
+EXIT_OK = 0  # every stage ran
+EXIT_PARTIAL = 1  # a network stage was skipped (provider down / retries exhausted)
+EXIT_FAILED = 2  # the run could not start (broken config / unreachable database)
+
+
+def _exit_code(stage_skipped: bool) -> int:
+    """EXIT_PARTIAL when a network stage was skipped, otherwise EXIT_OK."""
+    return EXIT_PARTIAL if stage_skipped else EXIT_OK
+
 
 def _raise_if_transient(health) -> None:
     """Raise ``ConnectionError`` for a transient (no-HTTP-status) verdict.
@@ -534,7 +547,8 @@ def _resume_skip_set(run_state) -> set[str]:
     return run_state.completed_set | permanent_refresh
 
 
-def _run(args) -> None:
+def _run(args) -> int:
+    """Run the workflow and return its process exit code (EXIT_OK/PARTIAL)."""
     from backend.app.cli import (
         build_analysis_service,
         build_financial_repository,
@@ -844,7 +858,7 @@ def _run(args) -> None:
             elif update.recovered:
                 logger.info("Yahoo preflight recovered; rate-limit alert cleared")
     if _clean_shutdown():
-        return
+        return _exit_code(stage_skipped)
     if run_state is not None:
         run_state.set_stage("analysis")
 
@@ -904,7 +918,7 @@ def _run(args) -> None:
     tick = time.time()
 
     if _clean_shutdown():
-        return
+        return _exit_code(stage_skipped)
 
     previous = (
         {} if args.dry_run else load_state(str(Path(args.out) / "daily_state.json"))
@@ -1059,7 +1073,7 @@ def _run(args) -> None:
     if args.dry_run:
         print("=== DRY-RUN — no files written ===")
         print(body)
-        return
+        return _exit_code(stage_skipped)
 
     if run_state is not None:
         run_state.set_stage("report")
@@ -1089,6 +1103,8 @@ def _run(args) -> None:
         run_state.note_network(network_snapshot)
         archived = run_state.complete()
         print(f"Run state archived: {archived}")
+
+    return _exit_code(stage_skipped)
 
 
 def _price_abort_threshold() -> int:
@@ -1452,17 +1468,32 @@ def _configure_logging(verbose: bool) -> None:
     configure_logging(level="DEBUG" if verbose else "INFO")
 
 
-def main() -> None:
+def main() -> int:
+    """Parse args, run the workflow and return its exit code.
+
+    EXIT_OK (0) when every stage ran, EXIT_PARTIAL (1) when a network stage was
+    skipped, EXIT_FAILED (2) when the run could not start. ``--help`` and the
+    universe/config errors raised by :func:`resolve_universe` keep their own
+    ``SystemExit`` (argparse conventions).
+    """
     args = build_parser().parse_args()
     _configure_logging(args.verbose)
     if args.fdb_python is None:
         args.fdb_python = str(Path(args.fdb_dir) / ".venv" / "bin" / "python")
     try:
-        _run(args)
+        return _run(args)
     except KeyboardInterrupt:
         print("Interrupted.")
-        sys.exit(130)
+        return 130
+    except SystemExit:
+        # Argument parsing and configuration errors already carry a sensible
+        # code; do not rewrite them.
+        raise
+    except Exception:
+        logger.exception("workflow failed to start")
+        print("Workflow failed to start: see the log for details")
+        return EXIT_FAILED
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
