@@ -99,6 +99,9 @@ venv.bak/
 # VS Code (project settings are tracked; uncomment to ignore everything)
 .vscode/
 
+# AI agent data (local state, not project data)
+.claude/
+
 # Abstra
 .abstra/
 
