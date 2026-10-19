@@ -55,7 +55,7 @@ except ImportError:  # dotenv is optional; env vars may be set externally
     load_dotenv = None
 
 from backend.api.logging_config import configure_logging
-from backend.services._retry import with_retry
+from backend.services._retry import RETRYABLE_ERRORS, with_retry
 from backend.services.price_service import (
     PRICE_FAILURE_DELISTED,
     PRICE_FAILURE_GLITCH,
@@ -138,6 +138,65 @@ def _probe_yahoo() -> bool:
     health = check_yahoo_availability(timeout=HEALTH_CHECK_TIMEOUT_S, attempts=1)
     _raise_if_transient(health)
     return health.available
+
+
+def _check_sec() -> bool:
+    """True when SEC is reachable; False (never raises) when it is not."""
+    try:
+        return _probe_sec()
+    except RETRYABLE_ERRORS:
+        logger.warning("SEC health check failed after retries — treating as down")
+        return False
+    except Exception as exc:  # noqa: BLE001 — a broken probe must not fail the run
+        logger.warning("SEC health check errored (%s) — treating as down", exc)
+        return False
+
+
+def _check_yahoo() -> bool:
+    """True when Yahoo is reachable; False (never raises) when it is not."""
+    try:
+        return _probe_yahoo()
+    except RETRYABLE_ERRORS:
+        logger.warning("Yahoo health check failed after retries — treating as down")
+        return False
+    except Exception as exc:  # noqa: BLE001 — a broken probe must not fail the run
+        logger.warning("Yahoo health check errored (%s) — treating as down", exc)
+        return False
+
+
+def _precheck_sec(args) -> bool:
+    """Probe SEC before its network stage; True when the stage must be skipped.
+
+    ``--dry-run`` only estimates staleness from the database (no SEC request)
+    and ``--no-update`` skips the refresh outright, so neither is probed.
+    """
+    if getattr(args, "no_update", False) or getattr(args, "dry_run", False):
+        return False
+    if _check_sec():
+        return False
+    logger.warning(
+        "SEC unreachable (pre-stage health check) — skipping the targeted SEC "
+        "refresh; analysis continues with the stored fundamentals"
+    )
+    return True
+
+
+def _precheck_yahoo(args) -> bool:
+    """Probe Yahoo before its network stage; True when the stage must be skipped.
+
+    ``--no-prices`` disables the stage entirely, so it is not probed. The
+    verdict is cached by the shared preflight, so the price service's own
+    preflight reuses it instead of issuing a second request.
+    """
+    if getattr(args, "no_prices", False):
+        return False
+    if _check_yahoo():
+        return False
+    logger.warning(
+        "Yahoo unreachable (pre-stage health check) — the price stage will be "
+        "skipped by the preflight and market fields will be N/A"
+    )
+    return True
 
 
 def _load_universe(path: str) -> list[str]:
@@ -497,6 +556,9 @@ def _run(args) -> None:
         date.fromisoformat(args.date) if args.date else datetime.now().date()  # noqa: DTZ005 — the report follows the local calendar day
     )
     start_time = time.time()
+    # Set when a pre-stage provider health check skips a network stage; the run
+    # is then PARTIAL (EXIT_PARTIAL). See docs/runbook_daily.md.
+    stage_skipped = False
     universe = resolve_universe(args.universe)
     if args.limit:
         universe = universe[: args.limit]
@@ -644,6 +706,13 @@ def _run(args) -> None:
         finally:
             prefetch_result["elapsed"] = time.time() - t0
 
+    # Pre-stage health check: probe Yahoo before the price stage so an outage
+    # is visible up front and the run is marked partial. The verdict is cached
+    # by the shared preflight, so the price service's own preflight below reuses
+    # it rather than issuing a second request (and keeps the streak telemetry).
+    if _precheck_yahoo(args):
+        stage_skipped = True
+
     if not args.no_prices:
         prefetch_thread = threading.Thread(target=_do_prefetch, daemon=True)
         prefetch_thread.start()
@@ -652,8 +721,13 @@ def _run(args) -> None:
     # per-CIK `sec sync`). Dry-run computes a read-only staleness estimate;
     # --no-update skips the refresh but still screens + writes. The snapshot
     # prefetch above runs concurrently because prices are independent of it.
+    # A pre-stage SEC health check skips the stage (and marks the run partial)
+    # when EDGAR is unreachable, instead of spawning a burst of doomed syncs.
     if args.no_update:
         sec_update_status = "SEC refresh: skipped (--no-update)"
+    elif _precheck_sec(args):
+        stage_skipped = True
+        sec_update_status = "SEC refresh: skipped (SEC unreachable)"
     else:
 
         def _refresh_progress(ticker: str, status) -> None:
@@ -674,6 +748,11 @@ def _run(args) -> None:
         )
     timings["refresh"] = time.time() - tick
     tick = time.time()
+    if stage_skipped:
+        logger.warning(
+            "one or more network stages were skipped by a health check — "
+            "this run is partial"
+        )
     if run_state is not None:
         # Telemetry as soon as the refresh stage is over, so a long run shows
         # the SEC numbers in the checkpoint without waiting for the report.
