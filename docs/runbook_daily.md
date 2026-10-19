@@ -213,8 +213,9 @@ e-mail and belongs in the gitignored `.env`, which the unit loads through
 failed.
 
 The run is started with `--verbose` so the scheduled log carries stage
-progress, phase timings, fundamentals-cache stats and the network telemetry —
-without it only warnings reach `data/logs/daily_workflow.log`.
+progress, phase timings, fundamentals-cache stats and the network telemetry.
+Stage output is structured JSON (see §2c, Logging): the default level is INFO
+and `--verbose` lowers it to DEBUG.
 
 ```bash
 systemctl --user daemon-reload
@@ -339,6 +340,91 @@ tmux new -s daily 'python -m scripts.daily_workflow --universe all --max-refresh
 - If the stored state is not what you want (wrong universe/options or a bad
   `--limit`), start fresh with `--no-resume` (the old state is archived, not
   lost) or target a specific one with `--run-id <id>`.
+
+## 2c. Failure modes, retries, health checks and exit codes
+
+### Health checks (pre-stage)
+
+Before each network stage the workflow probes the provider, reusing the
+project's existing preflights — there is no second mechanism:
+
+- **SEC** — `backend/services/sec_health.py` (`check_sec_availability`): a HEAD
+  on the companyfacts API (the same host ingestion uses), **3 s** timeout.
+- **Yahoo** — `backend/services/yahoo_health.py` (`check_yahoo_availability`):
+  a quote probe, **3 s** timeout, shared with the price service.
+
+Each result is cached per process for 120 s, so the workflow's check and the
+stage's own preflight issue **one** request, not two. When a probe fails, its
+stage is skipped (the SEC refresh is not started; the price stage is aborted by
+its own preflight), the run is marked **partial**, and analysis continues with
+the fundamentals already stored in Financial-DataBase and N/A market fields.
+`--no-update` and `--dry-run` skip the SEC probe (no SEC request is made);
+`--no-prices` skips the Yahoo probe.
+
+### Retries
+
+The workflow's own network probes go through the shared helper
+`backend/services/_retry.py` (`with_retry`): **3 attempts, backoff ×2**
+(0.5 s, 1.0 s, capped at 4 s). Only transient failures are retried; an HTTP
+verdict (403/429/5xx) is final and is never retried.
+
+Deliberately **not** wrapped by the generic helper (see the provenance note in
+`_retry.py`):
+
+- **Yahoo price batch** (`PriceService`) — its quote path has a domain-aware
+  policy that treats HTTP 429/401 as non-transient and aborts the stage instead
+  of burning three attempts per ticker.
+- **SEC sync subprocesses** — retry/backoff lives in Financial-DataBase and in
+  the resume checkpoint: transient sync failures are retried by the next
+  resumed run, permanent data failures are not.
+
+### Failure modes
+
+| Failure | Behaviour | Result |
+| --- | --- | --- |
+| SEC unreachable (health check fails) | Targeted refresh skipped before it starts; screening uses stored fundamentals | partial (1) |
+| SEC reachable, one sync fails transiently | Recorded on the checkpoint; retried by the next resumed run | ok/partial |
+| `SEC_USER_AGENT` unset | SEC probe reports unavailable without an HTTP call → refresh skipped | partial (1) |
+| Yahoo unreachable | Price stage aborted by the preflight; market fields N/A | partial (1) |
+| Yahoo rate-limits (429) | Price stage aborts (non-transient); streak alert after N runs | partial (1) |
+| Database unreachable | `build_financial_repository` falls back to the JSON repository | ok (degraded) |
+| Database unreachable and no JSON fallback | Startup raises → the workflow cannot start | failed (2) |
+| Missing universe file / unknown `--universe` | `resolve_universe` raises `SystemExit` | 1 (config error) |
+
+A **partial** run is not an error: it still writes the report and the state,
+and the next run resumes from the checkpoint. A boot that never starts the
+workflow (no network within 10 min) is a deliberate no-op and exits `0`.
+
+### Exit codes
+
+| Code | Meaning | Boot-wrapper log line |
+| --- | --- | --- |
+| `0` | every stage ran | `ok` |
+| `1` | a network stage was skipped (provider down / retries exhausted) | `partial (a network stage was skipped)` |
+| `2` | the run could not start (broken config / unreachable database) | `failed to start` |
+| `130` | interrupted with Ctrl-C (`SIGINT`) | — |
+
+`scripts/run_daily_on_boot.sh` propagates the workflow's code verbatim at the
+end (`exit "$WORKFLOW_STATUS"`) — nothing masks it. The best-effort post-steps
+(post-run validation, weekly peer stats, monthly audit) keep their own statuses
+and never change it.
+
+### Resume after a partial run
+
+`--resume` is the default, so just start the workflow again (or let the next
+scheduled/boot run do it): completed tickers are not SEC-refreshed again and
+only transient failures are retried. Use `--no-resume` to start clean (the old
+state is archived, not lost) or `--run-id <id>` to target a specific
+checkpoint.
+
+### Logging
+
+Stage output is structured **JSON**, produced by the API's logger config
+(`backend/api/logging_config.py`); the workflow installs it with
+`configure_logging` (default level INFO — `--verbose` → DEBUG). Every line is a
+JSON object with `asctime`, `levelname`, `name`, `message`, `pathname` and
+`lineno`, so `data/logs/daily_workflow.log`, the boot-run log
+(`logs/run_<date>.log`) and the systemd journal are machine-readable.
 
 ## 3. Screener with real-time prices
 
