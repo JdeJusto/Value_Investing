@@ -34,7 +34,6 @@ from ui._shared import (
     page_header,
     rows_to_csv,
 )
-from ui.theme import VERDICT_COLORS, header as theme_header
 from ui.services import (
     get_price_service,
     load_filings,
@@ -44,6 +43,8 @@ from ui.services import (
     load_scorecard,
     load_scorecard_charts,
 )
+from ui.theme import VERDICT_COLORS
+from ui.theme import header as theme_header
 
 DCF_DISCLAIMER = (
     "**not-from-canon** — the DCF is not part of any book methodology and "

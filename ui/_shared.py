@@ -154,9 +154,9 @@ def _color_dataframe(
         if column not in frame.columns:
             continue
         styler = styler.map(
-            lambda value, m=mapping: f"color: {m[str(value)]};"
-            if str(value) in m
-            else "",
+            lambda value, m=mapping: (
+                f"color: {m[str(value)]};" if str(value) in m else ""
+            ),
             subset=[column],
         )
     for column, (pos, neg) in (sign_map or {}).items():
@@ -167,7 +167,9 @@ def _color_dataframe(
             parsed = _parse_number(value)
             if parsed is None:
                 return ""
-            return f"color: {p};" if parsed > 0 else f"color: {n};" if parsed < 0 else ""
+            return (
+                f"color: {p};" if parsed > 0 else f"color: {n};" if parsed < 0 else ""
+            )
 
         styler = styler.map(_sign_color, subset=[column])
     return styler

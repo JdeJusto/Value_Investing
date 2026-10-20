@@ -47,6 +47,13 @@ pytest = ">=8.0"
 alembic = ">=1.13"
 pytest-cov = "*"
 pyright = "*"
+# Pinned exactly (no range): ruff's *default rule set* moves between minor
+# versions -- 0.17 already dropped DTZ from the defaults, which turned 7
+# existing `noqa: DTZ...` comments into RUF100 violations on a clean tree.
+# An unpinned ruff therefore changes the lint baseline for reasons that have
+# nothing to do with this codebase. Config lives in pyproject.toml [tool.ruff]
+# (`required-version` re-checks this same value at runtime).
+ruff = "==0.16.4"
 
 [scripts]
 ui = "streamlit run ui/app.py"

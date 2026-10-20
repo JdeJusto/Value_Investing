@@ -29,13 +29,13 @@ from backend.services.ui_adapter import (
     remove_position,
 )
 from ui._shared import _color_dataframe, format_pct, metric_row, page_header
-from ui.theme import PALETTE
 from ui.services import (
     load_fundamentals,
     load_portfolio,
     load_quote,
     load_sector_map,
 )
+from ui.theme import PALETTE
 
 DEFAULT_PORTFOLIO_PATH = str(DEMO_PORTFOLIO) if is_demo() else "data/portfolio.json"
 SIGNALS = ["BUY", "WATCH", "HOLD"]

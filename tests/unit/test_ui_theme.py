@@ -17,6 +17,7 @@ _CSS_TEXT = (_THEME_DIR / "style.css").read_text(encoding="utf-8")
 
 # --- WCAG contrast helpers (pure, no network) -------------------------------
 
+
 def _relative_luminance(hex_color: str) -> float:
     """WCAG relative luminance for a #rrggbb color."""
     hex_color = hex_color.lstrip("#")
@@ -38,12 +39,11 @@ def _contrast_ratio(fg: str, bg: str) -> float:
 
 # --- inject_theme ------------------------------------------------------------
 
+
 def test_inject_theme_is_idempotent():
     """Calling inject_theme twice injects the CSS only once."""
     at = AppTest.from_string(
-        "from ui.theme import inject_theme\n"
-        "inject_theme()\n"
-        "inject_theme()\n"
+        "from ui.theme import inject_theme\ninject_theme()\ninject_theme()\n"
     )
     at.run()
     assert not at.exception, at.exception
@@ -75,6 +75,7 @@ def test_css_defines_the_palette_and_contract_classes():
 
 
 # --- Plotly template ---------------------------------------------------------
+
 
 def test_plotly_template_registered_as_synthwave():
     import plotly.io as pio
@@ -113,6 +114,7 @@ def test_charts_hardcode_no_colors_outside_the_theme():
 
 
 # --- Palette contrast (WCAG AA) ---------------------------------------------
+
 
 def test_cream_on_bg_passes_wcag_aa():
     from ui.theme import PALETTE

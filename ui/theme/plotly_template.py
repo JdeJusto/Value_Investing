@@ -30,13 +30,13 @@ CHROME = "#c0c0d0"
 COLORWAY = [NEON_PINK, NEON_CYAN, "#9b4dff", GOLD]
 
 synthwave = go.layout.Template()
-synthwave.layout = dict(
-    paper_bgcolor=TRANSPARENT,
-    plot_bgcolor=TRANSPARENT,
-    font=dict(family="JetBrains Mono, monospace", color="#f0e6d2"),
-    colorway=COLORWAY,
-    xaxis=dict(gridcolor=GRID_COLOR),
-    yaxis=dict(gridcolor=GRID_COLOR),
-)
+synthwave.layout = {
+    "paper_bgcolor": TRANSPARENT,
+    "plot_bgcolor": TRANSPARENT,
+    "font": {"family": "JetBrains Mono, monospace", "color": "#f0e6d2"},
+    "colorway": COLORWAY,
+    "xaxis": {"gridcolor": GRID_COLOR},
+    "yaxis": {"gridcolor": GRID_COLOR},
+}
 pio.templates["synthwave"] = synthwave
 pio.templates.default = "plotly_dark+synthwave"

@@ -183,7 +183,8 @@ def main() -> None:
         matrix = service.verdict_matrix()
         # Every column except the identifiers carries a verdict value.
         verdict_columns = [
-            column for column in (matrix[0].keys() if matrix else ())
+            column
+            for column in (matrix[0].keys() if matrix else ())
             if column not in ("Ticker", "Name")
         ]
         st.dataframe(

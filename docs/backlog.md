@@ -151,6 +151,83 @@ once the major has a release or two of soak time. Nothing here is a
 `Pipfile` constraint: these are transitive dependencies, so the next
 regeneration will propose the majors again.
 
+## 2026-10-20 — ruff pinning
+
+`ruff` is now a pinned dev dependency (`ruff = "==0.16.4"` in
+`Pipfile[dev-packages]`) and its configuration moved out of the standalone
+`ruff.toml` into `pyproject.toml [tool.ruff]`, so lint and coverage config
+live in the same file. `required-version = "==0.16.4"` makes the binary
+refuse to run at all if it is ever swapped: with 0.17.1 on the PATH the run
+aborts with "Required version `==0.16.4` does not match the running version
+`0.17.1`".
+
+**Why 0.16.4 and not the current 0.17.x.** ruff's *stable defaults* are not a
+fixed contract. Measured 2026-10-20 on this tree, comparing the two binaries
+with `--isolated` (defaults only, no project config): 0.16.4 reports 40
+findings, 0.17.1 reports 47. The entire delta is `RUF100` (4 → 11): the `DTZ`
+rules left the default set in 0.17, so seven existing `# noqa: DTZ001` /
+`DTZ005` comments in *tracked* files — `scripts/daily_workflow.py:570`,
+`scripts/validate_sp500.py:67` and five lines in
+`tests/unit/test_price_service.py` — stop being "used" directives and become
+violations instead. Same tree, same config, different verdict. Under the
+project config the pre-fix totals were 12 (0.16.4) vs 19 (0.17.1).
+
+0.16.4 is the version the whole cleanup sprint was measured with, so it is
+the version that is pinned. Moving to 0.17 is a separate task: drop the seven
+`DTZ` noqa directives (the rules are off), re-measure the baseline, then bump
+`required-version`, the Pipfile and this note together.
+
+**Why there is no explicit `select`.** An explicit rule list is the obvious
+way to make linting version-independent, but ruff 0.16.4 enables **413 rules
+by default** and they are *not* aligned to rule groups — only 3 of the 58 `S` rules, 2 of
+the 18 `E` rules, 29 of the 39 `B` rules, and so on. Three measurements on
+this tree:
+
+- `select` set to the group prefixes present in the defaults → **12,007
+  errors** (11,977 in tracked code), because every prefix pulls in the rules
+  the defaults deliberately leave off;
+- `select = ["ALL"]` → 810 rules, requiring a ~397-entry `ignore` list to
+  get back to the current baseline;
+- an exact prefix cover of the 413 defaults does not exist (only 5 prefixes
+  are admissible, covering 30 rules), so the faithful alternative is a list
+  of ~380 individual codes.
+
+The codebase already passes all 413 default rules, so freezing the *version*
+freezes the rule set exactly — no ignore list, no coverage loss, no
+unmaintainable config. A curated `select` remains possible, but it is a
+lint-policy conversation: it would trade currently-passing rules for a
+hand-picked subset, and it belongs in its own change with its own review.
+
+**`scripts_dev/` is excluded, not linted** (`extend-exclude`, together with
+`.venv` and `node_modules`). It is tracked in git — three dev helpers: the
+screenshot harness, the fixture surgery script and the theme verifier — so a
+clean clone *does* see it; excluding it is what takes `ruff check .` from 6
+findings to 0. Those files still carry stale `# noqa: E402` comments that
+would become `RUF100` noise if the exclusion were ever lifted.
+
+**CI has no lint job.** `.github/workflows/ci.yml` installs everything from
+the lock (`pipenv install --system --deploy --dev`), so CI now gets
+`ruff==0.16.4` exactly like a local clone, with no workflow edit needed.
+`scripts/release.sh` is the only place that invokes ruff directly and it
+picks up the pinned binary from `.venv`.
+
+**Lock note.** `ruff` has zero runtime dependencies, so its entry was carried
+into the lock and `_meta.hash.sha256` is pipenv's own value for the edited
+`Pipfile` — the result is "previous lock + ruff", nothing else moved, and
+`pipenv install --deploy --dev` accepts it. A plain `pipenv lock` re-resolves
+everything and re-proposes the three majors reverted above (`pyarrow 26`,
+`soupsieve 3`, `websockets 17`) plus unrelated minors (`fastapi 0.151`), so
+the next regeneration needs the same review-and-revert pass documented in the
+section above.
+
+Baseline after this change: `ruff check .` 0, `ruff format --check .` 0 (564
+files), unit 2363 passed / 2 skipped, api 125 passed. The six tracked findings
+that were fixed are 2 × `I001` (`ui/pages/02_analysis.py`,
+`ui/pages/04_portfolio.py`) and 4 × `C408` (`ui/theme/plotly_template.py`,
+`dict(...)` → literals); three further files were reformatted to reach a
+clean `ruff format --check .` (`tests/unit/test_ui_theme.py`, `ui/_shared.py`,
+`ui/pages/06_consensus.py`) — cosmetic only.
+
 ## Shipped: real-time financial alerts (v0.10.1)
 
 Ten deterministic rules over the FDB facts (see `docs/financial_alerts.md`):

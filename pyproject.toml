@@ -26,3 +26,54 @@ exclude_lines = [
 ]
 fail_under = 70
 show_missing = true
+
+# ---------------------------------------------------------------------------
+# Lint / format (ruff). Like coverage above, this file is the single home for
+# tool configuration; the dependency set stays in Pipfile/Pipfile.lock.
+#
+# Reproducibility contract (docs/backlog.md, "2026-10-20 — ruff pinning"):
+#
+#   * The binary is pinned twice: `required-version` below, and
+#     `ruff = "==0.16.4"` in Pipfile[dev-packages] -- which is what CI gets,
+#     because ci.yml installs everything from the lock with
+#     `pipenv install --system --deploy --dev` (CI has no lint job of its own).
+#   * There is deliberately no explicit `select`. ruff's stable defaults in
+#     0.16.4 enable 413 rules that are NOT aligned to rule groups (only 3 of
+#     the 58 `S` rules are on, for example), so the only faithful `select`
+#     would be ~380 individual codes, or `["ALL"]` plus ~397 `ignore`s. Both
+#     are worse than freezing the defaults with the version pin: the codebase
+#     already passes all 413 rules, so the pin *is* the explicit rule set.
+#     Measured 2026-10-20: `ruff check .` with the group prefixes present in
+#     the defaults reports 12,007 errors (11,977 of them in tracked code).
+#   * `scripts_dev/` holds dev-only helpers (the screenshot harness, fixture
+#     surgery) that predate this config; they are excluded, not linted.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+required-version = "==0.16.4"
+
+# MUST match the Python CI runs (3.13, see .github/workflows/ and
+# CONTRIBUTING.md "Requires Python 3.13+"): with py314 the formatter rewrote
+# `except (A, B):` into the PEP 758 `except A, B:` form, which is a
+# SyntaxError on 3.13 and broke CI.
+target-version = "py313"
+extend-exclude = ["scripts_dev", ".venv", "node_modules"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection uses Depends()/Query()/... in argument
+# defaults by design; these are the documented exceptions.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Streamlit's multi-page convention requires numeric filename prefixes,
+# which are not valid Python module names (N999).
+"ui/pages/*.py" = ["N999"]
