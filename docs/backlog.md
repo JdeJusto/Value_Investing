@@ -108,13 +108,48 @@ Measured 2026-10-14 (stability/precision sprint):
 - **Ubuntu 26 migration (2026-10-19)**: GitHub Actions `ubuntu-latest`
   migrates to Ubuntu 26. Workflows are pinned to `ubuntu-24.04` (done);
   review and test on `ubuntu-26.04` when available.
-- **Hand-written `Pipfile.lock` entry for `plotly` (v0.17.0)**: to avoid
-  churning ~40 unrelated packages, the `plotly` entry was written by hand and
-  `_meta.hash.sha256` recomputed with pipenv's own algorithm (verified by the
-  `pipenv install --deploy` step in CI, which passed). Correct today, but a
-  hand-written lock is brittle if pipenv's hashing changes. Follow-up: on a
-  clean branch run a full `pipenv lock`, review the bumps one by one, and
-  merge. Priority: low.
+- ~~**Hand-written `Pipfile.lock` entry for `plotly` (v0.17.0)**~~ — closed
+  2026-10-20: the full `pipenv lock` ran on `chore/pipenv-lock-cleanup`
+  (branched from v0.19.0, `3d873ea`). `plotly` resolved to 7.1.0 unchanged,
+  so pipenv's own resolution now backs the entry and `_meta.hash.sha256` is
+  pipenv's again. See "2026-10-20 — Pipenv lock exceptions" below for the
+  three majors that were reverted.
+
+## 2026-10-20 — Pipenv lock exceptions
+
+`Pipfile.lock` was regenerated from scratch on a clean branch
+(`rm Pipfile.lock && pipenv lock`, pipenv 2026.8.0). `_meta.hash.sha256`
+stayed `9c5fd439…62eb3` because the `Pipfile` was not touched. 39 lock
+entries moved: 33 runtime version changes, `toml` dropped (no longer pulled
+by any runtime dependency) and 6 dev-package entries. `plotly` resolved to
+7.1.0 (unchanged) and `streamlit` only moved 1.64.0 → 1.66.0 (minor).
+
+The three major bumps below were reverted **individually**, back to the
+exact previous lock entry (version + hashes + markers copied verbatim). The
+`Pipfile` and `_meta` were left untouched, so `pipenv install --deploy`
+still validates the hash. Each was constraint-checked against the *new*
+parent versions before being pinned:
+
+- `pyarrow` pinned to `25.0.1` (major `26.0.0` deferred): a C++ binary
+  extension pulled by `edgartools` and `streamlit`; a major here moves the
+  Arrow ABI under pandas/Polars with no functional gain for this project.
+  `edgartools 5.62.0` requires `pyarrow>=23.0.1` and `streamlit 1.66.0`
+  requires `pyarrow!=25.0.0,<27,>=10.0.1` (only 25.0.0 is excluded) — 25.0.1
+  satisfies both.
+- `websockets` pinned to `16.1.1` (major `17.3` deferred): the protocol layer
+  behind `streamlit` sessions and `uvicorn[standard]`; protocol majors are a
+  common source of silent stream/UI breakage. `streamlit 1.66.0` requires
+  `>=12,<18`, and both `yfinance 1.7.0` and `uvicorn 0.54.0[standard]` require
+  `>=13` — 16.1.1 satisfies all three.
+- `soupsieve` pinned to `2.10` (major `3.0.3` deferred): the CSS-selector
+  engine behind `beautifulsoup4`, i.e. the parsing path the EDGAR filing
+  reader uses. `beautifulsoup4 4.15.0` requires `soupsieve>=1.6.1` — 2.10
+  satisfies it.
+
+To lift a pin, delete that one entry from the lock and re-run `pipenv lock`
+once the major has a release or two of soak time. Nothing here is a
+`Pipfile` constraint: these are transitive dependencies, so the next
+regeneration will propose the majors again.
 
 ## Shipped: real-time financial alerts (v0.10.1)
 
