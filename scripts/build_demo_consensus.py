@@ -180,7 +180,7 @@ def main() -> None:
     payload = build()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     # Compact JSON: it is a generated machine fixture inside the size-capped
-    # demo bundle (see test_demo_mode.test_bundle_is_complete_and_small).
+    # demo bundle (see test_demo_mode.test_bundle_is_complete_and_within_size_cap).
     OUTPUT.write_text(
         json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8"
     )

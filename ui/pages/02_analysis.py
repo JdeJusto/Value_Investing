@@ -32,6 +32,7 @@ from ui._shared import (
     format_pct,
     metric_row,
     page_header,
+    render_html,
     rows_to_csv,
 )
 from ui.services import (
@@ -812,10 +813,7 @@ def _scorecard_header(card: dict) -> None:
         industry = card.get("industry") or "—"
         st.caption(f"{sector} · {industry}")
     with spot:
-        st.markdown(
-            f'<div class="vi-big-number">{card["overall"]}</div>',
-            unsafe_allow_html=True,
-        )
+        render_html(f'<div class="vi-big-number">{card["overall"]}</div>')
         st.caption("Overall")
     _scorecard_peer_caption(card)
 
@@ -887,10 +885,7 @@ def _scorecard_rule_rows(rules: list[dict]) -> list[dict]:
 
 
 def _dcf_panel(dcf) -> None:
-    st.markdown(
-        '<span class="vi-chip">not-from-canon</span>',
-        unsafe_allow_html=True,
-    )
+    render_html('<span class="vi-chip">not-from-canon</span>')
     st.caption(DCF_DISCLAIMER.replace("**not-from-canon** — ", ""))
     st.caption(f"Variant: **{dcf.variant_label}**")
     if dcf.is_insufficient:

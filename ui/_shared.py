@@ -30,6 +30,16 @@ def page_header(title: str, subtitle: str | None = None) -> None:
     theme_header(title, subtitle or "")
 
 
+def render_html(html: str) -> None:
+    """Render raw HTML. Single entry point for unsafe HTML in the UI.
+
+    Do NOT use st.markdown(..., unsafe_allow_html=True) directly outside
+    this helper and ui/theme/__init__.py (theming injection). See
+    tests/unit/test_ui_shared.py::test_no_unsafe_allow_html_outside_allowed_files.
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+
 def format_value(value: Any, unit: str | None = None) -> str:
     """None -> em dash; numbers with 2 decimals; optional unit suffix."""
     if value is None:

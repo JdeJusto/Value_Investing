@@ -22,6 +22,7 @@ from html import escape
 import streamlit as st
 
 from backend.services.ui_format import abbreviate_number
+from ui._shared import render_html
 from ui.balance_map import (
     BALANCE_MAP,
     CONTRA_CONCEPTS,
@@ -535,7 +536,7 @@ def render_balance_sheet(
 
     left_column, right_column = st.columns(2)
     with left_column:
-        st.markdown('<div class="vi-bs-head">ASSETS</div>', unsafe_allow_html=True)
+        render_html('<div class="vi-bs-head">ASSETS</div>')
         for mass in model.masses:
             if MASS_COLUMN[mass.key] != "assets":
                 continue
@@ -543,27 +544,19 @@ def render_balance_sheet(
                 f"{mass.label} · {fmt_money(mass.subtotal, model.currency, scale=scale)}",
                 expanded=mass.key == "assets_current",
             ):
-                st.markdown(
-                    _lines_table(mass, model, scale, with_percent, with_yoy),
-                    unsafe_allow_html=True,
-                )
-        st.markdown(
-            _other_block(model.other_assets, model, scale), unsafe_allow_html=True
-        )
-        st.markdown(
+                render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
+        render_html(_other_block(model.other_assets, model, scale))
+        render_html(
             _total_row(
                 "TOTAL ASSETS",
                 model.total_assets,
                 model,
                 scale,
                 computed=not model.total_assets_reported,
-            ),
-            unsafe_allow_html=True,
+            )
         )
     with right_column:
-        st.markdown(
-            '<div class="vi-bs-head">LIABILITIES + EQUITY</div>', unsafe_allow_html=True
-        )
+        render_html('<div class="vi-bs-head">LIABILITIES + EQUITY</div>')
         for mass in model.masses:
             if MASS_COLUMN[mass.key] != "liabilities":
                 continue
@@ -571,17 +564,12 @@ def render_balance_sheet(
                 f"{mass.label} · {fmt_money(mass.subtotal, model.currency, scale=scale)}",
                 expanded=mass.key == "liab_current",
             ):
-                st.markdown(
-                    _lines_table(mass, model, scale, with_percent, with_yoy),
-                    unsafe_allow_html=True,
-                )
-        st.markdown(
-            _other_block(model.other_liabilities, model, scale), unsafe_allow_html=True
-        )
+                render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
+        render_html(_other_block(model.other_liabilities, model, scale))
         right_total = None
         if model.total_liabilities is not None and model.total_equity is not None:
             right_total = model.total_liabilities + model.total_equity
-        st.markdown(
+        render_html(
             _total_row(
                 "TOTAL LIABILITIES + EQUITY",
                 right_total,
@@ -590,8 +578,7 @@ def render_balance_sheet(
                 computed=not (
                     model.total_liabilities_reported and model.total_equity_reported
                 ),
-            ),
-            unsafe_allow_html=True,
+            )
         )
 
     if model.balanced is True:
