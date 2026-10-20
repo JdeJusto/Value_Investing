@@ -151,6 +151,9 @@ once the major has a release or two of soak time. Nothing here is a
 `Pipfile` constraint: these are transitive dependencies, so the next
 regeneration will propose the majors again.
 
+- Guard: `tests/unit/test_pipfile_lock_pins.py` fails if any pinned
+  exception is silently reintroduced by a `pipenv lock` from scratch.
+
 ## 2026-10-20 — ruff pinning
 
 `ruff` is now a pinned dev dependency (`ruff = "==0.16.4"` in
