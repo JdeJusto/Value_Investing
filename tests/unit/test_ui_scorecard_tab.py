@@ -399,6 +399,138 @@ def test_focus_selector_lists_the_dimensions(monkeypatch):
     assert focus.options == ["—", *_DIMENSION_LABELS]
 
 
+# --- radar dimension filter (approved option B) ---------------------------
+# The filter is presentation-only: the six cards always render in full, and
+# the default (all six checked) draws the exact pre-filter radar.
+
+
+def _spy_radar_figure(monkeypatch):
+    """Record the ``dimensions`` each radar render receives (still builds it)."""
+    from ui.charts import radar_figure as _real
+
+    captured: list[list[dict]] = []
+
+    def _spy(dimensions):
+        captured.append(dimensions)
+        return _real(dimensions)
+
+    monkeypatch.setattr("ui.charts.radar_figure", _spy)
+    return captured
+
+
+def _dimension_box(at: AppTest, label: str):
+    return next(
+        box
+        for box in at.checkbox
+        if box.label == label and box.label in _DIMENSION_LABELS
+    )
+
+
+def _radar_captions(at: AppTest) -> list[str]:
+    return [
+        caption.value
+        for caption in at.caption
+        if "dimensions shown" in caption.value or "Not scored" in caption.value
+    ]
+
+
+def test_radar_default_shows_all_six(monkeypatch):
+    captured = _spy_radar_figure(monkeypatch)
+    at = _run(monkeypatch, _payload())
+    # All six checked, no filter caption, and the render is the unfiltered one.
+    assert all(_dimension_box(at, label).value for label in _DIMENSION_LABELS)
+    assert at.session_state["scorecard_radar_filter"] == list(_DIMENSION_LABELS)
+    assert [dimension["label"] for dimension in captured[-1]] == list(_DIMENSION_LABELS)
+    assert _radar_captions(at) == []
+
+
+def test_radar_filter_removes_axis(monkeypatch):
+    from ui.charts import radar_data
+
+    captured = _spy_radar_figure(monkeypatch)
+    at = _run(monkeypatch, _payload())
+    _dimension_box(at, "Growth").set_value(False)
+    at.run()
+    assert not at.exception, at.exception
+    visible = [dimension["label"] for dimension in captured[-1]]
+    assert "Growth" not in visible
+    assert len(visible) == 5
+    labels, _radii = radar_data(captured[-1])
+    assert "Growth" not in labels and len(labels) == 5
+    assert at.session_state["scorecard_radar_filter"] == [
+        label for label in _DIMENSION_LABELS if label != "Growth"
+    ]
+
+
+def test_radar_filter_prevents_below_three(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    for label in ("Growth", "Profitability", "Financial Health"):
+        _dimension_box(at, label).set_value(False)
+        at.run()
+        assert not at.exception, at.exception
+    selected = at.session_state["scorecard_radar_filter"]
+    assert selected == ["Valuation", "Shareholder Returns", "Management/Moat"]
+    # At the floor the remaining checked boxes are disabled; the unchecked
+    # ones stay enabled so the set can grow again.
+    for label in _DIMENSION_LABELS:
+        box = _dimension_box(at, label)
+        assert box.disabled is (label in selected), label
+
+
+def test_radar_filter_restores_fill_when_hiding_missing(monkeypatch):
+    from ui.charts import radar_figure
+
+    payload = _payload()
+    payload["dimensions"][4]["score"] = None  # Shareholder Returns → gap
+    captured = _spy_radar_figure(monkeypatch)
+    at = _run(monkeypatch, payload)
+    # With the gap on screen the axis is reported unscored (current behaviour).
+    assert any("Not scored" in c for c in _radar_captions(at))
+    _dimension_box(at, "Shareholder Returns").set_value(False)
+    at.run()
+    assert not at.exception, at.exception
+    visible = [dimension["label"] for dimension in captured[-1]]
+    assert "Shareholder Returns" not in visible and len(visible) == 5
+    # No visible gap left → the polygon gets its fill back.
+    assert radar_figure(captured[-1]).data[0].fill == "toself"
+    assert _radar_captions(at) == ["5 of 6 dimensions shown"]
+
+
+def test_radar_filter_shared_across_tickers(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    for label in ("Growth", "Valuation"):
+        _dimension_box(at, label).set_value(False)
+        at.run()
+    assert len(at.session_state["scorecard_radar_filter"]) == 4
+    next(box for box in at.text_input if box.label == "Ticker").set_value("MSFT")
+    next(button for button in at.button if button.label == "Analyze").click()
+    at.run()
+    assert not at.exception, at.exception
+    # One global key: the four-dimension selection survives the ticker switch.
+    assert len(at.session_state["scorecard_radar_filter"]) == 4
+    assert not _dimension_box(at, "Growth").value
+    assert not _dimension_box(at, "Valuation").value
+
+
+def test_radar_filter_caption_counts(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    assert not any("dimensions shown" in c for c in _radar_captions(at))
+    for label in ("Growth", "Management/Moat"):
+        _dimension_box(at, label).set_value(False)
+        at.run()
+    assert "4 of 6 dimensions shown" in _radar_captions(at)
+    # With a visible gap the count and the unscored note join one caption.
+    payload = _payload()
+    payload["dimensions"][4]["score"] = None  # Shareholder Returns → gap
+    at = _run(monkeypatch, payload)
+    _dimension_box(at, "Growth").set_value(False)
+    at.run()
+    assert (
+        "5 of 6 dimensions shown · Not scored (insufficient data): Shareholder "
+        "Returns" in _radar_captions(at)
+    )
+
+
 def _payload_with_peers(*, percentile: float | None = 0.62) -> dict:
     """The AAPL payload with a peer-covered Valuation rule and a group."""
     payload = _payload()

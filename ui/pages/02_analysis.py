@@ -644,8 +644,13 @@ def _render_scorecard(ticker: str) -> None:
         st.caption("Quarterly data not available for all rules.")
 
     dimensions = card["dimensions"]
+    dimension_labels = [dimension["label"] for dimension in dimensions]
+    visible = set(_scorecard_radar_filter(dimension_labels))
     focus = _scorecard_focus(dimensions, ticker)
-    _scorecard_radar(dimensions)
+    _scorecard_radar(
+        [dimension for dimension in dimensions if dimension["label"] in visible],
+        total=len(dimensions),
+    )
 
     for start in range(0, len(dimensions), 2):
         columns = st.columns(2)
@@ -689,8 +694,80 @@ def _scorecard_focus(dimensions: list[dict], ticker: str) -> str | None:
     return None if choice == "—" else choice
 
 
-def _scorecard_radar(dimensions: list[dict]) -> None:
-    """Six-axis radar of the dimension scores, with a text-only fallback."""
+#: Radar dimension filter (approved design option B): one global
+#: ``session_state`` key — shared across tickers — and a hard floor: at the
+#: floor the checked boxes render ``disabled``, so the uncheck is refused at
+#: the source instead of silently reverted after the click.
+_DIMENSIONS_FILTER_KEY = "scorecard_radar_filter"
+_DIMENSIONS_MIN_VISIBLE = 3
+#: Checkbox grid rows (six dimensions → two rows of three: wide tap targets).
+_RADAR_FILTER_ROW = 3
+
+
+def _radar_filter_widget_key(label: str) -> str:
+    """Explicit ``st.checkbox`` key for one dimension label."""
+    return f"scorecard_radar_dim_{label}"
+
+
+def _scorecard_radar_filter(all_dimensions: list[str]) -> list[str]:
+    """Checkbox grid choosing which dimensions the radar draws.
+
+    Presentation only: the dimension cards below always show all six. The
+    selection lives in one global ``session_state`` key, so it survives
+    ticker switches and reruns; the default is every dimension shown, which
+    renders the exact pre-filter radar. ``_DIMENSIONS_MIN_VISIBLE`` is
+    enforced natively — once only the minimum remain, their checkboxes are
+    rendered ``disabled``. Returns the visible labels in the canonical
+    dimension order.
+    """
+    if _DIMENSIONS_FILTER_KEY not in st.session_state:
+        st.session_state[_DIMENSIONS_FILTER_KEY] = list(all_dimensions)
+
+    def _commit_widget_states() -> None:
+        # ``on_change`` runs before the rerun a click triggers: by then the
+        # widget values in session_state already hold the user's choice.
+        previous = set(st.session_state.get(_DIMENSIONS_FILTER_KEY, all_dimensions))
+        st.session_state[_DIMENSIONS_FILTER_KEY] = [
+            label
+            for label in all_dimensions
+            if st.session_state.get(
+                _radar_filter_widget_key(label),
+                label in previous,
+            )
+        ]
+
+    visible_set = set(st.session_state[_DIMENSIONS_FILTER_KEY]) & set(all_dimensions)
+    visible = [
+        label for label in all_dimensions if label in visible_set
+    ]  # canonical order, unknown labels dropped
+
+    st.markdown("**Dimensions shown on radar**")
+    for start in range(0, len(all_dimensions), _RADAR_FILTER_ROW):
+        row = all_dimensions[start : start + _RADAR_FILTER_ROW]
+        columns = st.columns(len(row))
+        for column, label in zip(columns, row, strict=True):
+            with column:
+                checked = label in visible_set
+                widget_key = _radar_filter_widget_key(label)
+                # The global key wins over any stale widget state, so a
+                # programmatic selection and the checkboxes never diverge.
+                st.session_state[widget_key] = checked
+                st.checkbox(
+                    label,
+                    key=widget_key,
+                    disabled=checked and len(visible_set) <= _DIMENSIONS_MIN_VISIBLE,
+                    on_change=_commit_widget_states,
+                )
+    return visible
+
+
+def _scorecard_radar(dimensions: list[dict], *, total: int | None = None) -> None:
+    """The radar over ``dimensions`` (a filter subset) plus a text fallback.
+
+    ``total`` is how many dimensions the scorecard holds: when the filter
+    hides any, one caption states "N of M dimensions shown" joined with the
+    unscored-axis note — which only ever lists axes still visible.
+    """
     from ui.charts import radar_data, radar_figure, radar_missing
 
     labels, radii = radar_data(dimensions)
@@ -709,9 +786,14 @@ def _scorecard_radar(dimensions: list[dict]) -> None:
         )
     else:
         st.plotly_chart(figure, config={"displayModeBar": False})
+    captions = []
+    if total is not None and len(dimensions) < total:
+        captions.append(f"{len(dimensions)} of {total} dimensions shown")
     missing = radar_missing(labels, radii)
     if missing:
-        st.caption("Not scored (insufficient data): " + ", ".join(missing))
+        captions.append("Not scored (insufficient data): " + ", ".join(missing))
+    if captions:
+        st.caption(" · ".join(captions))
 
 
 def _scorecard_charts(ticker: str, card: dict) -> None:
