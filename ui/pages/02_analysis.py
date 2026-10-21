@@ -1036,7 +1036,7 @@ def _historical(ticker: str) -> None:
 def _financials(ticker: str) -> None:
     """Every FDB fact for the company: one row per concept, one column/year."""
     from backend.services.financials_view_service import filter_rows
-    from ui.balance_sheet import render_balance_sheet
+    from ui.balance_sheet import default_year_index, render_balance_sheet
     from ui.financial_table import financial_table, financial_table_rows
 
     st.caption(
@@ -1141,6 +1141,7 @@ def _financials(ticker: str) -> None:
                     year = st.selectbox(
                         "Fiscal year",
                         view.years,
+                        index=default_year_index(view.years, balance_numeric),
                         key=f"financials_bs_year_{ticker}",
                     )
                     render_balance_sheet(

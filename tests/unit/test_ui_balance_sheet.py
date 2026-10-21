@@ -23,6 +23,7 @@ from ui.balance_map import (
 )
 from ui.balance_sheet import (
     build_balance_model,
+    default_year_index,
     numeric_from_view,
     parse_display_value,
 )
@@ -435,3 +436,128 @@ def test_financials_tab_defaults_to_the_t_balance(monkeypatch):
     row = balance[balance["Concept"] == "Assets"].iloc[0]
     assert row["FY2025"] == "$359.24B"
     assert row["Unit"] == "USD"
+
+
+# ---------------------------------------------------------------------------
+# Default fiscal year: phantom (non-statement) years never open the T
+# ---------------------------------------------------------------------------
+
+
+def test_default_year_index_skips_phantom_year():
+    """FDB's FY-tagged offering facts create a balance-less newest year."""
+    years = [2026, 2025, 2024]
+    numeric = {
+        "NetFeeAmt": {2026: 14154.26},  # not a balance concept
+        "CashAndCashEquivalentsAtCarryingValue": {2025: 1.0, 2024: 2.0},
+        "Assets": {2025: 9.0},
+    }
+    assert default_year_index(years, numeric) == 1
+
+
+def test_default_year_index_zero_value_counts_as_data():
+    years = [2026, 2025]
+    numeric = {"CommonStockValue": {2025: 0.0}}
+    assert default_year_index(years, numeric) == 1
+
+
+def test_default_year_index_newest_ready_year_wins():
+    years = [2026, 2025]
+    numeric = {"AssetsCurrent": {2026: 5.0, 2025: 4.0}}
+    assert default_year_index(years, numeric) == 0
+
+
+def test_default_year_index_ignores_memoranda_and_unmapped():
+    """Share counts / leftover concepts carry no monetary balance data."""
+    years = [2026, 2025]
+    numeric = {
+        "EntityCommonStockSharesOutstanding": {2026: 3.9e8},  # memorandum
+        "TtlOfferingAmt": {2026: 1.0e8},  # unmapped leftover
+        "Liabilities": {2025: 7.0},
+    }
+    assert default_year_index(years, numeric) == 1
+
+
+def test_default_year_index_falls_back_to_first():
+    assert default_year_index([2026, 2025], {}) == 0
+    assert default_year_index([2026], {"Assets": {2025: 1.0}}) == 0
+
+
+def test_analysis_page_selects_the_default_balance_year():
+    """The T-view year selector wires the helper (no bare default)."""
+    source = PAGE.read_text(encoding="utf-8")
+    assert "index=default_year_index(view.years, balance_numeric)" in source
+
+
+# ---------------------------------------------------------------------------
+# ADBE live regression (facts frozen from Financial-DataBase, FY2025)
+# ---------------------------------------------------------------------------
+
+#: ADBE FY2025 balance facts captured from FDB on 2026-10-21 (10-K filed
+#: 2025-12): the concepts the T map resolves for that year.
+ADBE_FY2025 = {
+    "AccountsPayableCurrent": {2025: 417_000_000.0},
+    "AccountsReceivableNetCurrent": {2025: 2_344_000_000.0},
+    "AccruedLiabilitiesCurrent": {2025: 2_648_000_000.0},
+    "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment": {
+        2025: 1_728_000_000.0,
+    },
+    "AccumulatedOtherComprehensiveIncomeLossNetOfTax": {2025: -245_000_000.0},
+    "AdditionalPaidInCapital": {2025: 15_361_000_000.0},
+    "Assets": {2025: 29_496_000_000.0},
+    "AssetsCurrent": {2025: 10_163_000_000.0},
+    "CashAndCashEquivalentsAtCarryingValue": {2025: 5_431_000_000.0},
+    "CommonStockValue": {2025: 0.0},
+    "ContractWithCustomerLiabilityCurrent": {2025: 6_905_000_000.0},
+    "DebtCurrent": {2025: 0.0},
+    "FiniteLivedIntangibleAssetsNet": {2025: 495_000_000.0},
+    "Goodwill": {2025: 12_857_000_000.0},
+    "Liabilities": {2025: 17_873_000_000.0},
+    "LiabilitiesCurrent": {2025: 10_200_000_000.0},
+    "LongTermDebt": {2025: 6_210_000_000.0},
+    "OperatingLeaseLiabilityNoncurrent": {2025: 361_000_000.0},
+    "OtherAssetsNoncurrent": {2025: 1_610_000_000.0},
+    "OtherLiabilitiesNoncurrent": {2025: 508_000_000.0},
+    "PreferredStockValue": {2025: 0.0},
+    "PrepaidExpenseAndOtherAssetsCurrent": {2025: 1_224_000_000.0},
+    "PropertyPlantAndEquipmentGross": {2025: 3_601_000_000.0},
+    "PropertyPlantAndEquipmentNet": {2025: 1_873_000_000.0},
+    "RetainedEarningsAccumulatedDeficit": {2025: 45_354_000_000.0},
+    "ShortTermInvestments": {2025: 1_164_000_000.0},
+    "StockholdersEquity": {2025: 11_623_000_000.0},
+}
+
+
+def test_adbe_opens_the_balance_on_the_filed_year():
+    """The FY2026 phantom (4 fee facts) must not open an empty T."""
+    numeric = {concept: dict(values) for concept, values in ADBE_FY2025.items()}
+    numeric["NetFeeAmt"] = {2026: 14_154.26}
+    numeric["TtlOfferingAmt"] = {2026: 102_492_810.0}
+    units = {concept: "USD" for concept in numeric}
+    years = [2026, 2025, 2024]
+
+    idx = default_year_index(years, numeric)
+    assert idx == 1 and years[idx] == 2025
+
+    year = years[idx]
+    model = build_balance_model(numeric, units, year, [y for y in years if y < year])
+    asset_lines = [
+        line
+        for mass in model.masses
+        if mass.key.startswith("assets")
+        for line in mass.lines
+        if line.value is not None
+    ]
+    other_lines = [
+        line
+        for mass in model.masses
+        if not mass.key.startswith("assets")
+        for line in mass.lines
+        if line.value is not None
+    ]
+    assert len(asset_lines) >= 10 and len(other_lines) >= 10
+    assert model.total_assets == pytest.approx(29_496_000_000.0)
+    assert model.total_assets_reported and model.total_equity_reported
+    masses = _masses(model)
+    assert masses["assets_current"].subtotal_reported  # total_current_assets
+    assert model.balanced is True
+    assert model.delta == pytest.approx(0.0)

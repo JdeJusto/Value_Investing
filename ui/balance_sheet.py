@@ -32,6 +32,7 @@ from ui.balance_map import (
     TOTAL_CONCEPTS,
     concept_mass,
     is_memorandum,
+    mapped_concepts,
     mass_labels,
 )
 from ui.theme.format import (
@@ -130,6 +131,38 @@ def numeric_from_view(
             if value is not None:
                 numeric.setdefault(row.concept, {})[int(year)] = value
     return numeric, units
+
+
+#: Concepts whose presence makes a fiscal year carry balance-sheet data:
+#: every mapped line, the reported subtotals and the statement totals.
+_BALANCE_YEAR_CONCEPTS: frozenset[str] = (
+    frozenset(mapped_concepts())
+    .union(
+        concept for concepts in MASS_SUBTOTAL_CONCEPTS.values() for concept in concepts
+    )
+    .union(concept for concepts in TOTAL_CONCEPTS.values() for concept in concepts)
+)
+
+
+def default_year_index(years: list[int], numeric: dict[str, dict[int, float]]) -> int:
+    """Index of the fiscal year the T view should open on.
+
+    FDB stores non-statement facts (offering/fee concepts such as
+    ``NetFeeAmt`` or ``NrrtvMaxAggtOfferingPric``) under
+    ``fiscal_period='FY'`` with instant dates inside the current calendar
+    year, so the newest year of a company can be a *phantom* year for the
+    balance sheet: structurally present, zero mapped lines. Defaulting the
+    year selector to it rendered an all-dash T. Return the index of the
+    newest year carrying at least one mapped monetary value (a ``0`` value
+    counts as data), falling back to ``0`` (first = newest) when no year
+    does — the flat tables still show every year, and a phantom year stays
+    selectable on purpose: the view never hides stored data.
+    """
+    for index, year in enumerate(years):
+        for concept in _BALANCE_YEAR_CONCEPTS:
+            if numeric.get(concept, {}).get(year) is not None:
+                return index
+    return 0
 
 
 @dataclass(frozen=True)
