@@ -12,10 +12,10 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2363%20passed-10A77A?style=for-the-badge" alt="2,363 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2376%20passed-10A77A?style=for-the-badge" alt="2,376 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
-  <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
+  <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
   <img src="https://img.shields.io/badge/database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL data source">
   <img src="https://img.shields.io/badge/code%20style-Ruff-261230?style=for-the-badge" alt="Ruff checks and formatting">
 </p>
@@ -73,7 +73,7 @@ output is the pattern of agreement and disagreement. The consensus view
 explains why families reach different verdicts instead of hiding the conflict
 inside a single averaged score.
 
-![Home dashboard with portfolio metrics, top opportunities, and recent alerts](assets/screenshot_home.png)
+![Home dashboard with portfolio metrics, top opportunities, and recent alerts](assets/ui_v2_home.png)
 
 *The Home page: portfolio value, top opportunities, and recent alerts.*
 
@@ -94,7 +94,7 @@ earnings quality, and dividends each carry their evidence.
 The consensus screener ranks companies across all eight verdicts, compares
 Lynch categories, and opens the disagreement zone for any ticker.
 
-![Consensus ranking with the top table and Lynch categories](assets/screenshot_consensus.png)
+![Consensus ranking with the top table and Lynch categories](assets/ui_v2_consensus.png)
 
 *Consensus ranking, category breakdowns, and the disagreement zone.*
 
@@ -104,7 +104,7 @@ standard free cash flow, REIT funds from operations, two-stage and single-stage
 financial dividend discount models, and hyper-growth companies. See
 [the DCF design notes](backend/valuation/README.md) for assumptions and formulas.
 
-![DCF with intrinsic value, margin of safety, assumptions, and sensitivity](assets/screenshot_analysis_dcf.png)
+![DCF with intrinsic value, margin of safety, assumptions, and sensitivity](assets/ui_v2_analysis_dcf.png)
 
 *DCF intrinsic value, margin of safety, assumptions, and sensitivity.*
 
@@ -124,7 +124,7 @@ sits at, and the valuation panel compares its P/E with the group's. Peers are
 an annotation only: no percentile changes a score or a threshold, and a
 company without a large enough peer group is scored exactly as before.
 
-![Scorecard tab: the six-axis radar, the dimension charts and the disagreement panel](assets/scorecard_tab.png)
+![Scorecard tab: the six-axis radar, the dimension charts and the disagreement panel](assets/ui_v2_analysis_scorecard.png)
 
 *The Scorecard tab: the radar, the dimension cards and the history charts.*
 
@@ -146,11 +146,11 @@ never read each other's output, so two of them can disagree without either being
 wrong. Book rules abstain from company types their assumptions do not fit,
 including banks and insurers.
 
-![Eight methodology verdicts for a single company](assets/screenshot_analysis_methodologies.png)
+![Eight methodology verdicts for a single company](assets/ui_v2_analysis_methodologies.png)
 
 *Eight independent verdicts for one company.*
 
-![Why methodology families disagree](assets/screenshot_analysis_overview.png)
+![Why methodology families disagree](assets/ui_v2_analysis_overview.png)
 
 *A disagreement summary that explains the verdicts instead of averaging them.*
 
@@ -228,7 +228,7 @@ python main.py filing-section AAPL --type risk_factors --word-limit 500
 The Filings tab links to SEC source documents and can load statement or narrative
 previews. Parsed documents are cached locally under `data/raw/filings/`.
 
-![SEC filings with dates, periods, accessions, and source links](assets/screenshot_filings.png)
+![SEC filings with dates, periods, accessions, and source links](assets/ui_v2_analysis_filings.png)
 
 *SEC filings with source links and statement previews.*
 
@@ -247,7 +247,7 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 
 *Portfolio view, add, and performance from the terminal.*
 
-![Screener results filtered by sector and verdict](assets/screenshot_screener.png)
+![Screener results filtered by sector and verdict](assets/ui_v2_screener.png)
 
 *Screener results filtered by sector and verdict.*
 

@@ -12,10 +12,10 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Última versión"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="Estado de CI"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2363%20passed-10A77A?style=for-the-badge" alt="2,363 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2376%20passed-10A77A?style=for-the-badge" alt="2,376 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Licencia MIT"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 o superior">
-  <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
+  <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
   <img src="https://img.shields.io/badge/database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="Fuente de datos PostgreSQL">
   <img src="https://img.shields.io/badge/code%20style-Ruff-261230?style=for-the-badge" alt="Comprobación y formato con Ruff">
 </p>
@@ -74,7 +74,7 @@ interesante es el patrón de acuerdos y desacuerdos. La vista de consenso explic
 por qué las familias llegan a veredictos distintos en lugar de ocultar el
 conflicto dentro de una única puntuación promediada.
 
-![Panel de inicio con métricas de cartera, mejores oportunidades y alertas recientes](assets/screenshot_home.png)
+![Panel de inicio con métricas de cartera, mejores oportunidades y alertas recientes](assets/ui_v2_home.png)
 
 *La página de inicio: valor de la cartera, mejores oportunidades y alertas recientes.*
 
@@ -96,7 +96,7 @@ incluyen sus pruebas.
 El screener de consenso clasifica empresas según los ocho veredictos, compara
 las categorías de Lynch y abre la zona de desacuerdo de cualquier ticker.
 
-![Ranking de consenso con la tabla principal y las categorías de Lynch](assets/screenshot_consensus.png)
+![Ranking de consenso con la tabla principal y las categorías de Lynch](assets/ui_v2_consensus.png)
 
 *Ranking de consenso, desglose por categorías y zona de desacuerdo.*
 
@@ -107,7 +107,7 @@ REIT, modelos DDM financieros de dos y una etapa (con dividendos), y empresas de
 hipercrecimiento. Véanse las [notas de diseño del DCF](backend/valuation/README.md)
 para supuestos y fórmulas.
 
-![DCF con valor intrínseco, margen de seguridad, supuestos y sensibilidad](assets/screenshot_analysis_dcf.png)
+![DCF con valor intrínseco, margen de seguridad, supuestos y sensibilidad](assets/ui_v2_analysis_dcf.png)
 
 *Valor intrínseco del DCF, margen de seguridad, supuestos y sensibilidad.*
 
@@ -128,7 +128,7 @@ guarda en caché local, nunca en el repositorio— la tabla de reglas añade la
 PER con el del grupo. La comparación es solo informativa: ningún percentil
 cambia una puntuación ni un umbral.
 
-![Pestaña Scorecard: el radar de seis ejes, los gráficos de dimensión y el panel de desacuerdo](assets/scorecard_tab.png)
+![Pestaña Scorecard: el radar de seis ejes, los gráficos de dimensión y el panel de desacuerdo](assets/ui_v2_analysis_scorecard.png)
 
 *La pestaña Scorecard: el radar, las tarjetas de dimensión y los gráficos.*
 
@@ -151,11 +151,11 @@ discrepar sin que ninguno esté equivocado. Las reglas de libro se abstienen en
 los tipos de empresa que no encajan con sus supuestos, incluidos bancos y
 aseguradoras.
 
-![Ocho veredictos de metodología para una misma empresa](assets/screenshot_analysis_methodologies.png)
+![Ocho veredictos de metodología para una misma empresa](assets/ui_v2_analysis_methodologies.png)
 
 *Ocho veredictos independientes para una misma empresa.*
 
-![Por qué discrepan las familias de metodologías](assets/screenshot_analysis_overview.png)
+![Por qué discrepan las familias de metodologías](assets/ui_v2_analysis_overview.png)
 
 *Un resumen de desacuerdos que explica los veredictos en lugar de promediarlos.*
 
@@ -236,7 +236,7 @@ La pestaña Filings enlaza a los documentos originales de la SEC y puede cargar
 vistas previas de estados o narrativas. Los documentos analizados se almacenan en
 caché local bajo `data/raw/filings/`.
 
-![Presentaciones de la SEC con fechas, periodos, accesiones y enlaces de origen](assets/screenshot_filings.png)
+![Presentaciones de la SEC con fechas, periodos, accesiones y enlaces de origen](assets/ui_v2_analysis_filings.png)
 
 *Presentaciones de la SEC con enlaces de origen y vistas previas de estados.*
 
@@ -255,7 +255,7 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 
 *Consulta, alta y rendimiento de la cartera desde la terminal.*
 
-![Resultados del screener filtrados por sector y veredicto](assets/screenshot_screener.png)
+![Resultados del screener filtrados por sector y veredicto](assets/ui_v2_screener.png)
 
 *Resultados del screener filtrados por sector y veredicto.*
 
