@@ -1,3 +1,29 @@
+## [0.19.1] - 2026-10-21
+
+### Added
+
+- Radar dimension filter on the Scorecard: multi-select checkboxes to show or
+  hide individual radar axes — visual de-cluttering only; the underlying data
+  is unchanged. Design options documented in `docs/radar_filter_design.md`.
+- Contract test (`tests/unit/test_pipfile_lock_pins.py`) guarding the
+  intentionally pinned lock exceptions against re-introducing the previously
+  reverted major bumps.
+
+### Changed
+
+- `Pipfile.lock` regenerated from scratch with a reviewed exception pass:
+  `pyarrow`, `soupsieve`, `websockets` and `fastapi` keep their previous
+  majors on purpose (e.g. `fastapi==0.150.0`); rationale in
+  `docs/backlog.md`.
+- Lint tooling pinned to `ruff==0.16.4` with its configuration consolidated in
+  `pyproject.toml`; codebase formatted to match (568 files).
+- `Pipfile` pinned to `python_version = "3.13"` to match CI.
+- Streamlit `unsafe_allow_html` calls centralized in a `render_html` helper
+  (rendering unchanged, byte-for-byte).
+- README screenshots (EN/ES) regenerated from the current UI (11 captures at
+  1440x960) and repointed to the canonical `ui_v2_*` set; superseded
+  pre-theme PNGs removed and the test badge updated to 2,376.
+
 ## [0.19.0] - 2026-10-19
 
 ### Added
@@ -8,10 +34,6 @@
   manifest-consistency guardrails in tests.
 - STALE classification in `audit_data_quality.py` (companies whose latest FY
   is >15 months old are flagged and excluded from metric comparisons).
-- Workflow robustness: shared retry helper on network calls, structured JSON
-  logs from `backend/api/logging_config.py`, pre-stage health checks for
-  SEC and Yahoo, `EXIT_OK` / `EXIT_PARTIAL` / `EXIT_FAILED` propagated from
-  `run_daily_on_boot.sh`, documented resume behaviour.
 
 ### Changed
 
