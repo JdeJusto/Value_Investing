@@ -219,6 +219,173 @@ def test_balance_sheet_alias_slot_is_never_double_counted():
     assert cash_lines[0].value == 10.0  # first alias in slot order wins
 
 
+# ---------------------------------------------------------------------------
+# Alias-slot resolution rules (Fix B)
+# ---------------------------------------------------------------------------
+
+
+def _liab_noncurrent_lines(numeric: dict[str, dict[int, float]]) -> list:
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    return _masses(model)["liab_noncurrent"].lines
+
+
+def test_alias_with_a_value_for_the_year_wins_over_an_older_only_alias():
+    """A filer that moved to a new tag must not keep showing the old one.
+
+    ``CashAndCashEquivalentsAtCarryingValue`` still carries last year's
+    value while the filing now reports the restricted-cash-inclusive total:
+    the line must show the concept the filing actually used this year.
+    """
+    numeric = {
+        "CashAndCashEquivalentsAtCarryingValue": {PRIOR_YEAR: 50.0},
+        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": {YEAR: 42.0},
+    }
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [PRIOR_YEAR, YEAR])
+
+    cash_lines = [
+        line
+        for line in _masses(model)["assets_current"].lines
+        if line.concept.startswith("Cash")
+    ]
+    assert len(cash_lines) == 1
+    assert cash_lines[0].concept == (
+        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
+    )
+    assert cash_lines[0].value == 42.0
+
+
+def test_slot_without_a_value_for_the_year_keeps_the_line_as_a_dash():
+    """No alias carries the year -> the first known alias stays visible."""
+    numeric = {"CashAndCashEquivalentsAtCarryingValue": {PRIOR_YEAR: 50.0}}
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [PRIOR_YEAR, YEAR])
+
+    cash_lines = [
+        line
+        for line in _masses(model)["assets_current"].lines
+        if line.concept.startswith("Cash")
+    ]
+    assert len(cash_lines) == 1
+    assert cash_lines[0].value is None
+    assert model.partial is True
+
+
+def test_zero_alias_never_wins_over_a_non_zero_alias():
+    """A net deferred-tax tag filed as 0 does not hide the reported amount."""
+    numeric = {
+        "DeferredIncomeTaxLiabilitiesNet": {YEAR: 0.0},
+        "DeferredIncomeTaxLiabilities": {YEAR: 1_237.0},
+    }
+    lines = _liab_noncurrent_lines(numeric)
+
+    assert len(lines) == 1
+    assert lines[0].concept == "DeferredIncomeTaxLiabilities"
+    assert lines[0].value == 1_237.0
+
+
+def test_zero_alias_is_rendered_when_it_is_the_only_value():
+    numeric = {"DeferredIncomeTaxLiabilitiesNet": {YEAR: 0.0}}
+    lines = _liab_noncurrent_lines(numeric)
+
+    assert len(lines) == 1
+    assert lines[0].concept == "DeferredIncomeTaxLiabilitiesNet"
+    assert lines[0].value == 0.0
+
+
+def test_aggregate_slot_renders_the_largest_alias():
+    """An aggregate ("Short-term debt") wins over its components."""
+    numeric = {
+        "CommercialPaper": {YEAR: 20_400.0},
+        "OtherShortTermBorrowings": {YEAR: 48_088.0},
+    }
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    lines = _masses(model)["liab_current"].lines
+
+    assert [line.concept for line in lines] == ["OtherShortTermBorrowings"]
+    assert lines[0].value == 48_088.0
+
+
+def test_aggregate_slot_is_never_double_counted():
+    """The components of an aggregate stay out of the mass subtotal."""
+    numeric = {
+        "CommercialPaper": {YEAR: 20_400.0},
+        "OtherShortTermBorrowings": {YEAR: 48_088.0},
+    }
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    mass = _masses(model)["liab_current"]
+
+    assert mass.subtotal == pytest.approx(48_088.0)
+    assert mass.subtotal_reported is False
+
+
+def test_aggregate_slot_keeps_a_single_alias():
+    numeric = {"CommercialPaper": {YEAR: 20_400.0}}
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    lines = _masses(model)["liab_current"].lines
+
+    assert [line.concept for line in lines] == ["CommercialPaper"]
+    assert lines[0].value == 20_400.0
+
+
+def test_aggregate_slot_renders_the_only_zero_alias():
+    numeric = {"CommercialPaper": {YEAR: 0.0}}
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    lines = _masses(model)["liab_current"].lines
+
+    assert [line.concept for line in lines] == ["CommercialPaper"]
+    assert lines[0].value == 0.0
+
+
+def test_sector_slots_render_their_own_face_lines():
+    """Banks, insurers and oil & gas keep their sector-specific lines."""
+    numeric = {
+        # Bank: cash and due from banks next to deposits with banks.
+        "CashAndDueFromBanks": {YEAR: 21_742.0},
+        "InterestBearingDepositsInBanks": {YEAR: 321_596.0},
+        # Insurer: separate account assets and market risk benefits.
+        "SeparateAccountAssets": {YEAR: 80_044.0},
+        "MarketRiskBenefitAssetAmount": {YEAR: 2_274.0},
+        # Oil & gas: property, plant and equipment tagged with the E&P tags.
+        "CapitalizedCostsOilAndGasProducingActivitiesNet": {YEAR: 12_540.0},
+    }
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    masses = _masses(model)
+
+    asset_concepts = {line.concept for line in masses["assets_current"].lines} | {
+        line.concept for line in masses["assets_noncurrent"].lines
+    }
+    assert "CashAndDueFromBanks" in asset_concepts
+    assert "InterestBearingDepositsInBanks" in asset_concepts
+    assert "SeparateAccountAssets" in asset_concepts
+    assert "MarketRiskBenefitAssetAmount" in asset_concepts
+    assert "CapitalizedCostsOilAndGasProducingActivitiesNet" in asset_concepts
+
+
+def test_mezzanine_equity_is_rendered_as_the_last_equity_line():
+    """Temporary equity sits between liabilities and equity on the face."""
+    numeric = {
+        "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests": {
+            YEAR: 58_800.0
+        },
+        "RetainedEarningsAccumulatedDeficit": {YEAR: 1_000.0},
+    }
+    units = {concept: "USD" for concept in numeric}
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+    lines = _masses(model)["equity"].lines
+
+    assert lines[-1].concept == (
+        "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests"
+    )
+    assert lines[-1].value == 58_800.0
+
+
 def test_balance_sheet_yoy_carries_prior_year_value():
     model = build_balance_model(_complete_numeric(), _units(), YEAR, [PRIOR_YEAR, YEAR])
     cash = next(

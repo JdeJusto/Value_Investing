@@ -24,6 +24,7 @@ import streamlit as st
 from backend.services.ui_format import abbreviate_number
 from ui._shared import render_html
 from ui.balance_map import (
+    AGGREGATE_SLOTS,
     BALANCE_MAP,
     CONTRA_CONCEPTS,
     MASS_COLUMN,
@@ -222,26 +223,78 @@ def _slot_line(
     numeric: dict[str, dict[int, float]],
     year: int,
     prev_year: int | None,
+    *,
+    aggregate: bool = False,
 ) -> BalanceLine | None:
     """Resolve one alias-slot to its line (any-year presence keeps it visible).
+
+    The alias that actually carries a value for ``year`` wins: an alias
+    stored only for older years must not hide the concept the filing used
+    this year (e.g. a filer that stopped tagging ``CashAndCashEquivalents``
+    and moved to the restricted-cash-inclusive total). Only when *no* alias
+    has a value for ``year`` the slot falls back to the first alias seen in
+    any year, so the line stays visible as a dash and the model is flagged
+    as partial.
+
+    Two rules refine that order, because some slots mix an aggregate with
+    the components that add up to it:
+
+    * a **zero** never wins over a non-zero alias of the same slot (a filer
+      that tags a net deferred-tax concept as ``0`` still reports the
+      balance-sheet amount under the gross tag);
+    * an **aggregate** slot (see ``AGGREGATE_SLOTS``) renders the alias with
+      the **largest** amount, so the total wins over its components.
 
     Contra concepts (``CONTRA_CONCEPTS``) are reported as positive numbers
     and are flipped here so the line renders and sums as a negative.
     """
+    fallback: str | None = None
+    zero: str | None = None
+    largest: tuple[str, float] | None = None
     for concept in slot:
         years_values = numeric.get(concept)
         if not years_values:
             continue
-        sign = -1.0 if concept in CONTRA_CONCEPTS else 1.0
         value = years_values.get(year)
-        prev_value = years_values.get(prev_year) if prev_year else None
-        return BalanceLine(
-            concept=concept,
-            label=human_label(concept),
-            value=sign * value if value is not None else None,
-            prev_value=sign * prev_value if prev_value is not None else None,
-        )
-    return None
+        if value is None:
+            if fallback is None:
+                fallback = concept
+            continue
+        if value == 0.0:
+            if zero is None:
+                zero = concept
+            continue
+        if aggregate:
+            if largest is None or abs(value) > abs(largest[1]):
+                largest = (concept, value)
+            continue
+        return _build_line(concept, years_values, year, prev_year)
+    if aggregate and largest is not None:
+        concept = largest[0]
+        return _build_line(concept, numeric[concept], year, prev_year)
+    if zero is not None:
+        return _build_line(zero, numeric[zero], year, prev_year)
+    if fallback is None:
+        return None
+    return _build_line(fallback, numeric[fallback], year, prev_year)
+
+
+def _build_line(
+    concept: str,
+    years_values: dict[int, float],
+    year: int,
+    prev_year: int | None,
+) -> BalanceLine:
+    """Build one line from a concept's per-year values (contra lines flip)."""
+    sign = -1.0 if concept in CONTRA_CONCEPTS else 1.0
+    value = years_values.get(year)
+    prev_value = years_values.get(prev_year) if prev_year else None
+    return BalanceLine(
+        concept=concept,
+        label=human_label(concept),
+        value=sign * value if value is not None else None,
+        prev_value=sign * prev_value if prev_value is not None else None,
+    )
 
 
 def _resolve_mass(
@@ -253,8 +306,15 @@ def _resolve_mass(
     """Lines + subtotal of one mass; returns (mass, partial_flag)."""
     lines: list[BalanceLine] = []
     partial = False
-    for slot in BALANCE_MAP[mass]:
-        line = _slot_line(slot, numeric, year, prev_year)
+    aggregate_slots = AGGREGATE_SLOTS.get(mass, ())
+    for index, slot in enumerate(BALANCE_MAP[mass]):
+        line = _slot_line(
+            slot,
+            numeric,
+            year,
+            prev_year,
+            aggregate=index in aggregate_slots,
+        )
         if line is None:
             continue
         if line.value is None:

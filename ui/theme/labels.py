@@ -30,36 +30,143 @@ FIELD_LABELS: dict[str, str] = {
     # --- Current assets -------------------------------------------------
     "CashAndCashEquivalentsAtCarryingValue": "Cash and cash equivalents",
     "CashAndCashEquivalents": "Cash and cash equivalents",
+    "CashAndDueFromBanks": "Cash and due from banks",
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": (
         "Cash, cash equivalents and restricted cash"
     ),
+    "InterestBearingDepositsInBanks": "Deposits with banks",
     "ShortTermInvestments": "Short-term investments",
     "MarketableSecuritiesCurrent": "Marketable securities (current)",
+    "ReceivablesNetCurrent": "Receivables, net (current)",
     "AccountsReceivableNetCurrent": "Accounts receivable, net (current)",
     "AccountsReceivableNet": "Accounts receivable, net",
+    "AccountsAndOtherReceivablesNetCurrent": "Accounts and other receivables, net",
+    "PremiumsAndOtherReceivablesNet": "Premiums and other receivables, net",
+    "PremiumsReceivableAtCarryingValue": "Premiums receivable, at carrying value",
+    "NotesReceivableNet": "Notes receivable, net",
+    "FinancingReceivableExcludingAccruedInterestAfterAllowanceForCreditLoss": (
+        "Financing receivables, net"
+    ),
     "NontradeReceivablesCurrent": "Non-trade receivables (current)",
+    "FederalFundsSoldAndSecuritiesPurchasedUnderAgreementsToResell": (
+        "Federal funds sold and securities purchased under agreements to resell"
+    ),
+    "SecuritiesPurchasedUnderAgreementsToResell": (
+        "Securities purchased under agreements to resell"
+    ),
     "InventoryNet": "Inventory, net",
+    "EnergyRelatedInventory": "Inventory — energy related",
+    "InventoryPartsAndComponentsNetOfReserves": "Inventory — materials and supplies, net",
     "PrepaidExpenseAndOtherAssetsCurrent": "Prepaid expenses and other current assets",
     "OtherAssetsCurrent": "Other current assets",
     # --- Non-current assets ---------------------------------------------
     "PropertyPlantAndEquipmentNet": "Property, plant and equipment, net",
     "PropertyPlantAndEquipmentGross": "Property, plant and equipment, gross",
+    "CapitalizedCostsOilAndGasProducingActivitiesNet": (
+        "Property, plant and equipment, net (oil & gas)"
+    ),
+    "CapitalizedCostsOilAndGasProducingActivitiesGross": (
+        "Property, plant and equipment, gross (oil & gas)"
+    ),
+    "CapitalizedCostsAccumulatedDepreciationDepletionAmortizationAndValuationAllowanceForRelatingToOilAndGasProducingActivities": (
+        "Accumulated depreciation, depletion and amortization (oil & gas)"
+    ),
     "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment": (
         "Accumulated depreciation, depletion and amortization"
     ),
     "Goodwill": "Goodwill",
     "IntangibleAssetsNetExcludingGoodwill": "Intangible assets, net (excl. goodwill)",
     "FiniteLivedIntangibleAssetsNet": "Finite-lived intangible assets, net",
+    "IndefiniteLivedIntangibleAssetsExcludingGoodwill": (
+        "Indefinite-lived intangible assets (excl. goodwill)"
+    ),
+    "OtherIntangibleAssetsNet": "Other intangible assets, net",
     "LongTermInvestments": "Long-term investments",
+    "LongTermInvestmentsAndReceivablesNet": "Long-term investments and receivables, net",
+    "Investments": "Investments",
+    "MarketableSecurities": "Marketable securities",
     "MarketableSecuritiesNoncurrent": "Marketable securities (non-current)",
+    "EquitySecuritiesFvNi": "Equity securities at fair value through income",
+    "EquitySecuritiesFvNiCurrentAndNoncurrent": (
+        "Equity securities at fair value through income (current and non-current)"
+    ),
+    "AvailableForSaleSecuritiesDebtSecurities": "Available-for-sale debt securities",
+    "DebtSecuritiesAvailableForSaleExcludingAccruedInterest": (
+        "Available-for-sale securities, net"
+    ),
+    "OtherInvestments": "Other investments",
+    "EquityMethodInvestments": "Equity method investments",
+    "InvestmentsInAffiliatesSubsidiariesAssociatesAndJointVentures": (
+        "Investments in affiliates, subsidiaries, associates and joint ventures"
+    ),
+    "DebtSecuritiesHeldToMaturityExcludingAccruedInterestAfterAllowanceForCreditLoss": (
+        "Held-to-maturity securities, net"
+    ),
+    "DebtSecuritiesHeldToMaturityExcludingAccruedInterestBeforeAllowanceForCreditLoss": (
+        "Held-to-maturity securities, gross"
+    ),
+    "SecuritiesBorrowed": "Securities borrowed",
+    "SeparateAccountAssets": "Separate account assets",
+    "MarketRiskBenefitAssetAmount": "Market risk benefits (asset)",
+    "AssetsHeldByInsuranceRegulators": "Assets held by insurance regulators",
+    "RegulatoryAssetsNoncurrent": "Regulatory assets (non-current)",
+    "RegulatedEntityOtherAssetsNoncurrent": "Other assets of regulated entities",
+    "DeferredPolicyAcquisitionCosts": "Deferred policy acquisition costs",
+    "ReinsuranceRecoverables": "Reinsurance receivables",
+    "ReinsuranceRecoverablesGross": "Reinsurance receivables, gross",
+    "ReinsuranceRecoverableForUnpaidClaimsAndClaimsAdjustments": (
+        "Reinsurance recoverable for unpaid claims and claim adjustments"
+    ),
+    "ReinsuranceRecoverablesOnPaidAndUnpaidLosses": (
+        "Reinsurance receivables on paid and unpaid losses"
+    ),
+    "DeferredRentReceivablesNet": "Deferred rent receivables, net",
+    "DeferredRentReceivablesNetNoncurrent": "Deferred rent receivables (non-current)",
+    "OperatingLeaseRightOfUseAsset": "Operating lease right-of-use assets",
     "DeferredTaxAssetsNoncurrent": "Deferred tax assets (non-current)",
+    "DeferredTaxAssetsNet": "Deferred tax assets, net",
+    "DeferredIncomeTaxAssetsNet": "Deferred tax assets, net",
+    "DeferredIncomeTaxesAndOtherAssetsNoncurrent": "Deferred income taxes and other assets",
     "OtherAssetsNoncurrent": "Other non-current assets",
+    "OtherAssets": "Other assets",
+    "OtherAssetsMiscellaneous": "Other assets (miscellaneous)",
+    "OtherAssetsMiscellaneousNoncurrent": "Other non-current assets (miscellaneous)",
+    "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization": (
+        "Property, plant and equipment and finance lease right-of-use assets, net"
+    ),
+    "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetBeforeAccumulatedDepreciationAndAmortization": (
+        "Property, plant and equipment and finance lease right-of-use assets, gross"
+    ),
+    "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAccumulatedDepreciationAndAmortization": (
+        "Accumulated depreciation and amortization (PP&E and finance leases)"
+    ),
+    "PublicUtilitiesPropertyPlantAndEquipmentNet": (
+        "Public utilities property, plant and equipment, net"
+    ),
+    "PublicUtilitiesPropertyPlantAndEquipmentPlantInService": (
+        "Public utilities property, plant and equipment, plant in service"
+    ),
+    "PublicUtilitiesPropertyPlantAndEquipmentAccumulatedDepreciation": (
+        "Accumulated depreciation (public utilities property, plant and equipment)"
+    ),
+    "RealEstateInvestmentPropertyNet": "Real estate investment property, net",
+    "RealEstateGrossAtCarryingValue": "Real estate, gross",
+    "RealEstateAccumulatedDepreciation": "Accumulated depreciation (real estate)",
+    "RealEstateInvestmentPropertyAccumulatedDepreciation": (
+        "Accumulated depreciation (real estate investment property)"
+    ),
+    "OilAndGasPropertySuccessfulEffortMethodGross": (
+        "Oil & gas property (successful effort method), gross"
+    ),
     # --- Current liabilities --------------------------------------------
     "ShortTermBorrowings": "Short-term borrowings",
     "CommercialPaper": "Commercial paper",
     "DebtCurrent": "Debt (current)",
     "LongTermDebtCurrent": "Long-term debt (current portion)",
     "AccountsPayableCurrent": "Accounts payable (current)",
+    "AccountsPayableTradeCurrent": "Trade accounts payable (current)",
+    "AccountsPayableOtherCurrent": "Other accounts payable (current)",
+    "AccountsPayableCurrentAndNoncurrent": "Accounts payable (current and non-current)",
     "AccountsPayableAndAccruedLiabilitiesCurrent": "Accounts payable and accrued liabilities",
     "AccountsPayableAndAccruedLiabilitiesCurrentAndNoncurrent": (
         "Accounts payable and accrued liabilities (current and non-current)"
@@ -68,34 +175,124 @@ FIELD_LABELS: dict[str, str] = {
         "Accounts payable and other accrued liabilities"
     ),
     "AccruedLiabilitiesCurrent": "Accrued liabilities (current)",
+    "AccruedLiabilitiesAndOtherLiabilities": "Accrued and other liabilities",
+    "OtherAccruedLiabilitiesCurrent": "Other accrued liabilities (current)",
+    "EmployeeRelatedLiabilitiesCurrent": "Employee-related liabilities (current)",
+    "StandardProductWarrantyAccrual": "Warranty accrual (current)",
     "OtherLiabilitiesCurrent": "Other current liabilities",
+    "AccruedIncomeTaxesCurrent": "Income taxes payable (current)",
+    "TaxesPayableCurrent": "Income taxes payable (current)",
+    "InterestPayableCurrent": "Interest payable (current)",
+    "FederalFundsPurchasedAndSecuritiesSoldUnderAgreementsToRepurchase": (
+        "Federal funds purchased and securities sold under agreements to repurchase"
+    ),
+    "DividendsPayableCurrentAndNoncurrent": "Dividends payable",
+    "DividendsPayableNoncurrent": "Dividends payable (non-current)",
     "ContractWithCustomerLiabilityCurrent": "Contract liabilities (current)",
+    "ContractWithCustomerLiability": "Contract liabilities",
     "DeferredRevenueCurrent": "Deferred revenue (current)",
+    "DividendsPayableCurrent": "Dividends payable (current)",
+    "LongTermDebtAndCapitalLeaseObligationsCurrent": (
+        "Long-term debt and finance lease obligations (current portion)"
+    ),
+    "OtherShortTermBorrowings": "Other short-term borrowings",
+    "UnearnedPremiums": "Unearned premiums",
+    "SupplementaryInsuranceInformationUnearnedPremiums": (
+        "Unearned premiums (insurance information)"
+    ),
+    "PolicyholderContractDeposits": "Policyholder contract deposits",
+    "PolicyholderFunds": "Policyholder funds",
+    "Deposits": "Deposits",
+    "InterestBearingDepositLiabilities": "Interest-bearing deposits",
+    "NoninterestBearingDepositLiabilities": "Non-interest-bearing deposits",
+    "DepositsDomestic": "Domestic deposits",
+    "InterestBearingDepositLiabilitiesDomestic": "Domestic interest-bearing deposits",
+    "NoninterestBearingDepositLiabilitiesDomestic": (
+        "Domestic non-interest-bearing deposits"
+    ),
+    "DemandDepositAccounts": "Demand deposit accounts",
+    "DepositsSavingsDeposits": "Savings deposits",
+    "DepositsMoneyMarketDeposits": "Money market deposits",
+    "TimeDeposits": "Time deposits",
+    "SecuritiesSoldUnderAgreementsToRepurchase": (
+        "Securities sold under agreements to repurchase"
+    ),
+    "TradingLiabilities": "Trading liabilities",
     # --- Non-current liabilities ----------------------------------------
     "LongTermDebtNoncurrent": "Long-term debt (non-current)",
     "DebtNoncurrent": "Debt (non-current)",
     "LongTermLiabilities": "Long-term liabilities (total)",
     "LongTermDebt": "Long-term debt",
+    "LongTermDebtAndCapitalLeaseObligations": (
+        "Long-term debt and finance lease obligations"
+    ),
+    "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities": (
+        "Long-term debt and finance lease obligations (incl. current maturities)"
+    ),
+    "LongTermNotesPayable": "Long-term notes payable",
+    "SeniorLongTermNotes": "Senior long-term notes",
+    "UnsecuredDebt": "Unsecured debt",
+    "DebtAndCapitalLeaseObligations": "Debt and finance lease obligations",
+    "LiabilitiesOtherThanLongtermDebtNoncurrent": (
+        "Other liabilities (excluding long-term debt)"
+    ),
+    "RegulatoryLiabilityNoncurrent": "Regulatory liabilities (non-current)",
+    "RegulatoryLiabilities": "Regulatory liabilities",
     "OperatingLeaseLiabilityNoncurrent": "Operating lease liabilities (non-current)",
+    "OperatingLeaseLiability": "Operating lease liabilities",
     "FinanceLeaseLiabilityNoncurrent": "Finance lease liabilities (non-current)",
+    "FinanceLeaseLiability": "Finance lease liabilities",
     "DeferredTaxLiabilitiesNoncurrent": "Deferred tax liabilities (non-current)",
     "DeferredTaxLiabilitiesNet": "Deferred tax liabilities, net",
+    "DeferredIncomeTaxLiabilitiesNet": "Deferred income tax liabilities, net",
+    "DeferredIncomeTaxLiabilities": "Deferred income tax liabilities",
+    "DeferredTaxLiabilities": "Deferred tax liabilities",
+    "DeferredIncomeTaxesAndOtherTaxLiabilitiesNoncurrent": (
+        "Deferred income taxes and other tax liabilities"
+    ),
+    "MarketRiskBenefitLiabilityAmount": "Market risk benefits (liability)",
+    "DerivativeLiabilities": "Derivative liabilities",
+    "SeparateAccountsLiability": "Separate accounts liability",
+    "LiabilityForClaimsAndClaimsAdjustmentExpense": (
+        "Liability for claims and claims adjustment expense"
+    ),
+    "SupplementaryInsuranceInformationOtherPolicyClaimsAndBenefitsPayable": (
+        "Other policy claims and benefits payable (insurance information)"
+    ),
+    "LiabilityForFuturePolicyBenefits": "Liability for future policy benefits",
+    "OtherPolicyholderFunds": "Other policyholder funds",
+    "AssetRetirementObligationsNoncurrent": "Asset retirement obligations (non-current)",
+    "AssetRetirementObligation": "Asset retirement obligations",
+    "DeferredCreditsAndOtherLiabilities": "Deferred credits and other liabilities",
+    "PensionAndOtherPostretirementDefinedBenefitPlansLiabilitiesNoncurrent": (
+        "Pension and other postretirement benefit obligations"
+    ),
     "OtherLiabilitiesNoncurrent": "Other non-current liabilities",
+    "OtherLiabilities": "Other liabilities",
     # --- Equity ----------------------------------------------------------
     "PreferredStockValue": "Preferred stock",
+    "PreferredStockIncludingAdditionalPaidInCapitalNetOfDiscount": (
+        "Preferred stock incl. additional paid-in capital"
+    ),
     "CommonStockValue": "Common stock",
     "CommonStocksIncludingAdditionalPaidInCapital": (
         "Common stock incl. additional paid-in capital"
     ),
     "AdditionalPaidInCapital": "Additional paid-in capital",
+    "AdditionalPaidInCapitalCommonStock": "Additional paid-in capital (common stock)",
     "PaidInCapital": "Paid-in capital",
     "RetainedEarningsAccumulatedDeficit": "Retained earnings (accumulated deficit)",
     "RetainedEarnings": "Retained earnings",
     "TreasuryStockValue": "Treasury stock",
+    "TreasuryStockCommonValue": "Treasury stock (common stock)",
     "AccumulatedOtherComprehensiveIncomeLossNetOfTax": (
         "Accumulated other comprehensive income (loss)"
     ),
     "MinorityInterest": "Minority interest",
+    "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests": (
+        "Temporary (mezzanine) equity"
+    ),
+    "TemporaryEquityCarryingAmount": "Temporary (mezzanine) equity",
     # --- Memoranda (non-monetary) ----------------------------------------
     "CommonStockSharesOutstanding": "Common shares outstanding",
     "CommonStockSharesIssued": "Common shares issued",
