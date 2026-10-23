@@ -1,3 +1,23 @@
+## [0.19.2] - 2026-10-23
+
+### Added
+- Demo Financials payloads regenerated for all 76 demo tickers (previously 4). The demo T-view now works for every ticker in the offline bundle and matches the live layout for the key companies.
+- `scripts/build_demo_financials.py` extended with Fix-B-aware concept selection (balance rows follow `ui.balance_map` / `BALANCE_MAP`, bucketed via `classify_concept`); generates fixtures for every ticker in `DEMO_TICKERS`.
+- New tests `tests/unit/test_demo_financials_payloads.py` cover full demo ticker coverage, ADBE line counts, AAPL layout parity, and payload bucket integrity.
+- `docs/data_gaps_investigation.md` documents balance T-view limitations (BDX double-counted deferred tax, 4 FDB-limited tickers APA/APO/ARES/BRK-B, AEE unverified, AAPL commercial-paper trade-off, and 27 tickers that show ≥10 lines but do not balance).
+
+### Changed
+- Demo bundle size cap raised from 2 MB to 4 MB (bundle: ~3.88 MB) with documented rationale; fixtures include view payloads, insights and alerts for all 76 tickers.
+
+### Fixed
+- T-view opens on the newest fiscal year that actually has filed balance data (Fix E).
+- Balance concept map (Fix B): alias resolution by value, zero-vs-non-zero preference, aggregate rendering rules. Banks, insurers, oil & gas, REITs and utilities now render their face lines.
+
+### Notes
+- BDX remains a known regression (Δ ≈ −$2.48B) due to a double-counted deferred tax note in FDB aggregates; no containment rule or per-ticker hack added.
+- 4 tickers are FDB-limited (APA, APO, ARES, BRK-B); tags exist in filings but are not stored in Financial-DataBase.
+- 27 tickers show ≥10 lines per column but the balance chip is honest and reports "does not balance" (documented).
+
 ## [0.19.1] - 2026-10-21
 
 ### Added
