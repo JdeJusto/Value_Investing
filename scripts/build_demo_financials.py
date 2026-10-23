@@ -137,19 +137,20 @@ def build_fixture(
         "cash_flow": [],
         "other": [],
     }
-    for row in (
-        view.balance_sheet + view.income_statement + view.cash_flow + view.other
-    ):
+    for row in view.balance_sheet + view.income_statement + view.cash_flow + view.other:
         buckets[classify_concept(row.concept)].append(row)
 
     # Balance rows: every Fix-B relevant concept (face lines, subtotals,
     # totals, memoranda), whichever bucket the classifier put it in. They
-    # feed the T view, which reads both buckets.
-    balance_rows = [
-        row
-        for row in buckets["balance_sheet"] + buckets["other"]
-        if row.concept in BALANCE_CONCEPTS
-    ]
+    # feed the T view, which reads both buckets. Skip concepts with no data
+    # for any of the years we render (they would flag the model as partial).
+    balance_rows = []
+    for row in buckets["balance_sheet"] + buckets["other"]:
+        if row.concept not in BALANCE_CONCEPTS:
+            continue
+        if not any(row.values.get(year) for year in view.years):
+            continue
+        balance_rows.append(row)
     # The rest of the "other" bucket stays capped: it is noise for the T
     # view and the main cost driver of the bundle size.
     other_rows = _top(
