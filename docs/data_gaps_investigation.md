@@ -294,3 +294,62 @@ Financial-DataBase mapping.
 - `scripts/validate_data_sample.py` still polls `companyconcept` per tag; it can
   now reuse `SecFallbackFetcher` so empty-envelope issuers stop reading as
   missing SEC values.
+
+
+## Balance T-view limitations (v0.19.2)
+
+After Fix B (alias + resolution rules) and Fix C (76 demo Financials
+payloads regenerated for every ticker in the offline bundle), the following
+are known limitations. Each entry has cause and recommended action.
+
+### BDX — Double-counted deferred tax
+- **Observed:** The balance chip shows an unbalanced delta (≈ −$2.48B) for
+  BDX despite ≥10 lines per column in the T-view.
+- **Cause:** A deferred-tax note is double-counted in the aggregates that
+  Financial-DataBase stores separately (the reported subtotals do not equal
+  the sum of the stored components). The Fix-B mapping renders the face
+  lines correctly but cannot reconcile that upstream aggregation.
+- **Action:** Documented and accepted for v0.19.2. A containment rule or
+  per-ticker hack was rejected; investigate if user feedback makes it
+  material.
+
+### FDB-limited (4 tickers: APA, APO, ARES, BRK-B)
+- **Observed:** The balance concept map resolves the XBRL tags that exist in
+  the filing, but the T-view cannot render full face lines for these
+  tickers.
+- **Cause:** The tags exist in the 10-K/filing but are **not stored in
+  Financial-DataBase** (ingestion gap). VI cannot create facts that FDB does
+  not hold.
+- **Action:** Open an upstream FDB ticket to ingest the missing concepts.
+  No local mapping or synthetic data added.
+
+### AEE — Unverified
+- **Observed:** The 10-K R-file for AEE could not be located during the
+  investigation.
+- **Cause:** Unknown; needs manual verification against the SEC filing
+  source.
+- **Action:** Verify against the original filing and, if the tags exist,
+  file an FDB ingestion request. Documented for v0.19.2.
+
+### AAPL — Commercial paper trade-off
+- **Observed:** The T-view renders correctly and the chip is balanced, but
+  an aggregate rule hides a commercial-paper sibling line.
+- **Cause:** The aggregate presentation rule groups the sibling under the
+  subtotal that is actually present, so the line is hidden while the subtotal
+  still covers it.
+- **Action:** Accepted trade-off (demo ≡ live parity maintained). No
+  per-ticker override.
+
+### Unbalanced but visible (27 tickers)
+The following tickers show ≥10 lines per column in the T-format balance
+view but the balance chip reports "does not balance". Causes: aggregates
+Financial-DataBase stores separately, or reported subtotals not matching the
+sum of stored components. The chip is **honest** (no fabricated rows).
+
+**List (27):** ABBV, ACN, ADSK, AEE, AES, ALB, AMGN, AMT, APA, APD, APO,
+APTV, ARE, ARES, AVY, AWK, AZO, BBY, BDX (−$2.48B), BEN, BG, BIIB, BLK,
+BRO, JNJ (−$151.25B), PLD, XOM.
+
+**Action:** Acceptable for v0.19.2. Investigate in a dedicated session if
+user feedback shows the chip confusion is material. No balance-fabrication
+rules added.

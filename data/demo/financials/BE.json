@@ -1,0 +1,1066 @@
+{
+  "ticker": "BE",
+  "company_name": "Bloom Energy Corp",
+  "fiscal_period": "FY",
+  "years": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018
+  ],
+  "note": "Demo fixture: 78 of 498 concepts, 9 most recent fiscal years. The balance rows follow the Fix-B concept map (every mapped face line, the reported subtotals, the statement totals and the memoranda), so the T-format balance view matches the live one; the income and cash-flow rows are the iconic concepts first.",
+  "balance_sheet": [
+    {
+      "concept": "AccountsPayableCurrent",
+      "label": "Accounts Payable (Current)",
+      "values": {
+        "2025": "$203.13M",
+        "2024": "$92.70M",
+        "2023": "$132.08M",
+        "2022": "$161.77M",
+        "2021": "$72.97M",
+        "2020": "$58.33M",
+        "2019": "$55.58M",
+        "2018": "$66.89M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AccountsReceivableNetCurrent",
+      "label": "Accounts Receivable, Net (Current)",
+      "values": {
+        "2025": "$371.80M",
+        "2024": "$335.84M",
+        "2023": "$340.74M",
+        "2022": "$251.00M",
+        "2021": "$87.79M",
+        "2020": "$99.51M",
+        "2019": "$37.83M",
+        "2018": "$84.89M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AccruedIncomeTaxesCurrent",
+      "label": "Accrued Income Taxes Current",
+      "values": {
+        "2025": "$2.12M",
+        "2024": "$637.00K",
+        "2023": "$3.37M",
+        "2022": "$1.14M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment",
+      "label": "Accumulated Depreciation Depletion And Amortization Property Plant And Equipment",
+      "values": {
+        "2019": "$262.62M",
+        "2018": "$238.38M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AccumulatedOtherComprehensiveIncomeLossNetOfTax",
+      "label": "Accumulated Other Comprehensive Income (Loss), Net of Tax",
+      "values": {
+        "2025": "($369.00K)",
+        "2024": "($2.59M)",
+        "2023": "($1.69M)",
+        "2022": "($1.25M)",
+        "2021": "($350.00K)",
+        "2020": "($9.00K)",
+        "2019": "$19.00K",
+        "2018": "$131.00K"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AdditionalPaidInCapital",
+      "label": "Additional Paid In Capital",
+      "values": {
+        "2025": "$4.76B",
+        "2024": "$4.46B",
+        "2023": "$4.37B",
+        "2022": "$3.91B",
+        "2021": "$3.22B",
+        "2020": "$3.18B",
+        "2019": "$2.69B",
+        "2018": "$2.48B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AssetsNoncurrent",
+      "label": "Assets Noncurrent",
+      "values": {
+        "2022": "$890.66M",
+        "2021": "$919.15M",
+        "2020": "$835.78M",
+        "2019": "$849.88M",
+        "2018": "$717.09M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "CashAndCashEquivalentsAtCarryingValue",
+      "label": "Cash and Cash Equivalents",
+      "values": {
+        "2025": "$2.45B",
+        "2024": "$802.85M",
+        "2023": "$664.59M",
+        "2022": "$348.50M",
+        "2021": "$396.04M",
+        "2020": "$246.95M",
+        "2019": "$202.82M",
+        "2018": "$220.73M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+      "label": "Cash, Cash Equivalents and Restricted Cash",
+      "values": {
+        "2025": "$2.48B",
+        "2024": "$950.97M",
+        "2023": "$745.18M",
+        "2022": "$518.37M",
+        "2021": "$615.11M",
+        "2020": "$416.71M",
+        "2019": "$377.39M",
+        "2018": "$280.49M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "CommonStockSharesAuthorized",
+      "label": "Common Stock Shares Authorized",
+      "values": {
+        "2018": "0"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "CommonStockSharesIssued",
+      "label": "Common Stock Shares Issued",
+      "values": {
+        "2018": "0"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "CommonStockSharesOutstanding",
+      "label": "Common Stock Shares Outstanding",
+      "values": {
+        "2018": "0"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "CommonStockValue",
+      "label": "Common Stock Value",
+      "values": {
+        "2025": "$28.00K",
+        "2024": "$23.00K",
+        "2023": "$21.00K",
+        "2022": "$20.00K",
+        "2021": "$18.00K",
+        "2020": "$17.00K",
+        "2019": "$12.00K",
+        "2018": "$11.00K"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "ContractWithCustomerLiability",
+      "label": "Contract With Customer Liability",
+      "values": {
+        "2025": "$65.61M",
+        "2024": "$66.30M",
+        "2023": "$72.33M",
+        "2022": "$94.36M",
+        "2021": "$115.48M",
+        "2020": "$201.75M",
+        "2019": "$214.72M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "AssetsCurrent",
+      "label": "Current Assets",
+      "values": {
+        "2025": "$3.73B",
+        "2024": "$2.04B",
+        "2023": "$1.69B",
+        "2022": "$1.06B",
+        "2021": "$806.42M",
+        "2020": "$618.60M",
+        "2019": "$472.71M",
+        "2018": "$672.58M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LiabilitiesCurrent",
+      "label": "Current Liabilities",
+      "values": {
+        "2025": "$623.83M",
+        "2024": "$636.76M",
+        "2023": "$470.42M",
+        "2022": "$541.95M",
+        "2021": "$342.48M",
+        "2020": "$436.38M",
+        "2019": "$573.96M",
+        "2018": "$279.67M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "DeferredIncomeTaxLiabilities",
+      "label": "Deferred Income Tax Liabilities",
+      "values": {
+        "2025": "$65.86M",
+        "2024": "$63.55M",
+        "2023": "$107.60M",
+        "2022": "$111.70M",
+        "2021": "$119.75M",
+        "2020": "$134.40M",
+        "2019": "$89.33M",
+        "2018": "$30.17M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "DeferredTaxAssetsNet",
+      "label": "Deferred Tax Assets Net",
+      "values": {
+        "2025": "$67.64M",
+        "2024": "$65.43M",
+        "2023": "$108.98M",
+        "2022": "$112.86M",
+        "2021": "$120.71M",
+        "2020": "$135.28M",
+        "2019": "$89.97M",
+        "2018": "$30.95M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "DerivativeLiabilities",
+      "label": "Derivative Liabilities",
+      "values": {
+        "2025": "$5.61M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "EmployeeRelatedLiabilitiesCurrent",
+      "label": "Employee Related Liabilities Current",
+      "values": {
+        "2025": "$97.57M",
+        "2024": "$67.68M",
+        "2023": "$47.90M",
+        "2022": "$48.16M",
+        "2021": "$38.22M",
+        "2020": "$28.34M",
+        "2019": "$17.17M",
+        "2018": "$16.74M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "EntityCommonStockSharesOutstanding",
+      "label": "Entity Common Stock Shares Outstanding",
+      "values": {
+        "2025": "280.55M sh",
+        "2024": "230.40M sh",
+        "2023": "224.97M sh"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "EntityPublicFloat",
+      "label": "Entity Public Float",
+      "values": {
+        "2025": "$3.90B",
+        "2024": "$1.70B",
+        "2023": "$2.40B",
+        "2022": "$2.30B",
+        "2021": "$3.80B",
+        "2020": "$1.00B",
+        "2019": "$659.70M",
+        "2018": "$156.00M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "EquityMethodInvestments",
+      "label": "Equity Method Investments",
+      "values": {
+        "2025": "$10.04M",
+        "2020": "$1.95M",
+        "2019": "$5.73M",
+        "2018": "$6.05M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "FinanceLeaseLiability",
+      "label": "Finance Lease Liability",
+      "values": {
+        "2025": "$5.22M",
+        "2024": "$3.43M",
+        "2023": "$2.91M",
+        "2022": "$3.00M",
+        "2021": "$3.02M",
+        "2020": "$341.00K"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "FinanceLeaseLiabilityNoncurrent",
+      "label": "Finance Lease Liability Noncurrent",
+      "values": {
+        "2025": "$3.85M",
+        "2024": "$2.45M",
+        "2023": "$1.84M",
+        "2022": "$1.97M",
+        "2021": "$2.16M",
+        "2020": "$267.00K"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "Goodwill",
+      "label": "Goodwill",
+      "values": {
+        "2021": "$1.96M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "InterestPayableCurrent",
+      "label": "Interest Payable Current",
+      "values": {
+        "2025": "$913.00K",
+        "2024": "$3.93M",
+        "2023": "$3.82M",
+        "2022": "$3.13M",
+        "2021": "$2.16M",
+        "2020": "$2.22M",
+        "2019": "$3.88M",
+        "2018": "$4.67M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "InventoryNet",
+      "label": "Inventory, Net",
+      "values": {
+        "2025": "$643.31M",
+        "2024": "$544.66M",
+        "2023": "$502.51M",
+        "2022": "$268.39M",
+        "2021": "$143.37M",
+        "2020": "$142.06M",
+        "2019": "$109.61M",
+        "2018": "$132.48M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LiabilitiesAndStockholdersEquity",
+      "label": "Liabilities and Stockholders' Equity",
+      "values": {
+        "2025": "$4.40B",
+        "2024": "$2.66B",
+        "2023": "$2.41B",
+        "2022": "$1.95B",
+        "2021": "$1.73B",
+        "2020": "$1.45B",
+        "2019": "$1.32B",
+        "2018": "$1.39B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LongTermDebt",
+      "label": "Long Term Debt",
+      "values": {
+        "2025": "$2.62B",
+        "2024": "$1.13B",
+        "2023": "$846.63M",
+        "2022": "$411.58M",
+        "2021": "$526.73M",
+        "2020": "$390.90M",
+        "2019": "$636.81M",
+        "2018": "$741.28M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LongTermDebtCurrent",
+      "label": "Long Term Debt Current",
+      "values": {
+        "2025": "$4.15M",
+        "2024": "$114.39M",
+        "2023": "0",
+        "2022": "$26.02M",
+        "2021": "$25.83M",
+        "2020": "$120.85M",
+        "2019": "$337.58M",
+        "2018": "$29.85M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LongTermDebtNoncurrent",
+      "label": "Long Term Debt Noncurrent",
+      "values": {
+        "2025": "$2.61B",
+        "2024": "$1.01B",
+        "2023": "$846.63M",
+        "2022": "$385.56M",
+        "2021": "$500.90M",
+        "2020": "$270.05M",
+        "2019": "$299.23M",
+        "2018": "$711.43M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "LongTermInvestments",
+      "label": "Long Term Investments",
+      "values": {
+        "2022": "0"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "MinorityInterest",
+      "label": "Minority Interest",
+      "values": {
+        "2025": "$24.32M",
+        "2024": "$22.75M",
+        "2023": "$18.59M",
+        "2022": "$38.04M",
+        "2021": "$42.50M",
+        "2020": "$62.20M",
+        "2019": "$91.29M",
+        "2018": "$125.11M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "NontradeReceivablesCurrent",
+      "label": "Nontrade Receivables Current",
+      "values": {
+        "2020": "$479.00K",
+        "2019": "$893.00K",
+        "2018": "$1.00M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OperatingLeaseLiability",
+      "label": "Operating Lease Liability",
+      "values": {
+        "2025": "$128.94M",
+        "2024": "$144.16M",
+        "2023": "$162.18M",
+        "2022": "$148.59M",
+        "2021": "$119.29M",
+        "2020": "$49.75M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OperatingLeaseLiabilityNoncurrent",
+      "label": "Operating Lease Liability Noncurrent",
+      "values": {
+        "2025": "$106.94M",
+        "2024": "$124.52M",
+        "2023": "$141.94M",
+        "2022": "$132.36M",
+        "2021": "$106.19M",
+        "2020": "$41.85M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OperatingLeaseRightOfUseAsset",
+      "label": "Operating Lease Right Of Use Asset",
+      "values": {
+        "2025": "$108.54M",
+        "2024": "$122.49M",
+        "2023": "$139.73M",
+        "2022": "$126.95M",
+        "2021": "$106.66M",
+        "2020": "$35.62M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OtherAccruedLiabilitiesCurrent",
+      "label": "Other Accrued Liabilities Current",
+      "values": {
+        "2025": "$823.00K",
+        "2024": "$1.71M",
+        "2023": "$2.58M",
+        "2022": "$1.54M",
+        "2021": "$46.20M",
+        "2020": "$28.64M",
+        "2019": "$29.79M",
+        "2018": "$31.24M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OtherAssetsNoncurrent",
+      "label": "Other Assets (Noncurrent)",
+      "values": {
+        "2025": "$57.20M",
+        "2024": "$46.14M",
+        "2023": "$50.21M",
+        "2022": "$40.20M",
+        "2021": "$39.12M",
+        "2020": "$34.51M",
+        "2019": "$41.65M",
+        "2018": "$34.79M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OtherLiabilitiesNoncurrent",
+      "label": "Other Liabilities (Noncurrent)",
+      "values": {
+        "2025": "$10.03M",
+        "2024": "$9.21M",
+        "2023": "$9.05M",
+        "2022": "$9.49M",
+        "2021": "$16.77M",
+        "2020": "$12.28M",
+        "2019": "$28.01M",
+        "2018": "$55.94M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OtherLiabilitiesCurrent",
+      "label": "Other Liabilities Current",
+      "values": {
+        "2025": "$222.25M",
+        "2024": "$138.45M",
+        "2023": "$130.88M",
+        "2022": "$144.18M",
+        "2021": "$114.14M",
+        "2020": "$112.00M",
+        "2019": "$70.28M",
+        "2018": "$69.53M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PrepaidExpenseAndOtherAssetsCurrent",
+      "label": "Prepaid Expense And Other Assets Current",
+      "values": {
+        "2025": "$49.80M",
+        "2024": "$46.20M",
+        "2023": "$51.15M",
+        "2022": "$43.64M",
+        "2021": "$30.66M",
+        "2020": "$30.72M",
+        "2019": "$28.07M",
+        "2018": "$33.74M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAccumulatedDepreciationAndAmortization",
+      "label": "Property Plant And Equipment And Finance Lease Right Of Use Asset Accumulated Depreciation And Amortization",
+      "values": {
+        "2025": "$282.59M",
+        "2024": "$269.38M",
+        "2023": "$281.18M",
+        "2022": "$344.18M",
+        "2021": "$356.59M",
+        "2020": "$309.67M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+      "label": "Property Plant And Equipment And Finance Lease Right Of Use Asset After Accumulated Depreciation And Amortization",
+      "values": {
+        "2025": "$398.51M",
+        "2024": "$403.48M",
+        "2023": "$493.35M",
+        "2022": "$600.41M",
+        "2021": "$604.11M",
+        "2020": "$600.63M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetBeforeAccumulatedDepreciationAndAmortization",
+      "label": "Property Plant And Equipment And Finance Lease Right Of Use Asset Before Accumulated Depreciation And Amortization",
+      "values": {
+        "2025": "$681.10M",
+        "2024": "$672.85M",
+        "2023": "$774.53M",
+        "2022": "$944.60M",
+        "2021": "$960.70M",
+        "2020": "$910.30M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PropertyPlantAndEquipmentGross",
+      "label": "Property Plant And Equipment Gross",
+      "values": {
+        "2019": "$869.68M",
+        "2018": "$719.79M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PropertyPlantAndEquipmentNet",
+      "label": "Property Plant And Equipment Net",
+      "values": {
+        "2020": "$600.63M",
+        "2019": "$607.06M",
+        "2018": "$481.41M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "RetainedEarningsAccumulatedDeficit",
+      "label": "Retained Earnings (Accumulated Deficit)",
+      "values": {
+        "2025": "($3.99B)",
+        "2024": "($3.90B)",
+        "2023": "($3.87B)",
+        "2022": "($3.56B)",
+        "2021": "($3.26B)",
+        "2020": "($3.10B)",
+        "2019": "($2.95B)",
+        "2018": "($2.57B)"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "ShortTermBorrowings",
+      "label": "Short Term Borrowings",
+      "values": {
+        "2025": "$4.20M",
+        "2024": "$114.40M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "ShortTermInvestments",
+      "label": "Short Term Investments",
+      "values": {
+        "2019": "0",
+        "2018": "$104.35M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "StandardProductWarrantyAccrual",
+      "label": "Standard Product Warranty Accrual",
+      "values": {
+        "2022": "$17.33M",
+        "2021": "$11.75M",
+        "2020": "$10.15M",
+        "2019": "$9.88M",
+        "2018": "$10.94M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "StockholdersEquity",
+      "label": "Stockholders' Equity",
+      "values": {
+        "2025": "$768.64M",
+        "2024": "$562.47M",
+        "2023": "$502.08M",
+        "2022": "$340.78M",
+        "2021": "($44.33M)",
+        "2020": "$78.82M",
+        "2019": "($259.59M)",
+        "2018": "($91.66M)"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "Assets",
+      "label": "Total Assets",
+      "values": {
+        "2025": "$4.40B",
+        "2024": "$2.66B",
+        "2023": "$2.41B",
+        "2022": "$1.95B",
+        "2021": "$1.73B",
+        "2020": "$1.45B",
+        "2019": "$1.32B",
+        "2018": "$1.39B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "Liabilities",
+      "label": "Total Liabilities",
+      "values": {
+        "2025": "$3.60B",
+        "2024": "$2.07B",
+        "2023": "$1.89B",
+        "2022": "$1.57B",
+        "2021": "$1.52B",
+        "2020": "$1.31B",
+        "2019": "$1.49B",
+        "2018": "$1.30B"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
+      "label": "Weighted Average Number Of Share Outstanding Basic And Diluted",
+      "values": {
+        "2020": "138.72M sh",
+        "2019": "118.59M sh",
+        "2018": "109.42M sh"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "WeightedAverageNumberOfSharesOutstandingBasic",
+      "label": "Weighted Average Shares Outstanding (Basic)",
+      "values": {
+        "2025": "240.40M sh",
+        "2024": "227.37M sh",
+        "2023": "212.68M sh",
+        "2022": "185.91M sh",
+        "2021": "173.44M sh",
+        "2018": "53.27M sh"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "WeightedAverageNumberOfDilutedSharesOutstanding",
+      "label": "Weighted Average Shares Outstanding (Diluted)",
+      "values": {
+        "2025": "240.40M sh",
+        "2024": "227.37M sh",
+        "2023": "212.68M sh",
+        "2022": "185.91M sh",
+        "2021": "173.44M sh",
+        "2018": "53.27M sh"
+      },
+      "unit": "shares"
+    }
+  ],
+  "income_statement": [
+    {
+      "concept": "ComprehensiveIncomeNetOfTax",
+      "label": "Comprehensive Income, Net of Tax",
+      "values": {
+        "2024": "($30.13M)",
+        "2023": "($302.55M)",
+        "2022": "($302.61M)",
+        "2021": "($164.79M)",
+        "2020": "($157.58M)",
+        "2019": "($323.75M)",
+        "2018": "($241.46M)"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "GrossProfit",
+      "label": "Gross Profit",
+      "values": {
+        "2025": "$587.40M",
+        "2024": "$404.65M",
+        "2023": "$197.79M",
+        "2022": "$148.29M",
+        "2021": "$197.58M",
+        "2020": "$165.79M",
+        "2019": "$24.95M",
+        "2018": "$117.07M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "IncomeTaxExpenseBenefit",
+      "label": "Income Tax Expense (Benefit)",
+      "values": {
+        "2025": "$2.74M",
+        "2024": "$846.00K",
+        "2023": "$1.89M",
+        "2022": "$1.10M",
+        "2021": "$1.05M",
+        "2020": "$256.00K",
+        "2019": "$633.00K",
+        "2018": "$1.08M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OperatingExpenses",
+      "label": "Operating Expenses",
+      "values": {
+        "2025": "$514.60M",
+        "2024": "$381.74M",
+        "2023": "$406.70M",
+        "2022": "$409.28M",
+        "2021": "$312.08M",
+        "2020": "$246.58M",
+        "2019": "$330.39M",
+        "2018": "$105.42M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "OperatingIncomeLoss",
+      "label": "Operating Income",
+      "values": {
+        "2025": "$72.80M",
+        "2024": "$22.91M",
+        "2023": "($208.91M)",
+        "2022": "($260.99M)",
+        "2021": "($114.50M)",
+        "2020": "($80.78M)",
+        "2019": "($232.80M)",
+        "2018": "($88.18M)"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "ResearchAndDevelopmentExpense",
+      "label": "Research and Development Expense",
+      "values": {
+        "2025": "$185.99M",
+        "2024": "$148.63M",
+        "2023": "$155.87M",
+        "2022": "$150.61M",
+        "2021": "$103.40M",
+        "2020": "$83.58M",
+        "2019": "$22.15M",
+        "2018": "$89.14M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "Revenues",
+      "label": "Revenue",
+      "values": {
+        "2025": "$2.02B",
+        "2024": "$1.47B",
+        "2023": "$1.33B",
+        "2022": "$1.20B",
+        "2021": "$972.18M",
+        "2020": "$794.25M",
+        "2019": "$785.18M",
+        "2018": "$742.04M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "values": {
+        "2025": "$2.00B",
+        "2024": "$1.44B",
+        "2023": "$1.27B",
+        "2022": "$1.14B",
+        "2021": "$906.86M",
+        "2020": "$730.15M",
+        "2019": "$724.79M"
+      },
+      "unit": "USD"
+    }
+  ],
+  "cash_flow": [
+    {
+      "concept": "Depreciation",
+      "label": "Depreciation",
+      "values": {
+        "2025": "$50.57M",
+        "2024": "$53.05M",
+        "2023": "$62.61M",
+        "2022": "$61.61M",
+        "2021": "$53.45M",
+        "2020": "$52.28M",
+        "2019": "$78.58M",
+        "2018": "$43.46M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "IncreaseDecreaseInAccountsPayable",
+      "label": "Increase (Decrease) in Accounts Payable",
+      "values": {
+        "2025": "$110.91M",
+        "2024": "($36.63M)",
+        "2023": "($29.08M)",
+        "2022": "$86.50M",
+        "2021": "$13.13M",
+        "2020": "($620.00K)",
+        "2019": "($11.31M)",
+        "2018": "$18.31M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "IncreaseDecreaseInAccountsReceivable",
+      "label": "Increase (Decrease) in Accounts Receivable",
+      "values": {
+        "2025": "$35.52M",
+        "2024": "($7.13M)",
+        "2023": "$89.89M",
+        "2022": "$162.86M",
+        "2021": "($8.57M)",
+        "2020": "$61.69M",
+        "2019": "($51.95M)",
+        "2018": "$54.57M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "IncreaseDecreaseInInventories",
+      "label": "Increase (Decrease) in Inventories",
+      "values": {
+        "2025": "$119.21M",
+        "2024": "$44.53M",
+        "2023": "$231.69M",
+        "2022": "$124.88M",
+        "2021": "$885.00K",
+        "2020": "$33.00M",
+        "2019": "($18.43M)",
+        "2018": "$42.22M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "NetCashProvidedByUsedInFinancingActivities",
+      "label": "Net Cash Provided by Financing Activities",
+      "values": {
+        "2025": "$1.51B",
+        "2024": "$175.21M",
+        "2023": "$683.35M",
+        "2022": "$211.36M",
+        "2021": "$306.38M",
+        "2020": "$176.03M",
+        "2019": "($120.31M)",
+        "2018": "$253.12M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "NetCashProvidedByUsedInInvestingActivities",
+      "label": "Net Cash Provided by Investing Activities",
+      "values": {
+        "2025": "($93.12M)",
+        "2024": "($58.78M)",
+        "2023": "($83.72M)",
+        "2022": "($116.82M)",
+        "2021": "($46.70M)",
+        "2020": "($37.91M)",
+        "2019": "$53.45M",
+        "2018": "($94.83M)"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "NetCashProvidedByUsedInOperatingActivities",
+      "label": "Net Cash Provided by Operating Activities",
+      "values": {
+        "2025": "$113.95M",
+        "2024": "$92.00M",
+        "2023": "($372.53M)",
+        "2022": "($191.72M)",
+        "2021": "($60.68M)",
+        "2020": "($98.80M)",
+        "2019": "$163.77M",
+        "2018": "($58.42M)"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "PaymentsToAcquirePropertyPlantAndEquipment",
+      "label": "Payments to Acquire Property, Plant and Equipment",
+      "values": {
+        "2025": "$56.76M",
+        "2024": "$58.85M",
+        "2023": "$83.74M",
+        "2022": "$116.82M",
+        "2021": "$49.81M",
+        "2020": "$37.91M",
+        "2019": "$51.05M",
+        "2018": "$14.66M"
+      },
+      "unit": "USD"
+    }
+  ],
+  "other": [
+    {
+      "concept": "AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+      "label": "Antidilutive Securities Excluded From Computation Of Earnings Per Share Amount",
+      "values": {
+        "2025": "69.37M sh",
+        "2024": "61.34M sh",
+        "2023": "49.13M sh",
+        "2022": "28.39M sh",
+        "2021": "21.29M sh",
+        "2020": "35.84M sh",
+        "2019": "31.84M sh",
+        "2018": "32.19M sh"
+      },
+      "unit": "shares"
+    },
+    {
+      "concept": "CapitalExpendituresIncurredButNotYetPaid",
+      "label": "Capital Expenditures Incurred But Not Yet Paid",
+      "values": {
+        "2025": "$3.72M",
+        "2024": "$1.65M",
+        "2023": "$9.30M",
+        "2022": "$10.99M",
+        "2021": "$6.09M",
+        "2020": "$7.17M",
+        "2019": "$1.75M",
+        "2018": "$12.24M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect",
+      "label": "Cash Cash Equivalents Restricted Cash And Restricted Cash Equivalents Period Increase Decrease Including Exchange Rate Effect",
+      "values": {
+        "2025": "$1.53B",
+        "2024": "$205.79M",
+        "2023": "$226.81M",
+        "2022": "($96.75M)",
+        "2021": "$198.40M",
+        "2020": "$39.32M",
+        "2019": "$96.90M",
+        "2018": "$99.87M"
+      },
+      "unit": "USD"
+    },
+    {
+      "concept": "IncomeTaxesPaidNet",
+      "label": "Income Taxes Paid, Net",
+      "values": {
+        "2025": "$1.71M"
+      },
+      "unit": "USD"
+    }
+  ],
+  "unmatched_count": 4
+}

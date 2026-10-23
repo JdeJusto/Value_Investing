@@ -1,0 +1,1 @@
+{"ticker":"MSFT","company_name":"MICROSOFT CORP","rules_evaluated":10,"rules_skipped":0,"warnings":[],"alerts":[{"rule_id":"inventory_buildup","severity":"WARNING","title":"Inventory buildup","message":"Inventory grew 48.9% vs revenue +17.8% YoY.","evidence":{"Inventory growth":"+48.9%","Revenue growth":"+17.8%"},"metric_hint":"inventory","period":"FY2026"}]}

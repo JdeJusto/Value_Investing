@@ -57,7 +57,12 @@ def test_bundle_manifest_matches_files():
     assert DEMO_TICKERS == expected
 
 
-BUNDLE_SIZE_CAP_BYTES = 2 * 1024 * 1024  # 2 MB
+# Raised from 2 MB to 4 MB to include Financials payloads for all 76 demo
+# tickers (previously only 4). The bundle grew from ~1.6 MB to ~3.88 MB
+# (views + insights + alerts). Streamlit pays for every byte in demo mode;
+# the cap exists to prevent silent drift. If a future change exceeds 4 MB
+# it must be a deliberate decision, documented in the commit message.
+BUNDLE_SIZE_CAP_BYTES = 4 * 1024 * 1024
 
 
 def test_bundle_size_under_cap():
@@ -65,9 +70,7 @@ def test_bundle_size_under_cap():
 
     The bundle started at ~500 KB for eight tickers; commit ``4a96233``
     took it to ~1.5 MB with the 76-ticker expansion, and Streamlit pays
-    for every byte at demo startup. 2 MB leaves room for roughly one
-    more expansion of this size while catching an accidental "commit
-    the whole history" regression. If the growth is intentional, raise
+    for every byte at demo startup. If the growth is intentional, raise
     this cap explicitly here and document why in the commit message.
     """
     total = sum(

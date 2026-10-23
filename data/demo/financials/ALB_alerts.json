@@ -1,0 +1,1 @@
+{"ticker":"ALB","company_name":"ALBEMARLE CORP","rules_evaluated":10,"rules_skipped":1,"warnings":[],"alerts":[{"rule_id":"revenue_decline","severity":"INFO","title":"Revenue decline","message":"Revenue declined 2 consecutive years: -4.4%, -44.1%.","evidence":{"Revenue":"$5.14B, $5.38B, $9.62B","YoY":"-4.4%, -44.1%"},"metric_hint":"revenue","period":"FY2025"}]}
