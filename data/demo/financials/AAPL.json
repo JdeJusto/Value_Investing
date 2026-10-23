@@ -447,42 +447,6 @@
       "unit": "USD"
     },
     {
-      "concept": "FiniteLivedIntangibleAssetsNet",
-      "label": "Finite Lived Intangible Assets Net",
-      "values": {
-        "2017": "$2.20B",
-        "2016": "$3.11B"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "Goodwill",
-      "label": "Goodwill",
-      "values": {
-        "2017": "$5.72B",
-        "2016": "$5.41B"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "IndefiniteLivedIntangibleAssetsExcludingGoodwill",
-      "label": "Indefinite Lived Intangible Assets Excluding Goodwill",
-      "values": {
-        "2017": "$100.00M",
-        "2016": "$100.00M"
-      },
-      "unit": "USD"
-    },
-    {
-      "concept": "IntangibleAssetsNetExcludingGoodwill",
-      "label": "Intangible Assets Net Excluding Goodwill",
-      "values": {
-        "2017": "$2.30B",
-        "2016": "$3.21B"
-      },
-      "unit": "USD"
-    },
-    {
       "concept": "InventoryNet",
       "label": "Inventory, Net",
       "values": {
