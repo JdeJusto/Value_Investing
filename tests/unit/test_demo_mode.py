@@ -59,9 +59,11 @@ def test_bundle_manifest_matches_files():
 
 # Raised from 2 MB to 4 MB to include Financials payloads for all 76 demo
 # tickers (previously only 4). The bundle grew from ~1.6 MB to ~3.88 MB
-# (views + insights + alerts). Streamlit pays for every byte in demo mode;
-# the cap exists to prevent silent drift. If a future change exceeds 4 MB
-# it must be a deliberate decision, documented in the commit message.
+# (views + insights + alerts, 96.9% of cap). Streamlit pays for every byte
+# in demo mode; the cap exists to prevent silent drift. At 3.88 MiB adding
+# ~2 more tickers with 10-year payloads would exceed 4 MiB — raise
+# deliberately or reduce MAX_YEARS. If a future change exceeds 4 MB it must
+# be a deliberate decision, documented in the commit message.
 BUNDLE_SIZE_CAP_BYTES = 4 * 1024 * 1024
 
 
