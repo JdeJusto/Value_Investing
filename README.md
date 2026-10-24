@@ -128,6 +128,10 @@ company without a large enough peer group is scored exactly as before.
 
 *The Scorecard tab: the radar, the dimension cards and the history charts.*
 
+![Financials T-view: Income Statement, Balance Sheet, Cash Flow with fiscal year columns and balanced totals](assets/ui_v2_analysis_financials.png)
+
+*The Financials tab: T-view with Income Statement, Balance Sheet and Cash Flow, per-fiscal-year columns and balance validation.*
+
 ## The 8 methodologies
 
 | Methodology | Source | Family | What it looks for |

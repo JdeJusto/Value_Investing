@@ -132,6 +132,10 @@ cambia una puntuación ni un umbral.
 
 *La pestaña Scorecard: el radar, las tarjetas de dimensión y los gráficos.*
 
+![Pestaña Financials (vista T): Cuenta de Resultados, Balance y Flujo de Caja con columnas por ejercicio fiscal](assets/ui_v2_analysis_financials.png)
+
+*La pestaña Financials: vista en forma de T con Cuenta de Resultados, Balance y Flujo de Caja, columnas por ejercicio fiscal y validación de totales.*
+
 ## Las 8 metodologías
 
 | Metodología | Fuente | Familia | Qué busca |
