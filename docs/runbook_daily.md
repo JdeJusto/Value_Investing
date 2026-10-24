@@ -78,10 +78,16 @@ rate-limited; in a fresh environment run the full seed first:
 cd ~/Value_Investing
 source .venv/bin/activate
 
-# Full run: SEC update + screen + alerts + report
+# Full run: SEC update + screen + alerts + report + consensus
 # (module invocation is required — running scripts/daily_workflow.py directly
 #  fails because `backend` is not on sys.path)
 python -m scripts.daily_workflow
+
+# The full run also writes:
+#   data/consensus/consensus_YYYY-MM-DD.json
+# The Consensus tab reads that file automatically. It uses the same universe,
+# --limit, date and --no-prices options as the daily workflow. If the
+# consensus calculation fails, the daily report and alerts are preserved.
 
 # Skip the SEC update but still screen and write the report/state
 python -m scripts.daily_workflow --no-update

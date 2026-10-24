@@ -266,8 +266,9 @@ The sidebar panel (`st.error/warning/info`) and the `financial-alerts` CLI
 ## Consensus screener
 
 `ConsensusService` (`backend/services/consensus_service.py`) reads the
-precomputed `data/consensus/consensus_<date>.json` written by
-`scripts/compute_consensus_rankings.py` (weekly model) and exposes the
+precomputed `data/consensus/consensus_<date>.json` written by the consensus
+phase of `scripts.daily_workflow` (or directly by
+`scripts/compute_consensus_rankings.py`) and exposes the
 ranking lenses: top by consensus (BUYs desc, score desc), best per Lynch
 category, the disagreement zone (3-5 BUYs and 3-5 AVOIDs) and the full
 verdict matrix. Companies where every methodology returned

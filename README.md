@@ -200,7 +200,15 @@ runs. Redirected output never contains color codes, and `NO_COLOR=1` or
 `--no-color` turns color off on a terminal as well. Prefer a menu over flags
 with `./vi interactive`.
 
-Consensus commands read the latest precomputed report. Refresh it with
+Consensus commands read the latest precomputed report. The normal daily run
+also refreshes it automatically:
+
+```bash
+python -m scripts.daily_workflow
+```
+
+This writes `data/consensus/consensus_YYYY-MM-DD.json` for the Consensus tab.
+To refresh only consensus, use
 `python -m scripts.compute_consensus_rankings --universe sp500`.
 
 ### Streamlit UI

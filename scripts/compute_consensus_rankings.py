@@ -53,6 +53,18 @@ METHODOLOGY_KEYS = (
 UNIVERSE_SELECTIONS = {
     "sp500": ["SP500"],
     "nasdaq100": ["NASDAQ100"],
+    "russell2000": ["RUSSELL2000"],
+    "european": [
+        "FTSE100",
+        "DAX40",
+        "CAC40",
+        "IBEX35",
+        "FTSE_MIB",
+        "AEX",
+        "SMI",
+        "OMXS30",
+        "OMXC25",
+    ],
 }
 
 
@@ -65,6 +77,13 @@ def read_universe(
     elif source.lower() in UNIVERSE_SELECTIONS:
         text = path.read_text(encoding="utf-8")
         selections = UNIVERSE_SELECTIONS[source.lower()]
+    elif "," in source:
+        text = path.read_text(encoding="utf-8")
+        selections = [
+            token
+            for part in source.split(",")
+            for token in UNIVERSE_SELECTIONS.get(part.strip().lower(), [])
+        ]
     else:
         custom = Path(source)
         text, selections = custom.read_text(encoding="utf-8"), []
@@ -260,6 +279,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--workers", type=int, default=MAX_WORKERS, help="evaluation workers (max 4)"
     )
+    parser.add_argument(
+        "--no-prices",
+        action="store_true",
+        help="do not fetch prices; evaluate price-dependent criteria without prices",
+    )
     return parser
 
 
@@ -278,12 +302,15 @@ def main(argv: list[str] | None = None) -> int:
 
     start = time.time()
     price_service = get_price_service()
-    configure = getattr(price_service, "configure", None)
-    if callable(configure):
-        from backend.services.yahoo_health import check_yahoo_availability
+    if args.no_prices:
+        prices, market_caps, prices_available = {}, {}, False
+    else:
+        configure = getattr(price_service, "configure", None)
+        if callable(configure):
+            from backend.services.yahoo_health import check_yahoo_availability
 
-        configure(health_fn=check_yahoo_availability)
-    prices, market_caps, prices_available = prefetch_prices(price_service, tickers)
+            configure(health_fn=check_yahoo_availability)
+        prices, market_caps, prices_available = prefetch_prices(price_service, tickers)
     if prices_available:
         print(
             f"prices: {len(prices)}/{len(tickers)} fetched "

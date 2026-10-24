@@ -11,7 +11,9 @@
    never persisted).
 3. Evaluate alerts (BUY_SIGNAL / SELL_WARNING / TRIGGER_EVENT) against the
    previous day's state.
-4. Write data/reports/daily_YYYY-MM-DD.md and persist the new state.
+4. Compute the eight-methodology consensus and write
+   data/consensus/consensus_YYYY-MM-DD.json.
+5. Write data/reports/daily_YYYY-MM-DD.md and persist the new state.
 
 Flags:
   --dry-run         estimate staleness (read-only, no sync) and print the
@@ -973,6 +975,40 @@ def _run(args) -> int:
     timings["alerts"] = time.time() - tick
     tick = time.time()
 
+    # The consensus tab is backed by a separate, precomputed JSON artifact.
+    # Keep it in the daily command so the normal full run refreshes the same
+    # universe/date automatically. A consensus failure must not discard the
+    # daily screening, alerts, or report that already completed successfully.
+    consensus_path = None
+    if not args.dry_run:
+        try:
+            from scripts.compute_consensus_rankings import main as compute_consensus
+
+            consensus_args = [
+                "--universe",
+                args.universe,
+                "--date",
+                report_date.isoformat(),
+                "--workers",
+                str(args.workers),
+            ]
+            if args.limit is not None:
+                consensus_args.extend(["--limit", str(args.limit)])
+            if args.no_prices:
+                consensus_args.append("--no-prices")
+            if compute_consensus(consensus_args) != 0:
+                logger.warning("consensus update returned a non-zero status")
+            else:
+                consensus_path = (
+                    Path("data/consensus")
+                    / f"consensus_{report_date.isoformat()}.json"
+                )
+                logger.info("consensus updated: %s", consensus_path)
+        except Exception:  # noqa: BLE001 — consensus is an auxiliary report
+            logger.exception("consensus update failed; daily report is preserved")
+    timings["consensus"] = time.time() - tick
+    tick = time.time()
+
     def name_resolver(ticker: str) -> str | None:
         getter = getattr(fdb_repo, "get_company_name", None)
         if not getter:
@@ -1087,6 +1123,8 @@ def _run(args) -> int:
     state_path = out_dir / "daily_state.json"
     save_state(str(state_path), trim_state(cache))
     print(f"State written: {state_path}")
+    if consensus_path is not None:
+        print(f"Consensus written: {consensus_path}")
 
     print(f"Timings: {_format_timings(timings)}")
 
