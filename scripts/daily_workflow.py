@@ -1004,7 +1004,7 @@ def _run(args) -> int:
                     / f"consensus_{report_date.isoformat()}.json"
                 )
                 logger.info("consensus updated: %s", consensus_path)
-        except Exception:  # noqa: BLE001 — consensus is an auxiliary report
+        except Exception:
             logger.exception("consensus update failed; daily report is preserved")
     timings["consensus"] = time.time() - tick
     tick = time.time()
