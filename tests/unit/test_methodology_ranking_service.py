@@ -367,3 +367,139 @@ def test_rank_combined_weighted_requires_numeric_scores(
     mock_run.side_effect = side_effect
     results = rank_combined(["graham", "lynch_garp"], ["AAPL"], strategy="weighted")
     assert len(results) == 0
+
+
+@patch("backend.services.methodology_ranking_service.run_methodologies")
+@patch("backend.services.methodology_ranking_service._get_universe_data")
+@patch("backend.services.methodology_ranking_service.registry")
+@patch("backend.services.methodology_ranking_service.discover")
+def test_rank_combined_weighted_with_weights(
+    mock_discover, mock_registry, mock_get_data, mock_run
+):
+    """Weights param changes output ordering vs equal weights."""
+    mock_discover.return_value = None
+    mock_method = MagicMock()
+    mock_method.family = "DEEP_VALUE"
+    mock_registry.get.return_value = mock_method
+    mock_get_data.return_value = (
+        {},
+        {"AAPL": 150.0, "MSFT": 300.0},
+        {"AAPL": 2e12, "MSFT": 2.2e12},
+    )
+
+    from backend.services.ui_adapter import MethodologiesView
+
+    def side_effect(ticker, rows, price, market_cap):
+        if ticker == "AAPL":
+            return MethodologiesView(
+                ticker="AAPL",
+                table=[],
+                details=[
+                    {
+                        "methodology": "graham",
+                        "family": "DEEP_VALUE",
+                        "verdict": "BUY",
+                        "score": 9.5,
+                        "confidence": "HIGH",
+                        "category": None,
+                        "category_short": None,
+                        "rule_outcomes": {},
+                        "metrics": {},
+                        "reasons": ["BUY"],
+                        "red_flags": [],
+                    },
+                    {
+                        "methodology": "lynch_garp",
+                        "family": "GARP",
+                        "verdict": "BUY",
+                        "score": 5.0,
+                        "confidence": "HIGH",
+                        "category": None,
+                        "category_short": None,
+                        "rule_outcomes": {},
+                        "metrics": {},
+                        "reasons": ["BUY"],
+                        "red_flags": [],
+                    },
+                ],
+                agreement=False,
+                family_lines=[],
+                explanation="",
+                consensus="",
+            )
+        elif ticker == "MSFT":
+            return MethodologiesView(
+                ticker="MSFT",
+                table=[],
+                details=[
+                    {
+                        "methodology": "graham",
+                        "family": "DEEP_VALUE",
+                        "verdict": "BUY",
+                        "score": 6.0,
+                        "confidence": "HIGH",
+                        "category": None,
+                        "category_short": None,
+                        "rule_outcomes": {},
+                        "metrics": {},
+                        "reasons": ["BUY"],
+                        "red_flags": [],
+                    },
+                    {
+                        "methodology": "lynch_garp",
+                        "family": "GARP",
+                        "verdict": "BUY",
+                        "score": 9.0,
+                        "confidence": "HIGH",
+                        "category": None,
+                        "category_short": None,
+                        "rule_outcomes": {},
+                        "metrics": {},
+                        "reasons": ["BUY"],
+                        "red_flags": [],
+                    },
+                ],
+                agreement=False,
+                family_lines=[],
+                explanation="",
+                consensus="",
+            )
+        return MethodologiesView(
+            ticker=ticker,
+            table=[],
+            details=[],
+            agreement=True,
+            family_lines=[],
+            explanation="",
+            consensus="",
+        )
+
+    mock_run.side_effect = side_effect
+
+    equal = rank_combined(
+        ["graham", "lynch_garp"], ["AAPL", "MSFT"], strategy="weighted", top_n=10
+    )
+    graham_heavy = rank_combined(
+        ["graham", "lynch_garp"],
+        ["AAPL", "MSFT"],
+        strategy="weighted",
+        top_n=10,
+        weights={"graham": 3.0, "lynch_garp": 1.0},
+    )
+    lynch_heavy = rank_combined(
+        ["graham", "lynch_garp"],
+        ["AAPL", "MSFT"],
+        strategy="weighted",
+        top_n=10,
+        weights={"graham": 1.0, "lynch_garp": 3.0},
+    )
+
+    # AAPL has better Graham (9.5 vs 6.0), MSFT better Lynch (9.0 vs 5.0)
+    # Equal weights: AAPL=(9.5+5.0)/2=7.25, MSFT=(6.0+9.0)/2=7.5 -> MSFT first
+    assert equal[0].ticker == "MSFT"
+    # Graham heavy (3:1): AAPL=(9.5*3+5.0)/4=8.375, MSFT=(6.0*3+9.0)/4=6.75 -> AAPL first
+    assert graham_heavy[0].ticker == "AAPL"
+    # Lynch heavy (1:3): AAPL=(9.5+15.0)/4=6.125, MSFT=(6.0+27.0)/4=8.25 -> MSFT first
+    assert lynch_heavy[0].ticker == "MSFT"
+    # Weights change ordering vs equal
+    assert equal[0].ticker != graham_heavy[0].ticker
