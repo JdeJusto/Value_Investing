@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import sys
 from pathlib import Path
 
@@ -16,7 +18,8 @@ from backend.services.methodology_ranking_service import (
     rank_by_methodology,
     rank_combined,
 )
-from ui._shared import dataframe_with_download, page_header
+from backend.services.ui_adapter import parse_universe_tickers
+from ui._shared import UNIVERSE_PATH, dataframe_with_download, page_header
 from ui.theme import inject_theme
 
 inject_theme()
@@ -39,24 +42,35 @@ def _get_demo_tickers() -> list[str]:
     return []
 
 
+def _universe_names(csv_text: str) -> list[str]:
+    """Distinct source-index labels present in the master universe CSV."""
+    names: set[str] = set()
+    for row in csv.DictReader(io.StringIO(csv_text)):
+        for source in (row.get("source_index") or "").split(","):
+            source = source.strip()
+            if source:
+                names.add(source)
+    return sorted(names)
+
+
 def _get_universe_options() -> dict[str, list[str]]:
-    options = {}
+    """Universe label -> tickers, from the master universe CSV plus demo data."""
+    options: dict[str, list[str]] = {}
+    try:
+        csv_text = (_root / UNIVERSE_PATH).read_text(encoding="utf-8")
+    except OSError:
+        csv_text = ""
+    if csv_text:
+        all_tickers = parse_universe_tickers(csv_text, ())
+        if all_tickers:
+            options[f"All ({len(all_tickers)})"] = all_tickers
+        for name in _universe_names(csv_text):
+            tickers = parse_universe_tickers(csv_text, (name,))
+            if tickers:
+                options[f"{name} ({len(tickers)})"] = tickers
     demo_tickers = _get_demo_tickers()
     if demo_tickers:
         options[f"Demo ({len(demo_tickers)})"] = demo_tickers
-    try:
-        from ui.pages._universe import load_universe_tickers
-
-        # Try to load some common universes
-        for universe_name in ["SP500", "NASDAQ100"]:
-            try:
-                tickers = load_universe_tickers([universe_name])
-                if tickers:
-                    options[f"{universe_name} ({len(tickers)})"] = tickers
-            except Exception:
-                continue
-    except Exception:
-        pass
     if not options:
         options["Demo (0)"] = []
     return options
