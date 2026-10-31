@@ -29,6 +29,6 @@
     "vite": "^8.3.5"
   },
   "overrides": {
-    "follow-redirects": "^1.16.1"
+    "follow-redirects": "^1.16.2"
   }
 }
