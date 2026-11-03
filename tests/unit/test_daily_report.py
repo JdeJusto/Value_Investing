@@ -119,6 +119,12 @@ class TestMarkdown:
         assert "## Missing data" in md
         assert "XDATA" in md
 
+    def test_build_markdown_shows_the_fundamentals_repository(self):
+        report = self._report()
+        report.repository = "JSON fallback"
+        md = build_markdown(report)
+        assert "repository: **JSON fallback**" in md
+
     def test_build_markdown_empty_report(self):
         md = build_markdown(DailyReport(report_date=date(2026, 9, 13)))
         assert "# Daily report — 2026-09-13" in md

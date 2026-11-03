@@ -156,9 +156,13 @@ What it does:
    BUY_SIGNAL ≈ 10-40, SELL_WARNING ≈ 0-5 (only when scores actually drop
    ≥ 10 points vs the previous day).
 4. **Report** written to `data/reports/daily_YYYY-MM-DD.md` (includes the
-   `rank_score` column, data-coverage column, a `## Network` section with the
-   SEC/Yahoo telemetry of the run, and the runtime in seconds) and
-   the new state persisted for the next `SELL_WARNING` comparison.
+   `rank_score` column, data-coverage column, the repository that served
+   fundamentals, a `## Network` section with the SEC/Yahoo telemetry of the
+   run, and the runtime in seconds) and the new state persisted for the next
+   `SELL_WARNING` comparison. A **degraded** run (a network stage was skipped
+   or fundamentals came from the legacy JSON fallback) never overwrites an
+   existing same-day report: it writes
+   `daily_YYYY-MM-DD_HHMMSS_partial.md` instead.
 
 Guardrails in the same run:
 
@@ -393,8 +397,8 @@ Deliberately **not** wrapped by the generic helper (see the provenance note in
 | `SEC_USER_AGENT` unset | SEC probe reports unavailable without an HTTP call → refresh skipped | partial (1) |
 | Yahoo unreachable | Price stage aborted by the preflight; market fields N/A | partial (1) |
 | Yahoo rate-limits (429) | Price stage aborts (non-transient); streak alert after N runs | partial (1) |
-| Database unreachable | `build_financial_repository` falls back to the JSON repository | ok (degraded) |
-| Database unreachable and no JSON fallback | Startup raises → the workflow cannot start | failed (2) |
+| Database unreachable, `VI_REQUIRE_FDB` unset | `build_financial_repository` logs an error and falls back to the legacy JSON store; the report records `repository: JSON fallback` and is written with the `_partial` suffix | ok/partial (degraded) |
+| Database unreachable, `VI_REQUIRE_FDB=1` (daily unit) | Startup raises → the workflow cannot start; the unit fails loudly instead of producing a degraded report | failed (2) |
 | Missing universe file / unknown `--universe` | `resolve_universe` raises `SystemExit` | 1 (config error) |
 
 A **partial** run is not an error: it still writes the report and the state,
@@ -409,6 +413,12 @@ workflow (no network within 10 min) is a deliberate no-op and exits `0`.
 | `1` | a network stage was skipped (provider down / retries exhausted) | `partial (a network stage was skipped)` |
 | `2` | the run could not start (broken config / unreachable database) | `failed to start` |
 | `130` | interrupted with Ctrl-C (`SIGINT`) | — |
+
+The daily systemd unit sets `VI_REQUIRE_FDB=1` and
+`FDB_READY_TIMEOUT_SECONDS=60`, and its `ExecStartPre` waits (up to 5 min) for
+PostgreSQL and DNS before starting. A persistent timer fires seconds after
+boot, before those dependencies are ready; without the wait the run used to
+fall back to the legacy JSON store (46% coverage) and skip every price.
 
 `scripts/run_daily_on_boot.sh` propagates the workflow's code verbatim at the
 end (`exit "$WORKFLOW_STATUS"`) — nothing masks it. The best-effort post-steps
