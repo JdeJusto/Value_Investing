@@ -4,17 +4,30 @@ updates:
   # the `python_version = ">=3.11"` range in [requires]
   # (pypa/pipenv#1050) and then fails every package with
   # "dependency_file_not_resolvable". Python dependencies are updated by hand
-  # with `pipenv update <package> --lock-only`, which rewrites only the
-  # requested entry in Pipfile.lock. Security alerts keep working: GitHub
-  # parses Pipfile.lock natively for the dependency graph.
+  # and the lock diff is reviewed; `pipenv update <pkg> --lock-only`
+  # re-resolves the graph, so `tests/unit/test_pipfile_lock_pins.py` guards the
+  # four intentional pins (pyarrow, soupsieve, websockets, fastapi).
+  # Security alerts keep working: GitHub parses Pipfile.lock natively for the
+  # dependency graph.
   - package-ecosystem: npm
     directory: "/frontend"
     schedule:
       interval: weekly
+    groups:
+      dev-minor-patch:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+      production-patch:
+        dependency-type: production
+        update-types: ["patch"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     open-pull-requests-limit: 5
