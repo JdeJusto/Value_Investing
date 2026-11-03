@@ -1000,8 +1000,7 @@ def _run(args) -> int:
                 logger.warning("consensus update returned a non-zero status")
             else:
                 consensus_path = (
-                    Path("data/consensus")
-                    / f"consensus_{report_date.isoformat()}.json"
+                    Path("data/consensus") / f"consensus_{report_date.isoformat()}.json"
                 )
                 logger.info("consensus updated: %s", consensus_path)
         except Exception:

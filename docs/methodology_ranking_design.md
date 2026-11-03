@@ -100,6 +100,7 @@ def rank_by_methodology(
 ) -> list[RankedTicker]:
     """Return top_n tickers by the given methodology."""
 
+
 def rank_combined(
     methodologies: list[str],
     universe: list[str],
