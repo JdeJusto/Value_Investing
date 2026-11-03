@@ -9,14 +9,18 @@ from __future__ import annotations
 import json
 from datetime import date
 from types import SimpleNamespace
+from typing import Self
 
 import pytest
 
 from scripts.validate_data_sample import (
     METRICS,
+    SecCompanyFactsClient,
+    SecConceptClient,
     annual_fact,
     choose_sample,
     compare_metric,
+    concept_has_facts,
     format_report,
     load_sp500_universe,
     pct_difference,
@@ -381,3 +385,82 @@ def test_format_report_marks_flagged_fields():
     text = format_report(report)
     assert "<-- FLAGGED" in text
     assert "AAA" in text and "revenue" in text
+
+
+# ---------------------------------------------------------------------------
+# SEC clients
+# ---------------------------------------------------------------------------
+class _FakeResponse:
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+def _opener(body: bytes):
+    def open_(request, timeout=None):
+        return _FakeResponse(body)
+
+    return open_
+
+
+def _raising_opener(request, timeout=None):
+    raise OSError("network down")
+
+
+def test_concept_has_facts_distinguishes_an_empty_envelope():
+    assert concept_has_facts({"units": {"USD": [{"val": 1.0}]}})
+    assert concept_has_facts({"units": {"shares": [{"val": 1.0}]}})
+    # The per-tag endpoint answers exactly this for Coca-Cola (2026-10).
+    assert not concept_has_facts({"units": {"USD": {}}})
+    assert not concept_has_facts({"units": {"USD": []}})
+    assert not concept_has_facts({"units": {}})
+    assert not concept_has_facts({})
+    assert not concept_has_facts(None)
+
+
+def test_concept_client_fetches_one_tag():
+    client = SecConceptClient(
+        "agent", min_interval=0.0, opener=_opener(b'{"units": {"USD": [{"val": 1.0}]}}')
+    )
+    assert client.fetch("320193", "Revenues") == {"units": {"USD": [{"val": 1.0}]}}
+
+
+def test_concept_client_degrades_every_failure_to_none():
+    client = SecConceptClient("agent", min_interval=0.0, opener=_raising_opener)
+    assert client.fetch("320193", "Revenues") is None
+    malformed = SecConceptClient("agent", min_interval=0.0, opener=_opener(b"not json"))
+    assert malformed.fetch("320193", "Revenues") is None
+
+
+def test_company_facts_client_flattens_a_company_document():
+    body = json.dumps(
+        {
+            "facts": {
+                "us-gaap": {
+                    "Revenues": {"units": {"USD": [{"val": 100.0}]}},
+                    "Empty": {"units": {}},
+                },
+                "dei": {
+                    "EntityCommonStockSharesOutstanding": {"units": {"shares": []}}
+                },
+            }
+        }
+    ).encode("utf-8")
+    client = SecCompanyFactsClient("agent", min_interval=0.0, opener=_opener(body))
+    assert client.concepts("320193") == {
+        "Revenues": {"units": {"USD": [{"val": 100.0}]}},
+        "Empty": {"units": {}},
+    }
+
+
+def test_company_facts_client_degrades_every_failure_to_none():
+    client = SecCompanyFactsClient("agent", min_interval=0.0, opener=_raising_opener)
+    assert client.concepts("320193") is None

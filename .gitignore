@@ -99,6 +99,9 @@ venv.bak/
 # VS Code (project settings are tracked; uncomment to ignore everything)
 .vscode/
 
+# AI agent data (local state, not project data)
+.claude/
+
 # Abstra
 .abstra/
 
@@ -163,6 +166,9 @@ data/logs/*
 data/rankings/*
 !data/logs/.gitkeep
 data/reports/daily_run_state*.json
+
+# Peer statistics (weekly local build product; scripts/build_peer_stats.py)
+data/peer_stats/
 
 # Daily run artifacts (regenerated every run; git history keeps the old ones)
 data/reports/daily_*.md

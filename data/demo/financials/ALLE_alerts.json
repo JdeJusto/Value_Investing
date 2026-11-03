@@ -1,0 +1,1 @@
+{"ticker":"ALLE","company_name":"Allegion plc","rules_evaluated":10,"rules_skipped":1,"warnings":[],"alerts":[{"rule_id":"inventory_buildup","severity":"WARNING","title":"Inventory buildup","message":"Inventory grew 22.7% vs revenue +7.8% YoY.","evidence":{"Inventory growth":"+22.7%","Revenue growth":"+7.8%"},"metric_hint":"inventory","period":"FY2025"}]}

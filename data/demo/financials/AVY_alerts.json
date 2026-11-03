@@ -1,0 +1,1 @@
+{"ticker":"AVY","company_name":"Avery Dennison Corp","rules_evaluated":10,"rules_skipped":1,"warnings":[],"alerts":[{"rule_id":"strong_fcf_conversion","severity":"INFO","title":"Strong FCF conversion","message":"FCF > net income for 3 consecutive years.","evidence":{"FCF / net income":"1.04, 1.04, 1.11"},"metric_hint":"free_cash_flow","period":"FY2025"}]}

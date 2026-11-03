@@ -78,6 +78,7 @@ class FactsMixin:
                     statements=statements,
                     split_adjustment_factor=split_factor,
                     sector=self._get_company_sector(ticker),
+                    industry=self._get_company_industry(ticker),
                 )
 
         except Exception:  # noqa: BLE001 — a failure degrades to None so the caller falls back
@@ -211,9 +212,10 @@ class FactsMixin:
             if not company_id:
                 return []
 
-            # Company sector is per-company metadata fetched once per ticker
-            # and stamped on every reconstructed year.
+            # Company sector/industry are per-company metadata fetched once per
+            # ticker and stamped on every reconstructed year.
             company_sector = self._get_company_sector(ticker)
+            company_industry = self._get_company_industry(ticker)
 
             conn = self._get_connection()
             facts = []
@@ -281,6 +283,7 @@ class FactsMixin:
                         statements=statements,
                         split_adjustment_factor=split_factor,
                         sector=company_sector,
+                        industry=company_industry,
                     )
                     if financials is not None:
                         results.append(financials)

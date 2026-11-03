@@ -1,3 +1,122 @@
+## [0.19.2] - 2026-10-23
+
+### Added
+- Demo Financials payloads regenerated for all 76 demo tickers (previously 4). The demo T-view now works for every ticker in the offline bundle and matches the live layout for the key companies.
+- `scripts/build_demo_financials.py` extended with Fix-B-aware concept selection (balance rows follow `ui.balance_map` / `BALANCE_MAP`, bucketed via `classify_concept`); generates fixtures for every ticker in `DEMO_TICKERS`.
+- New tests `tests/unit/test_demo_financials_payloads.py` cover full demo ticker coverage, ADBE line counts, AAPL layout parity, and payload bucket integrity.
+- `docs/data_gaps_investigation.md` documents balance T-view limitations (BDX double-counted deferred tax, 4 FDB-limited tickers APA/APO/ARES/BRK-B, AEE unverified, AAPL commercial-paper trade-off, and 27 tickers that show ≥10 lines but do not balance).
+
+### Changed
+- Demo bundle size cap raised from 2 MB to 4 MB (bundle: ~3.88 MB) with documented rationale; fixtures include view payloads, insights and alerts for all 76 tickers.
+
+### Fixed
+- T-view opens on the newest fiscal year that actually has filed balance data (Fix E).
+- Balance concept map (Fix B): alias resolution by value, zero-vs-non-zero preference, aggregate rendering rules. Banks, insurers, oil & gas, REITs and utilities now render their face lines.
+
+### Notes
+- BDX remains a known regression (Δ ≈ −$2.48B) due to a double-counted deferred tax note in FDB aggregates; no containment rule or per-ticker hack added.
+- 4 tickers are FDB-limited (APA, APO, ARES, BRK-B); tags exist in filings but are not stored in Financial-DataBase.
+- 27 tickers show ≥10 lines per column but the balance chip is honest and reports "does not balance" (documented).
+
+## [0.19.1] - 2026-10-21
+
+### Added
+
+- Radar dimension filter on the Scorecard: multi-select checkboxes to show or
+  hide individual radar axes — visual de-cluttering only; the underlying data
+  is unchanged. Design options documented in `docs/radar_filter_design.md`.
+- Contract test (`tests/unit/test_pipfile_lock_pins.py`) guarding the
+  intentionally pinned lock exceptions against re-introducing the previously
+  reverted major bumps.
+
+### Changed
+
+- `Pipfile.lock` regenerated from scratch with a reviewed exception pass:
+  `pyarrow`, `soupsieve`, `websockets` and `fastapi` keep their previous
+  majors on purpose (e.g. `fastapi==0.150.0`); rationale in
+  `docs/backlog.md`.
+- Lint tooling pinned to `ruff==0.16.4` with its configuration consolidated in
+  `pyproject.toml`; codebase formatted to match (568 files).
+- `Pipfile` pinned to `python_version = "3.13"` to match CI.
+- Streamlit `unsafe_allow_html` calls centralized in a `render_html` helper
+  (rendering unchanged, byte-for-byte).
+- README screenshots (EN/ES) regenerated from the current UI (11 captures at
+  1440x960) and repointed to the canonical `ui_v2_*` set; superseded
+  pre-theme PNGs removed and the test badge updated to 2,376.
+
+## [0.19.0] - 2026-10-19
+
+### Added
+
+- English-only UI strings across all Streamlit pages (balance T-view, flat
+  financial tables, tooltips, headers).
+- Demo bundle expanded from 8 to 76 tickers, with size cap (2 MB) and
+  manifest-consistency guardrails in tests.
+- STALE classification in `audit_data_quality.py` (companies whose latest FY
+  is >15 months old are flagged and excluded from metric comparisons).
+
+### Changed
+
+- `dei:EntityCommonStockSharesOutstanding` used as last-resort fallback in
+  share-count mapping; cross-concept scale repair for share counts filed in
+  scaled units (e.g. MCD FY2025).
+- Audit classifier: weighted-average share counts, bank/REIT revenue,
+  segment capex, and derived dividends now classified; stale-fact guard at
+  400 days.
+
+### Fixed
+
+- UNCLASSIFIED comparisons in the monthly audit dropped from 43 to 2.
+- Bank demo tickers now compute valuation in the scorecard (AFL, AIG, BAC,
+  BRK-B).
+
+### Notes
+
+- Two UNCLASSIFIED cases remain by design (TKO dual-class, IBKR revenue
+  coverage); documented in `docs/data_gaps_investigation.md`.
+
+## [0.18.1] - 2026-10-17
+
+### Fixed
+
+- Close audit follow-ups and scorecard Phase 3.5 gaps
+
+## [0.18.0] - 2026-10-17
+
+### Added
+
+- Markdown scorecard export and monthly data-quality audit
+
+## [0.17.1] - 2026-10-17
+
+### Fixed
+
+- Peer comparison in the scorecard
+
+## [0.17.0] - 2026-10-15
+
+### Added
+
+- Scorecard radar, four dimension history charts and JSON export
+
+## [0.16.9] - 2026-10-14
+
+### Fixed
+
+- Scorecard tab in Streamlit (text-only)
+
+## [0.16.8] - 2026-10-14
+
+### Fixed
+
+- Scorecard API endpoint and CLI command
+
+## [0.16.7] - 2026-10-14
+
+### Fixed
+
+- Recurring data-sample validation against SEC EDGAR; CI coverage and pyright gates; structured API logs and global error handler; orphan asset cleanup; boot-triggered daily workflow
+
 ## [0.16.6] - 2026-10-13
 
 ### Fixed

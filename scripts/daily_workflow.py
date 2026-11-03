@@ -11,7 +11,9 @@
    never persisted).
 3. Evaluate alerts (BUY_SIGNAL / SELL_WARNING / TRIGGER_EVENT) against the
    previous day's state.
-4. Write data/reports/daily_YYYY-MM-DD.md and persist the new state.
+4. Compute the eight-methodology consensus and write
+   data/consensus/consensus_YYYY-MM-DD.json.
+5. Write data/reports/daily_YYYY-MM-DD.md and persist the new state.
 
 Flags:
   --dry-run         estimate staleness (read-only, no sync) and print the
@@ -54,6 +56,8 @@ try:
 except ImportError:  # dotenv is optional; env vars may be set externally
     load_dotenv = None
 
+from backend.api.logging_config import configure_logging
+from backend.services._retry import RETRYABLE_ERRORS, with_retry
 from backend.services.price_service import (
     PRICE_FAILURE_DELISTED,
     PRICE_FAILURE_GLITCH,
@@ -66,6 +70,8 @@ from backend.services.run_state import (
     is_transient_failure,
     options_fingerprint,
 )
+from backend.services.sec_health import check_sec_availability
+from backend.services.yahoo_health import check_yahoo_availability
 
 if load_dotenv is not None:
     load_dotenv()
@@ -95,6 +101,117 @@ EUROPEAN_INDEX_SOURCES = frozenset(
         "OMXC25",
     }
 )
+
+# Pre-stage health checks probe SEC and Yahoo before their network stages so a
+# provider outage becomes a clear per-stage skip instead of a burst of doomed
+# requests. The timeout is deliberately short (3s): a slow provider must never
+# hold the run hostage. The probes reuse the existing domain-aware preflights
+# (backend/services/{sec,yahoo}_health.py) — no second mechanism.
+HEALTH_CHECK_TIMEOUT_S = 3.0
+
+# Process exit codes returned by main() and propagated by
+# scripts/run_daily_on_boot.sh (which must never mask them). The boot wrapper
+# exits with the same code, so a systemd/ops alert fires on 1 or 2.
+# See docs/runbook_daily.md.
+EXIT_OK = 0  # every stage ran
+EXIT_PARTIAL = 1  # a network stage was skipped (provider down / retries exhausted)
+EXIT_FAILED = 2  # the run could not start (broken config / unreachable database)
+
+
+def _exit_code(stage_skipped: bool) -> int:
+    """EXIT_PARTIAL when a network stage was skipped, otherwise EXIT_OK."""
+    return EXIT_PARTIAL if stage_skipped else EXIT_OK
+
+
+def _raise_if_transient(health) -> None:
+    """Raise ``ConnectionError`` for a transient (no-HTTP-status) verdict.
+
+    A probe that timed out or could not connect (no HTTP status) is worth the
+    shared helper's retry; an HTTP verdict (403/429/5xx) is final and must not
+    be retried — hammering a rate limit only makes it worse.
+    """
+    if not health.available and getattr(health, "http_status", None) is None:
+        raise ConnectionError(health.reason)
+
+
+def _retry_sleep(delay: float) -> None:
+    """Backoff sleep for the probes (indirection so tests can patch it out)."""
+    time.sleep(delay)
+
+
+@with_retry(attempts=3, base_delay=0.5, sleep=_retry_sleep)
+def _probe_sec() -> bool:
+    """One SEC reachability probe; a transient failure raises (for the retry)."""
+    health = check_sec_availability(timeout=HEALTH_CHECK_TIMEOUT_S, attempts=1)
+    _raise_if_transient(health)
+    return health.available
+
+
+@with_retry(attempts=3, base_delay=0.5, sleep=_retry_sleep)
+def _probe_yahoo() -> bool:
+    """One Yahoo reachability probe; a transient failure raises (for the retry)."""
+    health = check_yahoo_availability(timeout=HEALTH_CHECK_TIMEOUT_S, attempts=1)
+    _raise_if_transient(health)
+    return health.available
+
+
+def _check_sec() -> bool:
+    """True when SEC is reachable; False (never raises) when it is not."""
+    try:
+        return _probe_sec()
+    except RETRYABLE_ERRORS:
+        logger.warning("SEC health check failed after retries — treating as down")
+        return False
+    except Exception as exc:  # noqa: BLE001 — a broken probe must not fail the run
+        logger.warning("SEC health check errored (%s) — treating as down", exc)
+        return False
+
+
+def _check_yahoo() -> bool:
+    """True when Yahoo is reachable; False (never raises) when it is not."""
+    try:
+        return _probe_yahoo()
+    except RETRYABLE_ERRORS:
+        logger.warning("Yahoo health check failed after retries — treating as down")
+        return False
+    except Exception as exc:  # noqa: BLE001 — a broken probe must not fail the run
+        logger.warning("Yahoo health check errored (%s) — treating as down", exc)
+        return False
+
+
+def _precheck_sec(args) -> bool:
+    """Probe SEC before its network stage; True when the stage must be skipped.
+
+    ``--dry-run`` only estimates staleness from the database (no SEC request)
+    and ``--no-update`` skips the refresh outright, so neither is probed.
+    """
+    if getattr(args, "no_update", False) or getattr(args, "dry_run", False):
+        return False
+    if _check_sec():
+        return False
+    logger.warning(
+        "SEC unreachable (pre-stage health check) — skipping the targeted SEC "
+        "refresh; analysis continues with the stored fundamentals"
+    )
+    return True
+
+
+def _precheck_yahoo(args) -> bool:
+    """Probe Yahoo before its network stage; True when the stage must be skipped.
+
+    ``--no-prices`` disables the stage entirely, so it is not probed. The
+    verdict is cached by the shared preflight, so the price service's own
+    preflight reuses it instead of issuing a second request.
+    """
+    if getattr(args, "no_prices", False):
+        return False
+    if _check_yahoo():
+        return False
+    logger.warning(
+        "Yahoo unreachable (pre-stage health check) — the price stage will be "
+        "skipped by the preflight and market fields will be N/A"
+    )
+    return True
 
 
 def _load_universe(path: str) -> list[str]:
@@ -432,7 +549,8 @@ def _resume_skip_set(run_state) -> set[str]:
     return run_state.completed_set | permanent_refresh
 
 
-def _run(args) -> None:
+def _run(args) -> int:
+    """Run the workflow and return its process exit code (EXIT_OK/PARTIAL)."""
     from backend.app.cli import (
         build_analysis_service,
         build_financial_repository,
@@ -454,6 +572,9 @@ def _run(args) -> None:
         date.fromisoformat(args.date) if args.date else datetime.now().date()  # noqa: DTZ005 — the report follows the local calendar day
     )
     start_time = time.time()
+    # Set when a pre-stage provider health check skips a network stage; the run
+    # is then PARTIAL (EXIT_PARTIAL). See docs/runbook_daily.md.
+    stage_skipped = False
     universe = resolve_universe(args.universe)
     if args.limit:
         universe = universe[: args.limit]
@@ -524,7 +645,6 @@ def _run(args) -> None:
     # per-attempt Yahoo counters (backend/services/network_metrics.py). They
     # end up in the run state and the report; nothing else reads them.
     from backend.services.network_metrics import NetworkMetrics
-    from backend.services.yahoo_health import check_yahoo_availability
 
     network_metrics = NetworkMetrics()
     if price_service is not None:
@@ -602,6 +722,13 @@ def _run(args) -> None:
         finally:
             prefetch_result["elapsed"] = time.time() - t0
 
+    # Pre-stage health check: probe Yahoo before the price stage so an outage
+    # is visible up front and the run is marked partial. The verdict is cached
+    # by the shared preflight, so the price service's own preflight below reuses
+    # it rather than issuing a second request (and keeps the streak telemetry).
+    if _precheck_yahoo(args):
+        stage_skipped = True
+
     if not args.no_prices:
         prefetch_thread = threading.Thread(target=_do_prefetch, daemon=True)
         prefetch_thread.start()
@@ -610,8 +737,13 @@ def _run(args) -> None:
     # per-CIK `sec sync`). Dry-run computes a read-only staleness estimate;
     # --no-update skips the refresh but still screens + writes. The snapshot
     # prefetch above runs concurrently because prices are independent of it.
+    # A pre-stage SEC health check skips the stage (and marks the run partial)
+    # when EDGAR is unreachable, instead of spawning a burst of doomed syncs.
     if args.no_update:
         sec_update_status = "SEC refresh: skipped (--no-update)"
+    elif _precheck_sec(args):
+        stage_skipped = True
+        sec_update_status = "SEC refresh: skipped (SEC unreachable)"
     else:
 
         def _refresh_progress(ticker: str, status) -> None:
@@ -632,6 +764,11 @@ def _run(args) -> None:
         )
     timings["refresh"] = time.time() - tick
     tick = time.time()
+    if stage_skipped:
+        logger.warning(
+            "one or more network stages were skipped by a health check — "
+            "this run is partial"
+        )
     if run_state is not None:
         # Telemetry as soon as the refresh stage is over, so a long run shows
         # the SEC numbers in the checkpoint without waiting for the report.
@@ -723,7 +860,7 @@ def _run(args) -> None:
             elif update.recovered:
                 logger.info("Yahoo preflight recovered; rate-limit alert cleared")
     if _clean_shutdown():
-        return
+        return _exit_code(stage_skipped)
     if run_state is not None:
         run_state.set_stage("analysis")
 
@@ -783,7 +920,7 @@ def _run(args) -> None:
     tick = time.time()
 
     if _clean_shutdown():
-        return
+        return _exit_code(stage_skipped)
 
     previous = (
         {} if args.dry_run else load_state(str(Path(args.out) / "daily_state.json"))
@@ -836,6 +973,39 @@ def _run(args) -> None:
     if run_state is not None:
         run_state.set_alerts_generated(len(alerts))
     timings["alerts"] = time.time() - tick
+    tick = time.time()
+
+    # The consensus tab is backed by a separate, precomputed JSON artifact.
+    # Keep it in the daily command so the normal full run refreshes the same
+    # universe/date automatically. A consensus failure must not discard the
+    # daily screening, alerts, or report that already completed successfully.
+    consensus_path = None
+    if not args.dry_run:
+        try:
+            from scripts.compute_consensus_rankings import main as compute_consensus
+
+            consensus_args = [
+                "--universe",
+                args.universe,
+                "--date",
+                report_date.isoformat(),
+                "--workers",
+                str(args.workers),
+            ]
+            if args.limit is not None:
+                consensus_args.extend(["--limit", str(args.limit)])
+            if args.no_prices:
+                consensus_args.append("--no-prices")
+            if compute_consensus(consensus_args) != 0:
+                logger.warning("consensus update returned a non-zero status")
+            else:
+                consensus_path = (
+                    Path("data/consensus") / f"consensus_{report_date.isoformat()}.json"
+                )
+                logger.info("consensus updated: %s", consensus_path)
+        except Exception:
+            logger.exception("consensus update failed; daily report is preserved")
+    timings["consensus"] = time.time() - tick
     tick = time.time()
 
     def name_resolver(ticker: str) -> str | None:
@@ -938,7 +1108,7 @@ def _run(args) -> None:
     if args.dry_run:
         print("=== DRY-RUN — no files written ===")
         print(body)
-        return
+        return _exit_code(stage_skipped)
 
     if run_state is not None:
         run_state.set_stage("report")
@@ -952,6 +1122,8 @@ def _run(args) -> None:
     state_path = out_dir / "daily_state.json"
     save_state(str(state_path), trim_state(cache))
     print(f"State written: {state_path}")
+    if consensus_path is not None:
+        print(f"Consensus written: {consensus_path}")
 
     print(f"Timings: {_format_timings(timings)}")
 
@@ -968,6 +1140,8 @@ def _run(args) -> None:
         run_state.note_network(network_snapshot)
         archived = run_state.complete()
         print(f"Run state archived: {archived}")
+
+    return _exit_code(stage_skipped)
 
 
 def _price_abort_threshold() -> int:
@@ -1320,18 +1494,43 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main() -> None:
+def _configure_logging(verbose: bool) -> None:
+    """Install the API's JSON logging config for the workflow.
+
+    Reuses :func:`backend.api.logging_config.configure_logging` (no second
+    logger): every line becomes a JSON object so the boot-run log
+    (``logs/run_<date>.log``) is machine-readable. ``--verbose`` lowers the
+    level to DEBUG; the default is INFO.
+    """
+    configure_logging(level="DEBUG" if verbose else "INFO")
+
+
+def main() -> int:
+    """Parse args, run the workflow and return its exit code.
+
+    EXIT_OK (0) when every stage ran, EXIT_PARTIAL (1) when a network stage was
+    skipped, EXIT_FAILED (2) when the run could not start. ``--help`` and the
+    universe/config errors raised by :func:`resolve_universe` keep their own
+    ``SystemExit`` (argparse conventions).
+    """
     args = build_parser().parse_args()
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO)
+    _configure_logging(args.verbose)
     if args.fdb_python is None:
         args.fdb_python = str(Path(args.fdb_dir) / ".venv" / "bin" / "python")
     try:
-        _run(args)
+        return _run(args)
     except KeyboardInterrupt:
         print("Interrupted.")
-        sys.exit(130)
+        return 130
+    except SystemExit:
+        # Argument parsing and configuration errors already carry a sensible
+        # code; do not rewrite them.
+        raise
+    except Exception:
+        logger.exception("workflow failed to start")
+        print("Workflow failed to start: see the log for details")
+        return EXIT_FAILED
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -31,9 +31,7 @@ import json
 import os
 import random
 import sys
-import time
-import urllib.request
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -42,17 +40,33 @@ PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from backend.services.sec_facts_client import (
+    SEC_TIMEOUT_SECONDS,
+    SecFactsClient,
+    annual_facts,
+    concept_has_facts,
+)
+from backend.services.sec_facts_client import (
+    parse_date as _parse_date,
+)
+
+#: Names this module re-exports: callers (and the tests) reach the shared client
+#: and its helpers through the validation script, as they always have.
+__all__ = [
+    "SEC_TIMEOUT_SECONDS",
+    "SecCompanyFactsClient",
+    "SecConceptClient",
+    "SecFactsClient",
+    "annual_fact",
+    "annual_facts",
+    "concept_has_facts",
+]
+
 DEFAULT_UNIVERSE = PROJECT_ROOT / "config" / "universe.csv"
 DEFAULT_OUT_DIR = PROJECT_ROOT / "logs"
 DEFAULT_SAMPLE_SIZE = 20
 DEFAULT_SEED = 42
 DEFAULT_THRESHOLD_PCT = 5.0
-SEC_TIMEOUT_SECONDS = 15.0
-# SEC asks for <= 10 requests/second; 0.12 s between calls keeps us under it.
-SEC_MIN_INTERVAL_SECONDS = 0.12
-COMPANYCONCEPT_URL = (
-    "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/us-gaap/{tag}.json"
-)
 
 # (metric, ordered SEC us-gaap tags). First tag that yields an annual fact wins.
 METRICS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -83,35 +97,10 @@ METRICS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ),
 )
 
-# Annual facts span a full year; the companyconcept endpoint also returns the
-# quarterly facts from the same filing, so the duration filter is what keeps a
-# Q4 figure from masquerading as the annual number.
-ANNUAL_MIN_DAYS = 300
-ANNUAL_MAX_DAYS = 400
-
 
 # ---------------------------------------------------------------------------
 # pure helpers
 # ---------------------------------------------------------------------------
-def _parse_date(value: Any) -> date | None:
-    """Parse an ISO date (tolerating a trailing time component), else None."""
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(str(value)[:10])
-    except ValueError:
-        return None
-
-
-def _duration_days(start: Any, end: Any) -> int | None:
-    """Number of days between two ISO dates, or None when either is missing."""
-    start_date = _parse_date(start)
-    end_date = _parse_date(end)
-    if start_date is None or end_date is None:
-        return None
-    return (end_date - start_date).days
-
-
 def pct_difference(db_value: float | None, ext_value: float | None) -> float | None:
     """Relative difference (in %) of ``db_value`` against ``ext_value``.
 
@@ -143,46 +132,18 @@ def compare_metric(
 
 
 def annual_fact(
-    concept: dict | None, fiscal_year_end: date | None = None
+    concept: Mapping[str, Any] | None, fiscal_year_end: date | None = None
 ) -> float | None:
-    """Extract the annual (10-K, full-year) value from a companyconcept payload.
+    """The annual (10-K / 10-K/A, full-year) value in a concept payload.
 
-    Among the facts filed in a 10-K that span a full year, the one whose period
-    end is closest to ``fiscal_year_end`` wins; ties break on the most recently
-    filed fact. Returns None when the payload has no annual fact.
+    Delegates to the shared parser in :mod:`backend.services.sec_facts_client`
+    so the validation and the audit read the same filing the same way: among the
+    full-year facts, the one whose period end is closest to ``fiscal_year_end``
+    wins; ties break on the most recently filed fact. ``None`` when the payload
+    carries no annual fact.
     """
-    units = (concept or {}).get("units") or {}
-    facts = units.get("USD")
-    if not facts:
-        for candidate in units.values():
-            if candidate:
-                facts = candidate
-                break
-    if not facts:
-        return None
-
-    best_value: float | None = None
-    best_rank: tuple[int, str] | None = None
-    for fact in facts:
-        if str(fact.get("form") or "").upper() != "10-K":
-            continue
-        raw_value = fact.get("val")
-        if raw_value is None:
-            continue
-        span = _duration_days(fact.get("start"), fact.get("end"))
-        if span is not None and not (ANNUAL_MIN_DAYS <= span <= ANNUAL_MAX_DAYS):
-            continue
-        end = _parse_date(fact.get("end"))
-        distance = abs((end - fiscal_year_end).days) if (end and fiscal_year_end) else 0
-        filed = str(fact.get("filed") or "")
-        if (
-            best_rank is None
-            or distance < best_rank[0]
-            or (distance == best_rank[0] and filed > best_rank[1])
-        ):
-            best_value = float(raw_value)
-            best_rank = (distance, filed)
-    return best_value
+    facts = annual_facts(concept, fiscal_year_end)
+    return facts[0].value if facts else None
 
 
 # ---------------------------------------------------------------------------
@@ -223,51 +184,11 @@ def choose_sample(
 # ---------------------------------------------------------------------------
 # SEC EDGAR client
 # ---------------------------------------------------------------------------
-class SecConceptClient:
-    """Minimal SEC ``companyconcept`` client with request pacing.
-
-    Every failure (HTTP error, timeout, malformed JSON) degrades to ``None`` so
-    one bad tag never aborts the validation.
-    """
-
-    def __init__(
-        self,
-        user_agent: str,
-        *,
-        timeout: float = SEC_TIMEOUT_SECONDS,
-        min_interval: float = SEC_MIN_INTERVAL_SECONDS,
-        opener: Callable[..., Any] | None = None,
-    ) -> None:
-        self._user_agent = user_agent
-        self._timeout = timeout
-        self._min_interval = max(0.0, min_interval)
-        self._opener = opener or urllib.request.urlopen
-        self._last_request = 0.0
-
-    def fetch(self, cik: str, tag: str) -> dict | None:
-        """Fetch one concept for one CIK, or None on any failure."""
-        self._pace()
-        url = COMPANYCONCEPT_URL.format(cik=str(cik).zfill(10), tag=tag)
-        request = urllib.request.Request(
-            url,
-            headers={"User-Agent": self._user_agent, "Accept": "application/json"},
-        )
-        try:
-            with self._opener(request, timeout=self._timeout) as response:
-                payload = response.read()
-        except Exception:  # noqa: BLE001 — any SEC failure just skips the tag
-            return None
-        try:
-            return json.loads(payload)
-        except (TypeError, ValueError):
-            return None
-
-    def _pace(self) -> None:
-        """Keep the request rate below SEC's 10 req/s guidance."""
-        elapsed = time.monotonic() - self._last_request
-        if elapsed < self._min_interval:
-            time.sleep(self._min_interval - elapsed)
-        self._last_request = time.monotonic()
+# The transport, the ``companyfacts`` fallback and the fact parser all live in
+# :mod:`backend.services.sec_facts_client`, shared with the audit script. These
+# names are kept for the validation's own callers.
+SecConceptClient = SecFactsClient
+SecCompanyFactsClient = SecFactsClient
 
 
 def _match_yahoo_index(provider: Any, ticker: str, fiscal_year_end: date | None) -> int:

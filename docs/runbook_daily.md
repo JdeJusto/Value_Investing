@@ -78,10 +78,16 @@ rate-limited; in a fresh environment run the full seed first:
 cd ~/Value_Investing
 source .venv/bin/activate
 
-# Full run: SEC update + screen + alerts + report
+# Full run: SEC update + screen + alerts + report + consensus
 # (module invocation is required — running scripts/daily_workflow.py directly
 #  fails because `backend` is not on sys.path)
 python -m scripts.daily_workflow
+
+# The full run also writes:
+#   data/consensus/consensus_YYYY-MM-DD.json
+# The Consensus tab reads that file automatically. It uses the same universe,
+# --limit, date and --no-prices options as the daily workflow. If the
+# consensus calculation fails, the daily report and alerts are preserved.
 
 # Skip the SEC update but still screen and write the report/state
 python -m scripts.daily_workflow --no-update
@@ -213,8 +219,9 @@ e-mail and belongs in the gitignored `.env`, which the unit loads through
 failed.
 
 The run is started with `--verbose` so the scheduled log carries stage
-progress, phase timings, fundamentals-cache stats and the network telemetry —
-without it only warnings reach `data/logs/daily_workflow.log`.
+progress, phase timings, fundamentals-cache stats and the network telemetry.
+Stage output is structured JSON (see §2c, Logging): the default level is INFO
+and `--verbose` lowers it to DEBUG.
 
 ```bash
 systemctl --user daemon-reload
@@ -293,6 +300,23 @@ boot unit never double-run:
   --max-refresh 200 --resume`, so it shares the scheduled run's checkpoint.
 - **Post-run validation.** It runs `scripts/validate_data_sample --sample 10`
   (never fatal) and writes `logs/run_<date>.log`.
+- **Weekly peer artifact.** On Sundays (`VI_PEER_STATS_DAY`, ISO weekday; `0`
+  disables) it also runs `python -m scripts.build_peer_stats` to refresh the
+  Scorecard's peer comparison. Best-effort: a failure is logged and never
+  changes the run's exit status. `VI_PEER_STATS_EXTRA_ARGS` passes through,
+  e.g. `--limit 200` for a quick partial rebuild.
+- **Monthly data-quality audit.** On the **first Sunday of the month** (gate:
+  `VI_AUDIT_WEEKDAY`, ISO weekday, default 7, and `VI_AUDIT_FIRST_DAY_MAX`,
+  default 7, so only the first seven days count) it runs
+  `python -m scripts.audit_data_quality --sample 30 --sources sec,yahoo --out
+  logs`. `VI_AUDIT_SAMPLE=0` disables it and `VI_AUDIT_EXTRA_ARGS` passes
+  through. Exit `0` means only expected cross-source differences, `1` means at
+  least one `DATA_ERROR_FDB` (a value that traces to no SEC filing — news for
+  the log, **never** a failure of the day, exactly like the validation), and `2`
+  means the audit could not run (no database, no `SEC_USER_AGENT`, no network).
+  Read the results with `logs/audit_data_quality_<date>.log`; every flagged
+  class is explained in `docs/data_gaps_investigation.md`
+  (§ Cross-source expected differences).
 
 It needs **no sudo** (a user unit) and does not run from the agent.
 
@@ -322,6 +346,91 @@ tmux new -s daily 'python -m scripts.daily_workflow --universe all --max-refresh
 - If the stored state is not what you want (wrong universe/options or a bad
   `--limit`), start fresh with `--no-resume` (the old state is archived, not
   lost) or target a specific one with `--run-id <id>`.
+
+## 2c. Failure modes, retries, health checks and exit codes
+
+### Health checks (pre-stage)
+
+Before each network stage the workflow probes the provider, reusing the
+project's existing preflights — there is no second mechanism:
+
+- **SEC** — `backend/services/sec_health.py` (`check_sec_availability`): a HEAD
+  on the companyfacts API (the same host ingestion uses), **3 s** timeout.
+- **Yahoo** — `backend/services/yahoo_health.py` (`check_yahoo_availability`):
+  a quote probe, **3 s** timeout, shared with the price service.
+
+Each result is cached per process for 120 s, so the workflow's check and the
+stage's own preflight issue **one** request, not two. When a probe fails, its
+stage is skipped (the SEC refresh is not started; the price stage is aborted by
+its own preflight), the run is marked **partial**, and analysis continues with
+the fundamentals already stored in Financial-DataBase and N/A market fields.
+`--no-update` and `--dry-run` skip the SEC probe (no SEC request is made);
+`--no-prices` skips the Yahoo probe.
+
+### Retries
+
+The workflow's own network probes go through the shared helper
+`backend/services/_retry.py` (`with_retry`): **3 attempts, backoff ×2**
+(0.5 s, 1.0 s, capped at 4 s). Only transient failures are retried; an HTTP
+verdict (403/429/5xx) is final and is never retried.
+
+Deliberately **not** wrapped by the generic helper (see the provenance note in
+`_retry.py`):
+
+- **Yahoo price batch** (`PriceService`) — its quote path has a domain-aware
+  policy that treats HTTP 429/401 as non-transient and aborts the stage instead
+  of burning three attempts per ticker.
+- **SEC sync subprocesses** — retry/backoff lives in Financial-DataBase and in
+  the resume checkpoint: transient sync failures are retried by the next
+  resumed run, permanent data failures are not.
+
+### Failure modes
+
+| Failure | Behaviour | Result |
+| --- | --- | --- |
+| SEC unreachable (health check fails) | Targeted refresh skipped before it starts; screening uses stored fundamentals | partial (1) |
+| SEC reachable, one sync fails transiently | Recorded on the checkpoint; retried by the next resumed run | ok/partial |
+| `SEC_USER_AGENT` unset | SEC probe reports unavailable without an HTTP call → refresh skipped | partial (1) |
+| Yahoo unreachable | Price stage aborted by the preflight; market fields N/A | partial (1) |
+| Yahoo rate-limits (429) | Price stage aborts (non-transient); streak alert after N runs | partial (1) |
+| Database unreachable | `build_financial_repository` falls back to the JSON repository | ok (degraded) |
+| Database unreachable and no JSON fallback | Startup raises → the workflow cannot start | failed (2) |
+| Missing universe file / unknown `--universe` | `resolve_universe` raises `SystemExit` | 1 (config error) |
+
+A **partial** run is not an error: it still writes the report and the state,
+and the next run resumes from the checkpoint. A boot that never starts the
+workflow (no network within 10 min) is a deliberate no-op and exits `0`.
+
+### Exit codes
+
+| Code | Meaning | Boot-wrapper log line |
+| --- | --- | --- |
+| `0` | every stage ran | `ok` |
+| `1` | a network stage was skipped (provider down / retries exhausted) | `partial (a network stage was skipped)` |
+| `2` | the run could not start (broken config / unreachable database) | `failed to start` |
+| `130` | interrupted with Ctrl-C (`SIGINT`) | — |
+
+`scripts/run_daily_on_boot.sh` propagates the workflow's code verbatim at the
+end (`exit "$WORKFLOW_STATUS"`) — nothing masks it. The best-effort post-steps
+(post-run validation, weekly peer stats, monthly audit) keep their own statuses
+and never change it.
+
+### Resume after a partial run
+
+`--resume` is the default, so just start the workflow again (or let the next
+scheduled/boot run do it): completed tickers are not SEC-refreshed again and
+only transient failures are retried. Use `--no-resume` to start clean (the old
+state is archived, not lost) or `--run-id <id>` to target a specific
+checkpoint.
+
+### Logging
+
+Stage output is structured **JSON**, produced by the API's logger config
+(`backend/api/logging_config.py`); the workflow installs it with
+`configure_logging` (default level INFO — `--verbose` → DEBUG). Every line is a
+JSON object with `asctime`, `levelname`, `name`, `message`, `pathname` and
+`lineno`, so `data/logs/daily_workflow.log`, the boot-run log
+(`logs/run_<date>.log`) and the systemd journal are machine-readable.
 
 ## 3. Screener with real-time prices
 
@@ -456,6 +565,28 @@ keeps only companies with a CIK (the project derives fundamentals exclusively
 from SEC filings, so European names without an EDGAR presence and share-class
 variants missing from FDB are excluded but remain visible in their per-index
 files).
+
+## 7. Monthly data-quality audit
+
+The boot wrapper runs `scripts/audit_data_quality.py` on the first Sunday of the
+month (see *Boot catch-up* above); to run it by hand:
+
+```bash
+# Cross-source audit of 50 sampled companies, SEC + Yahoo (read-only).
+python -m scripts.audit_data_quality --sample 50 --sources sec,yahoo --out logs
+
+# A specific list, SEC only — handy while chasing one finding
+python -m scripts.audit_data_quality --tickers AAPL,KO --sources sec --out logs
+```
+
+Reports are written to `logs/audit_data_quality_<YYYY-MM-DD>.{log,json,csv}`.
+Exit codes: `0` only expected differences, `1` at least one `DATA_ERROR_FDB`
+(a value that traces to no SEC filing — the code to investigate), `2` the audit
+could not run (database, `SEC_USER_AGENT`, or network). Every expected
+difference class is documented in `docs/data_gaps_investigation.md`
+("Cross-source expected differences"); a `DATA_ERROR_FDB` is not — work each one
+against SEC `companyconcept` and fix the mapping (see
+`docs/validation_methodology.md` §8 for the companion threshold report).
 
 ## Troubleshooting
 

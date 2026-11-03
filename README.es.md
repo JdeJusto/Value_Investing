@@ -12,10 +12,10 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Última versión"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="Estado de CI"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1954%20passed-10A77A?style=for-the-badge" alt="1,954 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2397%20passed-10A77A?style=for-the-badge" alt="2,397 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Licencia MIT"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 o superior">
-  <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
+  <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
   <img src="https://img.shields.io/badge/database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="Fuente de datos PostgreSQL">
   <img src="https://img.shields.io/badge/code%20style-Ruff-261230?style=for-the-badge" alt="Comprobación y formato con Ruff">
 </p>
@@ -74,7 +74,7 @@ interesante es el patrón de acuerdos y desacuerdos. La vista de consenso explic
 por qué las familias llegan a veredictos distintos en lugar de ocultar el
 conflicto dentro de una única puntuación promediada.
 
-![Panel de inicio con métricas de cartera, mejores oportunidades y alertas recientes](assets/screenshot_home.png)
+![Panel de inicio con métricas de cartera, mejores oportunidades y alertas recientes](assets/ui_v2_home.png)
 
 *La página de inicio: valor de la cartera, mejores oportunidades y alertas recientes.*
 
@@ -96,7 +96,7 @@ incluyen sus pruebas.
 El screener de consenso clasifica empresas según los ocho veredictos, compara
 las categorías de Lynch y abre la zona de desacuerdo de cualquier ticker.
 
-![Ranking de consenso con la tabla principal y las categorías de Lynch](assets/screenshot_consensus.png)
+![Ranking de consenso con la tabla principal y las categorías de Lynch](assets/ui_v2_consensus.png)
 
 *Ranking de consenso, desglose por categorías y zona de desacuerdo.*
 
@@ -107,9 +107,34 @@ REIT, modelos DDM financieros de dos y una etapa (con dividendos), y empresas de
 hipercrecimiento. Véanse las [notas de diseño del DCF](backend/valuation/README.md)
 para supuestos y fórmulas.
 
-![DCF con valor intrínseco, margen de seguridad, supuestos y sensibilidad](assets/screenshot_analysis_dcf.png)
+![DCF con valor intrínseco, margen de seguridad, supuestos y sensibilidad](assets/ui_v2_analysis_dcf.png)
 
 *Valor intrínseco del DCF, margen de seguridad, supuestos y sensibilidad.*
+
+La pestaña **Scorecard** resume el mismo análisis en seis dimensiones —Crecimiento,
+Rentabilidad, Salud Financiera, Valoración, Retribución al Accionista,
+Gestión/Foso— con un radar de seis ejes, tarjetas que muestran las reglas detrás
+de cada puntuación, cuatro gráficos de histórico (ingresos y beneficio neto,
+márgenes, ROE y ROIC, valor DCF frente a precio) y un panel explícito cuando las
+dimensiones discrepan. Es un resumen de los servicios existentes, nunca una
+"puntuación maestra", y la carga congelada se puede descargar como JSON o
+Markdown (`--markdown` en la CLI, `?format=markdown` en la API o el botón de
+descarga de la pestaña).
+
+Cuando existe un grupo de comparación (*peers*) —un artefacto que se regenera
+los domingos a partir de Financial-DataBase sobre el universo maestro y que se
+guarda en caché local, nunca en el repositorio— la tabla de reglas añade la
+**mediana del grupo** y el percentil de la empresa, y la valoración compara su
+PER con el del grupo. La comparación es solo informativa: ningún percentil
+cambia una puntuación ni un umbral.
+
+![Pestaña Scorecard: el radar de seis ejes, los gráficos de dimensión y el panel de desacuerdo](assets/ui_v2_analysis_scorecard.png)
+
+*La pestaña Scorecard: el radar, las tarjetas de dimensión y los gráficos.*
+
+![Pestaña Financials (vista T): Cuenta de Resultados, Balance y Flujo de Caja con columnas por ejercicio fiscal](assets/ui_v2_analysis_financials.png)
+
+*La pestaña Financials: vista en forma de T con Cuenta de Resultados, Balance y Flujo de Caja, columnas por ejercicio fiscal y validación de totales.*
 
 ## Las 8 metodologías
 
@@ -130,11 +155,11 @@ discrepar sin que ninguno esté equivocado. Las reglas de libro se abstienen en
 los tipos de empresa que no encajan con sus supuestos, incluidos bancos y
 aseguradoras.
 
-![Ocho veredictos de metodología para una misma empresa](assets/screenshot_analysis_methodologies.png)
+![Ocho veredictos de metodología para una misma empresa](assets/ui_v2_analysis_methodologies.png)
 
 *Ocho veredictos independientes para una misma empresa.*
 
-![Por qué discrepan las familias de metodologías](assets/screenshot_analysis_overview.png)
+![Por qué discrepan las familias de metodologías](assets/ui_v2_analysis_overview.png)
 
 *Un resumen de desacuerdos que explica los veredictos en lugar de promediarlos.*
 
@@ -193,6 +218,16 @@ Los comandos de consenso leen el último informe precalculado. Actualízalo con
 Las seis páginas son Inicio, Análisis, Screener, Cartera, Informes y Consenso.
 Para un recorrido sin base de datos, usa `VI_DEMO=1 ./run_ui.sh`.
 
+La interfaz sigue el sistema de diseño synthwave: fondo de noche profunda,
+acentos rosa/cian neón, toques dorados, cabeceras serif y tipografía
+monoespaciada en el cuerpo. La paleta, las clases de componentes y las reglas
+de accesibilidad están documentadas en
+[docs/ui_design_system.md](docs/ui_design_system.md).
+
+![Página de inicio con tema synthwave: métricas, oportunidades y alertas en color](assets/ui_v2_home.png)
+
+*El tema en Inicio: banda de cabecera, tarjetas de métricas y severidades de alerta en neón.*
+
 ### Filings
 
 ```bash
@@ -205,7 +240,7 @@ La pestaña Filings enlaza a los documentos originales de la SEC y puede cargar
 vistas previas de estados o narrativas. Los documentos analizados se almacenan en
 caché local bajo `data/raw/filings/`.
 
-![Presentaciones de la SEC con fechas, periodos, accesiones y enlaces de origen](assets/screenshot_filings.png)
+![Presentaciones de la SEC con fechas, periodos, accesiones y enlaces de origen](assets/ui_v2_analysis_filings.png)
 
 *Presentaciones de la SEC con enlaces de origen y vistas previas de estados.*
 
@@ -224,7 +259,7 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 
 *Consulta, alta y rendimiento de la cartera desde la terminal.*
 
-![Resultados del screener filtrados por sector y veredicto](assets/screenshot_screener.png)
+![Resultados del screener filtrados por sector y veredicto](assets/ui_v2_screener.png)
 
 *Resultados del screener filtrados por sector y veredicto.*
 
@@ -266,7 +301,11 @@ complementario [Financial-DataBase](https://github.com/JdeJusto/Financial-DataBa
 Finance proporciona precios bajo demanda que se almacenan en memoria y nunca se
 escriben en una base de datos; las instantáneas de precios del consenso son
 archivos de informe, no un almacén de precios. La demo offline no necesita
-servicios externos.
+servicios externos. Una **auditoría de calidad de datos** recurrente —una
+validación semanal por muestreo y una clasificación mensual de cada diferencia
+Financial-DataBase ↔ SEC ↔ Yahoo— vigila el pipeline; sus clases de diferencias
+esperadas están documentadas en la
+[investigación de lagunas de datos](docs/data_gaps_investigation.md).
 
 Véanse las [fuentes de datos](docs/data-sources.md), la [investigación de lagunas de datos](docs/data_gaps_investigation.md), la [metodología de validación](docs/validation_methodology.md) y el [índice de documentación](docs/README.md).
 

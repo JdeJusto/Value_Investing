@@ -5,12 +5,13 @@ Mixin for :class:`FinancialDatabaseRepository` (pure move).
 
 from __future__ import annotations
 
-import math
-
 from backend.repositories.fdb_concept_mapping import (
     _SPLIT_RATIO_CONCEPTS,
 )
-from backend.repositories.fdb_mixins.helpers import select_split_events
+from backend.repositories.fdb_mixins.helpers import (
+    _repair_share_scale,
+    select_split_events,
+)
 
 
 class SharesMixin:
@@ -102,11 +103,13 @@ class SharesMixin:
         """Get shares outstanding for a ticker and fiscal year.
 
         Tries multiple concepts in order:
-          1. WeightedAverageNumberOfSharesOutstandingDiluted /
-             WeightedAverageNumberOfDilutedSharesOutstanding
-          2. WeightedAverageNumberOfSharesOutstandingBasic
-          3. CommonStockSharesOutstanding (point-in-time)
-          4. WeightedAverageNumberOfSharesOutstanding
+          1. CommonStockSharesOutstanding (point-in-time) or, with
+             prefer_diluted, the diluted weighted-average concepts
+          2. WeightedAverageNumberOfSharesOutstandingBasic /
+             WeightedAverageNumberOfSharesOutstanding
+          3. the remaining weighted-average concepts
+          4. EntityCommonStockSharesOutstanding (cover page; last resort
+             for a filer that tags no us-gaap share concept)
 
         Args:
             ticker: Company ticker symbol
@@ -124,12 +127,20 @@ class SharesMixin:
             "WeightedAverageNumberOfSharesOutstanding",
             "WeightedAverageNumberOfSharesOutstandingDiluted",
             "WeightedAverageNumberOfDilutedSharesOutstanding",
+            # Cover-page fallback: a filer may tag no us-gaap share concept at
+            # all, yet still file the dei as-of count. It is consulted only
+            # after every us-gaap concept (the weighted averages keep their
+            # preference) and is a unit-scaled outstanding figure, unlike
+            # us-gaap CommonStockSharesIssued — which is deliberately absent
+            # from these lists because issued counts treasury stock back in.
+            "EntityCommonStockSharesOutstanding",
         ]
         diluted = [
             "WeightedAverageNumberOfSharesOutstandingDiluted",
             "WeightedAverageNumberOfDilutedSharesOutstanding",
             "CommonStockSharesOutstanding",
             "WeightedAverageNumberOfSharesOutstandingBasic",
+            "EntityCommonStockSharesOutstanding",
         ]
         concepts_to_try = diluted if prefer_diluted else end_of_period
         try:
@@ -235,7 +246,8 @@ class SharesMixin:
                 # correct (e.g. Ball Corp 2010 weighted-average basic = 180,746
                 # but outstanding stood at 169,198,602). Detect the scale
                 # mismatch against EntityCommonStockSharesOutstanding and repair
-                # the candidate so per-share metrics are not inflated ~1000x.
+                # the candidate so per-share metrics are not inflated ~1000x
+                # (shared rule, see _repair_share_scale).
                 if candidate is not None and candidate > 0:
                     cur.execute(
                         """
@@ -258,13 +270,7 @@ class SharesMixin:
                         else None
                     )
                     if anchor and anchor > 0:
-                        ratio = anchor / candidate
-                        # A legitimate weighted-average count never diverges
-                        # from the end-of-period count by 100x+; this only
-                        # happens when one side is unit-scaled.
-                        if ratio >= 100.0:
-                            scale = 10 ** round(math.log10(ratio))
-                            candidate = candidate * scale
+                        candidate = _repair_share_scale(candidate, [anchor])
 
             # Implausibly small share counts (legacy thousands-tagged facts
             # with no anchor to repair against, e.g. Ball Corp 2008) are

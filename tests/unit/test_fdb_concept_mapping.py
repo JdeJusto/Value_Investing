@@ -372,3 +372,68 @@ def test_continuing_operations_net_income_fallback():
         _fact("IncomeLossFromContinuingOperations", 100),
     )
     assert income["net_income"] == 90
+
+
+# ---------------------------------------------------------------------------
+# Share-count scale repair (McDonald's FY2025 case)
+# ---------------------------------------------------------------------------
+def _instant(concept, value, year=2025, end=None):
+    """An as-of (point-in-time) fact, like the dei cover-page count."""
+    return {
+        "concept": concept,
+        "value": value,
+        "unit": "shares",
+        "fiscal_year": year,
+        "fiscal_period": "FY",
+        "period_start": None,
+        "period_end": end or date(year, 12, 31),
+    }
+
+
+def _balance(*facts, bucket=None):
+    return FinancialDatabaseRepository()._normalize_financial_facts(
+        list(facts), bucket_year=bucket
+    )["balance"]
+
+
+def test_scale_broken_weighted_average_shares_rescaled():
+    """McDonald's FY2025 files the weighted average in MILLIONS (716.4) while
+    the cover-page count (as of 2026-01-31, just outside the fiscal-year
+    bucket) is in units. The longest-span dedup picks the scaled weighted
+    average; against the unit-scaled sibling it must be rescaled by 10^k so
+    per-share metrics stay in dollars (8.563B / 716.4M = $11.95)."""
+    balance = _balance(
+        _fact("WeightedAverageNumberOfDilutedSharesOutstanding", 716.4),
+        _instant(
+            "EntityCommonStockSharesOutstanding", 710_398_642, end=date(2026, 1, 31)
+        ),
+        bucket=2025,
+    )
+    assert balance["shares_outstanding"] == 716_400_000.0
+
+
+def test_consistent_share_counts_not_rescaled():
+    """Weighted average and cover-page count of the same magnitude: the
+    stored (weighted-average) value is left alone."""
+    balance = _balance(
+        _fact("WeightedAverageNumberOfDilutedSharesOutstanding", 4_853_000_000),
+        _instant("EntityCommonStockSharesOutstanding", 4_830_000_000),
+    )
+    assert balance["shares_outstanding"] == 4_853_000_000.0
+
+
+def test_share_scale_not_repaired_without_reference():
+    """With no sibling share count in the bucket there is nothing to repair
+    against: the filed value is kept as-is."""
+    balance = _balance(_fact("WeightedAverageNumberOfDilutedSharesOutstanding", 716.4))
+    assert balance["shares_outstanding"] == 716.4
+
+
+def test_genuine_share_growth_below_threshold_not_rescaled():
+    """A 50x divergence can be a genuine mid-year issuance, not a unit
+    mismatch: only a >= 100x ratio triggers the repair."""
+    balance = _balance(
+        _fact("WeightedAverageNumberOfDilutedSharesOutstanding", 10_000_000),
+        _instant("EntityCommonStockSharesOutstanding", 500_000_000),
+    )
+    assert balance["shares_outstanding"] == 10_000_000.0

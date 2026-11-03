@@ -1,0 +1,1 @@
+{"ticker":"AFL","company_name":"AFLAC INC","rules_evaluated":10,"rules_skipped":4,"warnings":[],"alerts":[{"rule_id":"margin_collapse","severity":"WARNING","title":"Net Margin collapse","message":"Net Margin dropped 7.5 pp YoY.","evidence":{"Current":"21.2%","Prior":"28.8%","Change":"-7.5pp"},"metric_hint":"net_margin","period":"FY2025"}]}

@@ -1,0 +1,1 @@
+{"ticker":"APO","company_name":"Apollo Global Management, Inc.","rules_evaluated":10,"rules_skipped":3,"warnings":[],"alerts":[{"rule_id":"margin_collapse","severity":"WARNING","title":"Net Margin collapse","message":"Net Margin dropped 6.6 pp YoY.","evidence":{"Current":"10.6%","Prior":"17.2%","Change":"-6.6pp"},"metric_hint":"net_margin","period":"FY2025"}]}

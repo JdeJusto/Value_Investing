@@ -1,0 +1,659 @@
+"""The Scorecard tab: radar, dimension cards, charts and their rule tables.
+
+The tab renders ``ScorecardService`` and ``ScorecardChartService`` verbatim, so
+these tests mock the cached loaders (``ui.services.load_scorecard`` and
+``ui.services.load_scorecard_charts``) with crafted payloads — no FDB, no
+Yahoo, no scorecard computation. Demo mode supplies the fundamentals the
+analysis page needs before the tabs are built.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+import streamlit
+from streamlit.testing.v1 import AppTest
+
+PAGE = Path(__file__).resolve().parents[2] / "ui" / "pages" / "02_analysis.py"
+
+_MAIN_TABS = [
+    "Overview",
+    "Methodologies",
+    "Scorecard",
+    "DCF",
+    "Historical",
+    "Filings",
+    "Financials",
+    "Raw",
+]
+
+_DIMENSION_LABELS = (
+    "Growth",
+    "Profitability",
+    "Financial Health",
+    "Valuation",
+    "Shareholder Returns",
+    "Management/Moat",
+)
+
+
+def _dimension(
+    key: str,
+    label: str,
+    score: int | None,
+    *,
+    verdict: str | None = None,
+    evaluable: int = 4,
+    trend: str = "stable",
+) -> dict:
+    if verdict is None:
+        verdict = (
+            "Insufficient"
+            if score is None
+            else "Strong"
+            if score >= 8
+            else "Weak"
+            if score <= 4
+            else "Mixed"
+        )
+    summary = (
+        f"Insufficient data ({evaluable} evaluable rules)."
+        if score is None
+        else f"{score}/10 — {verdict} ({evaluable} rules)."
+    )
+    return {
+        "key": key,
+        "label": label,
+        "question": "q",
+        "score": score,
+        "verdict": verdict,
+        "confidence": "LOW" if score is None else "HIGH",
+        "evaluable_rules": evaluable,
+        "rules": [
+            {
+                "rule_id": f"{key}_rule",
+                "label": f"{label} rule",
+                "status": "PASS" if score is None else "WATCH",
+                "value": "12.4%",
+                "threshold": "≥ 10%",
+                "reason": f"{label} reason.",
+                "source_metric": f"{key}.metric",
+                "source_methodology": None,
+                "source_book": None,
+            }
+        ],
+        "trend": trend,
+        "summary": summary,
+    }
+
+
+def _payload(
+    *,
+    overall: str = "Mixed",
+    data_quality: str = "HIGH",
+    disagreements: list[str] | None = None,
+) -> dict:
+    """An AAPL-shaped payload (Growth 7, Valuation 2, ...)."""
+    scores = {
+        "growth": 7,
+        "profitability": 10,
+        "financial_health": 8,
+        "valuation": 2,
+        "shareholder_returns": 10,
+        "management_moat": 7,
+    }
+    return {
+        "ticker": "AAPL",
+        "company": "Apple Inc.",
+        "sector": "Technology",
+        "industry": "Consumer Electronics",
+        "period": "FY",
+        "price": 340.0,
+        "market_cap": 3.4e12,
+        "generated": "",
+        "dimensions": [
+            _dimension(key, label, scores[key])
+            for key, label in zip(
+                (
+                    "growth",
+                    "profitability",
+                    "financial_health",
+                    "valuation",
+                    "shareholder_returns",
+                    "management_moat",
+                ),
+                _DIMENSION_LABELS,
+                strict=True,
+            )
+        ],
+        "overall": overall,
+        "disagreements": disagreements or [],
+        "methodologies": [],
+        "data_quality": data_quality,
+        "notes": [],
+    }
+
+
+@pytest.fixture(autouse=True)
+def _isolate(monkeypatch):
+    """Demo mode + a clean cache so the mocked loader always wins."""
+    monkeypatch.setenv("VI_DEMO", "1")
+    streamlit.cache_data.clear()
+    yield
+    streamlit.cache_data.clear()
+
+
+def _charts_payload(*, price: float | None = 340.0, dcf: float | None = 300.0) -> dict:
+    """A two-year chart payload shaped like ``ScorecardChartService.to_dict``."""
+    years = [
+        {
+            "fiscal_year": 2024,
+            "revenue": 100.0,
+            "net_income": 20.0,
+            "gross_margin": 0.5,
+            "operating_margin": 0.3,
+            "net_margin": 0.2,
+            "roe": 0.25,
+            "roic": 0.2,
+        },
+        {
+            "fiscal_year": 2025,
+            "revenue": 120.0,
+            "net_income": 26.0,
+            "gross_margin": 0.52,
+            "operating_margin": 0.32,
+            "net_margin": 0.22,
+            "roe": 0.27,
+            "roic": 0.22,
+        },
+    ]
+    return {"ticker": "AAPL", "years": years, "dcf_value": dcf, "price": price}
+
+
+def _run(monkeypatch, payload: dict, charts: dict | None = None) -> AppTest:
+    monkeypatch.setattr(
+        "ui.services.load_scorecard", lambda ticker, period="FY": payload
+    )
+    monkeypatch.setattr(
+        "ui.services.load_scorecard_charts",
+        lambda ticker: _charts_payload() if charts is None else charts,
+    )
+    at = AppTest.from_file(str(PAGE), default_timeout=120)
+    at.run()
+    next(button for button in at.button if button.label == "Analyze").click()
+    at.run()
+    assert not at.exception, at.exception
+    return at
+
+
+def _markdown(at: AppTest) -> list[str]:
+    return [element.value for element in at.markdown]
+
+
+def test_scorecard_tab_sits_between_methodologies_and_dcf(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    labels = [tab.label for tab in at.tabs if tab.label in _MAIN_TABS]
+    assert labels == _MAIN_TABS
+
+
+def test_six_dimension_cards_render_with_scores(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    values = _markdown(at)
+    for label in _DIMENSION_LABELS:
+        assert f"### {label}" in values
+    # Exactly six big score marks (one per dimension card).
+    score_marks = [value for value in values if re.fullmatch(r"## (?:\d+/10|—)", value)]
+    assert len(score_marks) == 6, score_marks
+    assert {"## 7/10", "## 10/10", "## 8/10", "## 2/10"} <= set(score_marks)
+    joined = " ".join(values)
+    assert "**Mixed**" in joined
+    assert "**Strong**" in joined
+    assert "**Weak**" in joined
+
+
+def test_dimension_cards_show_confidence(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "HIGH confidence" in captions
+
+
+def test_insufficient_dimension_shows_low_confidence(monkeypatch):
+    payload = _payload()
+    payload["dimensions"][1] = _dimension(
+        "profitability", "Profitability", None, evaluable=1
+    )
+    at = _run(monkeypatch, payload)
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "LOW confidence" in captions
+
+
+def test_rule_table_has_the_expected_columns(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    expander = next(element for element in at.expander if element.label == "Rules")
+    frame = expander.dataframe[0].value
+    assert list(frame.columns) == [
+        "Status",
+        "Rule",
+        "Value",
+        "Threshold",
+        "Why",
+        "Source",
+    ]
+    assert list(frame["Source"]) == ["analytics"]
+
+
+def test_insufficient_dimension_renders_a_dash_and_does_not_crash(monkeypatch):
+    payload = _payload()
+    payload["dimensions"][1] = _dimension(
+        "profitability", "Profitability", None, evaluable=1
+    )
+    at = _run(monkeypatch, payload)
+    marks = _markdown(at)
+    assert "## —" in marks
+    assert "**Insufficient** · stable" in marks
+    # The card is never hidden or turned into a zero.
+    assert "### Profitability" in marks
+
+
+def test_data_quality_badge_is_rendered(monkeypatch):
+    at = _run(monkeypatch, _payload(data_quality="MEDIUM"))
+    badge = next(metric for metric in at.metric if metric.label == "Data quality")
+    assert badge.value == "MEDIUM"
+
+
+def test_empty_disagreements_show_no_panel(monkeypatch):
+    at = _run(monkeypatch, _payload(disagreements=[]))
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "read them together" not in captions
+    assert not any("is strong" in warning.value for warning in at.warning)
+
+
+def test_disagreement_panel_names_the_dimensions(monkeypatch):
+    message = "Growth is strong (7/10) while Valuation is weak (2/10)."
+    at = _run(monkeypatch, _payload(disagreements=[message]))
+    warnings = [warning.value for warning in at.warning]
+    panel = next((w for w in warnings if "Growth" in w), None)
+    assert panel is not None, warnings
+    assert "Valuation" in panel
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "read them together" in captions
+
+
+def test_financial_company_note_shows_on_thin_coverage(monkeypatch):
+    payload = _payload(overall="Mixed")
+    payload["dimensions"][5] = _dimension(
+        "management_moat", "Management/Moat", 7, evaluable=2
+    )
+    at = _run(monkeypatch, payload)
+    infos = " ".join(info.value for info in at.info)
+    assert "Some rules do not apply to this company type" in infos
+
+
+def test_service_error_is_reported_without_a_traceback(monkeypatch):
+    def _boom(ticker, period="FY"):
+        raise RuntimeError("database offline")
+
+    monkeypatch.setattr("ui.services.load_scorecard", _boom)
+    at = AppTest.from_file(str(PAGE), default_timeout=120)
+    at.run()
+    next(button for button in at.button if button.label == "Analyze").click()
+    at.run()
+    assert not at.exception, at.exception
+    assert any("database offline" in error.value for error in at.error)
+
+
+def test_missing_price_renders_dash_and_keeps_the_cards(monkeypatch):
+    payload = _payload()
+    payload["price"] = None
+    at = _run(monkeypatch, payload)
+    assert any(metric.value == "—" for metric in at.metric if metric.label == "Price")
+    assert any(value == "### Growth" for value in _markdown(at))
+
+
+def test_missing_scorecard_uses_the_shared_warning(monkeypatch):
+    at = _run(monkeypatch, None)
+    assert any("returned no data" in error.value for error in at.error) or any(
+        "No fundamentals" in warning.value for warning in at.warning
+    )
+
+
+def test_radar_renders_as_a_plotly_chart(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    assert len(at.get("plotly_chart")) >= 1
+
+
+def test_radar_data_keeps_unscored_axes_as_gaps(monkeypatch):
+    from ui.charts import radar_data, radar_missing
+
+    dimensions = _payload()["dimensions"]
+    dimensions[4]["score"] = None  # Shareholder Returns
+    labels, radii = radar_data(dimensions)
+    assert labels == list(_DIMENSION_LABELS)
+    assert radii[4] is None  # not 0
+    assert radar_missing(labels, radii) == ["Shareholder Returns"]
+
+
+def test_radar_falls_back_when_plotly_is_unavailable(monkeypatch):
+    def _boom(dimensions):
+        raise ImportError("no plotly")
+
+    monkeypatch.setattr("ui.charts.radar_figure", _boom)
+    at = _run(monkeypatch, _payload())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "Radar unavailable" in captions
+
+
+def test_four_history_charts_have_titles(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    values = _markdown(at)
+    for title in (
+        "Revenue & net income",
+        "Margins",
+        "ROE & ROIC",
+        "DCF value vs price",
+    ):
+        assert f"**{title}**" in values
+
+
+def test_valuation_chart_says_price_unavailable_without_a_price(monkeypatch):
+    at = _run(monkeypatch, _payload(), charts=_charts_payload(price=None))
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "price unavailable" in captions
+
+
+def test_scorecard_has_a_json_download(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    downloads = at.get("download_button")
+    assert any(button.label == "Download scorecard JSON" for button in downloads)
+
+
+def test_scorecard_has_a_markdown_download(monkeypatch):
+    import streamlit as st
+
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    payload = _payload()
+    recorded: list[dict] = []
+    real = st.download_button
+
+    def spy(*args, **kwargs):
+        recorded.append({"label": args[0] if args else kwargs.get("label"), **kwargs})
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(st, "download_button", spy)
+    _run(monkeypatch, payload)
+    button = next(
+        item for item in recorded if item["label"] == "Download scorecard Markdown"
+    )
+    markdown = scorecard_to_markdown(payload)
+    assert button["file_name"] == "scorecard_AAPL.md"
+    assert button["mime"] == "text/markdown"
+    assert button["data"] == markdown
+
+
+def test_focus_selector_lists_the_dimensions(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    focus = next(box for box in at.selectbox if "Focus a dimension" in box.label)
+    assert focus.options == ["—", *_DIMENSION_LABELS]
+
+
+# --- radar dimension filter (approved option B) ---------------------------
+# The filter is presentation-only: the six cards always render in full, and
+# the default (all six checked) draws the exact pre-filter radar.
+
+
+def _spy_radar_figure(monkeypatch):
+    """Record the ``dimensions`` each radar render receives (still builds it)."""
+    from ui.charts import radar_figure as _real
+
+    captured: list[list[dict]] = []
+
+    def _spy(dimensions):
+        captured.append(dimensions)
+        return _real(dimensions)
+
+    monkeypatch.setattr("ui.charts.radar_figure", _spy)
+    return captured
+
+
+def _dimension_box(at: AppTest, label: str):
+    return next(
+        box
+        for box in at.checkbox
+        if box.label == label and box.label in _DIMENSION_LABELS
+    )
+
+
+def _radar_captions(at: AppTest) -> list[str]:
+    return [
+        caption.value
+        for caption in at.caption
+        if "dimensions shown" in caption.value or "Not scored" in caption.value
+    ]
+
+
+def test_radar_default_shows_all_six(monkeypatch):
+    captured = _spy_radar_figure(monkeypatch)
+    at = _run(monkeypatch, _payload())
+    # All six checked, no filter caption, and the render is the unfiltered one.
+    assert all(_dimension_box(at, label).value for label in _DIMENSION_LABELS)
+    assert at.session_state["scorecard_radar_filter"] == list(_DIMENSION_LABELS)
+    assert [dimension["label"] for dimension in captured[-1]] == list(_DIMENSION_LABELS)
+    assert _radar_captions(at) == []
+
+
+def test_radar_filter_removes_axis(monkeypatch):
+    from ui.charts import radar_data
+
+    captured = _spy_radar_figure(monkeypatch)
+    at = _run(monkeypatch, _payload())
+    _dimension_box(at, "Growth").set_value(False)
+    at.run()
+    assert not at.exception, at.exception
+    visible = [dimension["label"] for dimension in captured[-1]]
+    assert "Growth" not in visible
+    assert len(visible) == 5
+    labels, _radii = radar_data(captured[-1])
+    assert "Growth" not in labels and len(labels) == 5
+    assert at.session_state["scorecard_radar_filter"] == [
+        label for label in _DIMENSION_LABELS if label != "Growth"
+    ]
+
+
+def test_radar_filter_prevents_below_three(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    for label in ("Growth", "Profitability", "Financial Health"):
+        _dimension_box(at, label).set_value(False)
+        at.run()
+        assert not at.exception, at.exception
+    selected = at.session_state["scorecard_radar_filter"]
+    assert selected == ["Valuation", "Shareholder Returns", "Management/Moat"]
+    # At the floor the remaining checked boxes are disabled; the unchecked
+    # ones stay enabled so the set can grow again.
+    for label in _DIMENSION_LABELS:
+        box = _dimension_box(at, label)
+        assert box.disabled is (label in selected), label
+
+
+def test_radar_filter_restores_fill_when_hiding_missing(monkeypatch):
+    from ui.charts import radar_figure
+
+    payload = _payload()
+    payload["dimensions"][4]["score"] = None  # Shareholder Returns → gap
+    captured = _spy_radar_figure(monkeypatch)
+    at = _run(monkeypatch, payload)
+    # With the gap on screen the axis is reported unscored (current behaviour).
+    assert any("Not scored" in c for c in _radar_captions(at))
+    _dimension_box(at, "Shareholder Returns").set_value(False)
+    at.run()
+    assert not at.exception, at.exception
+    visible = [dimension["label"] for dimension in captured[-1]]
+    assert "Shareholder Returns" not in visible and len(visible) == 5
+    # No visible gap left → the polygon gets its fill back.
+    assert radar_figure(captured[-1]).data[0].fill == "toself"
+    assert _radar_captions(at) == ["5 of 6 dimensions shown"]
+
+
+def test_radar_filter_shared_across_tickers(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    for label in ("Growth", "Valuation"):
+        _dimension_box(at, label).set_value(False)
+        at.run()
+    assert len(at.session_state["scorecard_radar_filter"]) == 4
+    next(box for box in at.text_input if box.label == "Ticker").set_value("MSFT")
+    next(button for button in at.button if button.label == "Analyze").click()
+    at.run()
+    assert not at.exception, at.exception
+    # One global key: the four-dimension selection survives the ticker switch.
+    assert len(at.session_state["scorecard_radar_filter"]) == 4
+    assert not _dimension_box(at, "Growth").value
+    assert not _dimension_box(at, "Valuation").value
+
+
+def test_radar_filter_caption_counts(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    assert not any("dimensions shown" in c for c in _radar_captions(at))
+    for label in ("Growth", "Management/Moat"):
+        _dimension_box(at, label).set_value(False)
+        at.run()
+    assert "4 of 6 dimensions shown" in _radar_captions(at)
+    # With a visible gap the count and the unscored note join one caption.
+    payload = _payload()
+    payload["dimensions"][4]["score"] = None  # Shareholder Returns → gap
+    at = _run(monkeypatch, payload)
+    _dimension_box(at, "Growth").set_value(False)
+    at.run()
+    assert (
+        "5 of 6 dimensions shown · Not scored (insufficient data): Shareholder "
+        "Returns" in _radar_captions(at)
+    )
+
+
+def _payload_with_peers(*, percentile: float | None = 0.62) -> dict:
+    """The AAPL payload with a peer-covered Valuation rule and a group."""
+    payload = _payload()
+    for dimension in payload["dimensions"]:
+        dimension.update(
+            {
+                "peer_group": "Consumer Electronics",
+                "peer_group_level": "industry",
+                "peer_group_size": 14,
+            }
+        )
+    payload["dimensions"][3]["rules"] = [
+        {
+            "rule_id": "pe_absolute",
+            "label": "P/E vs 20x",
+            "status": "WATCH",
+            "value": "17.86x",
+            "threshold": "≤ 20x",
+            "reason": "Cheaper than the absolute cap.",
+            "source_metric": "valuation.pe_ratio",
+            "source_methodology": None,
+            "source_book": None,
+            "peer_median": "15.50x",
+            "peer_percentile": percentile,
+        }
+    ]
+    return payload
+
+
+def _rule_frames(at: AppTest) -> list:
+    expanders = [element for element in at.expander if element.label == "Rules"]
+    return [expander.dataframe[0].value for expander in expanders]
+
+
+def test_rule_table_shows_peer_columns_for_a_covered_dimension(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    frame = _rule_frames(at)[3]  # Valuation
+    assert list(frame.columns) == [
+        "Status",
+        "Rule",
+        "Value",
+        "Peer median",
+        "Peer pct",
+        "Threshold",
+        "Why",
+        "Source",
+    ]
+    assert frame["Peer median"].tolist() == ["15.50x"]
+    assert frame["Peer pct"].tolist() == ["62%"]
+
+
+def test_rule_table_hides_peer_columns_without_a_percentile(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    # Growth carries the group but no percentile: the table keeps its shape.
+    assert "Peer median" not in _rule_frames(at)[0].columns
+
+
+def test_rule_table_dashes_a_metric_the_artifact_lacks(monkeypatch):
+    payload = _payload_with_peers(percentile=None)
+    payload["dimensions"][3]["rules"].append(
+        {
+            "rule_id": "pb_absolute",
+            "label": "P/B vs 5x",
+            "status": "PASS",
+            "value": "3.00x",
+            "threshold": "≤ 5x",
+            "reason": "Cheap on book.",
+            "source_metric": "valuation.pb_ratio",
+            "source_methodology": None,
+            "source_book": None,
+            "peer_median": None,
+            "peer_percentile": None,
+        }
+    )
+    # One covered rule re-enables the columns; the uncovered one shows dashes.
+    payload["dimensions"][3]["rules"][0]["peer_percentile"] = 0.62
+    frame = _rule_frames(_run(monkeypatch, payload))[3]
+    assert frame["Peer median"].tolist()[1] == "—"
+    assert frame["Peer pct"].tolist()[1] == "—"
+
+
+def test_peer_header_line_names_the_group_and_size(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "Peer group: Consumer Electronics (14 companies, industry)" in captions
+
+
+def test_peer_header_says_not_available_without_the_artifact(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    captions = " ".join(caption.value for caption in at.caption)
+    assert "not available (run scripts/build_peer_stats.py)" in captions
+
+
+def test_peer_pe_chart_is_added_when_the_artifact_covers_the_company(monkeypatch):
+    at = _run(monkeypatch, _payload_with_peers())
+    assert "**P/E vs peer median**" in _markdown(at)
+    # radar + four history charts + the peer comparison
+    assert len(at.get("plotly_chart")) == 6
+
+
+def test_peer_pe_chart_is_absent_without_the_artifact(monkeypatch):
+    at = _run(monkeypatch, _payload())
+    assert "**P/E vs peer median**" not in _markdown(at)
+    assert len(at.get("plotly_chart")) == 5
+
+
+def test_peer_pe_values_parses_the_display_multiple():
+    from ui.charts import pe_multiple, peer_pe_values
+
+    assert pe_multiple("15.50x") == pytest.approx(15.5)
+    assert pe_multiple("n/a") is None
+    assert pe_multiple(None) is None
+
+    company, median, group = peer_pe_values(_payload_with_peers())
+    assert company == pytest.approx(17.86)
+    assert median == pytest.approx(15.5)
+    assert group == "Consumer Electronics"
+    assert peer_pe_values(_payload()) is None
+
+
+def test_peer_pe_values_rejects_a_non_positive_multiple():
+    from ui.charts import peer_pe_values
+
+    payload = _payload_with_peers()
+    payload["dimensions"][3]["rules"][0]["peer_median"] = "0.00x"
+    assert peer_pe_values(payload) is None

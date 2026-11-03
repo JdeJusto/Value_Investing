@@ -24,6 +24,7 @@ from backend.repositories.fdb_concept_mapping import (
     INCOME_STATEMENT_CONCEPTS,
     _income_convention,
 )
+from backend.repositories.fdb_mixins.helpers import _repair_share_scale
 
 
 class NormalizationMixin:
@@ -86,6 +87,14 @@ class NormalizationMixin:
         # of sorted() (and re-parsed period_end again in the bucket filter),
         # which dominated the CPU time of large fact buckets. Each row now
         # parses period_end/period_start a single time.
+        #
+        # The same pass collects every share count in the raw list: the
+        # scale-repair after the loop needs the unit-scaled siblings, and the
+        # fiscal year's own cover-page fact (EntityCommonStockSharesOutstanding,
+        # dated a few weeks after the fiscal year end) is dropped from the
+        # snapshot by the bucket filter below — it is still the reference that
+        # identifies a weighted average filed in millions.
+        share_values: list[float] = []
         keyed = []
         for f in facts:
             pe = f.get("period_end")
@@ -93,6 +102,14 @@ class NormalizationMixin:
             pe_ord = _date_ord(pe)
             ps_ord = _date_ord(ps)
             concept = f.get("concept") or ""
+            if (
+                BALANCE_SHEET_CONCEPTS.get(concept) == "shares_outstanding"
+                and f.get("value") is not None
+            ):
+                try:
+                    share_values.append(float(f["value"]))
+                except (TypeError, ValueError):
+                    pass
             key = (
                 pe_ord - ps_ord if pe is not None and ps is not None else 0,
                 pe_ord,
@@ -243,6 +260,18 @@ class NormalizationMixin:
                 debt_noncurrent[0] if debt_noncurrent else 0.0
             )
 
+        # The longest-span dedup above picks the weighted-average share count,
+        # but some issuers file it in scaled units (McDonald's FY2025: 716.4
+        # for 716.4M shares) while the cover-page / balance-sheet counts are
+        # in units. Repair the stored count against the sibling share counts
+        # gathered in the precompute pass (which also sees the fiscal year's
+        # own cover-page fact) so the derived per-share metrics stay in
+        # dollars instead of being inflated ~1e6x.
+        if balance_data.get("shares_outstanding"):
+            balance_data["shares_outstanding"] = _repair_share_scale(
+                balance_data["shares_outstanding"], share_values
+            )
+
         # Most filers present operating income (OperatingIncomeLoss) with no
         # separate EBIT tag; treat the two as equivalent so the EBIT-based
         # multiples (EV/EBIT, ROIC) keep working when only operating income is
@@ -378,6 +407,7 @@ class NormalizationMixin:
         loaded_at: datetime | None = None,
         split_adjustment_factor: float = 1.0,
         sector: str | None = None,
+        industry: str | None = None,
     ) -> NormalizedFinancials:
         """Build a NormalizedFinancials object from statement data.
 
@@ -391,6 +421,8 @@ class NormalizationMixin:
                 ``_cumulative_split_multiplier``); 1.0 when unknown.
             sector: Company sector label from ``companies.sector`` (None when
                 the metadata layer does not supply one).
+            industry: Company industry label from ``companies.industry``
+                (None when the metadata layer does not supply one).
 
         Returns:
             NormalizedFinancials object
@@ -462,6 +494,7 @@ class NormalizationMixin:
             shares_outstanding=balance.get("shares_outstanding"),
             split_adjustment_factor=split_adjustment_factor,
             sector=sector,
+            industry=industry,
             period=ANNUAL_PERIOD,
             currency="USD",  # TODO: Get from actual unit/currency data
             source=ProviderName.EDGAR,  # Financial-DataBase primarily has SEC data

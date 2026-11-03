@@ -1,0 +1,1 @@
+{"ticker":"ADSK","company_name":"Autodesk, Inc.","rules_evaluated":10,"rules_skipped":1,"warnings":[],"alerts":[{"rule_id":"strong_fcf_conversion","severity":"INFO","title":"Strong FCF conversion","message":"FCF > net income for 6 consecutive years.","evidence":{"FCF / net income":"2.14, 1.41, 1.42, 2.47, 2.97, 1.48"},"metric_hint":"free_cash_flow","period":"FY2026"}]}

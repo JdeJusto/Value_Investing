@@ -12,10 +12,10 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-1954%20passed-10A77A?style=for-the-badge" alt="1,954 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2397%20passed-10A77A?style=for-the-badge" alt="2,397 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
-  <img src="https://img.shields.io/badge/streamlit-1.64.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.64.0">
+  <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
   <img src="https://img.shields.io/badge/database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL data source">
   <img src="https://img.shields.io/badge/code%20style-Ruff-261230?style=for-the-badge" alt="Ruff checks and formatting">
 </p>
@@ -73,7 +73,7 @@ output is the pattern of agreement and disagreement. The consensus view
 explains why families reach different verdicts instead of hiding the conflict
 inside a single averaged score.
 
-![Home dashboard with portfolio metrics, top opportunities, and recent alerts](assets/screenshot_home.png)
+![Home dashboard with portfolio metrics, top opportunities, and recent alerts](assets/ui_v2_home.png)
 
 *The Home page: portfolio value, top opportunities, and recent alerts.*
 
@@ -94,7 +94,7 @@ earnings quality, and dividends each carry their evidence.
 The consensus screener ranks companies across all eight verdicts, compares
 Lynch categories, and opens the disagreement zone for any ticker.
 
-![Consensus ranking with the top table and Lynch categories](assets/screenshot_consensus.png)
+![Consensus ranking with the top table and Lynch categories](assets/ui_v2_consensus.png)
 
 *Consensus ranking, category breakdowns, and the disagreement zone.*
 
@@ -104,9 +104,33 @@ standard free cash flow, REIT funds from operations, two-stage and single-stage
 financial dividend discount models, and hyper-growth companies. See
 [the DCF design notes](backend/valuation/README.md) for assumptions and formulas.
 
-![DCF with intrinsic value, margin of safety, assumptions, and sensitivity](assets/screenshot_analysis_dcf.png)
+![DCF with intrinsic value, margin of safety, assumptions, and sensitivity](assets/ui_v2_analysis_dcf.png)
 
 *DCF intrinsic value, margin of safety, assumptions, and sensitivity.*
+
+The **Scorecard** tab summarizes the same analysis as six dimensions — Growth,
+Profitability, Financial Health, Valuation, Shareholder Returns, Management/Moat —
+with a six-axis radar, cards that show the rules behind each score, four history
+charts (revenue & net income, margins, ROE & ROIC, DCF value vs price) and an
+explicit panel when the dimensions disagree. It is a summary of the existing
+services, never a "master score", and the frozen payload can be downloaded as
+JSON or Markdown (`--markdown` in the CLI, `?format=markdown` on the API, or the
+download button in the tab).
+
+Where a peer group is available (a weekly Sunday artifact built from
+Financial-DataBase over the master universe, cached locally and never
+committed), each rule also shows its **peer median** and the percentile it
+sits at, and the valuation panel compares its P/E with the group's. Peers are
+an annotation only: no percentile changes a score or a threshold, and a
+company without a large enough peer group is scored exactly as before.
+
+![Scorecard tab: the six-axis radar, the dimension charts and the disagreement panel](assets/ui_v2_analysis_scorecard.png)
+
+*The Scorecard tab: the radar, the dimension cards and the history charts.*
+
+![Financials T-view: Income Statement, Balance Sheet, Cash Flow with fiscal year columns and balanced totals](assets/ui_v2_analysis_financials.png)
+
+*The Financials tab: T-view with Income Statement, Balance Sheet and Cash Flow, per-fiscal-year columns and balance validation.*
 
 ## The 8 methodologies
 
@@ -126,11 +150,11 @@ never read each other's output, so two of them can disagree without either being
 wrong. Book rules abstain from company types their assumptions do not fit,
 including banks and insurers.
 
-![Eight methodology verdicts for a single company](assets/screenshot_analysis_methodologies.png)
+![Eight methodology verdicts for a single company](assets/ui_v2_analysis_methodologies.png)
 
 *Eight independent verdicts for one company.*
 
-![Why methodology families disagree](assets/screenshot_analysis_overview.png)
+![Why methodology families disagree](assets/ui_v2_analysis_overview.png)
 
 *A disagreement summary that explains the verdicts instead of averaging them.*
 
@@ -176,7 +200,15 @@ runs. Redirected output never contains color codes, and `NO_COLOR=1` or
 `--no-color` turns color off on a terminal as well. Prefer a menu over flags
 with `./vi interactive`.
 
-Consensus commands read the latest precomputed report. Refresh it with
+Consensus commands read the latest precomputed report. The normal daily run
+also refreshes it automatically:
+
+```bash
+python -m scripts.daily_workflow
+```
+
+This writes `data/consensus/consensus_YYYY-MM-DD.json` for the Consensus tab.
+To refresh only consensus, use
 `python -m scripts.compute_consensus_rankings --universe sp500`.
 
 ### Streamlit UI
@@ -187,6 +219,15 @@ Consensus commands read the latest precomputed report. Refresh it with
 
 The six pages are Home, Analysis, Screener, Portfolio, Reports, and Consensus.
 For a database-free walkthrough, use `VI_DEMO=1 ./run_ui.sh`.
+
+The interface follows the synthwave design system: deep-night background,
+neon pink/cyan accents, gold highlights, serif headings, and a mono body font.
+The palette, component classes, and accessibility rules are documented in
+[docs/ui_design_system.md](docs/ui_design_system.md).
+
+![Synthwave-themed Home page with metrics, opportunities, and colored alerts](assets/ui_v2_home.png)
+
+*The theme on Home: header band, metric cards, and alert severities in neon.*
 
 ### Filings
 
@@ -199,7 +240,7 @@ python main.py filing-section AAPL --type risk_factors --word-limit 500
 The Filings tab links to SEC source documents and can load statement or narrative
 previews. Parsed documents are cached locally under `data/raw/filings/`.
 
-![SEC filings with dates, periods, accessions, and source links](assets/screenshot_filings.png)
+![SEC filings with dates, periods, accessions, and source links](assets/ui_v2_analysis_filings.png)
 
 *SEC filings with source links and statement previews.*
 
@@ -218,7 +259,7 @@ python -m scripts.daily_workflow --dry-run --limit 5 --top 3
 
 *Portfolio view, add, and performance from the terminal.*
 
-![Screener results filtered by sector and verdict](assets/screenshot_screener.png)
+![Screener results filtered by sector and verdict](assets/ui_v2_screener.png)
 
 *Screener results filtered by sector and verdict.*
 
@@ -259,7 +300,11 @@ The app reads SEC-derived fundamentals from the companion
 project as a read-only source, with local JSON as a fallback. Yahoo Finance
 provides on-demand prices that are cached in memory and never written to a
 database; consensus price snapshots are report files, not a price store. The
-offline demo needs no external services.
+offline demo needs no external services. A recurring cross-source **data-quality
+audit** — a weekly sample validation plus a monthly classification of every
+Financial-DataBase ↔ SEC ↔ Yahoo difference — guards the pipeline; its expected
+difference classes are documented in the
+[data-gap investigation](docs/data_gaps_investigation.md).
 
 See [data sources](docs/data-sources.md), the [data-gap investigation](docs/data_gaps_investigation.md), the [validation methodology](docs/validation_methodology.md), and the full [documentation index](docs/README.md).
 

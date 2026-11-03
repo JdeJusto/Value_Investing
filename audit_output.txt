@@ -1,0 +1,323 @@
+Data-quality audit 2026-10-17T18:44:22Z
+Sample: 100 (seed 42), sources: financial_database, sec, yahoo, period match window: 45 days
+Note: companyconcept returned an empty envelope for 4 issuer(s); companyfacts was used instead: 0000037996, 0000048898, 0001126328, 0001967680
+
+ABNB (CIK 0001559720) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+AEE (CIK 0001002910) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+AEP (CIK 0000004904) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         capital_expenditure    sec_edgar      db=11,906,000,000 ext=3,453,000,000 d=244.80%
+      action: manual review - the SEC value differs and no heuristic explains why [tag PaymentsToAcquireProductiveAssets]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=4 ext=2 d=101.95%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareDeclared]
+AFL (CIK 0000004977) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=534,878,000 ext=518,690,000 d=3.12%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+AIG (CIK 0000005272) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=570,349,988 ext=536,559,663 d=6.30%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+ALL (CIK 0000899051) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=267,100,000 ext=259,535,842 d=2.91%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+ALLE (CIK 0001579241) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+APA (CIK 0001841666) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+APD (CIK 0000002969) FY2025 (end 2025-09-30)
+  all comparisons within tolerance
+APTV (CIK 0001521332) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=220,750,000 ext=212,748,401 d=3.76%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+AVGO (CIK 0001730168) FY2025 (end 2025-11-02)
+  DIFFERENT_PERIOD     net_income             sec_edgar      db=23,126,000,000 ext=5,895,000,000 d=292.30%
+      action: none, expected - period ends differ by 364 days (2025-11-02 vs 2024-11-03) [tag NetIncomeLoss]
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=4,853,000,000 ext=4,741,273,799 d=2.36%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+AXON (CIK 0001069183) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=82,370,000 ext=80,211,537 d=2.69%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+AZO (CIK 0000866787) FY2025 (end 2025-08-30)
+  DIFFERENT_PERIOD     shares_outstanding     sec_edgar      db=17,245,000 ext=16,632,663 d=3.68%
+      action: none, expected - period ends differ by 51 days (2025-08-30 vs 2025-10-20) [tag dei:EntityCommonStockSharesOutstanding]
+BAC (CIK 0000070858) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=7,680,900,000 ext=7,212,464,345 d=6.49%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+BALL (CIK 0000009389) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=275,972,000 ext=685,107,438 d=59.72%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesIssued]
+BEN (CIK 0000038777) FY2025 (end 2025-09-30)
+  DIFFERENT_TAG        net_income             sec_edgar      db=471,700,000 ext=524,900,000 d=10.14%
+      action: consider mapping both - the DB value matches the SEC tag NetIncomeLossAvailableToCommonStockholdersBasic, not the preferred one [tag NetIncomeLoss]
+BLK (CIK 0002012383) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=160,866,521 ext=155,069,171 d=3.74%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+BXP (CIK 0001037540) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=4 ext=3 d=32.72%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareDeclared]
+CBRE (CIK 0001138118) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+CCL (CIK 0000815097) FY2025 (end 2025-11-30)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=1,402,000,000 ext=1,236,706,612 d=13.37%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+CDW (CIK 0001402057) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=132,100,000 ext=129,400,000 d=2.09%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+CMI (CIK 0000026172) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+CNP (CIK 0001130310) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+COR (CIK 0001140859) FY2012 (end 2012-09-30)
+  RESTATEMENT          capital_expenditure    sec_edgar      db=164,041,000 ext=133,292,000 d=23.07%
+      action: none, expected - matches a superseded filing of the same period (amended 10-K) [tag PaymentsToAcquirePropertyPlantAndEquipment]
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=256,903,000 ext=235,394,281 d=9.14%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+CPRT (CIK 0000900075) FY2026 (end 2026-07-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=956,860,000 ext=926,298,293 d=3.30%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+CPT (CIK 0000906345) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         revenue                sec_edgar      db=1,573,544,000 ext=12,967,000 d=12034.99%
+      action: manual review - the SEC value differs and no heuristic explains why [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=108,434,000 ext=103,408,210 d=4.86%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+CRH (CIK 0000849395) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+CRM (CIK 0001108524) FY2026 (end 2026-01-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=956,000,000 ext=923,000,000 d=3.58%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+CSCO (CIK 0000858877) FY2026 (end 2026-07-25)
+  UNCLASSIFIED         eps_diluted            sec_edgar      db=3 ext=1 d=150.19%
+      action: manual review - the SEC value differs and no heuristic explains why [tag EarningsPerShareDiluted]
+CTAS (CIK 0000723254) FY2026 (end 2026-05-31)
+  all comparisons within tolerance
+D (CIK 0000715957) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=855,300,000 ext=879,000,000 d=2.70%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+DHI (CIK 0000882184) FY2025 (end 2025-09-30)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=309,900,000 ext=292,060,538 d=6.11%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+DHR (CIK 0000313616) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+DOC (CIK 0000765880) FY2025 (end 2025-12-31)
+  DIFFERENT_TAG        revenue                sec_edgar      db=2,822,512,000 ext=603,989,000 d=367.31%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+DOW (CIK 0001751788) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+DVN (CIK 0001090012) FY2025 (end 2025-12-31)
+  DIFFERENT_TAG        revenue                sec_edgar      db=17,188,000,000 ext=16,786,000,000 d=2.39%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+  DIFFERENT_TAG        shares_outstanding     sec_edgar      db=633,000,000 ext=620,000,000 d=2.10%
+      action: consider mapping both - the DB value matches the SEC tag CommonStockSharesIssued, not the preferred one [tag dei:EntityCommonStockSharesOutstanding]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=1 ext=0 d=276.11%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareCashPaid]
+EBAY (CIK 0001065088) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=468,000,000 ext=448,000,000 d=4.46%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+EXE (CIK 0000895126) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+EXPE (CIK 0001324424) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=131,943,000 ext=116,975,000 d=12.80%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=2 ext=2 d=5.26%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareDeclared]
+F (CIK 0000037996) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=3,979,000,000 ext=3,711,858,859 d=7.20%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+FDX (CIK 0001048911) FY2026 (end 2026-05-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=239,000,000 ext=318,000,000 d=24.84%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesIssued]
+  UNCLASSIFIED         eps_diluted            sec_edgar      db=19 ext=0 d=5873.82%
+      action: manual review - the SEC value differs and no heuristic explains why [tag EarningsPerShareDiluted]
+FE (CIK 0001031296) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+FFIV (CIK 0001048695) FY2025 (end 2025-09-30)
+  all comparisons within tolerance
+FICO (CIK 0000814547) FY2025 (end 2025-09-30)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=24,561,000 ext=23,709,047 d=3.59%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+FITB (CIK 0000035527) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         revenue                sec_edgar      db=9,017,000,000 ext=577,000,000 d=1462.74%
+      action: manual review - the SEC value differs and no heuristic explains why [tag RevenueFromContractWithCustomerIncludingAssessedTax]
+  DIFFERENT_TAG        net_income             sec_edgar      db=2,376,000,000 ext=2,522,000,000 d=5.79%
+      action: consider mapping both - the DB value matches the SEC tag NetIncomeLossAvailableToCommonStockholdersBasic, not the preferred one [tag NetIncomeLoss]
+  DIFFERENT_TAG        shares_outstanding     sec_edgar      db=672,502,856 ext=901,819,022 d=25.43%
+      action: consider mapping both - the DB value matches the SEC tag CommonStockSharesOutstanding, not the preferred one [tag dei:EntityCommonStockSharesOutstanding]
+FRT (CIK 0000034903) FY2024 (end 2024-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=83,566,000 ext=85,666,220 d=2.45%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+FSLR (CIK 0001274494) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+GWW (CIK 0000277135) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=10 ext=9 d=10.18%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareCashPaid]
+HAS (CIK 0000046080) FY2025 (end 2025-12-28)
+  DIFFERENT_TAG        revenue                sec_edgar      db=5,365,900,000 ext=4,701,300,000 d=14.14%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=140,200,000 ext=220,286,736 d=36.36%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesIssued]
+HSIC (CIK 0001000228) FY2025 (end 2025-12-27)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=121,717,876 ext=115,771,149 d=5.14%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+HUBB (CIK 0000048898) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+IBKR (CIK 0001381197) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         revenue                sec_edgar      db=6,205,000,000 ext=2,440,000,000 d=154.30%
+      action: manual review - the SEC value differs and no heuristic explains why [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=443,859,546 ext=63,985,335 d=593.69%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=0 ext=0 d=1107.59%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareCashPaid]
+JKHY (CIK 0000779152) FY2026 (end 2026-06-30)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=72,043,000 ext=70,112,608 d=2.75%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+LDOS (CIK 0001336920) FY2025 (end 2025-01-03)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=136,000,000 ext=131,163,899 d=3.69%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+LIN (CIK 0001707925) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+LMT (CIK 0000936468) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+LUV (CIK 0000092380) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=558,000,000 ext=491,317,990 d=13.57%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+MCD (CIK 0000063908) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=716 ext=710,398,642 d=100.00%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+  UNCLASSIFIED         eps_diluted            sec_edgar      db=11,952,820 ext=12 d=100023495.43%
+      action: manual review - the SEC value differs and no heuristic explains why [tag EarningsPerShareDiluted]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=7,139,866 ext=7 d=99579621.01%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareDeclared]
+MET (CIK 0001099219) FY2025 (end 2025-12-31)
+  DIFFERENT_TAG        revenue                sec_edgar      db=77,084,000,000 ext=2,436,000,000 d=3064.37%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+  DIFFERENT_TAG        net_income             sec_edgar      db=3,173,000,000 ext=3,379,000,000 d=6.10%
+      action: consider mapping both - the DB value matches the SEC tag NetIncomeLossAvailableToCommonStockholdersBasic, not the preferred one [tag NetIncomeLoss]
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=673,300,000 ext=652,053,867 d=3.26%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+META (CIK 0001326801) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+MO (CIK 0000764180) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+MOS (CIK 0001285785) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+MS (CIK 0000895421) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         revenue                sec_edgar      db=70,645,000,000 ext=34,275,000,000 d=106.11%
+      action: manual review - the SEC value differs and no heuristic explains why [tag Revenues]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=4 ext=4 d=7.57%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareDeclared]
+MTD (CIK 0001037646) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+NDSN (CIK 0000072331) FY2025 (end 2025-10-31)
+  all comparisons within tolerance
+NEM (CIK 0001164727) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+NOC (CIK 0001133421) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+NOW (CIK 0001373715) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+NVDA (CIK 0001045810) FY2026 (end 2026-01-25)
+  all comparisons within tolerance
+ODFL (CIK 0000878927) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+ON (CIK 0001097864) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=411,800,000 ext=394,020,530 d=4.51%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+OTIS (CIK 0001781335) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+PEP (CIK 0000077476) FY2025 (end 2025-12-27)
+  all comparisons within tolerance
+PFG (CIK 0001126328) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=225,700,000 ext=216,835,141 d=4.09%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+PG (CIK 0000080424) FY2026 (end 2026-06-30)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=2,422,500,000 ext=2,324,433,060 d=4.22%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+PLTR (CIK 0001321655) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=2,565,197,000 ext=2,391,192,000 d=7.28%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+PPL (CIK 0000922224) FY2019 (end 2019-12-31)
+  RESTATEMENT          revenue                sec_edgar      db=7,769,000,000 ext=5,541,000,000 d=40.21%
+      action: none, expected - matches a superseded filing of the same period (amended 10-K) [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+  RESTATEMENT          capital_expenditure    sec_edgar      db=3,083,000,000 ext=2,243,000,000 d=37.45%
+      action: none, expected - matches a superseded filing of the same period (amended 10-K) [tag PaymentsToAcquirePropertyPlantAndEquipment]
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=736,754,000 ext=767,233,000 d=3.97%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+PSX (CIK 0001534701) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+PWR (CIK 0001050915) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+RJF (CIK 0000720005) FY2025 (end 2025-09-30)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=206,600,000 ext=198,139,594 d=4.27%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+RMD (CIK 0000943819) FY2026 (end 2026-06-30)
+  all comparisons within tolerance
+RSG (CIK 0001060391) FY2025 (end 2025-12-31)
+  DIFFERENT_TAG        revenue                sec_edgar      db=19,027,000,000 ext=16,591,000,000 d=14.68%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+SRE (CIK 0001032208) FY2025 (end 2025-12-31)
+  DIFFERENT_TAG        revenue                sec_edgar      db=13,702,000,000 ext=12,418,000,000 d=10.34%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerExcludingAssessedTax]
+STE (CIK 0001757898) FY2026 (end 2026-03-31)
+  all comparisons within tolerance
+STLD (CIK 0001022671) FY2025 (end 2025-12-31)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=148,404,000 ext=144,940,102 d=2.39%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+T (CIK 0000732717) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=7,179,000,000 ext=7,000,577,201 d=2.55%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+TKO (CIK 0001973266) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         eps_diluted            sec_edgar      db=1 ext=2 d=55.43%
+      action: manual review - the SEC value differs and no heuristic explains why [tag EarningsPerShareDiluted]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=1 ext=4 d=75.28%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareCashPaid]
+TSN (CIK 0000100493) FY2025 (end 2025-09-27)
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=357,000,000 ext=22,400,000 d=1493.75%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesIssued]
+TT (CIK 0001466258) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=4 ext=1 d=220.95%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareCashPaid]
+TXN (CIK 0000097476) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+ULTA (CIK 0001403568) FY2025 (end 2025-02-01)
+  DIFFERENT_TAG        shares_outstanding     sec_edgar      db=47,404,000 ext=45,965,000 d=3.13%
+      action: consider mapping both - the DB value matches the SEC tag CommonStockSharesIssued, not the preferred one [tag CommonStockSharesOutstanding]
+UNP (CIK 0000100885) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+VLTO (CIK 0001967680) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+VRTX (CIK 0000875320) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+WDAY (CIK 0001327811) FY2026 (end 2026-01-31)
+  UNCLASSIFIED         shares_outstanding     sec_edgar      db=268,117,000 ext=212,000,000 d=26.47%
+      action: manual review - the SEC value differs and no heuristic explains why [tag dei:EntityCommonStockSharesOutstanding]
+WEC (CIK 0000783325) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         capital_expenditure    sec_edgar      db=4,804,200,000 ext=2,696,900,000 d=78.14%
+      action: manual review - the SEC value differs and no heuristic explains why [tag PaymentsToAcquirePropertyPlantAndEquipment]
+WM (CIK 0000823768) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+WRB (CIK 0000011544) FY2025 (end 2025-12-31)
+  DIFFERENT_TAG        revenue                sec_edgar      db=14,707,856,000 ext=555,763,000 d=2546.43%
+      action: consider mapping both - the DB value matches the SEC tag Revenues, not the preferred one [tag RevenueFromContractWithCustomerIncludingAssessedTax]
+  INFORMATIONAL        shares_outstanding     sec_edgar      db=399,861,000 ext=377,155,799 d=6.02%
+      action: none, informational only (market-data field) - informational only: the database sources this field from market data [tag CommonStockSharesOutstanding]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=2 ext=2 d=5.34%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareCashPaid]
+WY (CIK 0000106535) FY2025 (end 2025-12-31)
+  all comparisons within tolerance
+YUM (CIK 0001041061) FY2025 (end 2025-12-31)
+  UNCLASSIFIED         eps_diluted            sec_edgar      db=6 ext=2 d=133.11%
+      action: manual review - the SEC value differs and no heuristic explains why [tag EarningsPerShareDiluted]
+  UNCLASSIFIED         dividends_per_share    sec_edgar      db=3 ext=1 d=205.20%
+      action: manual review - the SEC value differs and no heuristic explains why [tag CommonStockDividendsPerShareDeclared]
+
+By classification:
+  DIFFERENT_PERIOD     2
+  DIFFERENT_TAG        13
+  INFORMATIONAL        22
+  MATCH                825
+  RESTATEMENT          3
+  SKIPPED              19
+  UNCLASSIFIED         43
+
+Summary: tickers=100 fundamentals=100 errors=0 comparisons=927 skipped=19 expected=865 data_error_fdb=0 data_error_external=0 informational=22 unclassified=43 sec=100 yahoo=0
+wrote logs/audit_a/audit_data_quality_2026-10-17.log, logs/audit_a/audit_data_quality_2026-10-17.json and logs/audit_a/audit_data_quality_2026-10-17.csv

@@ -74,6 +74,14 @@ Measured 2026-10-14 (stability/precision sprint):
    fixes touch React state flow, so they were deferred ahead of v0.1.1.
    *Effort*: S-M.
 
+6. **Wire ROIC / interest coverage / current ratio into
+   `FinancialInsightsService`.** The scorecard's Financial Health dimension
+   marks `current_ratio` `INSUFFICIENT` because no calculator exposes it. ROIC
+   and interest coverage are already wired through `backend/analytics/ratios`
+   (the scorecard calls `RoicCalculator` / `InterestCoverageCalculator`
+   directly on the latest row). Promoting all three to first-class insights
+   would remove the scorecard's only direct calculator calls. *Effort*: S.
+
 ### P3 — deferred / future
 
 5. ~~**Marks cycle positioning**~~ — shipped in v0.3.0 as the 8th
@@ -100,6 +108,128 @@ Measured 2026-10-14 (stability/precision sprint):
 - **Ubuntu 26 migration (2026-10-19)**: GitHub Actions `ubuntu-latest`
   migrates to Ubuntu 26. Workflows are pinned to `ubuntu-24.04` (done);
   review and test on `ubuntu-26.04` when available.
+- ~~**Hand-written `Pipfile.lock` entry for `plotly` (v0.17.0)**~~ — closed
+  2026-10-20: the full `pipenv lock` ran on `chore/pipenv-lock-cleanup`
+  (branched from v0.19.0, `3d873ea`). `plotly` resolved to 7.1.0 unchanged,
+  so pipenv's own resolution now backs the entry and `_meta.hash.sha256` is
+  pipenv's again. See "2026-10-20 — Pipenv lock exceptions" below for the
+  three majors that were reverted.
+
+## 2026-10-20 — Pipenv lock exceptions
+
+`Pipfile.lock` was regenerated from scratch on a clean branch
+(`rm Pipfile.lock && pipenv lock`, pipenv 2026.8.0). `_meta.hash.sha256`
+stayed `9c5fd439…62eb3` because the `Pipfile` was not touched. 39 lock
+entries moved: 33 runtime version changes, `toml` dropped (no longer pulled
+by any runtime dependency) and 6 dev-package entries. `plotly` resolved to
+7.1.0 (unchanged) and `streamlit` only moved 1.64.0 → 1.66.0 (minor).
+
+The three major bumps below were reverted **individually**, back to the
+exact previous lock entry (version + hashes + markers copied verbatim). The
+`Pipfile` and `_meta` were left untouched, so `pipenv install --deploy`
+still validates the hash. Each was constraint-checked against the *new*
+parent versions before being pinned:
+
+- `pyarrow` pinned to `25.0.1` (major `26.0.0` deferred): a C++ binary
+  extension pulled by `edgartools` and `streamlit`; a major here moves the
+  Arrow ABI under pandas/Polars with no functional gain for this project.
+  `edgartools 5.62.0` requires `pyarrow>=23.0.1` and `streamlit 1.66.0`
+  requires `pyarrow!=25.0.0,<27,>=10.0.1` (only 25.0.0 is excluded) — 25.0.1
+  satisfies both.
+- `websockets` pinned to `16.1.1` (major `17.3` deferred): the protocol layer
+  behind `streamlit` sessions and `uvicorn[standard]`; protocol majors are a
+  common source of silent stream/UI breakage. `streamlit 1.66.0` requires
+  `>=12,<18`, and both `yfinance 1.7.0` and `uvicorn 0.54.0[standard]` require
+  `>=13` — 16.1.1 satisfies all three.
+- `soupsieve` pinned to `2.10` (major `3.0.3` deferred): the CSS-selector
+  engine behind `beautifulsoup4`, i.e. the parsing path the EDGAR filing
+  reader uses. `beautifulsoup4 4.15.0` requires `soupsieve>=1.6.1` — 2.10
+  satisfies it.
+
+To lift a pin, delete that one entry from the lock and re-run `pipenv lock`
+once the major has a release or two of soak time. Nothing here is a
+`Pipfile` constraint: these are transitive dependencies, so the next
+regeneration will propose the majors again.
+
+- Guard: `tests/unit/test_pipfile_lock_pins.py` fails if any pinned
+  exception is silently reintroduced by a `pipenv lock` from scratch.
+
+## 2026-10-20 — ruff pinning
+
+`ruff` is now a pinned dev dependency (`ruff = "==0.16.4"` in
+`Pipfile[dev-packages]`) and its configuration moved out of the standalone
+`ruff.toml` into `pyproject.toml [tool.ruff]`, so lint and coverage config
+live in the same file. `required-version = "==0.16.4"` makes the binary
+refuse to run at all if it is ever swapped: with 0.17.1 on the PATH the run
+aborts with "Required version `==0.16.4` does not match the running version
+`0.17.1`".
+
+**Why 0.16.4 and not the current 0.17.x.** ruff's *stable defaults* are not a
+fixed contract. Measured 2026-10-20 on this tree, comparing the two binaries
+with `--isolated` (defaults only, no project config): 0.16.4 reports 40
+findings, 0.17.1 reports 47. The entire delta is `RUF100` (4 → 11): the `DTZ`
+rules left the default set in 0.17, so seven existing `# noqa: DTZ001` /
+`DTZ005` comments in *tracked* files — `scripts/daily_workflow.py:570`,
+`scripts/validate_sp500.py:67` and five lines in
+`tests/unit/test_price_service.py` — stop being "used" directives and become
+violations instead. Same tree, same config, different verdict. Under the
+project config the pre-fix totals were 12 (0.16.4) vs 19 (0.17.1).
+
+0.16.4 is the version the whole cleanup sprint was measured with, so it is
+the version that is pinned. Moving to 0.17 is a separate task: drop the seven
+`DTZ` noqa directives (the rules are off), re-measure the baseline, then bump
+`required-version`, the Pipfile and this note together.
+
+**Why there is no explicit `select`.** An explicit rule list is the obvious
+way to make linting version-independent, but ruff 0.16.4 enables **413 rules
+by default** and they are *not* aligned to rule groups — only 3 of the 58 `S` rules, 2 of
+the 18 `E` rules, 29 of the 39 `B` rules, and so on. Three measurements on
+this tree:
+
+- `select` set to the group prefixes present in the defaults → **12,007
+  errors** (11,977 in tracked code), because every prefix pulls in the rules
+  the defaults deliberately leave off;
+- `select = ["ALL"]` → 810 rules, requiring a ~397-entry `ignore` list to
+  get back to the current baseline;
+- an exact prefix cover of the 413 defaults does not exist (only 5 prefixes
+  are admissible, covering 30 rules), so the faithful alternative is a list
+  of ~380 individual codes.
+
+The codebase already passes all 413 default rules, so freezing the *version*
+freezes the rule set exactly — no ignore list, no coverage loss, no
+unmaintainable config. A curated `select` remains possible, but it is a
+lint-policy conversation: it would trade currently-passing rules for a
+hand-picked subset, and it belongs in its own change with its own review.
+
+**`scripts_dev/` is excluded, not linted** (`extend-exclude`, together with
+`.venv` and `node_modules`). It is tracked in git — three dev helpers: the
+screenshot harness, the fixture surgery script and the theme verifier — so a
+clean clone *does* see it; excluding it is what takes `ruff check .` from 6
+findings to 0. Those files still carry stale `# noqa: E402` comments that
+would become `RUF100` noise if the exclusion were ever lifted.
+
+**CI has no lint job.** `.github/workflows/ci.yml` installs everything from
+the lock (`pipenv install --system --deploy --dev`), so CI now gets
+`ruff==0.16.4` exactly like a local clone, with no workflow edit needed.
+`scripts/release.sh` is the only place that invokes ruff directly and it
+picks up the pinned binary from `.venv`.
+
+**Lock note.** `ruff` has zero runtime dependencies, so its entry was carried
+into the lock and `_meta.hash.sha256` is pipenv's own value for the edited
+`Pipfile` — the result is "previous lock + ruff", nothing else moved, and
+`pipenv install --deploy --dev` accepts it. A plain `pipenv lock` re-resolves
+everything and re-proposes the three majors reverted above (`pyarrow 26`,
+`soupsieve 3`, `websockets 17`) plus unrelated minors (`fastapi 0.151`), so
+the next regeneration needs the same review-and-revert pass documented in the
+section above.
+
+Baseline after this change: `ruff check .` 0, `ruff format --check .` 0 (564
+files), unit 2363 passed / 2 skipped, api 125 passed. The six tracked findings
+that were fixed are 2 × `I001` (`ui/pages/02_analysis.py`,
+`ui/pages/04_portfolio.py`) and 4 × `C408` (`ui/theme/plotly_template.py`,
+`dict(...)` → literals); three further files were reformatted to reach a
+clean `ruff format --check .` (`tests/unit/test_ui_theme.py`, `ui/_shared.py`,
+`ui/pages/06_consensus.py`) — cosmetic only.
 
 ## Shipped: real-time financial alerts (v0.10.1)
 

@@ -1,0 +1,291 @@
+/* Synthwave-yuppie design system for the Value Investing Streamlit UI.
+ *
+ * Contract (see docs/ui_design_system.md):
+ *   - Custom markup uses the .vi-* prefix.
+ *   - Streamlit-owned leaf widgets (tables, metrics, dataframe grid) are
+ *     styled through their stable data-testid, which is targeted and cannot
+ *     disturb layout. Layout containers (stAppViewContainer, block-container,
+ *     columns) are deliberately left alone.
+ *   - No important-flagged rules anywhere, so Streamlit keeps the last word
+ *     on layout.
+ */
+
+/* Google Fonts: Playfair Display (headings) + JetBrains Mono (body/numbers). */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --vi-bg: #0a0a1a;
+  --vi-surface: #14142b;
+  --vi-neon-pink: #ff2d95;
+  --vi-neon-cyan: #00f0ff;
+  --vi-neon-purple: #9b4dff;
+  --vi-gold: #d4af37;
+  --vi-cream: #f0e6d2;
+  --vi-chrome: #c0c0d0;
+  --vi-dim: #4a4a6a;
+}
+
+/* Body: deep night, mono font, cream text.
+ * Streamlit pins its own font (Source Code Pro) on the app container and on
+ * captions via emotion-cache rules, so the text selectors are scoped under
+ * [data-testid="stAppViewContainer"] to win on specificity without
+ * specificity battle, with no important-flagged rules. */
+body {
+  background-color: var(--vi-bg);
+  color: var(--vi-cream);
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] p,
+[data-testid="stAppViewContainer"] li,
+[data-testid="stAppViewContainer"] label,
+[data-testid="stAppViewContainer"] [data-testid="stText"],
+[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Headings: bold serif (80s annual report). Gradient only on h1.
+ * Streamlit renders titles with an inner <span data-heading-text> that
+ * carries its own emotion-cache font, so both the element and the inner
+ * span are targeted to win the specificity battle without important-flagged
+ * rules. */
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  color: var(--vi-cream);
+}
+[data-testid="stAppViewContainer"] h1 span[data-heading-text],
+[data-testid="stAppViewContainer"] h2 span[data-heading-text],
+[data-testid="stAppViewContainer"] h3 span[data-heading-text] {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+}
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h1 span[data-heading-text] {
+  font-weight: 900;
+  background: linear-gradient(90deg, var(--vi-neon-pink) 0%, var(--vi-neon-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Header band: gradient + low-opacity perspective grid + sunset strip. */
+.vi-header {
+  position: relative;
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  background: linear-gradient(135deg, #1c1038 0%, #14142b 55%, #0a0a1a 100%);
+  overflow: hidden;
+}
+.vi-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 240, 255, 0.09) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(0deg, rgba(255, 45, 149, 0.07) 0 1px, transparent 1px 44px);
+}
+.vi-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--vi-neon-pink), var(--vi-neon-purple), var(--vi-neon-cyan));
+}
+.vi-header h1 {
+  margin: 0;
+}
+.vi-header p {
+  margin: 0.2rem 0 0;
+  color: var(--vi-chrome);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Cards: surface + 1px neon border, hover raises with shadow. */
+.vi-card {
+  background: var(--vi-surface);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1.1rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.vi-card:hover {
+  border-color: var(--vi-neon-cyan);
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.35);
+  transform: translateY(-2px);
+}
+
+/* st.metric widgets get the card look (leaf widget, not a layout block). */
+[data-testid="stMetric"] {
+  background: var(--vi-surface);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.9rem;
+}
+[data-testid="stMetricLabel"] {
+  color: var(--vi-chrome);
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stMetricValue"] {
+  color: var(--vi-cream);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Tables (st.table): mono font, gold header underline, zebra rows. */
+[data-testid="stTable"] table,
+[data-testid="stTable"] th,
+[data-testid="stTable"] td {
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stTable"] thead th {
+  border-bottom: 2px solid var(--vi-gold);
+  color: var(--vi-gold);
+}
+[data-testid="stTable"] tbody tr:nth-child(even) {
+  background-color: rgba(0, 240, 255, 0.05);
+}
+
+/* st.dataframe grid: mono font + gold header underline. */
+[data-testid="stDataFrame"] {
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-testid="stDataFrame"] [role="columnheader"] {
+  border-bottom: 2px solid var(--vi-gold);
+  color: var(--vi-gold);
+}
+
+/* Big chrome number: the single spotlight (overall verdict). */
+.vi-big-number {
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: 3.2rem;
+  line-height: 1.1;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff 0%, #c0c0d0 38%, #7f7f9c 54%, #c0c0d0 70%, #ffffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: vi-pulse 2s ease-in-out infinite;
+}
+@keyframes vi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+/* Small inline chip (e.g. DCF disclaimer). */
+.vi-chip {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--vi-gold);
+  color: var(--vi-gold);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+/* Links: neon cyan. */
+a {
+  color: var(--vi-neon-cyan);
+}
+
+/* --- Balance sheet T-view ---------------------------------------------- */
+/* Vertical separator between the two sides of the T (the right column is
+   the one that carries the LIABILITIES header). */
+div[data-testid="stHorizontalBlock"]:has(> div:nth-child(2) .vi-bs-head)
+  > div:nth-child(2) {
+  border-left: 1px solid var(--vi-dim);
+}
+/* Column headers (ASSETS / LIABILITIES + EQUITY). */
+.vi-bs-head {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: var(--vi-gold);
+  border-top: 2px solid var(--vi-gold);
+  padding: 0.4rem 0 0.3rem;
+  margin-bottom: 0.2rem;
+}
+/* Line-item tables: quiet borders, hierarchy by weight, mono numbers. */
+.vi-bs-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.vi-bs-lines th {
+  color: var(--vi-dim);
+  font-weight: 400;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--vi-dim);
+}
+.vi-bs-lines td {
+  padding: 0.28rem 0.4rem;
+  border-bottom: 1px solid rgba(74, 74, 106, 0.35);
+}
+.vi-bs-label { text-align: left; }
+.vi-bs-num {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+.vi-bs-lines tr.vi-bs-subtotal td {
+  border-top: 1px solid var(--vi-chrome);
+  border-bottom: none;
+  font-weight: 700;
+  background: var(--vi-surface);
+}
+/* Footer totals: anchored, gold rule, larger mono figures. */
+.vi-bs-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  border-top: 2px solid var(--vi-gold);
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.4rem;
+  background: var(--vi-surface);
+}
+.vi-bs-total-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: var(--vi-gold);
+}
+.vi-bs-total .vi-bs-num { font-size: 1.15rem; font-weight: 700; }
+/* YoY arrows: explicit sign in the markup, color as reinforcement. */
+.vi-bs-up { color: var(--vi-neon-cyan); }
+.vi-bs-down { color: var(--vi-neon-pink); }
+/* Unmapped leftovers: muted, clearly separated from the curated masses. */
+.vi-bs-other {
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--vi-dim);
+}
+.vi-bs-other-title {
+  color: var(--vi-dim);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+
+/* --- Statement sub-tab density ---------------------------------------- */
+/* Second-level tab panels (the statement sub-tabs under Financials)
+   tighten their vertical rhythm so each flat table sits close to its
+   captions and download button. Scoped to nested panels so the main
+   tab bars keep their default breathing room. */
+[data-testid="stTabs"]
+  [role="tabpanel"]
+  [data-testid="stTabs"]
+  [role="tabpanel"] > div[data-testid="stVerticalBlock"] {
+  gap: 0.4rem;
+}

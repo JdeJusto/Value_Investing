@@ -195,3 +195,19 @@ Exit codes:
 
 `--no-yahoo` limits the comparison to SEC EDGAR; `--seed` / `--sample` control
 the sample.
+
+## 9. Classifying differences (the `audit_data_quality` companion)
+
+`validate_data_sample` answers *does it differ*; `scripts/audit_data_quality.py`
+answers *why*. It samples the same universe, compares nine fundamentals plus
+shares and dividends between Financial-DataBase, SEC EDGAR and (optionally)
+Yahoo Finance, and runs a deterministic classifier over each pair — `MATCH`,
+`DIFFERENT_PERIOD`, `DIFFERENT_TAG`, `SPLIT_ADJUSTMENT`, `RESTATEMENT`,
+`DATA_ERROR_FDB`, `DATA_ERROR_EXTERNAL` or `UNCLASSIFIED`. Only
+`DATA_ERROR_FDB` (the DB value traces to no SEC filing at all) is a defect.
+Reports land in `logs/audit_data_quality_<YYYY-MM-DD>.{log,json,csv}` and the
+exit code is `0` (only expected differences), `1` (at least one
+`DATA_ERROR_FDB`) or `2` (could not run). It runs monthly from the boot wrapper;
+see `docs/runbook_daily.md` for the cadence and
+`docs/data_gaps_investigation.md` ("Cross-source expected differences") for the
+baseline run and every expected class.

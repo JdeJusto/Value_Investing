@@ -21,10 +21,17 @@ exactly where the user's judgment matters most.
 
 ## Data flow
 
-The computation is expensive (8 methodologies x N companies), so the primary
-model is **weekly precompute**:
+The computation is expensive (8 methodologies x N companies), so it is
+precomputed as part of the normal daily workflow (and can also be run
+manually):
 
-1. `scripts/compute_consensus_rankings.py --universe sp500` reads the
+1. `scripts.daily_workflow` invokes
+   `scripts/compute_consensus_rankings.py` after screening and alerts. It uses
+   the same `--universe`, `--limit`, `--date` and `--no-prices` settings as the
+   daily run. The standalone command remains available when only the consensus
+   needs refreshing:
+   `python -m scripts.compute_consensus_rankings --universe sp500`.
+2. The consensus computation reads the
    universe and prefetches one Yahoo price/market-cap snapshot
    (`PriceService.get_market_snapshots`, bounded workers, preflight first —
    when Yahoo is down the whole prefetch is skipped instead of hammering
@@ -33,9 +40,13 @@ model is **weekly precompute**:
    are evaluated with a bounded `ThreadPoolExecutor` (4 workers) receiving
    each company's price and market cap, and the result is written to
    `data/consensus/consensus_<date>.json`.
-2. `ConsensusService` reads the JSON for the UI/CLI and derives rankings.
-3. Ad-hoc runs use the same script with `--universe`, `--limit` and
+3. `ConsensusService` reads the JSON for the UI/CLI and derives rankings.
+4. Ad-hoc runs use the same script with `--universe`, `--limit` and
    `--date`; rerunning a date overwrites cleanly (idempotent).
+
+The consensus artifact is auxiliary to the daily report: a consensus failure
+is logged but does not discard the screening, alerts or daily report already
+generated.
 
 A file older than 30 days is treated as stale (the service refuses it and the
 UI shows the empty state). Financial-DataBase is only read; prices are fetched

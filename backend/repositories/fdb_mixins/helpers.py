@@ -6,7 +6,43 @@ Pure move out of ``financial_database_repository`` (which re-exports
 
 from __future__ import annotations
 
+import math
 from datetime import date
+
+
+def _repair_share_scale(candidate: float, share_values) -> float:
+    """Rescale a share count the issuer filed in scaled units.
+
+    Some issuers tag their weighted-average share counts in millions
+    (McDonald's FY2025: ``WeightedAverageNumberOfDilutedSharesOutstanding``
+    = 716.4 for 716.4 million shares) while the balance-sheet and
+    cover-page counts are filed in units. Because the dedup prefers the
+    longest span, the scaled weighted average wins, and the stored count
+    would be ~1e6x too small — inflating every derived per-share metric
+    (EPS reads 11.95M dollars per share).
+
+    ``share_values`` are the other share counts normalized in the same
+    fiscal-year bucket. When the largest of them is at least 100x the
+    candidate, the candidate was filed scaled down and is multiplied by
+    ``10 ** round(log10(ratio))`` to bring it back to units. A legitimate
+    weighted-average count never diverges from the end-of-period count by
+    100x or more, so the rule cannot fire on genuine mid-year issuance.
+    This is the same threshold and formula the cover-page anchor repair in
+    ``SharesMixin._get_shares_outstanding_uncached`` applies.
+
+    Pure function — no database, no network.
+    """
+    if candidate <= 0:
+        return candidate
+    values = [float(v) for v in (share_values or []) if v and float(v) > 0]
+    if not values:
+        return candidate
+    reference = max(values)
+    # ratio = reference / candidate < 100 -> consistent magnitudes.
+    if reference < candidate * 100.0:
+        return candidate
+    ratio = reference / candidate
+    return candidate * (10 ** round(math.log10(ratio)))
 
 
 def _period_end_year(value) -> int | None:

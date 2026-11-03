@@ -27,10 +27,13 @@ from backend.services.ui_adapter import (
 )
 from backend.services.ui_format import abbreviate_number
 from ui._shared import (
+    _color_dataframe,
     dataframe_with_download,
     format_pct,
     metric_row,
     page_header,
+    render_html,
+    rows_to_csv,
 )
 from ui.services import (
     get_price_service,
@@ -38,7 +41,11 @@ from ui.services import (
     load_fundamentals,
     load_historical_valuation,
     load_quote,
+    load_scorecard,
+    load_scorecard_charts,
 )
+from ui.theme import VERDICT_COLORS
+from ui.theme import header as theme_header
 
 DCF_DISCLAIMER = (
     "**not-from-canon** — the DCF is not part of any book methodology and "
@@ -68,11 +75,12 @@ def _load_narrative_cached(record_key: tuple, section_value: str) -> dict:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
-    """Cached (view, insights, alerts) keyed by (ticker, period, years).
+    """Cached (view, insights, alerts, balance numeric, units) per ticker.
 
-    One fact read feeds the tables, the Summary panel and the sidebar alerts
-    — no second source. Renders within the TTL reuse it; the data only
-    changes on a SEC sync. Demo mode reads the pinned fixtures instead.
+    One fact read feeds the tables, the T-format balance, the Summary panel
+    and the sidebar alerts — no second source. Renders within the TTL reuse
+    it; the data only changes on a SEC sync. Demo mode reads the pinned
+    fixtures instead (its display strings are parsed back to numbers).
     """
     from backend.services.alert_service import AlertService, load_demo_alerts
     from backend.services.financial_insights_service import (
@@ -80,25 +88,31 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
         load_demo_insights,
     )
     from backend.services.financials_view_service import FinancialsViewService
+    from ui.balance_sheet import numeric_from_facts, numeric_from_view
 
     service = FinancialsViewService()
     if is_demo():
+        view = service.build(ticker, fiscal_period, max_years)
+        balance_numeric, balance_units = numeric_from_view(view) if view else ({}, {})
         return (
-            service.build(ticker, fiscal_period, max_years),
+            view,
             load_demo_insights(ticker),
             load_demo_alerts(ticker),
+            balance_numeric,
+            balance_units,
         )
     facts = service.fetch_facts(ticker, fiscal_period, max_years)
     view = service.build(ticker, fiscal_period, max_years, facts=facts, abbreviate=True)
     if view is None or not facts:
-        return view, None, None
+        return view, None, None, {}, {}
     report = FinancialInsightsService(facts, ticker, view.company_name).build(
         abbreviate=True
     )
     alerts = AlertService(facts).build(
         ticker, view.company_name, fiscal_period, abbreviate=True
     )
-    return view, report, alerts
+    balance_numeric, balance_units = numeric_from_facts(facts, view.years)
+    return view, report, alerts, balance_numeric, balance_units
 
 
 def main() -> None:
@@ -201,6 +215,7 @@ def _render_single(ticker: str) -> None:
         [
             "Overview",
             "Methodologies",
+            "Scorecard",
             "DCF",
             "Historical",
             "Filings",
@@ -213,14 +228,16 @@ def _render_single(ticker: str) -> None:
     with tabs[1]:
         _methodologies(ticker, view)
     with tabs[2]:
-        _dcf_panel(dcf)
+        _render_scorecard(ticker)
     with tabs[3]:
-        _historical(ticker)
+        _dcf_panel(dcf)
     with tabs[4]:
-        _filings(ticker)
+        _historical(ticker)
     with tabs[5]:
-        _financials(ticker)
+        _filings(ticker)
     with tabs[6]:
+        _financials(ticker)
+    with tabs[7]:
         _raw(ticker)
 
 
@@ -453,7 +470,7 @@ def _price_header(ticker: str, rows: list, quote: dict) -> None:
     price = quote.get("price")
     market_cap = quote.get("market_cap")
     sector = getattr(rows[0], "sector", None) if rows else None
-    st.markdown(f"**{ticker}**")
+    theme_header(ticker, sector or "")
     col1, col2, col3 = st.columns(3)
     col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
     col2.metric(
@@ -538,7 +555,11 @@ def _consensus_entry(ticker: str) -> None:
 def _methodologies(ticker: str, view) -> None:
     with st.expander("Consensus entry", expanded=False):
         _consensus_entry(ticker)
-    st.dataframe(view.table, width="stretch", hide_index=True)
+    st.dataframe(
+        _color_dataframe(view.table, {"Verdict": VERDICT_COLORS}),
+        width="stretch",
+        hide_index=True,
+    )
     for detail in view.details:
         title = f"{detail['methodology']} — {detail['verdict']} ({detail['family']})"
         with st.expander(title):
@@ -591,8 +612,363 @@ def _methodologies(ticker: str, view) -> None:
                 st.markdown(f"- **{flag}**")
 
 
+#: Per-rule glyph (PASS / WATCH / FAIL / INSUFFICIENT) — mirrors the CLI.
+_SCORECARD_STATUS_MARK = {
+    "PASS": "✓",
+    "WATCH": "⚠",
+    "FAIL": "✗",
+    "INSUFFICIENT": "·",
+}
+
+
+def _render_scorecard(ticker: str) -> None:
+    """The six-dimension scorecard: radar, cards, charts and rule tables.
+
+    Presentation only: everything shown comes from ``ScorecardService`` and
+    ``ScorecardChartService`` verbatim. The tab never recomputes a financial
+    figure, and a missing price or an unapplicable rule degrades instead of
+    crashing the page.
+    """
+    try:
+        card = load_scorecard(ticker, "FY")
+    except Exception as exc:  # noqa: BLE001 — report, never leak a traceback
+        st.error(f"Could not build the scorecard for {ticker}: {exc}")
+        return
+    if card is None:
+        _render_missing_fundamentals(ticker)
+        return
+
+    _scorecard_header(card)
+    st.caption("Based on the current fundamentals · FY data")
+    if card.get("period") != "FY":
+        st.caption("Quarterly data not available for all rules.")
+
+    dimensions = card["dimensions"]
+    dimension_labels = [dimension["label"] for dimension in dimensions]
+    visible = set(_scorecard_radar_filter(dimension_labels))
+    focus = _scorecard_focus(dimensions, ticker)
+    _scorecard_radar(
+        [dimension for dimension in dimensions if dimension["label"] in visible],
+        total=len(dimensions),
+    )
+
+    for start in range(0, len(dimensions), 2):
+        columns = st.columns(2)
+        for column, dimension in zip(columns, dimensions[start : start + 2]):
+            with column:
+                _scorecard_dimension(dimension, expanded=focus == dimension["label"])
+
+    _scorecard_charts(ticker, card)
+
+    if card["disagreements"]:
+        st.warning("\n".join(f"- {item}" for item in card["disagreements"]))
+        st.caption(
+            "These dimensions point in different directions; read them "
+            "together, not as an average."
+        )
+
+    if card["overall"] in ("Strong", "Mixed") and any(
+        dimension["evaluable_rules"] < 3 for dimension in dimensions
+    ):
+        st.info(
+            "Some rules do not apply to this company type. See each dimension "
+            "for coverage details."
+        )
+
+    _scorecard_download(card, ticker)
+    st.caption("Data: Financial-DataBase · FY · Prices not persisted")
+
+
+def _scorecard_focus(dimensions: list[dict], ticker: str) -> str | None:
+    """Picker that opens one dimension's rules (radar axis-click fallback).
+
+    Streamlit's ``on_select`` axis-click is deliberately not wired yet; the
+    documented fallback is this selector.
+    """
+    labels = [dimension["label"] for dimension in dimensions]
+    choice = st.selectbox(
+        "Focus a dimension (opens its rules)",
+        ["—", *labels],
+        key=f"scorecard_focus_{ticker}",
+    )
+    return None if choice == "—" else choice
+
+
+#: Radar dimension filter (approved design option B): one global
+#: ``session_state`` key — shared across tickers — and a hard floor: at the
+#: floor the checked boxes render ``disabled``, so the uncheck is refused at
+#: the source instead of silently reverted after the click.
+_DIMENSIONS_FILTER_KEY = "scorecard_radar_filter"
+_DIMENSIONS_MIN_VISIBLE = 3
+#: Checkbox grid rows (six dimensions → two rows of three: wide tap targets).
+_RADAR_FILTER_ROW = 3
+
+
+def _radar_filter_widget_key(label: str) -> str:
+    """Explicit ``st.checkbox`` key for one dimension label."""
+    return f"scorecard_radar_dim_{label}"
+
+
+def _scorecard_radar_filter(all_dimensions: list[str]) -> list[str]:
+    """Checkbox grid choosing which dimensions the radar draws.
+
+    Presentation only: the dimension cards below always show all six. The
+    selection lives in one global ``session_state`` key, so it survives
+    ticker switches and reruns; the default is every dimension shown, which
+    renders the exact pre-filter radar. ``_DIMENSIONS_MIN_VISIBLE`` is
+    enforced natively — once only the minimum remain, their checkboxes are
+    rendered ``disabled``. Returns the visible labels in the canonical
+    dimension order.
+    """
+    if _DIMENSIONS_FILTER_KEY not in st.session_state:
+        st.session_state[_DIMENSIONS_FILTER_KEY] = list(all_dimensions)
+
+    def _commit_widget_states() -> None:
+        # ``on_change`` runs before the rerun a click triggers: by then the
+        # widget values in session_state already hold the user's choice.
+        previous = set(st.session_state.get(_DIMENSIONS_FILTER_KEY, all_dimensions))
+        st.session_state[_DIMENSIONS_FILTER_KEY] = [
+            label
+            for label in all_dimensions
+            if st.session_state.get(
+                _radar_filter_widget_key(label),
+                label in previous,
+            )
+        ]
+
+    visible_set = set(st.session_state[_DIMENSIONS_FILTER_KEY]) & set(all_dimensions)
+    visible = [
+        label for label in all_dimensions if label in visible_set
+    ]  # canonical order, unknown labels dropped
+
+    st.markdown("**Dimensions shown on radar**")
+    for start in range(0, len(all_dimensions), _RADAR_FILTER_ROW):
+        row = all_dimensions[start : start + _RADAR_FILTER_ROW]
+        columns = st.columns(len(row))
+        for column, label in zip(columns, row, strict=True):
+            with column:
+                checked = label in visible_set
+                widget_key = _radar_filter_widget_key(label)
+                # The global key wins over any stale widget state, so a
+                # programmatic selection and the checkboxes never diverge.
+                st.session_state[widget_key] = checked
+                st.checkbox(
+                    label,
+                    key=widget_key,
+                    disabled=checked and len(visible_set) <= _DIMENSIONS_MIN_VISIBLE,
+                    on_change=_commit_widget_states,
+                )
+    return visible
+
+
+def _scorecard_radar(dimensions: list[dict], *, total: int | None = None) -> None:
+    """The radar over ``dimensions`` (a filter subset) plus a text fallback.
+
+    ``total`` is how many dimensions the scorecard holds: when the filter
+    hides any, one caption states "N of M dimensions shown" joined with the
+    unscored-axis note — which only ever lists axes still visible.
+    """
+    from ui.charts import radar_data, radar_figure, radar_missing
+
+    labels, radii = radar_data(dimensions)
+    try:
+        figure = radar_figure(dimensions)
+    except Exception:  # noqa: BLE001 — plotly missing/old: fall back, never crash
+        figure = None
+    if figure is None:
+        st.caption("Radar unavailable — showing the dimension scores instead.")
+        import pandas as pd
+
+        st.bar_chart(
+            pd.DataFrame({"Dimension": labels, "Score": radii}),
+            x="Dimension",
+            y="Score",
+        )
+    else:
+        st.plotly_chart(figure, config={"displayModeBar": False})
+    captions = []
+    if total is not None and len(dimensions) < total:
+        captions.append(f"{len(dimensions)} of {total} dimensions shown")
+    missing = radar_missing(labels, radii)
+    if missing:
+        captions.append("Not scored (insufficient data): " + ", ".join(missing))
+    if captions:
+        st.caption(" · ".join(captions))
+
+
+def _scorecard_charts(ticker: str, card: dict) -> None:
+    """The four history charts (revenue/income, margins, returns, DCF/price),
+    plus the peer P/E comparison when the artifact covers this company."""
+    try:
+        payload = load_scorecard_charts(ticker)
+    except Exception:  # noqa: BLE001 — charts are additive; never break the tab
+        payload = None
+    st.markdown("##### Charts")
+    if not payload or not payload.get("years"):
+        st.caption("No fundamentals history to chart yet.")
+        return
+    from ui.charts import (
+        margin_figure,
+        returns_figure,
+        revenue_income_figure,
+        value_vs_price_figure,
+    )
+
+    panels = [
+        ("Revenue & net income", revenue_income_figure, "not enough data"),
+        ("Margins", margin_figure, "not enough data"),
+        ("ROE & ROIC", returns_figure, "not enough data"),
+        ("DCF value vs price", value_vs_price_figure, "price unavailable"),
+    ]
+    columns = st.columns(2)
+    for index, (title, builder, empty) in enumerate(panels):
+        with columns[index % 2]:
+            st.markdown(f"**{title}**")
+            try:
+                figure = builder(payload)
+            except Exception:  # noqa: BLE001 — one bad chart must not blank the tab
+                figure = None
+            if figure is None:
+                st.caption(empty)
+            else:
+                st.plotly_chart(figure, config={"displayModeBar": False})
+    _scorecard_peer_chart(card)
+
+
+def _scorecard_peer_chart(card: dict) -> None:
+    """P/E next to the peer median, only when the artifact covers the company."""
+    from ui.charts import peer_pe_figure
+
+    try:
+        figure = peer_pe_figure(card)
+    except Exception:  # noqa: BLE001 — peers are additive; never break the tab
+        figure = None
+    if figure is None:
+        return
+    st.markdown("**P/E vs peer median**")
+    st.plotly_chart(figure, config={"displayModeBar": False})
+
+
+def _scorecard_download(card: dict, ticker: str) -> None:
+    """Offer the frozen payload: JSON (the raw contract) and Markdown (a report).
+
+    Both are built from the same ``to_dict()`` payload, so the download can
+    never disagree with what the tab renders.
+    """
+    import json
+
+    from backend.services.scorecard_export import scorecard_to_markdown
+
+    json_column, markdown_column = st.columns(2)
+    with json_column:
+        st.download_button(
+            "Download scorecard JSON",
+            data=json.dumps(card, indent=2),
+            file_name=f"{ticker.lower()}_scorecard.json",
+            mime="application/json",
+            key=f"scorecard_download_{ticker}",
+        )
+    with markdown_column:
+        st.download_button(
+            "Download scorecard Markdown",
+            data=scorecard_to_markdown(card),
+            file_name=f"scorecard_{ticker}.md",
+            mime="text/markdown",
+            key=f"scorecard_download_md_{ticker}",
+        )
+
+
+def _scorecard_header(card: dict) -> None:
+    """Company identity, live price, overall label and data-quality badge.
+
+    The overall verdict is the one chrome "big number" spotlight (pulsing
+    via CSS, used nowhere else).
+    """
+    st.markdown(f"**{card['ticker']} · {card['company']}**")
+    price = card.get("price")
+    left, spot = st.columns([3, 1])
+    with left:
+        col1, col2 = st.columns(2)
+        col1.metric("Price", f"${price:,.2f}" if price is not None else "—")
+        col2.metric("Data quality", card["data_quality"])
+        sector = card.get("sector") or "—"
+        industry = card.get("industry") or "—"
+        st.caption(f"{sector} · {industry}")
+    with spot:
+        render_html(f'<div class="vi-big-number">{card["overall"]}</div>')
+        st.caption("Overall")
+    _scorecard_peer_caption(card)
+
+
+def _scorecard_peer_caption(card: dict) -> None:
+    """The peer group the weekly artifact resolved, or how to produce one."""
+    for dimension in card.get("dimensions") or []:
+        group = dimension.get("peer_group")
+        if not group:
+            continue
+        size = dimension.get("peer_group_size")
+        level = dimension.get("peer_group_level") or "industry"
+        size_text = f"{size} companies" if size else "size unknown"
+        st.caption(f"Peer group: {group} ({size_text}, {level}) · source: FDB")
+        return
+    st.caption("Peer group: not available (run scripts/build_peer_stats.py)")
+
+
+def _scorecard_dimension(dimension: dict, expanded: bool = False) -> None:
+    """One dimension card: score, verdict, summary and the rule table."""
+    score = dimension["score"]
+    score_text = "—" if score is None else f"{score}/10"
+    with st.container(border=True):
+        left, right = st.columns([3, 2])
+        left.markdown(f"### {dimension['label']}")
+        right.markdown(f"## {score_text}")
+        st.markdown(f"**{dimension['verdict']}** · {dimension['trend']}")
+        st.caption(f"{dimension['confidence']} confidence · {dimension['summary']}")
+        with st.expander("Rules", expanded=expanded):
+            st.dataframe(
+                _scorecard_rule_rows(dimension["rules"]),
+                width="stretch",
+                hide_index=True,
+            )
+
+
+def _scorecard_rule_rows(rules: list[dict]) -> list[dict]:
+    """Flatten the frozen rules into plain rows for ``st.dataframe``.
+
+    Peer columns appear only for dimensions the artifact actually covers
+    (at least one rule with a peer percentile); otherwise the table keeps its
+    historical shape. A rule the artifact does not measure shows a dash
+    rather than a zero.
+    """
+    show_peers = any(rule.get("peer_percentile") is not None for rule in rules)
+    rows = []
+    for rule in rules:
+        mark = _SCORECARD_STATUS_MARK.get(rule["status"], "·")
+        row = {
+            "Status": f"{mark} {rule['status']}",
+            "Rule": rule["label"],
+            "Value": rule["value"],
+        }
+        if show_peers:
+            percentile = rule.get("peer_percentile")
+            row["Peer median"] = rule.get("peer_median") or "—"
+            row["Peer pct"] = (
+                f"{percentile * 100:.0f}%" if percentile is not None else "—"
+            )
+        row.update(
+            {
+                "Threshold": rule["threshold"],
+                "Why": rule["reason"],
+                "Source": rule.get("source_methodology") or "analytics",
+            }
+        )
+        rows.append(row)
+    return rows
+
+
 def _dcf_panel(dcf) -> None:
-    st.warning(DCF_DISCLAIMER)
+    render_html('<span class="vi-chip">not-from-canon</span>')
+    st.caption(DCF_DISCLAIMER.replace("**not-from-canon** — ", ""))
     st.caption(f"Variant: **{dcf.variant_label}**")
     if dcf.is_insufficient:
         st.metric("Verdict", "INSUFFICIENT_DATA")
@@ -659,7 +1035,9 @@ def _historical(ticker: str) -> None:
 
 def _financials(ticker: str) -> None:
     """Every FDB fact for the company: one row per concept, one column/year."""
-    from backend.services.financials_view_service import filter_rows, table_rows
+    from backend.services.financials_view_service import filter_rows
+    from ui.balance_sheet import default_year_index, render_balance_sheet
+    from ui.financial_table import financial_table, financial_table_rows
 
     st.caption(
         "Fiscal data from Financial-DataBase — every fact stored for the "
@@ -685,7 +1063,13 @@ def _financials(ticker: str) -> None:
             )
         )
 
-    view, report, alerts = _load_financials_cached(ticker, period, max_years)
+    (
+        view,
+        report,
+        alerts,
+        balance_numeric,
+        balance_units,
+    ) = _load_financials_cached(ticker, period, max_years)
     if view is None:
         st.info(
             "No financial facts stored for this company (or the demo fixture "
@@ -743,11 +1127,47 @@ def _financials(ticker: str) -> None:
     for sub_tab, (label, bucket) in zip(sub_tabs, buckets):
         with sub_tab:
             rows = filter_rows(bucket, query=query, units=selected_units)
-            dataframe_with_download(
-                table_rows(rows, view.years),
-                f"{ticker}_{label.lower().replace(' ', '_')}.csv",
-                f"financials_{label}_{ticker}",
-            )
+            filename = f"{ticker}_{label.lower().replace(' ', '_')}.csv"
+            download_key = f"financials_{label}_{ticker}"
+            if label == "Balance Sheet" and balance_numeric:
+                # Classic T view by default; the flat table stays one click away.
+                view_mode = st.radio(
+                    "View",
+                    ["T-view", "Table view"],
+                    horizontal=True,
+                    key=f"financials_bs_mode_{ticker}",
+                )
+                if view_mode == "T-view":
+                    year = st.selectbox(
+                        "Fiscal year",
+                        view.years,
+                        index=default_year_index(view.years, balance_numeric),
+                        key=f"financials_bs_year_{ticker}",
+                    )
+                    render_balance_sheet(
+                        balance_numeric,
+                        balance_units,
+                        view.years,
+                        year,
+                        ticker=ticker,
+                        source=(
+                            "demo fixture (Financial-DataBase)"
+                            if is_demo()
+                            else "Financial-DataBase (SEC EDGAR)"
+                        ),
+                    )
+                    if rows:
+                        st.download_button(
+                            "Download CSV",
+                            data=rows_to_csv(
+                                financial_table_rows(rows, view.years)
+                            ).encode("utf-8"),
+                            file_name=filename,
+                            mime="text/csv",
+                            key=download_key,
+                        )
+                    continue
+            financial_table(rows, view.years, filename, download_key)
     st.caption(
         "Source: Financial-DataBase (SEC EDGAR) · Fiscal period: "
         f"{view.fiscal_period} · Values preserve the original filing format."

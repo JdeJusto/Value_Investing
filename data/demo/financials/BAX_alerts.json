@@ -1,0 +1,1 @@
+{"ticker":"BAX","company_name":"BAXTER INTERNATIONAL INC","rules_evaluated":10,"rules_skipped":1,"warnings":[],"alerts":[{"rule_id":"dividend_cut","severity":"WARNING","title":"Dividend cut","message":"Dividends paid dropped 41.0% YoY.","evidence":{"Current":"$348.00M","Prior":"$590.00M","Change":"-41.0%"},"metric_hint":"dividends_paid","period":"FY2025"}]}

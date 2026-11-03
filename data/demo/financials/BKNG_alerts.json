@@ -1,0 +1,1 @@
+{"ticker":"BKNG","company_name":"Booking Holdings Inc.","rules_evaluated":10,"rules_skipped":2,"warnings":[],"alerts":[{"rule_id":"strong_fcf_conversion","severity":"INFO","title":"Strong FCF conversion","message":"FCF > net income for 5 consecutive years.","evidence":{"FCF / net income":"1.68, 1.34, 1.63, 2.02, 2.16"},"metric_hint":"free_cash_flow","period":"FY2025"}]}

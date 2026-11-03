@@ -7,8 +7,8 @@ enableStaticServing = true
 runOnSave = false
 
 [theme]
-base = "dark"
-primaryColor = "#00cc88"
-backgroundColor = "#0e1117"
-secondaryBackgroundColor = "#262730"
-textColor = "#fafafa"
+primaryColor = "#ff2d95"
+backgroundColor = "#0a0a1a"
+secondaryBackgroundColor = "#14142b"
+textColor = "#f0e6d2"
+font = "monospace"

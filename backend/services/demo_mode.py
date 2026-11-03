@@ -18,6 +18,9 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from backend.repositories.fdb_concept_mapping import FIELD_CONCEPT
+from backend.repositories.json_financial_repository import JsonFinancialRepository
+
 DEMO_ROOT = Path("data/demo")
 DEMO_FUNDAMENTALS = DEMO_ROOT / "fundamentals"
 DEMO_PRICES = DEMO_ROOT / "prices.json"
@@ -70,6 +73,53 @@ def is_demo_ticker(ticker: str) -> bool:
 
 def enable_demo() -> None:
     os.environ["VI_DEMO"] = "1"
+
+
+class DemoFinancialRepository(JsonFinancialRepository):
+    """Demo store: the JSON rows plus the fact stream the insights read.
+
+    The database repository exposes ``list_all_facts`` (raw XBRL concept
+    rows); the JSON store keeps the normalized VO only. Without that extra
+    read the demo insights, alerts and scorecard would all come back empty,
+    so each pinned year is re-emitted here as one fact per populated field.
+
+    Re-emission is deterministic and losses-free: the same value under the
+    field's canonical concept (``FIELD_CONCEPT``), which is exactly the
+    concept the normalizer maps the field from in the database path.
+    """
+
+    def list_all_facts(
+        self,
+        ticker: str,
+        fiscal_period: str = "FY",
+        max_years: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Re-emit the pinned rows as facts.
+
+        ``max_years=None`` reads the whole pinned history, matching the
+        database repository's ``list_all_facts`` contract. The period filter
+        is applied only when a row carries a period.
+        """
+        period = (fiscal_period or "FY").upper()
+        facts: list[dict[str, Any]] = []
+        for row in self.get_best_available(ticker, max_years=max_years):
+            if period and row.period and row.period.upper() != period:
+                continue
+            record = row.to_dict()
+            for field, concept in FIELD_CONCEPT.items():
+                value = record.get(field)
+                if value is None:
+                    continue
+                facts.append(
+                    {
+                        "concept": concept,
+                        "value": value,
+                        "unit": "USD",
+                        "fiscal_year": row.fiscal_year,
+                        "fiscal_period": row.period,
+                    }
+                )
+        return facts
 
 
 def load_demo_prices() -> dict[str, float]:

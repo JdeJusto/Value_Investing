@@ -28,13 +28,14 @@ from backend.services.ui_adapter import (
     fmt_or_dash,
     remove_position,
 )
-from ui._shared import format_pct, metric_row, page_header
+from ui._shared import _color_dataframe, format_pct, metric_row, page_header
 from ui.services import (
     load_fundamentals,
     load_portfolio,
     load_quote,
     load_sector_map,
 )
+from ui.theme import PALETTE
 
 DEFAULT_PORTFOLIO_PATH = str(DEMO_PORTFOLIO) if is_demo() else "data/portfolio.json"
 SIGNALS = ["BUY", "WATCH", "HOLD"]
@@ -73,7 +74,17 @@ def _positions_tab(portfolio, path: str) -> None:
     if view.is_empty:
         st.info("No positions yet — add your first one with the form below.")
     else:
-        st.dataframe(view.positions, width="stretch", hide_index=True)
+        st.dataframe(
+            _color_dataframe(
+                view.positions,
+                sign_map={
+                    "PnL": (PALETTE["neon_cyan"], PALETTE["neon_pink"]),
+                    "PnL%": (PALETTE["neon_cyan"], PALETTE["neon_pink"]),
+                },
+            ),
+            width="stretch",
+            hide_index=True,
+        )
         _render_position_actions(portfolio, path)
         _render_refresh_prices(portfolio, path)
     st.subheader("Add position")
@@ -87,12 +98,12 @@ def _performance_tab(portfolio) -> None:
         return
     metric_row(
         [
-            ("Valor de mercado", fmt_money_short(view.totals["market_value"])),
-            ("Coste", fmt_money_short(view.totals["cost_basis"])),
-            ("PnL total", fmt_money_short(view.totals["total_pnl"])),
-            ("Retorno total", format_pct(view.totals["total_return"])),
-            ("PnL no realizado", fmt_money_short(view.totals["unrealized_pnl"])),
-            ("PnL realizado", fmt_money_short(view.totals["realized_pnl"])),
+            ("Market value", fmt_money_short(view.totals["market_value"])),
+            ("Cost basis", fmt_money_short(view.totals["cost_basis"])),
+            ("Total PnL", fmt_money_short(view.totals["total_pnl"])),
+            ("Total return", format_pct(view.totals["total_return"])),
+            ("Unrealized PnL", fmt_money_short(view.totals["unrealized_pnl"])),
+            ("Realized PnL", fmt_money_short(view.totals["realized_pnl"])),
         ]
     )
     st.subheader("Sector exposure")

@@ -11,10 +11,22 @@
 #      few seconds after login, but not always);
 #   4. runs `python -m scripts.daily_workflow --resume`;
 #   5. runs a small data-sample validation (non-fatal — see docs/validation_
-#      methodology.md §8).
+#      methodology.md §8);
+#   6. on the weekly day (Sunday by default), regenerates the peer-statistics
+#      artifact the Scorecard tab reads (best-effort, non-fatal);
+#   7. on the first Sunday of the month, runs the cross-source data-quality
+#      audit (best-effort, non-fatal — see docs/data_gaps_investigation.md).
 #
 # It needs NO sudo and never touches a database directly; the daily workflow
 # keeps its usual contract (prices are fetched, never persisted).
+#
+# Exit status: the workflow's own code is propagated verbatim at the end of
+# this script (the code is never masked by a shell fallback), so a systemd/ops
+# alert fires on a non-zero day:
+#   0  every stage ran
+#   1  partial — a network stage was skipped (SEC or Yahoo unreachable)
+#   2  failed to start (broken config / unreachable database)
+# The best-effort steps (validation, peer stats, audit) never change it.
 #
 # Usage:
 #   scripts/run_daily_on_boot.sh           # no-op if it already ran today
@@ -30,6 +42,15 @@
 #   VI_SKIP_NETWORK_WAIT        default 0; set to 1 to skip the wait
 #   VI_WORKFLOW_EXTRA_ARGS      extra args, e.g. "--dry-run --limit 5"
 #   VI_VALIDATION_SAMPLE        default 10; 0 disables the post-run validation
+#   VI_PEER_STATS_DAY           ISO weekday (1=Mon .. 7=Sun) to rebuild the
+#                               peer artifact; default 7; 0 disables it
+#   VI_PEER_STATS_EXTRA_ARGS    extra args, e.g. "--limit 200"
+#   VI_AUDIT_SAMPLE             default 30; 0 disables the monthly audit
+#   VI_AUDIT_WEEKDAY            ISO weekday the audit runs on; default 7 (Sun)
+#   VI_AUDIT_FIRST_DAY_MAX      only run within the first N days of the month;
+#                               default 7 (the first Sunday of the month)
+#   VI_AUDIT_EXTRA_ARGS         extra args, e.g. "--no-prices"
+# =============================================================================
 # =============================================================================
 set -euo pipefail
 
@@ -44,9 +65,17 @@ NETWORK_TIMEOUT_SECONDS="${VI_NETWORK_TIMEOUT_SECONDS:-600}"
 SKIP_NETWORK_WAIT="${VI_SKIP_NETWORK_WAIT:-0}"
 WORKFLOW_EXTRA_ARGS="${VI_WORKFLOW_EXTRA_ARGS:-}"
 VALIDATION_SAMPLE="${VI_VALIDATION_SAMPLE:-10}"
+PEER_STATS_DAY="${VI_PEER_STATS_DAY:-7}"
+PEER_STATS_EXTRA_ARGS="${VI_PEER_STATS_EXTRA_ARGS:-}"
+AUDIT_SAMPLE="${VI_AUDIT_SAMPLE:-30}"
+AUDIT_WEEKDAY="${VI_AUDIT_WEEKDAY:-7}"
+AUDIT_FIRST_DAY_MAX="${VI_AUDIT_FIRST_DAY_MAX:-7}"
+AUDIT_EXTRA_ARGS="${VI_AUDIT_EXTRA_ARGS:-}"
 
 usage() {
-    sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    # Print the leading comment block, prefixed by "# " removal only. Stops at
+    # the first non-comment line so the range never has to be kept in sync.
+    awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 FORCE=0
@@ -123,7 +152,13 @@ set +e
     $WORKFLOW_EXTRA_ARGS >>"$RUN_LOG" 2>&1
 WORKFLOW_STATUS=$?
 set -e
-log "daily workflow finished with status $WORKFLOW_STATUS"
+case "$WORKFLOW_STATUS" in
+    0) WORKFLOW_STATUS_MEANING="ok" ;;
+    1) WORKFLOW_STATUS_MEANING="partial (a network stage was skipped)" ;;
+    2) WORKFLOW_STATUS_MEANING="failed to start" ;;
+    *) WORKFLOW_STATUS_MEANING="unexpected (see the run log)" ;;
+esac
+log "daily workflow finished with status $WORKFLOW_STATUS ($WORKFLOW_STATUS_MEANING)"
 
 # Stamp the day even when the run failed: re-running every boot would only
 # repeat the same failure. The failure is in the run log and the workflow's
@@ -137,6 +172,37 @@ if [[ "$VALIDATION_SAMPLE" != "0" ]]; then
         --out "$LOGS_DIR" >>"$RUN_LOG" 2>&1; then
         log "data-sample validation flagged discrepancies (see $LOGS_DIR)"
     fi
+fi
+
+# Weekly (Sunday by default): rebuild the peer-statistics artifact the
+# Scorecard tab reads. Additive and best-effort — a failure here never changes
+# the workflow's exit status, and the artifact is a local build product.
+if [[ "$PEER_STATS_DAY" != "0" && "$(date +%u)" == "$PEER_STATS_DAY" ]]; then
+    log "regenerating peer statistics (weekly; day $PEER_STATS_DAY)"
+    set +e
+    # shellcheck disable=SC2086  # splitting VI_PEER_STATS_EXTRA_ARGS is intentional
+    "$PYTHON" -m scripts.build_peer_stats $PEER_STATS_EXTRA_ARGS >>"$RUN_LOG" 2>&1
+    PEER_STATUS=$?
+    set -e
+    log "peer statistics finished with status $PEER_STATUS"
+fi
+
+# Monthly (the first Sunday by default): the cross-source data-quality audit.
+# Like the peer build it is best-effort — a DATA_ERROR_FDB finding (exit 1) is
+# news for the log, never a reason to fail the day.
+if [[ "$AUDIT_SAMPLE" != "0" && "$(date +%u)" == "$AUDIT_WEEKDAY" ]] &&
+    ((10#$(date +%d) <= AUDIT_FIRST_DAY_MAX)); then
+    log "running the monthly data-quality audit (sample $AUDIT_SAMPLE; first $AUDIT_FIRST_DAY_MAX day(s) of the month)"
+    set +e
+    # shellcheck disable=SC2086  # splitting VI_AUDIT_EXTRA_ARGS is intentional
+    "$PYTHON" -m scripts.audit_data_quality \
+        --sample "$AUDIT_SAMPLE" \
+        --sources sec,yahoo \
+        --out "$LOGS_DIR" \
+        $AUDIT_EXTRA_ARGS >>"$RUN_LOG" 2>&1
+    AUDIT_STATUS=$?
+    set -e
+    log "data-quality audit finished with status $AUDIT_STATUS"
 fi
 
 exit "$WORKFLOW_STATUS"

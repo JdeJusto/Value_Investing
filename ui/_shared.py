@@ -15,6 +15,8 @@ from typing import Any
 import streamlit as st
 
 from backend.services.demo_mode import DEMO_REPORTS, is_demo
+from ui.theme import header as theme_header
+from ui.theme import inject_theme
 
 DASH = "—"
 UNIVERSE_PATH = Path("config/universe.csv")
@@ -23,10 +25,19 @@ REPORTS_DIR = DEMO_REPORTS if is_demo() else Path("data/reports")
 
 
 def page_header(title: str, subtitle: str | None = None) -> None:
-    """Consistent page header."""
-    st.title(title)
-    if subtitle:
-        st.caption(subtitle)
+    """Consistent page header (synthwave band, themed)."""
+    inject_theme()
+    theme_header(title, subtitle or "")
+
+
+def render_html(html: str) -> None:
+    """Render raw HTML. Single entry point for unsafe HTML in the UI.
+
+    Do NOT use st.markdown(..., unsafe_allow_html=True) directly outside
+    this helper and ui/theme/__init__.py (theming injection). See
+    tests/unit/test_ui_shared.py::test_no_unsafe_allow_html_outside_allowed_files.
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def format_value(value: Any, unit: str | None = None) -> str:
@@ -133,6 +144,62 @@ def normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return normalized
 
 
+def _color_dataframe(
+    rows: list[dict],
+    color_map: dict[str, dict[str, str]] | None = None,
+    sign_map: dict[str, tuple[str, str]] | None = None,
+):
+    """Build a pandas Styler that paints cell text per value.
+
+    ``color_map`` is ``{column: {cell_value: css_color}}``. ``sign_map`` is
+    ``{column: (positive_color, negative_color)}`` for numeric-ish string
+    columns (PnL): the sign of the parsed number picks the color. Values with
+    no match keep the default text color.
+    """
+    import pandas as pd
+
+    frame = pd.DataFrame(rows)
+    styler = frame.style
+    for column, mapping in (color_map or {}).items():
+        if column not in frame.columns:
+            continue
+        styler = styler.map(
+            lambda value, m=mapping: (
+                f"color: {m[str(value)]};" if str(value) in m else ""
+            ),
+            subset=[column],
+        )
+    for column, (pos, neg) in (sign_map or {}).items():
+        if column not in frame.columns:
+            continue
+
+        def _sign_color(value, p=pos, n=neg):
+            parsed = _parse_number(value)
+            if parsed is None:
+                return ""
+            return (
+                f"color: {p};" if parsed > 0 else f"color: {n};" if parsed < 0 else ""
+            )
+
+        styler = styler.map(_sign_color, subset=[column])
+    return styler
+
+
+def _parse_number(value) -> float | None:
+    """Best-effort parse of a formatted number ("1,234.56", "-3%", "—")."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    if not isinstance(value, str):
+        return None
+    text = value.strip().replace(",", "").replace("%", "").replace("$", "")
+    if not text or text == DASH:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
 def dataframe_with_download(
     rows: list[dict[str, Any]],
     filename: str,
@@ -140,12 +207,19 @@ def dataframe_with_download(
     *,
     height: int | None = None,
     csv_rows: list[dict[str, Any]] | None = None,
+    color_map: dict[str, dict[str, str]] | None = None,
+    sign_map: dict[str, tuple[str, str]] | None = None,
+    column_config: dict[str, Any] | None = None,
 ) -> None:
     """Sortable dataframe plus a CSV download button.
 
     By default the CSV contains the same rows as the displayed table. Pass
     ``csv_rows`` to customize the CSV content (e.g. different column values
-    for export) while the UI still shows ``rows``.
+    for export) while the UI still shows ``rows``. ``color_map`` paints
+    selected cell text (verdict/severity) with the theme palette, and
+    ``sign_map`` colors a numeric-ish column by sign (PnL profit/loss).
+    ``column_config`` forwards Streamlit column configuration (labels,
+    help tooltips) — display-only, never touches the data or the CSV.
     """
     if not rows:
         st.info("No rows to display.")
@@ -154,7 +228,12 @@ def dataframe_with_download(
     kwargs: dict[str, Any] = {"width": "stretch", "hide_index": True}
     if height is not None:
         kwargs["height"] = height
-    st.dataframe(rows, **kwargs)
+    if column_config:
+        kwargs["column_config"] = column_config
+    if color_map or sign_map:
+        st.dataframe(_color_dataframe(rows, color_map, sign_map), **kwargs)
+    else:
+        st.dataframe(rows, **kwargs)
     download_data = rows_to_csv(csv_rows if csv_rows is not None else rows).encode(
         "utf-8"
     )

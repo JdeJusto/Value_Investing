@@ -1,0 +1,1 @@
+{"ticker":"PLD","company_name":"Prologis, Inc.","rules_evaluated":10,"rules_skipped":4,"warnings":[],"alerts":[{"rule_id":"margin_collapse","severity":"WARNING","title":"Net Margin collapse","message":"Net Margin dropped 29.5 pp YoY.","evidence":{"Current":"15.9%","Prior":"45.4%","Change":"-29.5pp"},"metric_hint":"net_margin","period":"FY2025"}]}

@@ -59,8 +59,30 @@ def test_boot_script_runs_the_validation_without_failing_the_run():
     assert 'if ! "$PYTHON" -m scripts.validate_data_sample' in text
 
 
+def test_boot_script_regenerates_peer_stats_on_a_weekly_day():
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "scripts.build_peer_stats" in text
+    assert "date +%u" in text  # ISO weekday gate
+    assert "VI_PEER_STATS_DAY" in text
+    # Never fatal: the peer build must not change the workflow's exit status.
+    assert "PEER_STATUS" in text
+    assert 'exit "$WORKFLOW_STATUS"' in text
+
+
 def test_boot_script_never_uses_sudo():
     assert _never_invokes_sudo(SCRIPT)
+
+
+def test_boot_script_runs_the_monthly_audit_in_the_first_week():
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "scripts.audit_data_quality" in text
+    assert "VI_AUDIT_SAMPLE" in text
+    assert "VI_AUDIT_WEEKDAY" in text
+    assert "VI_AUDIT_FIRST_DAY_MAX" in text
+    assert "date +%d" in text  # the "first week of the month" gate
+    # A finding (exit 1) is news for the log, never a failure of the day.
+    assert "AUDIT_STATUS" in text
+    assert 'exit "$WORKFLOW_STATUS"' in text
 
 
 def test_boot_script_passes_bash_syntax_check():
@@ -102,11 +124,20 @@ def _never_invokes_sudo(path: Path) -> bool:
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def fake_python(tmp_path: Path) -> tuple[Path, Path]:
-    """A stand-in for the venv python that records its argv and exits 0."""
+    """A stand-in for the venv python that records its argv and exits 0.
+
+    ``FAKE_PYTHON_FAIL_ON`` (an argv fragment) makes it exit 1 instead, so a
+    test can prove one step's failure never fails the whole run.
+    """
     calls = tmp_path / "calls.log"
     interpreter = tmp_path / "fake_python.sh"
     interpreter.write_text(
-        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$FAKE_PYTHON_CALLS"\nexit 0\n',
+        "#!/usr/bin/env bash\n"
+        'printf "%s\\n" "$*" >> "$FAKE_PYTHON_CALLS"\n'
+        'if [[ -n "${FAKE_PYTHON_FAIL_ON:-}" && "$*" == *"$FAKE_PYTHON_FAIL_ON"* ]]; then\n'
+        "    exit 1\n"
+        "fi\n"
+        "exit 0\n",
         encoding="utf-8",
     )
     interpreter.chmod(0o755)
@@ -114,7 +145,10 @@ def fake_python(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def _run(
-    tmp_path: Path, fake_python: tuple[Path, Path], *args: str
+    tmp_path: Path,
+    fake_python: tuple[Path, Path],
+    *args: str,
+    env_extra: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess:
     interpreter, calls = fake_python
     env = os.environ | {
@@ -124,6 +158,7 @@ def _run(
         "VI_WORKFLOW_EXTRA_ARGS": "--dry-run --limit 2",
         "FAKE_PYTHON_CALLS": str(calls),
     }
+    env.update(env_extra or {})
     return subprocess.run(
         [str(SCRIPT), *args],
         env=env,
@@ -188,3 +223,215 @@ def test_boot_script_rejects_unknown_arguments(tmp_path, fake_python):
 
 def _today() -> str:
     return datetime.now(UTC).astimezone().date().isoformat()
+
+
+def test_boot_script_rebuilds_peer_stats_on_the_weekly_day(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    day = _local_isoweekday()
+    result = _run(tmp_path, fake_python, env_extra={"VI_PEER_STATS_DAY": str(day)})
+    assert result.returncode == 0, result.stderr
+    assert "scripts.build_peer_stats" in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_skips_peer_stats_on_other_days(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    other = _local_isoweekday() % 7 + 1  # any other ISO weekday
+    result = _run(tmp_path, fake_python, env_extra={"VI_PEER_STATS_DAY": str(other)})
+    assert result.returncode == 0, result.stderr
+    assert "scripts.build_peer_stats" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_peer_stats_can_be_disabled(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(tmp_path, fake_python, env_extra={"VI_PEER_STATS_DAY": "0"})
+    assert result.returncode == 0, result.stderr
+    assert "scripts.build_peer_stats" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_peer_stats_defaults_to_sunday(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(tmp_path, fake_python)
+    assert result.returncode == 0, result.stderr
+    ran = "scripts.build_peer_stats" in calls.read_text(encoding="utf-8")
+    assert ran is (_local_isoweekday() == 7)
+
+
+def test_boot_script_accepts_extra_peer_stats_args(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_PEER_STATS_DAY": str(_local_isoweekday()),
+            "VI_PEER_STATS_EXTRA_ARGS": "--limit 25 --no-prices",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.build_peer_stats --limit 25 --no-prices" in calls.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_boot_script_peer_stats_failure_is_not_fatal(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_PEER_STATS_DAY": str(_local_isoweekday()),
+            "FAKE_PYTHON_FAIL_ON": "build_peer_stats",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    text = calls.read_text(encoding="utf-8")
+    assert "scripts.build_peer_stats" in text
+    # The workflow ran first and kept its own (successful) status.
+    assert text.index("scripts.daily_workflow") < text.index("scripts.build_peer_stats")
+    run_log = (tmp_path / "logs" / f"run_{_today()}.log").read_text(encoding="utf-8")
+    assert "peer statistics finished with status 1" in run_log
+
+
+def _local_isoweekday() -> int:
+    return datetime.now(UTC).astimezone().isoweekday()
+
+
+def _today_day() -> int:
+    return datetime.now(UTC).astimezone().day
+
+
+def test_boot_script_runs_the_audit_in_the_first_week(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert (
+        "scripts.audit_data_quality --sample 30 --sources sec,yahoo"
+        in calls.read_text(encoding="utf-8")
+    )
+
+
+def test_boot_script_skips_the_audit_after_the_first_week(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            # Below today's day of month, so the "first week" gate is shut.
+            "VI_AUDIT_FIRST_DAY_MAX": str(_today_day() - 1),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.audit_data_quality" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_skips_the_audit_on_other_weekdays(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday() % 7 + 1),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.audit_data_quality" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_can_disable_the_audit(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_SAMPLE": "0",
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "scripts.audit_data_quality" not in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_audit_defaults_to_the_first_sunday(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(tmp_path, fake_python)
+    assert result.returncode == 0, result.stderr
+    ran = "scripts.audit_data_quality" in calls.read_text(encoding="utf-8")
+    assert ran is (_local_isoweekday() == 7 and _today_day() <= 7)
+
+
+def test_boot_script_accepts_extra_audit_args(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+    _, calls = fake_python
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+            "VI_AUDIT_EXTRA_ARGS": "--sample 3",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--sample 3" in calls.read_text(encoding="utf-8")
+
+
+def test_boot_script_audit_finding_is_not_fatal(tmp_path, fake_python):
+    if shutil.which("flock") is None:  # pragma: no cover
+        pytest.skip("flock not available")
+
+    result = _run(
+        tmp_path,
+        fake_python,
+        env_extra={
+            "VI_AUDIT_WEEKDAY": str(_local_isoweekday()),
+            "VI_AUDIT_FIRST_DAY_MAX": "31",
+            "FAKE_PYTHON_FAIL_ON": "audit_data_quality",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    run_log = (tmp_path / "logs" / f"run_{_today()}.log").read_text(encoding="utf-8")
+    assert "data-quality audit finished with status 1" in run_log

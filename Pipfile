@@ -16,6 +16,9 @@ psycopg2-binary = ">=2.9"
 # project whose SQL analysis service could not even be imported.
 sqlparse = ">=0.5"
 streamlit = "*"
+# Charts (6-axis radar + 4 charts) in the Streamlit Scorecard tab. Pure Python
+# wheel, Streamlit-only; never imported by the CLI or the API.
+plotly = ">=6.0"
 gitpython = ">=3.1.59"
 fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
@@ -44,9 +47,16 @@ pytest = ">=8.0"
 alembic = ">=1.13"
 pytest-cov = "*"
 pyright = "*"
+# Pinned exactly (no range): ruff's *default rule set* moves between minor
+# versions -- 0.17 already dropped DTZ from the defaults, which turned 7
+# existing `noqa: DTZ...` comments into RUF100 violations on a clean tree.
+# An unpinned ruff therefore changes the lint baseline for reasons that have
+# nothing to do with this codebase. Config lives in pyproject.toml [tool.ruff]
+# (`required-version` re-checks this same value at runtime).
+ruff = "==0.16.4"
 
 [scripts]
 ui = "streamlit run ui/app.py"
 
 [requires]
-python_version = ">=3.13"
+python_version = "3.13"

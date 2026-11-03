@@ -585,6 +585,31 @@ class TestSharesOutstandingPreference:
         repo.get_shares_outstanding("BF-B", 2026)
         assert params and params[0][2] == "CommonStockSharesOutstanding"
 
+    def test_dei_cover_page_is_last_resort(self, monkeypatch):
+        # A filer that tags no us-gaap share concept still files the
+        # cover-page count: the dei as-of fact must surface instead of None.
+        # It is queried only after every us-gaap concept, so it never
+        # displaces a weighted average, and the treasury-inclusive
+        # us-gaap CommonStockSharesIssued is never consulted at all.
+        repo, executed, params = self._make_repo(
+            monkeypatch,
+            [
+                [],  # CommonStockSharesOutstanding: not filed
+                [],  # WeightedAverageNumberOfSharesOutstandingBasic: none
+                [],  # WeightedAverageNumberOfSharesOutstanding: none
+                [],  # WeightedAverageNumberOfSharesOutstandingDiluted: none
+                [],  # WeightedAverageNumberOfDilutedSharesOutstanding: none
+                [self._row("594369538")],  # dei cover-page count
+                [self._row("594369538")],  # same fact as the scale anchor
+            ],
+        )
+        result = repo.get_shares_outstanding("DEIONLY", 2025)
+        assert result == 594369538.0
+        # The dei concept is the last candidate tried, after every us-gaap
+        # concept.
+        assert params[5][2] == "EntityCommonStockSharesOutstanding"
+        assert all("CommonStockSharesIssued" not in sql for sql in executed)
+
     def test_legacy_thousands_duplicates_pick_larger(self, monkeypatch):
         # Ball 2009 carries BOTH the thousands-tagged (187,572, filed in the
         # FY2009 10-K) and the correct (187,572,000, filed a year later) rows
