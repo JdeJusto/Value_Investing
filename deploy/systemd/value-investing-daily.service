@@ -28,9 +28,19 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=%h/Value_Investing
 Environment="PATH=%h/Value_Investing/.venv/bin:/usr/bin"
-Environment="FINANCIAL_DATABASE_URL=postgresql://financial@localhost:5432/financial_database"
+# 127.0.0.1 avoids depending on the resolver for the database connection;
+# .env may still override FINANCIAL_DATABASE_URL for a remote database.
+Environment="FINANCIAL_DATABASE_URL=postgresql://financial@127.0.0.1:5432/financial_database"
+# Wait up to 60s for PostgreSQL before giving up, and fail loudly instead of
+# silently falling back to the legacy JSON store (incomplete coverage).
+Environment="FDB_READY_TIMEOUT_SECONDS=60"
+Environment="VI_REQUIRE_FDB=1"
 # Optional: repo .env (same keys) — the leading '-' tolerates a missing file
 EnvironmentFile=-%h/Value_Investing/.env
+# A persistent timer fires seconds after boot, before PostgreSQL and DNS are
+# ready (observed 2026-11-01/02/03). Wait for both, up to 5 minutes, so the run
+# never starts against a half-initialized host.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 150); do pg_isready -h 127.0.0.1 -p 5432 -q && getent hosts data.sec.gov >/dev/null 2>&1 && getent hosts query1.finance.yahoo.com >/dev/null 2>&1 && exit 0; sleep 2; done; echo "PostgreSQL/DNS not ready after 300s" >&2; exit 1'
 # --verbose so the scheduled log carries the stage progress, phase timings,
 # fundamentals-cache stats and network telemetry (WARNING-only otherwise).
 ExecStart=%h/Value_Investing/.venv/bin/python -m scripts.daily_workflow --universe all --max-refresh 200 --top 20 --resume --verbose

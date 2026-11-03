@@ -10,8 +10,10 @@ module keeps the connection/cache core and composes them.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
+import time
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -32,6 +34,8 @@ from backend.repositories.fdb_mixins.helpers import (  # noqa: F401
 from backend.repositories.fdb_mixins.lookups_mixin import LookupsMixin
 from backend.repositories.fdb_mixins.normalization_mixin import NormalizationMixin
 from backend.repositories.fdb_mixins.shares_mixin import SharesMixin
+
+logger = logging.getLogger(__name__)
 
 
 class FinancialDatabaseRepository(
@@ -146,15 +150,56 @@ class FinancialDatabaseRepository(
                 pass
         self._local.connection = None
 
-    def available(self) -> bool:
-        """Check if the Financial-DataBase is available."""
-        try:
-            conn = self._get_connection()
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
+    def available(self, *, retries: int = 0, retry_delay_s: float = 2.0) -> bool:
+        """Check whether the Financial-DataBase answers a trivial query.
+
+        ``retries`` extra attempts cover the window where PostgreSQL is still
+        starting: the persistent systemd timer fires a couple of seconds after
+        boot, before the database socket accepts connections. Failures are
+        logged because a silent ``False`` used to send the daily run to the
+        legacy JSON store, whose coverage is far lower.
+        """
+        attempts = max(1, int(retries) + 1)
+        last_error: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                conn = self._get_connection()
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
                 return True
-        except Exception:  # noqa: BLE001 — a DB failure answers as "not available"
-            return False
+            except Exception as exc:  # noqa: BLE001 — DB drivers raise many types
+                last_error = exc
+                self._drop_connection()
+                if attempt < attempts:
+                    logger.warning(
+                        "Financial-DataBase not ready (attempt %d/%d): %s; "
+                        "retrying in %.1fs",
+                        attempt,
+                        attempts,
+                        exc,
+                        retry_delay_s,
+                    )
+                    time.sleep(retry_delay_s)
+        logger.error(
+            "Financial-DataBase unavailable after %d attempt(s): %s",
+            attempts,
+            last_error,
+        )
+        return False
+
+    def _drop_connection(self) -> None:
+        """Discard this thread's connection after a failed probe."""
+        conn = getattr(self._local, "connection", None)
+        self._local.connection = None
+        if conn is None:
+            return
+        with self._connections_lock:
+            self._connections.discard(conn)
+        try:
+            if not conn.closed:
+                conn.close()
+        except Exception:  # noqa: BLE001, S110 — best-effort teardown
+            pass
 
     def __del__(self):
         """Cleanup connection on object destruction."""
