@@ -40,6 +40,11 @@ INCOME_STATEMENT_CONCEPTS = {
     # IFRS 15 tag used by 20-F/40-F filers (e.g. SOPHiA GENETICS); stored by
     # Financial-DataBase under the IFRS concept name.
     "RevenueFromContractsWithCustomers": "revenue",
+    # IFRS filers that split the top line into goods and other revenue
+    # (Sanofi: RevenueFromSaleOfGoods + OtherRevenue). The normalizer sums the
+    # components only when no total revenue concept was filed.
+    "RevenueFromSaleOfGoods": "revenue",
+    "OtherRevenue": "revenue",
     # Bank top line: total revenues net of interest expense.
     "RevenuesNetOfInterestExpense": "revenue",
     "SalesRevenueGoodsNet": "revenue",
@@ -74,6 +79,8 @@ INCOME_STATEMENT_CONCEPTS = {
     # Operating Income
     "OperatingIncomeLoss": "operating_income",
     "OperatingIncome": "operating_income",
+    # IFRS operating profit (20-F/40-F filers; TotalEnergies/Sanofi).
+    "ProfitLossFromOperatingActivities": "operating_income",
     # EBIT (rarely reported separately; filers of OperatingIncomeLoss get a
     # matching ebit via the fallback in _normalize_financial_facts)
     "EBIT": "ebit",
@@ -139,6 +146,15 @@ INCOME_FIELD_PRIORITY = {
         "OperatingLeaseIncome",
         "RentalRevenue",
         "RealEstateRevenueNet",
+        # IFRS split components: only used when no total revenue was filed;
+        # the normalizer sums them (Sanofi files goods + other revenue).
+        "RevenueFromSaleOfGoods",
+        "OtherRevenue",
+    ],
+    "operating_income": [
+        "OperatingIncomeLoss",
+        "OperatingIncome",
+        "ProfitLossFromOperatingActivities",
     ],
     "pretax_income": [
         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
@@ -343,6 +359,9 @@ BALANCE_SHEET_CONCEPTS = {
     "StockholdersEquity": "stockholders_equity",
     "TotalEquityGrossMinorityInterest": "stockholders_equity",
     "ShareholdersEquity": "stockholders_equity",
+    # IFRS total equity (20-F/40-F filers; Sanofi/TotalEnergies). Last so a
+    # US-GAAP total filed alongside it wins.
+    "Equity": "stockholders_equity",
     # Shares Outstanding
     "WeightedAverageNumberOfSharesOutstandingBasic": "shares_outstanding",
     "WeightedAverageNumberOfSharesOutstanding": "shares_outstanding",

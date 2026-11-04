@@ -305,6 +305,79 @@ def _concept_unit(year_facts: dict[int, dict]) -> str:
     return ""
 
 
+_ASSET_CONCEPTS = {"Assets", "AssetsTotal", "LiabilitiesAndStockholdersEquity"}
+_EQUITY_CONCEPTS = {
+    "StockholdersEquity",
+    "TotalEquityGrossMinorityInterest",
+    "ShareholdersEquity",
+    "Equity",
+}
+_LIABILITY_CONCEPTS = {"Liabilities", "LiabilitiesTotal"}
+
+
+def derive_liabilities(
+    facts: list[dict], years: set[int]
+) -> tuple[list[dict], list[int]]:
+    """Add a derived total-liabilities fact for years that lack one.
+
+    Uses the accounting identity ``assets = liabilities + equity``. Many
+    filers (PACCAR) do not tag a total Liabilities line; the derived value is
+    only a read-view fact (``derived`` marker), never written to FDB.
+    """
+    latest: dict[tuple[str, int], dict] = {}
+    for fact in facts:
+        concept = str(fact.get("concept") or "")
+        year = fact.get("fiscal_year")
+        if year is None or int(year) not in years:
+            continue
+        key = (concept, int(year))
+        candidate = str(fact.get("period_end") or "")
+        current = latest.get(key)
+        if current is None or candidate > str(current.get("period_end") or ""):
+            latest[key] = fact
+
+    derived: list[dict] = []
+    derived_years: list[int] = []
+    for year in sorted(years, reverse=True):
+        if any((concept, year) in latest for concept in _LIABILITY_CONCEPTS):
+            continue
+        assets_fact = next(
+            (
+                latest[(concept, year)]
+                for concept in _ASSET_CONCEPTS
+                if (concept, year) in latest
+            ),
+            None,
+        )
+        equity_fact = next(
+            (
+                latest[(concept, year)]
+                for concept in _EQUITY_CONCEPTS
+                if (concept, year) in latest
+            ),
+            None,
+        )
+        if assets_fact is None or equity_fact is None:
+            continue
+        assets = assets_fact.get("value")
+        equity = equity_fact.get("value")
+        if assets is None or equity is None:
+            continue
+        derived.append(
+            {
+                "concept": "Liabilities",
+                "value": float(assets) - float(equity),
+                "unit": assets_fact.get("unit") or "USD",
+                "fiscal_year": year,
+                "fiscal_period": assets_fact.get("fiscal_period") or "FY",
+                "period_end": assets_fact.get("period_end"),
+                "derived": True,
+            }
+        )
+        derived_years.append(year)
+    return facts + derived, derived_years
+
+
 def _rows_from_payload(rows: list[dict], years: list[int]) -> list[FinancialsRow]:
     """Demo fixtures already carry built rows (concept/label/values/unit)."""
     year_set = set(years)
@@ -395,6 +468,7 @@ class FinancialsViewService:
         if not years:
             return None
 
+        facts, derived_liability_years = derive_liabilities(facts, set(years))
         latest = dedupe_facts(facts, set(years))
         by_concept: dict[str, dict[int, dict]] = {}
         for (concept, year), fact in latest.items():
@@ -429,6 +503,12 @@ class FinancialsViewService:
             rows.sort(key=lambda row: (row.label.lower(), row.concept))
 
         warnings: list[str] = []
+        if derived_liability_years:
+            warnings.append(
+                "Total liabilities derived from Assets − Equity for: "
+                + ", ".join(str(year) for year in derived_liability_years)
+                + "."
+            )
         if len(facts) > FACTS_GUIDANCE_THRESHOLD:
             warnings.append(
                 f"{len(facts):,} facts in this window (guidance: "

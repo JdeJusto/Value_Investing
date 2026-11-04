@@ -332,6 +332,8 @@ MASS_SUBTOTAL_CONCEPTS: dict[str, list[str]] = {
         "StockholdersEquity",
         "ShareholdersEquity",
         "TotalEquityGrossMinorityInterest",
+        # IFRS total equity (20-F/40-F filers).
+        "Equity",
     ],
 }
 

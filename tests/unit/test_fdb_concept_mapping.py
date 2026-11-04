@@ -437,3 +437,57 @@ def test_genuine_share_growth_below_threshold_not_rescaled():
         _instant("EntityCommonStockSharesOutstanding", 500_000_000),
     )
     assert balance["shares_outstanding"] == 10_000_000.0
+
+
+# ---------------------------------------------------------------------------
+# IFRS mappings + derived total liabilities
+# ---------------------------------------------------------------------------
+def test_ifrs_equity_maps_to_stockholders_equity():
+    balance = _balance(_fact("Equity", 40_000_000_000))
+    assert balance["stockholders_equity"] == 40_000_000_000
+
+
+def test_ifrs_operating_profit_maps_to_operating_income():
+    income = _income(_fact("ProfitLossFromOperatingActivities", 5_000_000_000))
+    assert income["operating_income"] == 5_000_000_000
+
+
+def test_ifrs_revenue_components_are_summed():
+    """Sanofi splits revenue into goods + other; the total is their sum."""
+    income = _income(
+        _fact("RevenueFromSaleOfGoods", 40_000_000_000),
+        _fact("OtherRevenue", 5_000_000_000),
+    )
+    assert income["revenue"] == 45_000_000_000
+
+
+def test_total_revenue_wins_over_ifrs_components():
+    income = _income(
+        _fact("Revenues", 50_000_000_000),
+        _fact("RevenueFromSaleOfGoods", 40_000_000_000),
+        _fact("OtherRevenue", 5_000_000_000),
+    )
+    assert income["revenue"] == 50_000_000_000
+
+
+def _derived_balance(*facts):
+    repo = FinancialDatabaseRepository()
+    normalized = repo._normalize_financial_facts(list(facts))
+    return repo._calculate_derived_fields(normalized)["balance"]
+
+
+def test_total_liabilities_derived_from_assets_and_equity():
+    balance = _derived_balance(
+        _fact("Assets", 100_000_000),
+        _fact("Equity", 40_000_000),
+    )
+    assert balance["total_liabilities"] == 60_000_000
+
+
+def test_reported_liabilities_not_overridden():
+    balance = _derived_balance(
+        _fact("Assets", 100_000_000),
+        _fact("Liabilities", 55_000_000),
+        _fact("Equity", 45_000_000),
+    )
+    assert balance["total_liabilities"] == 55_000_000

@@ -26,6 +26,7 @@ FIELD_LABELS: dict[str, str] = {
     "LiabilitiesNoncurrent": "Total non-current liabilities",
     "StockholdersEquity": "Total stockholders' equity",
     "ShareholdersEquity": "Total shareholders' equity",
+    "Equity": "Total equity",
     "TotalEquityGrossMinorityInterest": "Total equity incl. minority interest",
     # --- Current assets -------------------------------------------------
     "CashAndCashEquivalentsAtCarryingValue": "Cash and cash equivalents",

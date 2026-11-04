@@ -148,6 +148,10 @@ class NormalizationMixin:
         # when no net-revenue tag is filed.
         bank_interest = None
         bank_noninterest = None
+        # IFRS filers can split revenue into components (Sanofi files
+        # RevenueFromSaleOfGoods + OtherRevenue); track which concept won so
+        # the components can be summed when no total was filed.
+        revenue_concept: str | None = None
         # Gross interest income (bank/insurance filers without the net tag).
         interest_income_gross = None
         # REIT rental income (see the value-based override below).
@@ -184,6 +188,8 @@ class NormalizationMixin:
                 # Handle duplicates by taking the first fact ordered above
                 if field_name not in income_data or income_data[field_name] is None:
                     income_data[field_name] = value
+                    if field_name == "revenue":
+                        revenue_concept = concept
                     if field_name == "net_income":
                         income_data["net_income_convention"] = _income_convention(
                             concept
@@ -259,6 +265,20 @@ class NormalizationMixin:
             balance_data["total_debt"] = (debt_current[0] if debt_current else 0.0) + (
                 debt_noncurrent[0] if debt_noncurrent else 0.0
             )
+
+        # IFRS split revenue: sum the components when no total revenue concept
+        # won (Sanofi files RevenueFromSaleOfGoods + OtherRevenue).
+        if revenue_concept in {"RevenueFromSaleOfGoods", "OtherRevenue"}:
+            components: dict[str, float] = {}
+            for fact in facts:
+                concept = fact["concept"]
+                if (
+                    concept in {"RevenueFromSaleOfGoods", "OtherRevenue"}
+                    and fact.get("value") is not None
+                ):
+                    components.setdefault(concept, float(fact["value"]))
+            if components:
+                income_data["revenue"] = sum(components.values())
 
         # The longest-span dedup above picks the weighted-average share count,
         # but some issuers file it in scaled units (McDonald's FY2025: 716.4
@@ -395,6 +415,19 @@ class NormalizationMixin:
         ):
             balance["net_ppe"] = balance["ppe_gross"] - abs(
                 float(balance["ppe_accumulated_depreciation"])
+            )
+
+        # Total-liabilities identity: assets - equity. Many filers do not tag
+        # a total Liabilities line (PACCAR does not); deriving it from the two
+        # filed totals keeps the balance sheet and leverage ratios usable
+        # without inventing a figure.
+        if (
+            balance.get("total_liabilities") is None
+            and balance.get("total_assets") is not None
+            and balance.get("stockholders_equity") is not None
+        ):
+            balance["total_liabilities"] = (
+                balance["total_assets"] - balance["stockholders_equity"]
             )
 
         return statements
