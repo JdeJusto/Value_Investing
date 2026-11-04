@@ -654,6 +654,10 @@ against SEC `companyconcept` and fix the mapping (see
    in [Financial-DataBase's PostgreSQL diagnosis](https://github.com/JdeJusto/Financial-DataBase/blob/main/docs/pg_stat_statements_blocker.md).
 - **No basics for a ticker**: run the Financial-DataBase sync for it
   (`sec sync <CIK>`) or `load-data <TICKER>` on the Value Investing side.
+- **Fallback JSON store empty or stale**: rebuild it from Financial-DataBase
+  with `python -m scripts.backfill_json_store --universe sp500` (or
+  `--tickers AAPL,MSFT`). Tickers without a consistent history are reported as
+  `missing` and their previous file is left untouched.
 - **`financial_database` module not found**: make sure `--fdb-dir` points to
   the Financial-DataBase repo and its `.venv` is installed.
 

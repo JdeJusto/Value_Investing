@@ -50,6 +50,22 @@ class JsonFinancialRepository(FinancialRepository):
                 )
             self._write(ticker, data)
 
+    def replace_ticker(
+        self, ticker: str, financials: list[NormalizedFinancials]
+    ) -> None:
+        """Replace a ticker's whole history with ``financials``.
+
+        Used by the JSON-store backfill: merging into a legacy file would keep
+        the old null-valued years, which is exactly what the backfill removes.
+        """
+        ticker = ticker.upper()
+        data: dict[str, dict] = {}
+        for item in financials:
+            record = item.to_dict()
+            record["ticker"] = ticker
+            data.setdefault(str(item.fiscal_year), {})[self._source_key(item)] = record
+        self._write(ticker, data)
+
     def get_by_year(self, ticker: str, fiscal_year: int) -> NormalizedFinancials | None:
         data = self._read(ticker)
         year_records = data.get(str(fiscal_year), {})
