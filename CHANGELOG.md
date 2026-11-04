@@ -5,7 +5,7 @@
   FDB's `core_financials` MV (8 canonical fields) and
   `financial_facts_normalized` view.
 - T-view marks derived values:
-  - `*` for derived liabilities (340 tickers; e.g. PCAR).
+  - `*` for derived liabilities (345 tickers; e.g. PCAR).
   - `*` for partial equity (MRX: RetainedEarnings only) with a specific
     caption clarifying that full equity is not reported.
 
@@ -32,8 +32,8 @@
   generic computed-subtotal note.
 
 ### Measured
-- Coverage `8/8 canonical fields`: 884 in the VI universe.
-- Tickers with derived liabilities: 340.
+- Coverage `8/8 canonical fields`: 898 in the VI universe.
+- Tickers with derived liabilities: 345.
 - Batch `get_core_financials` for 76 tickers: 67-101 ms.
 - Unit tests: 2498 (+28 from v0.19.2), 125 API, ruff 0/0.
 
