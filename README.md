@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2498%20passed-10A77A?style=for-the-badge" alt="2,498 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2518%20passed-10A77A?style=for-the-badge" alt="2,518 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
   <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
@@ -26,6 +26,7 @@
 
 - [What is this](#what-is-this)
 - [Quick start](#quick-start)
+- [CLI](#cli)
 - [What it does](#what-it-does)
 - [The 8 methodologies](#the-8-methodologies)
 - [Installation](#installation)
@@ -65,6 +66,40 @@ VI_DEMO=1 ./run_ui.sh   # http://localhost:8501
 
 Demo mode ships eight pinned tickers: AAPL, MSFT, KO, JNJ, JPM, XOM, PLD, and
 TSLA. It uses no external services.
+
+## CLI
+
+Terminal-first: the core research workflows have a CLI equivalent, backed by
+the same services and data as the Streamlit UI.
+
+```bash
+./vi scorecard AAPL                    # Full scorecard with verdicts
+./vi financials AAPL                   # Balance sheet, flat two-section view
+./vi rank --by graham --top 20         # Top tickers by Graham score
+./vi rank --combine graham,lynch --strategy and
+./vi dcf AAPL                          # DCF summary
+./vi consensus AAPL                    # Canonical consensus
+./vi portfolio view                    # Current portfolio
+```
+
+`vi financials` and `vi rank` support `--json` for scripts. All commands
+support `--no-color` (also honored automatically when stdout is not a TTY).
+Output is rendered with Rich; redirected output never contains color codes.
+
+Abridged `./vi financials AAPL` output:
+
+```text
+╭─ Financials · AAPL ────────────────────────────────────────────────────
+│ FY2025 · FY · source: Financial-DataBase (SEC EDGAR)
+╰───────────────────────────────────────────────────────────────────────
+  ASSETS                                LIABILITIES + EQUITY
+  ──────────────────────────────────────  ──────────────────────────────────────
+  Cash and Cash Equivalents      $35.93B  Accounts Payable             $69.86B
+  Accounts Receivable, Net       $39.78B  Long Term Debt               $90.68B
+  Current Assets                $147.96B  Current Liabilities         $165.63B
+  TOTAL ASSETS                  $359.24B  TOTAL LIABILITIES + EQUITY  $359.24B
+                                          ✓ Balanced (Δ = $0.00)
+```
 
 ## What it does
 
@@ -184,21 +219,7 @@ documented in [`.env.example`](.env.example).
 
 ## Usage
 
-### CLI
-
-```bash
-./vi analyze-full AAPL
-./vi compare-methodologies AAPL
-./vi consensus AAPL
-./vi consensus-ranking --universe sp500 --top 20
-./vi consensus-by-category --universe sp500 --per-category 5
-```
-
-Output is rendered with [Rich](https://github.com/Textualize/rich): bordered
-panels and framed tables on a terminal, plus spinners and progress bars for long
-runs. Redirected output never contains color codes, and `NO_COLOR=1` or
-`--no-color` turns color off on a terminal as well. Prefer a menu over flags
-with `./vi interactive`.
+### Consensus reports
 
 Consensus commands read the latest precomputed report. The normal daily run
 also refreshes it automatically:

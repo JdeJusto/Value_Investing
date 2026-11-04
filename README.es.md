@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Última versión"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="Estado de CI"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2498%20passed-10A77A?style=for-the-badge" alt="2,498 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2518%20passed-10A77A?style=for-the-badge" alt="2,518 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Licencia MIT"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 o superior">
   <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
@@ -26,6 +26,7 @@
 
 - [Qué es esto](#qué-es-esto)
 - [Inicio rápido](#inicio-rápido)
+- [CLI](#cli)
 - [Qué hace](#qué-hace)
 - [Las 8 metodologías](#las-8-metodologías)
 - [Instalación](#instalación)
@@ -66,6 +67,42 @@ VI_DEMO=1 ./run_ui.sh   # http://localhost:8501
 
 El modo demo incluye ocho tickers fijados: AAPL, MSFT, KO, JNJ, JPM, XOM, PLD y
 TSLA. No usa servicios externos.
+
+## CLI
+
+Pensado para la terminal: los flujos de investigación principales tienen un
+equivalente en CLI, respaldado por los mismos servicios y datos que la UI de
+Streamlit.
+
+```bash
+./vi scorecard AAPL                    # Scorecard completa con veredictos
+./vi financials AAPL                   # Balance en vista plana de dos secciones
+./vi rank --by graham --top 20         # Mejores tickers por score Graham
+./vi rank --combine graham,lynch --strategy and
+./vi dcf AAPL                          # Resumen del DCF
+./vi consensus AAPL                    # Consenso canónico
+./vi portfolio view                    # Cartera actual
+```
+
+`vi financials` y `vi rank` admiten `--json` para scripts. Todos los comandos
+admiten `--no-color` (también se aplica automáticamente cuando stdout no es
+una TTY). La salida se renderiza con Rich; la salida redirigida nunca contiene
+códigos de color.
+
+Salida abreviada de `./vi financials AAPL`:
+
+```text
+╭─ Financials · AAPL ────────────────────────────────────────────────────
+│ FY2025 · FY · source: Financial-DataBase (SEC EDGAR)
+╰───────────────────────────────────────────────────────────────────────
+  ASSETS                                LIABILITIES + EQUITY
+  ──────────────────────────────────────  ──────────────────────────────────────
+  Cash and Cash Equivalents      $35.93B  Accounts Payable             $69.86B
+  Accounts Receivable, Net       $39.78B  Long Term Debt               $90.68B
+  Current Assets                $147.96B  Current Liabilities         $165.63B
+  TOTAL ASSETS                  $359.24B  TOTAL LIABILITIES + EQUITY  $359.24B
+                                          ✓ Balanced (Δ = $0.00)
+```
 
 ## Qué hace
 
@@ -190,23 +227,17 @@ descriptivo de la aplicación y una dirección de contacto real, y define
 
 ## Uso
 
-### CLI
+### Informes de consenso
+
+Los comandos de consenso leen el último informe precalculado. La ejecución
+diaria normal también lo actualiza automáticamente:
 
 ```bash
-./vi analyze-full AAPL
-./vi compare-methodologies AAPL
-./vi consensus AAPL
-./vi consensus-ranking --universe sp500 --top 20
-./vi consensus-by-category --universe sp500 --per-category 5
+python -m scripts.daily_workflow
 ```
 
-La salida se renderiza con [Rich](https://github.com/Textualize/rich): paneles
-con borde y tablas enmarcadas en la terminal, además de indicadores de progreso
-para ejecuciones largas. La salida redirigida nunca contiene códigos de color, y
-`NO_COLOR=1` o `--no-color` desactivan el color también en la terminal. Si
-prefieres un menú a las banderas, usa `./vi interactive`.
-
-Los comandos de consenso leen el último informe precalculado. Actualízalo con
+Esto escribe `data/consensus/consensus_YYYY-MM-DD.json` para la pestaña
+Consenso. Para actualizar solo el consenso, usa
 `python -m scripts.compute_consensus_rankings --universe sp500`.
 
 ### Interfaz Streamlit
