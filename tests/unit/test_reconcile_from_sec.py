@@ -10,6 +10,7 @@ import pytest
 from scripts.reconcile_from_sec import (
     _iter_sec_facts,
     derive_fiscal_year,
+    infer_offset_from_history,
     make_source_id,
     plan_changes,
     read_tickers_file,
@@ -59,38 +60,89 @@ def _existing(source_id: str, fiscal_year: int) -> list[dict]:
 
 
 @pytest.mark.parametrize(
-    ("ticker", "sec_fy", "end", "fye_month", "expected"),
+    ("ticker", "offset", "end", "sec_fy", "expected", "source"),
     [
-        ("BJRI", 2023, "2025-12-30", 12, 2025),  # diff 2 -> override
-        ("CNM", 2024, "2025-12-31", 12, 2024),  # diff 1 -> respect (start-year)
-        ("KT", 2024, "2025-12-31", 12, 2024),  # diff 1 -> respect (20-F)
-        ("IMOS", 2024, "2025-12-31", 12, 2024),  # diff 1 -> respect (20-F)
-        ("WMT", 2025, "2026-01-31", 1, 2025),  # diff 1 -> respect (Jan FYE)
-        ("AAPL", 2024, "2024-09-28", 9, 2024),  # diff 0 -> respect
-        ("HD", 2025, "2026-02-01", 2, 2025),
-        ("LOW", 2025, "2026-01-30", 1, 2025),
-        ("TGT", 2025, "2026-01-31", 1, 2025),
-        ("COST", 2025, "2025-08-31", 8, 2025),
+        ("BJRI", 0, "2025-12-30", 2023, 2025, "mode_history"),
+        ("CNM", -1, "2025-02-02", 2023, 2024, "mode_history"),
+        ("IMOS", 0, "2023-12-31", 2024, 2023, "mode_history"),
+        ("KT", 0, "2023-12-31", 2023, 2023, "mode_history"),
+        ("WMT", 0, "2026-01-31", 2025, 2026, "mode_history"),
+        ("TGT", -1, "2026-01-31", 2025, 2025, "mode_history"),
+        ("HD", -1, "2026-02-01", 2025, 2025, "mode_history"),
+        ("LOW", -1, "2026-01-30", 2025, 2025, "mode_history"),
+        ("COST", 0, "2025-08-31", 2025, 2025, "mode_history"),
+        ("AAPL", 0, "2024-09-28", 2024, 2024, "mode_history"),
+        ("NO_HISTORY", None, "2025-12-30", 2024, 2024, "fallback_fy"),
+        ("SANITY", 0, "2025-12-30", 2018, 2018, "fallback_sanity"),
     ],
 )
-def test_derive_fiscal_year(ticker, sec_fy, end, fye_month, expected):
-    fact = {"fy": sec_fy, "end": end}
-    assert derive_fiscal_year(fact, fye_month) == expected, ticker
+def test_derive_fiscal_year(ticker, offset, end, sec_fy, expected, source):
+    assert derive_fiscal_year({"end": end}, offset, sec_fy) == (
+        expected,
+        source,
+    ), ticker
+
+
+def test_infer_offset_uses_the_dominant_convention():
+    pairs = [(2024, 2024), (2023, 2023), (2022, 2022), (2021, 2022)]
+    assert infer_offset_from_history(pairs, current_year=2026) == 0
+
+
+def test_infer_offset_breaks_a_tie_towards_zero():
+    pairs = [(2024, 2025), (2023, 2024), (2022, 2022), (2021, 2021)]
+    assert infer_offset_from_history(pairs, current_year=2026) == 0
+
+
+def test_infer_offset_returns_none_without_enough_years():
+    assert infer_offset_from_history([(2024, 2024)], current_year=2026) is None
+
+
+def test_infer_offset_ignores_years_outside_the_window():
+    pairs = [
+        (2015, 2016),
+        (2016, 2017),
+        (2021, 2021),
+        (2022, 2022),
+        (2023, 2023),
+    ]
+    assert infer_offset_from_history(pairs, lookback_years=5, current_year=2026) == 0
 
 
 def test_bucketing_overrides_an_absurd_sec_fy_for_bjri():
     fact = _sec_fact(sec_fy=2023)
     plan = plan_changes(
-        "BJRI", "company", "1013488", 12, [fact], _existing(fact["source_id"], 2023)
+        "BJRI", "company", "1013488", 12, 0, [fact], _existing(fact["source_id"], 2023)
     )
 
     assert plan.updates[0].new_fiscal_year == 2025
     assert plan.updates[0].old_fiscal_year == 2023
+    assert plan.updates[0].offset_applied == 0
+    assert plan.updates[0].offset_source == "mode_history"
+
+
+def test_plan_respects_the_company_offset_for_cnm():
+    fact = _sec_fact(
+        start=date(2025, 2, 3),
+        end=date(2025, 2, 2),
+        sec_fy=2023,
+    )
+    plan = plan_changes(
+        "CNM",
+        "company",
+        "1856525",
+        1,
+        -1,
+        [fact],
+        _existing(fact["source_id"], 2023),
+    )
+
+    assert plan.updates[0].new_fiscal_year == 2024
+    assert plan.updates[0].offset_source == "mode_history"
 
 
 def test_plan_inserts_a_missing_annual_fact():
     fact = _sec_fact()
-    plan = plan_changes("BJRI", "company", "1013488", 12, [fact], [])
+    plan = plan_changes("BJRI", "company", "1013488", 12, 0, [fact], [])
 
     assert plan.inserts and not plan.updates
     assert plan.inserts[0].new_fiscal_year == 2025
@@ -99,7 +151,7 @@ def test_plan_inserts_a_missing_annual_fact():
 def test_plan_is_idempotent_once_the_year_is_correct():
     fact = _sec_fact()
     plan = plan_changes(
-        "BJRI", "company", "1013488", 12, [fact], _existing(fact["source_id"], 2025)
+        "BJRI", "company", "1013488", 12, 0, [fact], _existing(fact["source_id"], 2025)
     )
 
     assert not plan.updates and not plan.inserts
@@ -109,7 +161,7 @@ def test_plan_is_idempotent_once_the_year_is_correct():
 def test_plan_matches_by_period_when_the_source_id_differs():
     fact = _sec_fact()
     plan = plan_changes(
-        "BJRI", "company", "1013488", 12, [fact], _existing("legacy-source", 2023)
+        "BJRI", "company", "1013488", 12, 0, [fact], _existing("legacy-source", 2023)
     )
 
     assert plan.updates and plan.updates[0].row_id == "row-1"

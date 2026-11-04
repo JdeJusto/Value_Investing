@@ -23,7 +23,7 @@ import time
 import urllib.request
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -38,26 +38,53 @@ ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
 AUDIT_TABLE = "reconciliation_log"
 
 
-def derive_fiscal_year(fact: dict[str, Any], fye_month: int) -> int:
-    """Return the fiscal year to bucket a fact under.
+def derive_fiscal_year(
+    fact: dict[str, Any], offset: int | None, sec_fy: int | None
+) -> tuple[int, str]:
+    """Return ``(fiscal_year, offset_source)`` for a fact.
 
-    SEC's ``fy`` is the filing's presentation year and is normally the right
-    label, but it can be off by one for start-year conventions (CNM) or 20-F
-    filers (KT, IMOS). Only override it when it is clearly wrong (more than
-    one year away from the period end); otherwise respect the filing.
-
-    ``fye_month`` is kept in the signature for callers/tests that pass it, but
-    the conservative rule anchors on the period end's calendar year.
+    The company's own convention (``offset = fiscal_year - end.year``) is the
+    source of truth. ``offset=None`` means there is not enough history, so
+    SEC's ``fy`` is respected. A derived year more than two years away from
+    SEC's ``fy`` is suspicious and also falls back to ``fy``.
     """
-    sec_fy = fact.get("fy", fact.get("sec_fy"))
     end_raw = fact.get("end", fact.get("period_end"))
     end = date.fromisoformat(end_raw) if isinstance(end_raw, str) else end_raw
-    if sec_fy is None:
-        return end.year
-    expected = end.year
-    if abs(int(sec_fy) - expected) <= 1:
-        return int(sec_fy)
-    return expected
+    if offset is None or sec_fy is None:
+        return (int(sec_fy) if sec_fy is not None else end.year), "fallback_fy"
+    derived = end.year + offset
+    if abs(derived - int(sec_fy)) > 2:
+        return int(sec_fy), "fallback_sanity"
+    return derived, "mode_history"
+
+
+def infer_offset_from_history(
+    pairs: list[tuple[int, int]],
+    *,
+    lookback_years: int = 5,
+    min_years: int = 3,
+    current_year: int | None = None,
+) -> int | None:
+    """Infer a company's fiscal-year labelling offset from its own history.
+
+    ``pairs`` are ``(fiscal_year, period_end_year)``. Only the last
+    ``lookback_years`` are considered, and fewer than ``min_years`` distinct
+    end years means no reliable convention. The mode wins; ties prefer the
+    smallest absolute offset (0 over -1/+1).
+    """
+    current = current_year if current_year is not None else datetime.now(UTC).year
+    recent = [(fy, ey) for fy, ey in pairs if ey >= current - lookback_years]
+    if len({ey for _, ey in recent}) < min_years:
+        return None
+    offsets = [fy - ey for fy, ey in recent if abs(fy - ey) <= 1]
+    if not offsets:
+        return None
+    counts: dict[int, int] = {}
+    for value in offsets:
+        counts[value] = counts.get(value, 0) + 1
+    best = max(counts.values())
+    candidates = [value for value, count in counts.items() if count == best]
+    return min(candidates, key=lambda value: (abs(value), value))
 
 
 def make_source_id(
@@ -86,6 +113,8 @@ class FactChange:
     filed: date | None
     source_id: str
     row_id: str | None = None
+    offset_applied: int | None = None
+    offset_source: str = ""
 
 
 @dataclass
@@ -94,6 +123,7 @@ class Plan:
     company_id: str
     cik: str
     fye_month: int
+    offset: int | None = None
     updates: list[FactChange] = field(default_factory=list)
     inserts: list[FactChange] = field(default_factory=list)
     skipped: int = 0
@@ -157,11 +187,18 @@ def plan_changes(
     company_id: str,
     cik: str,
     fye_month: int,
+    offset: int | None,
     sec_facts: list[dict[str, Any]],
     existing: list[dict[str, Any]],
 ) -> Plan:
     """Pure planner: what to update/insert, without touching the database."""
-    plan = Plan(ticker=ticker, company_id=company_id, cik=cik, fye_month=fye_month)
+    plan = Plan(
+        ticker=ticker,
+        company_id=company_id,
+        cik=cik,
+        fye_month=fye_month,
+        offset=offset,
+    )
     by_source = {row["source_id"]: row for row in existing if row.get("source_id")}
     by_period: dict[tuple[str, date | None, date], dict[str, Any]] = {}
     for row in existing:
@@ -174,7 +211,7 @@ def plan_changes(
         if source_id in seen:
             continue
         seen.add(source_id)
-        new_fy = derive_fiscal_year(fact, fye_month)
+        new_fy, offset_source = derive_fiscal_year(fact, offset, fact.get("sec_fy"))
         match = by_source.get(source_id)
         if match is None:
             match = by_period.get(
@@ -193,6 +230,8 @@ def plan_changes(
             filed=fact["filed"],
             source_id=source_id,
             row_id=str(match["id"]) if match else None,
+            offset_applied=offset,
+            offset_source=offset_source,
         )
         if match is None:
             plan.inserts.append(change)
@@ -292,6 +331,25 @@ def _fye_month(cur, company_id: str) -> int:
     return int(row[0]) if row else 12
 
 
+def infer_company_offset(
+    cur, company_id: str, *, lookback_years: int = 5, min_years: int = 3
+) -> int | None:
+    """Infer the company's fiscal-year offset from its own fact history."""
+    cur.execute(
+        """SELECT fiscal_year, extract(year FROM period_end)::int
+           FROM financial_facts
+           WHERE company_id=%s AND fiscal_year IS NOT NULL
+             AND period_end IS NOT NULL
+             AND fiscal_period='FY'
+             AND period_end >= CURRENT_DATE - (%s * INTERVAL '1 year')""",
+        (company_id, lookback_years),
+    )
+    pairs = [(int(fy), int(ey)) for fy, ey in cur.fetchall()]
+    return infer_offset_from_history(
+        pairs, lookback_years=lookback_years, min_years=min_years
+    )
+
+
 def _sec_user_agent() -> str:
     env = Path(".env")
     if env.exists():
@@ -324,8 +382,16 @@ def _ensure_audit_table(cur) -> None:
             new_fiscal_year integer,
             action text NOT NULL,
             source_id text,
+            offset_applied smallint,
+            offset_source text,
             created_at timestamptz NOT NULL DEFAULT now()
         )"""
+    )
+    cur.execute(
+        f"ALTER TABLE {AUDIT_TABLE} ADD COLUMN IF NOT EXISTS offset_applied smallint"
+    )
+    cur.execute(
+        f"ALTER TABLE {AUDIT_TABLE} ADD COLUMN IF NOT EXISTS offset_source text"
     )
 
 
@@ -407,8 +473,9 @@ def apply_plan(
                 cur.execute(
                     f"""INSERT INTO {audit_table}
                         (run_id,ticker,company_id,concept,period_start,period_end,
-                         old_fiscal_year,new_fiscal_year,action,source_id)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'update',%s)""",
+                         old_fiscal_year,new_fiscal_year,action,source_id,
+                         offset_applied,offset_source)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'update',%s,%s,%s)""",
                     (
                         run_id,
                         plan.ticker,
@@ -419,6 +486,8 @@ def apply_plan(
                         change.old_fiscal_year,
                         change.new_fiscal_year,
                         change.source_id,
+                        change.offset_applied,
+                        change.offset_source,
                     ),
                 )
         for change in plan.inserts:
@@ -449,8 +518,9 @@ def apply_plan(
                 cur.execute(
                     f"""INSERT INTO {audit_table}
                         (run_id,ticker,company_id,concept,period_start,period_end,
-                         old_fiscal_year,new_fiscal_year,action,source_id)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'insert',%s)""",
+                         old_fiscal_year,new_fiscal_year,action,source_id,
+                         offset_applied,offset_source)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'insert',%s,%s,%s)""",
                     (
                         run_id,
                         plan.ticker,
@@ -461,6 +531,8 @@ def apply_plan(
                         None,
                         change.new_fiscal_year,
                         change.source_id,
+                        change.offset_applied,
+                        change.offset_source,
                     ),
                 )
         conn.commit()
@@ -519,11 +591,20 @@ def main() -> int:
                 continue
             company_id, cik = found
             fye_month = _fye_month(cur, company_id)
-            logger.info("%s: CIK %s, fiscal-year-end month %s", ticker, cik, fye_month)
+            offset = infer_company_offset(cur, company_id)
+            logger.info(
+                "%s: CIK %s, fiscal-year-end month %s, offset %s",
+                ticker,
+                cik,
+                fye_month,
+                offset,
+            )
             facts = _fetch_sec_facts(cik, user_agent)
             sec_facts = _iter_sec_facts(facts, since)
             existing = _load_existing(cur, company_id)
-            plan = plan_changes(ticker, company_id, cik, fye_month, sec_facts, existing)
+            plan = plan_changes(
+                ticker, company_id, cik, fye_month, offset, sec_facts, existing
+            )
             logger.info(plan.summary())
             if args.apply:
                 backup = Path(args.backup)
