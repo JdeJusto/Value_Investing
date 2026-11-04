@@ -317,3 +317,21 @@ gh api repos/JdeJusto/Financial-DataBase/branches/main/protection -X PUT \
 ```
 
 Applied on 2026-09-30 (both repos public); see the note above.
+
+## Bugs detectados en auditoría post-v0.20.1 (2026-11-04)
+
+| ID | Severidad | Ticker(s) | Comando | Descripción |
+|---|---|---|---|---|
+| AUDIT-001 | Alta | JNJ, CAT, T, VZ, CSX, ADM, PG | `vi financials --json` / UI Financials | El tag NCI no se reconoce como equity total; `derived.equity` falso positivo, equity/delta incorrectos. JNJ CLI: equity 168.978 B, delta -87.434 B; UI L+E 350.458 B, delta -151.248 B. |
+| AUDIT-002 | Alta | — | Streamlit `/methodologies` | `ui/pages/07_methodologies.py` no está registrado en `st.navigation`; la URL renderiza Home. |
+| AUDIT-003 | Media | SAN, TD, BNS, SNY, TTE, BTI, RACE, AZN, PCAR | `vi financials --json` | T-view/JSON escaso: sin `assets.current` en bancos/PCAR; equity/current incompletos en IFRS. |
+| AUDIT-004 | Media | MRX | `vi financials --json` / UI Financials | Equity parcial (`RetainedEarnings` only) pero `balanced=true` con delta 281.6 M (0.81 %, dentro de la tolerancia del 1 %). |
+| AUDIT-005 | Media | — | `vi screener` | El comando refresca SEC por defecto; una ejecución `--no-prices` hizo `4 synced with SEC`. Usar `--no-refresh` para solo lectura. |
+| AUDIT-006 | Baja | VZ, TD, SNY, TTE, BTI, RACE, AZN, DUK, NEE, MRX, AAMI, BRUN, SKT, APA | `vi dcf` | `INSUFFICIENT_DATA` sin motivo explícito (FCF/datos/banco). |
+| AUDIT-007 | Baja | — | `vi consensus` | `--universe demo` no encuentra el fichero demo (vive en `data/demo/consensus`, `universe=sp500`); `--demo` y `--universe all` funcionan. |
+| AUDIT-008 | Baja | SAN (no-USD) | `vi financials --json` | El contrato JSON no incluye `currency`; la UI sí muestra EUR. |
+
+Ver `docs/usage_notes.md` para reproducción, tabla de gaps de datos e
+incoherencias CLI ↔ Streamlit.
+
+**No se arregló ningún bug en esta sesión** (auditoría de solo lectura).
