@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import sys
+from dataclasses import replace
 from typing import ClassVar
 
 import pytest
@@ -57,11 +58,50 @@ def _view(*, derived: bool = False, partial_equity: bool = False) -> FinancialsV
     )
 
 
+def _json_view() -> FinancialsView:
+    rows = [
+        _row("CashAndCashEquivalentsAtCarryingValue", "Cash", "$10"),
+        _row("AccountsReceivableNetCurrent", "Receivables", "$20"),
+        _row("InventoryNet", "Inventory", "$15"),
+        _row("OtherAssetsCurrent", "Other current assets", "$5"),
+        _row("ShortTermInvestments", "Short-term investments", "$10"),
+        _row("AssetsCurrent", "Current Assets", "$60"),
+        _row("PropertyPlantAndEquipmentNet", "Property, plant and equipment", "$40"),
+        _row("AssetsNoncurrent", "Noncurrent Assets", "$40"),
+        _row("Assets", "Assets", "$100"),
+        _row("AccountsPayableCurrent", "Accounts payable", "$15"),
+        _row("LiabilitiesCurrent", "Current Liabilities", "$25"),
+        _row("LiabilitiesNoncurrent", "Noncurrent Liabilities", "$15"),
+        _row("Liabilities", "Liabilities", "$40"),
+        _row("CommonStockValue", "Common stock", "$5"),
+        _row("AdditionalPaidInCapital", "Additional paid-in capital", "$25"),
+        _row("RetainedEarningsAccumulatedDeficit", "Retained earnings", "$30"),
+        _row("StockholdersEquity", "Stockholders Equity", "$60"),
+        _row("LiabilitiesAndStockholdersEquity", "Liabilities and Equity", "$100"),
+    ]
+    return FinancialsView(
+        ticker="AAPL",
+        company_name="Apple Inc.",
+        fiscal_period="FY",
+        years=[2025],
+        balance_sheet=rows,
+        income_statement=[],
+        cash_flow=[],
+        other=[],
+        unmatched_count=0,
+        extraction_warnings=[],
+        derived_liability_years=[],
+    )
+
+
 class _Service:
     view: FinancialsView | None = _view()
     calls: ClassVar[list[tuple]] = []
 
-    def build(self, ticker, period="FY", max_years=1):
+    def fetch_facts(self, ticker, period="FY", max_years=1):
+        return []
+
+    def build(self, ticker, period="FY", max_years=1, facts=None):
         type(self).calls.append((ticker, period, max_years))
         return type(self).view
 
@@ -114,8 +154,8 @@ def test_json_output_is_valid(capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["ticker"] == "AAPL"
     assert payload["fiscal_year"] == 2025
-    assert payload["totals"]["assets"] == 100.0
-    assert payload["totals"]["balanced"] is True
+    assert payload["assets"]["total"] == 100.0
+    assert payload["balanced"] is True
 
 
 def test_derived_liabilities_get_the_marker_and_caption(capsys):
@@ -160,3 +200,46 @@ def test_unknown_ticker_exits_two(capsys):
 
     assert excinfo.value.code == 2
     assert "No financial facts stored" in capsys.readouterr().out
+
+
+def test_financials_json_has_grouped_line_items(capsys):
+    _Service.view = _json_view()
+    _run("financials", "AAPL", "--json")
+
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload["assets"]["current"]) >= 5
+    assert len(payload["assets"]["non_current"]) >= 1
+    assert len(payload["liabilities_equity"]["equity"]) >= 1
+    assert payload["assets"]["total_current"] == 60.0
+    assert payload["liabilities_equity"]["total_equity"] == 60.0
+    assert "balance_sheet" in payload
+
+
+def test_financials_json_assets_count_matches_render(capsys):
+    _Service.view = _json_view()
+    _run("financials", "AAPL", "--json")
+    payload = json.loads(capsys.readouterr().out)
+    _run("financials", "AAPL", "--no-color")
+    output = capsys.readouterr().out
+
+    for item in payload["assets"]["current"]:
+        assert item["label"] in output
+
+
+def test_financials_json_derived_flags(capsys):
+    _Service.view = replace(_view(), derived_liability_years=[2025])
+    _run("financials", "AAPL", "--json")
+    assert json.loads(capsys.readouterr().out)["derived"]["liabilities"] is True
+
+    _Service.view = _view(partial_equity=True)
+    _run("financials", "AAPL", "--json")
+    assert json.loads(capsys.readouterr().out)["derived"]["equity"] is True
+
+
+def test_financials_json_balanced_chip_matches(capsys):
+    _Service.view = _json_view()
+    _run("financials", "AAPL", "--json")
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["balanced"] is True
+    assert abs(payload["delta"]) < 1e-6

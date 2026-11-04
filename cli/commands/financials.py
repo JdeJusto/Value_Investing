@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
+from backend.services.demo_mode import is_demo
 from backend.services.financials_view_service import FinancialsViewService
 from cli import theme
 from cli.formatters import red
@@ -40,6 +41,13 @@ _SUBTOTAL_SIDES = {
     **{concept: "liabilities" for concept in MASS_SUBTOTAL_CONCEPTS["liab_noncurrent"]},
     **{concept: "liabilities" for concept in _EQUITY_TOTAL_CONCEPTS},
 }
+_ANCHOR_CONCEPTS = (
+    set(TOTAL_CONCEPTS["total_assets"])
+    | set(TOTAL_CONCEPTS["total_liabilities"])
+    | set(_EQUITY_TOTAL_CONCEPTS)
+    | {concept for concepts in MASS_SUBTOTAL_CONCEPTS.values() for concept in concepts}
+    | {"Equity", "ShareholdersEquity", "TotalEquityGrossMinorityInterest"}
+)
 _LIABILITY_TERMS = (
     "liabilit",
     "payable",
@@ -88,12 +96,11 @@ def register(subparsers) -> None:
 
 def _run(args) -> None:
     ticker = args.ticker.upper().strip()
+    years = max(1, min(int(args.years), 20))
+    service = FinancialsViewService()
     try:
-        view = FinancialsViewService().build(
-            ticker,
-            args.period,
-            max_years=max(1, min(int(args.years), 20)),
-        )
+        facts = None if is_demo() else service.fetch_facts(ticker, args.period, years)
+        view = service.build(ticker, args.period, max_years=years, facts=facts)
     except Exception as exc:
         print(f"  {red('ERROR:')} Could not load financials for {ticker}: {exc}")
         raise SystemExit(3) from exc
@@ -103,24 +110,114 @@ def _run(args) -> None:
         raise SystemExit(2)
 
     year = _select_year(view)
+    if facts:
+        view = _filter_to_latest_period(view, facts, year)
     totals = _totals(view, year)
-    payload = asdict(view)
-    payload.update(
-        {
-            "fiscal_year": year,
-            "totals": totals,
-            "balanced": totals["balanced"],
-            "delta": totals["delta"],
-            "derived_liabilities": year in set(view.derived_liability_years),
-            "partial_equity": totals["partial_equity"],
-        }
-    )
 
     if args.json:
-        print(json.dumps(payload, indent=2, default=str))
+        print(
+            json.dumps(_build_json_payload(view, year, totals), indent=2, default=str)
+        )
         return
 
     _render(view, year, totals)
+
+
+def _filter_to_latest_period(view, facts, year: int):
+    """Keep balance rows filed at the selected year's own period_end.
+
+    FDB stores prior-year comparatives under the filing's fiscal-year bucket;
+    without this filter a concept only tagged in a comparative (MRX equity)
+    would leak into the selected year.
+    """
+    anchors: dict[str, str] = {}
+    for fact in facts:
+        if int(fact.get("fiscal_year") or 0) != year:
+            continue
+        concept = str(fact.get("concept") or "")
+        period = str(fact.get("period_end") or "")
+        if concept in _ANCHOR_CONCEPTS and period:
+            anchors[period] = max(anchors.get(period, ""), period)
+    if not anchors:
+        return view
+    anchor = max(anchors)
+    allowed = {
+        str(fact.get("concept") or "")
+        for fact in facts
+        if int(fact.get("fiscal_year") or 0) == year
+        and str(fact.get("period_end") or "") == anchor
+    }
+    return replace(
+        view,
+        balance_sheet=[row for row in view.balance_sheet if row.concept in allowed],
+        other=[row for row in view.other if row.concept in allowed],
+    )
+
+
+def _items(rows) -> list[dict]:
+    return [
+        {"concept": concept, "label": label, "value": value}
+        for label, value, concept in rows
+    ]
+
+
+def _build_json_payload(view, year: int, totals: dict) -> dict:
+    """Structured JSON contract for ``vi financials --json``.
+
+    Groups the balance lines into assets and liabilities/equity, keeps the
+    flat ``balance_sheet`` list for compatibility, and exposes the derived
+    flags and balance check.
+    """
+    assets, liabilities = _rows_by_side(view, year)
+    groups = {
+        "assets_current": [],
+        "assets_noncurrent": [],
+        "liab_current": [],
+        "liab_noncurrent": [],
+        "equity": [],
+    }
+    for item in assets + liabilities:
+        mass = concept_mass(item[2])
+        if mass in groups:
+            groups[mass].append(item)
+
+    assets_current = _find_row(view, MASS_SUBTOTAL_CONCEPTS["assets_current"], year)
+    assets_noncurrent = _find_row(
+        view, MASS_SUBTOTAL_CONCEPTS["assets_noncurrent"], year
+    )
+    liab_current = _find_row(view, MASS_SUBTOTAL_CONCEPTS["liab_current"], year)
+    liab_noncurrent = _find_row(view, MASS_SUBTOTAL_CONCEPTS["liab_noncurrent"], year)
+
+    return {
+        "ticker": view.ticker,
+        "company_name": view.company_name,
+        "fiscal_period": view.fiscal_period,
+        "fiscal_year": year,
+        "assets": {
+            "current": _items(groups["assets_current"]),
+            "non_current": _items(groups["assets_noncurrent"]),
+            "total_current": _parse_money(_value(assets_current, year)),
+            "total_non_current": _parse_money(_value(assets_noncurrent, year)),
+            "total": totals["assets"],
+        },
+        "liabilities_equity": {
+            "current": _items(groups["liab_current"]),
+            "non_current": _items(groups["liab_noncurrent"]),
+            "equity": _items(groups["equity"]),
+            "total_current": _parse_money(_value(liab_current, year)),
+            "total_non_current": _parse_money(_value(liab_noncurrent, year)),
+            "total_equity": totals["equity"],
+            "total": totals["liabilities_equity"],
+        },
+        "derived": {
+            "liabilities": totals["has_derived_liabilities"],
+            "equity": totals["partial_equity"],
+        },
+        "balanced": totals["balanced"],
+        "delta": totals["delta"],
+        # Compatibility: the flat view consumers already knew.
+        "balance_sheet": [asdict(row) for row in view.balance_sheet],
+    }
 
 
 def _select_year(view) -> int:
@@ -219,7 +316,7 @@ def _side(concept: str) -> str:
 
 def _rows_by_side(view, year: int):
     assets, liabilities = [], []
-    for row in view.balance_sheet:
+    for row in list(view.balance_sheet) + list(view.other):
         if not row.values.get(year):
             continue
         if row.concept in _TOTAL_ONLY or row.concept in MEMORANDUM_CONCEPTS:
