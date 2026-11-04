@@ -95,6 +95,49 @@ def effective_tax_rate(
     return _sanitize_tax_rate(_effective_tax_rate(financials), default)
 
 
+def _effective_year_from_rows(rows: list[NormalizedFinancials]) -> int | None:
+    """Latest row with a complete balance (Assets + Equity), newest first.
+
+    Liabilities may be absent (derived as Assets - Equity). Used by the
+    history loader so it never needs a second repository round-trip: rows are
+    already newest-first, so the first complete one is the effective year.
+    """
+    for row in rows:
+        if row.total_assets is not None and row.stockholders_equity is not None:
+            return row.fiscal_year
+    return None
+
+
+def effective_year(ticker: str, repository=None) -> int | None:
+    """Return the latest fiscal year with Assets and StockholdersEquity.
+
+    Liabilities may be absent (derived as Assets - Equity). A year with
+    Assets but no Equity is not usable for book-value analysis; MRX FY2025 is
+    the canonical case (Assets + Liabilities, no Equity) and falls back to
+    FY2024.
+
+    ``repository`` may be a ``FinancialDatabaseRepository``; when omitted the
+    app repository is built lazily.
+    """
+    if repository is None:
+        from backend.app.cli import build_financial_repository
+
+        repository = build_financial_repository()
+    getter = getattr(repository, "get_effective_year", None)
+    if callable(getter):
+        value = getter(ticker)
+        if value is None or isinstance(value, int):
+            return value
+    for row in repository.get_best_available(ticker):
+        if (
+            isinstance(getattr(row, "fiscal_year", None), int)
+            and row.total_assets is not None
+            and row.stockholders_equity is not None
+        ):
+            return row.fiscal_year
+    return None
+
+
 class CompanyAnalysisService:
     """Computes valuation metrics from persisted normalized financials."""
 
@@ -367,6 +410,11 @@ class CompanyAnalysisService:
                 rows = self._repository.get_best_available(ticker)
             except Exception:  # noqa: BLE001 — missing data must not kill analysis
                 logger.warning("analytics: could not load data for %s", ticker)
+        # Drop years after the latest complete balance (Assets + Equity).
+        # MRX FY2025 has Assets + Liabilities but no Equity; use FY2024.
+        year = _effective_year_from_rows(rows)
+        if year is not None:
+            rows = [row for row in rows if row.fiscal_year <= year]
         # Drop all-empty (in-progress) years so the "current year" is always a
         # completed fiscal year with actual values.
         rows = [row for row in rows if self._row_has_data(row)]

@@ -344,7 +344,33 @@ class FactsMixin:
         rows = self.list_all(ticker)
         if max_years is not None:
             rows = self.list_all(ticker, max_years=max_years)
-        return [row for row in rows if not self._row_is_empty(row)]
+        rows = [row for row in rows if not self._row_is_empty(row)]
+        # FDB 0.2.0: drop newer years whose latest period_end balance is
+        # incomplete (MRX) and take the eight canonical fields from
+        # core_financials when available. One query serves both purposes:
+        # _core_rows_by_year returns the latest period_end per fiscal year.
+        cores = getattr(self, "_core_rows_by_year", None)
+        by_year = cores(ticker) if callable(cores) else {}
+        if by_year:
+            year = next(
+                (
+                    fiscal_year
+                    for fiscal_year in sorted(by_year, reverse=True)
+                    if by_year[fiscal_year].get("total_assets") is not None
+                    and by_year[fiscal_year].get("stockholders_equity") is not None
+                ),
+                None,
+            )
+        else:
+            effective = getattr(self, "get_effective_year", None)
+            year = effective(ticker) if callable(effective) else None
+        if year is not None:
+            rows = [row for row in rows if row.fiscal_year <= year]
+        if callable(cores):
+            rows = [
+                self._merge_core_row(row, by_year.get(row.fiscal_year)) for row in rows
+            ]
+        return rows
 
     def has_data(self, ticker: str) -> bool:
         """True if at least one record exists for the ticker."""

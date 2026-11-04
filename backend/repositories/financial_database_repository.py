@@ -14,6 +14,7 @@ import logging
 import os
 import threading
 import time
+from dataclasses import replace
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -200,6 +201,265 @@ class FinancialDatabaseRepository(
                 conn.close()
         except Exception:  # noqa: BLE001, S110 — best-effort teardown
             pass
+
+    # ------------------------------------------------------------------
+    # FDB 0.2.0 normalized layer
+    # ------------------------------------------------------------------
+    def get_effective_year(self, ticker: str) -> int | None:
+        """Latest fiscal year with Assets and StockholdersEquity present.
+
+        Liabilities may be absent (derived as Assets - Equity). MRX FY2025
+        has Assets + Liabilities but no Equity, so it backs off to FY2024.
+        """
+        company_id = self._get_company_id_by_ticker(ticker)
+        if not company_id:
+            return None
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(
+                    """SELECT cf.fiscal_year
+                       FROM core_financials cf
+                       JOIN (
+                         SELECT fiscal_year, MAX(period_end) AS period_end
+                         FROM core_financials
+                         WHERE company_id = %s
+                         GROUP BY fiscal_year
+                       ) latest
+                         ON latest.fiscal_year = cf.fiscal_year
+                        AND latest.period_end = cf.period_end
+                       WHERE cf.company_id = %s
+                         AND cf.total_assets IS NOT NULL
+                         AND cf.stockholders_equity IS NOT NULL
+                       ORDER BY cf.fiscal_year DESC
+                       LIMIT 1""",
+                    (company_id, company_id),
+                )
+                row = cur.fetchone()
+            if row:
+                value = row.get("fiscal_year") if hasattr(row, "get") else None
+                if isinstance(value, int):
+                    return value
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            logger.debug(
+                "core_financials unavailable; falling back to raw facts", exc_info=True
+            )
+
+        try:
+            for item in self._list_years_uncached(ticker):
+                if (
+                    item.total_assets is not None
+                    and item.stockholders_equity is not None
+                ):
+                    return item.fiscal_year
+        except Exception:
+            logger.debug("effective-year fallback failed for %s", ticker, exc_info=True)
+        return None
+
+    def get_core_financials(
+        self, ticker: str, fiscal_year: int | None = None
+    ) -> dict | None:
+        """Read the eight canonical fields from FDB's ``core_financials`` MV.
+
+        Returns the latest ``period_end`` for the requested year. When
+        ``fiscal_year`` is None, resolves the effective year (latest year
+        with Assets + StockholdersEquity) first. Also exposes the
+        derived-liability fields from ``balance_effective``.
+        """
+        company_id = self._get_company_id_by_ticker(ticker)
+        if not company_id:
+            return None
+        year = (
+            fiscal_year if fiscal_year is not None else self.get_effective_year(ticker)
+        )
+        if year is None:
+            return None
+        sql = """SELECT cf.*, be.liabilities_effective, be.liabilities_derived
+                 FROM core_financials cf
+                 LEFT JOIN balance_effective be
+                   ON be.company_id = cf.company_id
+                  AND be.fiscal_year = cf.fiscal_year
+                  AND be.period_end = cf.period_end
+                 WHERE cf.company_id = %s AND cf.fiscal_year = %s
+                 ORDER BY cf.period_end DESC LIMIT 1"""
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(sql, [company_id, int(year)])
+                row = cur.fetchone()
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            logger.debug("core_financials read failed", exc_info=True)
+            return None
+        return dict(row) if row is not None and hasattr(row, "keys") else None
+
+    def get_core_financials_batch(
+        self, tickers: list[str], fiscal_year: int | None = None
+    ) -> dict[str, dict]:
+        """Batch version for screener/consensus/ranking (one SQL query).
+
+        ``fiscal_year=None`` resolves each ticker's effective year in SQL
+        (latest fiscal year with Assets + StockholdersEquity).
+        """
+        if not tickers:
+            return {}
+        if fiscal_year is None:
+            sql = """WITH selected AS (
+                         SELECT DISTINCT cl.company_id, cl.ticker
+                         FROM company_listings cl
+                         WHERE cl.ticker = ANY(%s) AND cl.is_active
+                     ),
+                     latest AS (
+                         SELECT cf.company_id, cf.fiscal_year,
+                                MAX(cf.period_end) AS period_end
+                         FROM core_financials cf
+                         JOIN selected s ON s.company_id = cf.company_id
+                         GROUP BY cf.company_id, cf.fiscal_year
+                     ),
+                     effective AS (
+                         SELECT DISTINCT ON (cf.company_id)
+                                cf.company_id, cf.fiscal_year
+                         FROM core_financials cf
+                         JOIN latest l
+                           ON l.company_id = cf.company_id
+                          AND l.fiscal_year = cf.fiscal_year
+                          AND l.period_end = cf.period_end
+                         WHERE cf.total_assets IS NOT NULL
+                           AND cf.stockholders_equity IS NOT NULL
+                         ORDER BY cf.company_id, cf.fiscal_year DESC
+                     )
+                     SELECT DISTINCT ON (cl.ticker)
+                            cl.ticker, cf.*, be.liabilities_effective,
+                            be.liabilities_derived
+                     FROM effective e
+                     JOIN selected cl ON cl.company_id = e.company_id
+                     JOIN core_financials cf
+                       ON cf.company_id = e.company_id
+                      AND cf.fiscal_year = e.fiscal_year
+                     LEFT JOIN balance_effective be
+                       ON be.company_id = cf.company_id
+                      AND be.fiscal_year = cf.fiscal_year
+                      AND be.period_end = cf.period_end
+                     ORDER BY cl.ticker, cf.period_end DESC"""
+            params: tuple = (list(tickers),)
+        else:
+            sql = """SELECT DISTINCT ON (cl.ticker)
+                         cl.ticker, cf.*, be.liabilities_effective,
+                         be.liabilities_derived
+                     FROM core_financials cf
+                     JOIN company_listings cl
+                       ON cl.company_id = cf.company_id AND cl.is_active
+                     LEFT JOIN balance_effective be
+                       ON be.company_id = cf.company_id
+                      AND be.fiscal_year = cf.fiscal_year
+                      AND be.period_end = cf.period_end
+                     WHERE cl.ticker = ANY(%s) AND cf.fiscal_year = %s
+                     ORDER BY cl.ticker, cf.period_end DESC"""
+            params = (list(tickers), int(fiscal_year))
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(sql, params)
+                rows = cur.fetchall()
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            logger.debug("core_financials batch read failed", exc_info=True)
+            return {}
+        return {
+            row["ticker"]: dict(row)
+            for row in rows
+            if hasattr(row, "get") and row.get("ticker")
+        }
+
+    def get_normalized_facts(
+        self, ticker: str, fiscal_period: str = "FY"
+    ) -> list[dict]:
+        """Raw facts with FDB's normalized field/concept (read-only view)."""
+        company_id = self._get_company_id_by_ticker(ticker)
+        if not company_id:
+            return []
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(
+                    """SELECT * FROM financial_facts_normalized
+                       WHERE company_id = %s AND fiscal_period = %s
+                       ORDER BY fiscal_year DESC, period_end DESC NULLS LAST""",
+                    (company_id, fiscal_period.upper()),
+                )
+                rows = cur.fetchall()
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            logger.debug("financial_facts_normalized unavailable", exc_info=True)
+            return []
+        return [dict(row) for row in rows if hasattr(row, "keys")]
+
+    def get_balance_effective(self, ticker: str, fiscal_year: int) -> dict | None:
+        """Derived-liability row for one fiscal year (latest period_end)."""
+        company_id = self._get_company_id_by_ticker(ticker)
+        if not company_id:
+            return None
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(
+                    """SELECT * FROM balance_effective
+                       WHERE company_id = %s AND fiscal_year = %s
+                       ORDER BY period_end DESC LIMIT 1""",
+                    (company_id, int(fiscal_year)),
+                )
+                row = cur.fetchone()
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            logger.debug("balance_effective unavailable", exc_info=True)
+            return None
+        return dict(row) if row is not None and hasattr(row, "keys") else None
+
+    def _core_rows_by_year(self, ticker: str) -> dict[int, dict]:
+        company_id = self._get_company_id_by_ticker(ticker)
+        if not company_id:
+            return {}
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(
+                    """SELECT DISTINCT ON (fiscal_year) fiscal_year, *
+                       FROM core_financials
+                       WHERE company_id = %s
+                       ORDER BY fiscal_year DESC, period_end DESC""",
+                    (company_id,),
+                )
+                rows = cur.fetchall()
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            return {}
+        by_year: dict[int, dict] = {}
+        for row in rows:
+            if not hasattr(row, "get"):
+                continue
+            year = row.get("fiscal_year")
+            if isinstance(year, int):
+                by_year[year] = dict(row)
+        return by_year
+
+    @staticmethod
+    def _merge_core_row(row, core: dict | None):
+        if not core:
+            return row
+        updates = {}
+        for field in (
+            "revenue",
+            "net_income",
+            "operating_income",
+            "gross_profit",
+            "total_assets",
+            "total_liabilities",
+            "stockholders_equity",
+        ):
+            value = core.get(field)
+            if value is not None:
+                updates[field] = float(value)
+        cash = core.get("cash")
+        if cash is not None:
+            updates["cash_and_equivalents"] = float(cash)
+        if (
+            updates.get("total_liabilities") is None
+            and updates.get("total_assets") is not None
+            and updates.get("stockholders_equity") is not None
+        ):
+            updates["total_liabilities"] = (
+                updates["total_assets"] - updates["stockholders_equity"]
+            )
+        return replace(row, **updates) if updates else row
 
     def __del__(self):
         """Cleanup connection on object destruction."""
