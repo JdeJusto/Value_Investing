@@ -1,3 +1,54 @@
+## [0.20.0] - 2026-11-04
+
+### Added
+- **FDB 0.2.1 integration**: VI reads normalized financial data from
+  FDB's `core_financials` MV (8 canonical fields) and
+  `financial_facts_normalized` view.
+- T-view marks derived values:
+  - `*` for derived liabilities (340 tickers; e.g. PCAR).
+  - `*` for partial equity (MRX: RetainedEarnings only) with a specific
+    caption clarifying that full equity is not reported.
+
+### Changed
+- **Effective-year rule** (`analytics.service.effective_year()`):
+  requires `total_assets + stockholders_equity` (not `revenue`). MRX
+  FY2025 lacks equity → effective year is FY2024. Applies to scorecard,
+  screener, ranking and consensus.
+- `get_best_available()` merges `core_financials` with normalized fields.
+  `fdb_concept_mapping` remains the fallback for ~103 non-canonical
+  concepts.
+- **Coverage improvement**: 37 large caps (JNJ, CAT, T, VZ, CSX, ADM,
+  PG, ...) now have equity via the FDB 0.2.1 NCI alias. VI tickers
+  without effective year: **108 → 71**.
+
+### Fixed
+- **`methodology_ranking_service` was loading fundamentals from a
+  non-existent `get_fundamentals` method**, always returning an empty
+  history. Ranking now works via `get_best_available()`. Tests added
+  (mock-only; integration test tracked as debt).
+- MRX T-view anchors comparative equity by `period_end` to avoid
+  bleeding prior-year equity into the selected year.
+- MRX equity now uses a specific partial-equity caption instead of the
+  generic computed-subtotal note.
+
+### Measured
+- Coverage `8/8 canonical fields`: 884 in the VI universe.
+- Tickers with derived liabilities: 340.
+- Batch `get_core_financials` for 76 tickers: 67-101 ms.
+- Unit tests: 2498 (+28 from v0.19.2), 125 API, ruff 0/0.
+
+### Notes
+- **Requires FDB >= 0.2.1**. The NCI equity alias was released in FDB
+  0.2.1; v0.20.0 depends on it for large-cap coverage.
+- `bank_revenue` (FDB 0.2.0) is not yet surfaced in the VI UI.
+- MRX equity shows a partial value (RetainedEarnings only); full equity
+  is not reported in the filing.
+- 71 tickers remain without an effective year (69 without
+  `core_financials` rows, BRUN without `total_assets`, SKT without
+  balance facts).
+- FDB v0.3.0 will split `stockholders_equity_parent` from the
+  NCI-inclusive value.
+
 ## [0.19.2] - 2026-10-23
 
 ### Added
