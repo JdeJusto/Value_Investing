@@ -222,3 +222,110 @@ def test_tickers_file_reads_lines_and_ignores_comments(tmp_path):
     path = tmp_path / "tickers.txt"
     path.write_text("AAPL\n\nMSFT  # second\n", encoding="utf-8")
     assert read_tickers_file(path) == ["AAPL", "MSFT"]
+
+
+# ---------------------------------------------------------------------------
+# Atomic balance groups (company_id, period_end)
+# ---------------------------------------------------------------------------
+from scripts.reconcile_from_sec import plan_group, plan_ticker
+
+GROUP_END = date(2025, 2, 2)
+GROUP_START = date(2024, 2, 3)
+
+
+def _group_fact(concept, value, *, end=GROUP_END, start=GROUP_START, fy=2023):
+    return {
+        "id": f"{concept}-{end}",
+        "concept": concept,
+        "value": value,
+        "fiscal_year": fy,
+        "period_start": start,
+        "period_end": end,
+    }
+
+
+def _sec_index(facts, sec_fy):
+    return {
+        (fact["concept"], fact["period_start"], fact["period_end"]): {
+            "concept": fact["concept"],
+            "period_start": fact["period_start"],
+            "period_end": fact["period_end"],
+            "sec_fy": sec_fy,
+        }
+        for fact in facts
+    }
+
+
+def _balance_group(*, assets=100.0, liab=40.0, equity=60.0, end=GROUP_END, fy=2023):
+    return [
+        _group_fact("Assets", assets, end=end, fy=fy),
+        _group_fact("Liabilities", liab, end=end, fy=fy),
+        _group_fact("StockholdersEquity", equity, end=end, fy=fy),
+    ]
+
+
+def test_group_with_unanimous_year_moves():
+    facts = _balance_group()
+    result = plan_group(GROUP_END, facts, _sec_index(facts, 2023), -1)
+
+    assert result.moved is True
+    assert result.fiscal_year == 2024
+    assert result.reason == "ok"
+
+
+def test_group_with_discrepancy_skips():
+    facts = _balance_group()
+    index = _sec_index(facts, 2023)
+    index[("Liabilities", GROUP_START, GROUP_END)]["sec_fy"] = 2018
+    result = plan_group(GROUP_END, facts, index, -1)
+
+    assert result.moved is False
+    assert result.reason == "intra_group_discrepancy"
+
+
+def test_group_with_balance_break_skips():
+    facts = _balance_group(assets=100.0, liab=90.0, equity=60.0)
+    result = plan_group(GROUP_END, facts, _sec_index(facts, 2023), -1)
+
+    assert result.moved is False
+    assert result.reason == "balance_would_break"
+
+
+def test_group_with_missing_components_skips():
+    facts = [
+        _group_fact("Assets", 100.0),
+        _group_fact("Liabilities", 40.0),
+    ]
+    result = plan_group(GROUP_END, facts, _sec_index(facts, 2023), -1)
+
+    assert result.moved is False
+    assert result.reason == "missing_components"
+
+
+def test_ticker_with_mixed_groups_partial_success():
+    good_end = GROUP_END
+    bad_end = date(2024, 2, 1)
+    good = _balance_group(end=good_end)
+    bad = [
+        _group_fact("Assets", 50.0, end=bad_end),
+        _group_fact("StockholdersEquity", 20.0, end=bad_end),
+    ]
+    facts = good + bad
+    index = _sec_index(good, 2023) | _sec_index(bad, 2023)
+
+    report, moves = plan_ticker("TEST", "company", facts, list(index.values()), -1)
+
+    assert report.reason == "ok"
+    assert len(report.moved_groups) == 1
+    assert len(report.skipped_groups) == 1
+    assert moves == {good_end: 2024}
+
+
+def test_reconcile_idempotent_after_the_move():
+    facts = _balance_group(fy=2024)
+    index = _sec_index(facts, 2024)
+
+    report, moves = plan_ticker("TEST", "company", facts, list(index.values()), -1)
+
+    assert moves == {}
+    assert any(result.reason == "already_correct" for result in report.skipped_groups)

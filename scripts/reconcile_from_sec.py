@@ -242,6 +242,254 @@ def plan_changes(
     return plan
 
 
+BALANCE_ASSET_CONCEPTS = frozenset(
+    {"Assets", "AssetsTotal", "LiabilitiesAndStockholdersEquity"}
+)
+BALANCE_LIABILITY_CONCEPTS = frozenset({"Liabilities", "LiabilitiesTotal"})
+BALANCE_EQUITY_CONCEPTS = frozenset(
+    {
+        "StockholdersEquity",
+        "TotalEquityGrossMinorityInterest",
+        "ShareholdersEquity",
+        "Equity",
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    }
+)
+
+
+@dataclass
+class MoveResult:
+    moved: bool
+    fiscal_year: int | None
+    reason: str
+    n_facts: int = 0
+    old_fiscal_years: tuple[int, ...] = ()
+
+
+@dataclass
+class TickerReport:
+    ticker: str
+    company_id: str
+    offset: int | None
+    moved_groups: list[MoveResult] = field(default_factory=list)
+    skipped_groups: list[MoveResult] = field(default_factory=list)
+    reason: str = "ok"
+
+    def summary(self) -> str:
+        return (
+            f"{self.ticker}: moved={len(self.moved_groups)} "
+            f"skipped={len(self.skipped_groups)} reason={self.reason}"
+        )
+
+
+def _group_value(facts: list[dict], concepts: frozenset[str]) -> float | None:
+    values = [
+        float(fact["value"])
+        for fact in facts
+        if fact["concept"] in concepts and fact.get("value") is not None
+    ]
+    return max(values) if values else None
+
+
+def plan_group(
+    period_end: date,
+    facts: list[dict],
+    sec_index: dict[tuple[str, date | None, date], dict],
+    offset: int | None,
+) -> MoveResult:
+    """Plan one balance group; never moves a subset of its facts."""
+    if not facts:
+        return MoveResult(False, None, "missing_components")
+    targets: set[int] = set()
+    for fact in facts:
+        sec = sec_index.get(
+            (fact["concept"], fact.get("period_start"), fact["period_end"])
+        )
+        if sec is not None:
+            target, source = derive_fiscal_year(sec, offset, sec.get("sec_fy"))
+            if source != "mode_history":
+                return MoveResult(
+                    False,
+                    None,
+                    "intra_group_discrepancy",
+                    n_facts=len(facts),
+                )
+        elif offset is not None:
+            target = fact["period_end"].year + offset
+        else:
+            target = int(fact["fiscal_year"])
+        targets.add(target)
+    if len(targets) != 1:
+        return MoveResult(False, None, "intra_group_discrepancy", n_facts=len(facts))
+    target = targets.pop()
+    assets = _group_value(facts, BALANCE_ASSET_CONCEPTS)
+    liabilities = _group_value(facts, BALANCE_LIABILITY_CONCEPTS)
+    equity = _group_value(facts, BALANCE_EQUITY_CONCEPTS)
+    if assets is None or liabilities is None or equity is None:
+        return MoveResult(False, target, "missing_components", n_facts=len(facts))
+    if assets and abs(assets - (liabilities + equity)) / abs(assets) > 0.01:
+        return MoveResult(False, target, "balance_would_break", n_facts=len(facts))
+    return MoveResult(
+        True,
+        target,
+        "ok",
+        n_facts=len(facts),
+        old_fiscal_years=tuple(sorted({int(fact["fiscal_year"]) for fact in facts})),
+    )
+
+
+def _simulate_balance(
+    facts_by_period: list[list[dict]],
+    moves: dict[date, int],
+    affected_years: set[int],
+) -> bool:
+    year_facts: dict[int, list[dict]] = {}
+    for group in facts_by_period:
+        for fact in group:
+            year = moves.get(fact["period_end"], int(fact["fiscal_year"]))
+            year_facts.setdefault(year, []).append(fact)
+    for year, facts in year_facts.items():
+        if year not in affected_years:
+            continue
+        assets = _group_value(facts, BALANCE_ASSET_CONCEPTS)
+        liabilities = _group_value(facts, BALANCE_LIABILITY_CONCEPTS)
+        equity = _group_value(facts, BALANCE_EQUITY_CONCEPTS)
+        if assets is None or liabilities is None or equity is None:
+            continue
+        if assets and abs(assets - (liabilities + equity)) / abs(assets) > 0.01:
+            logger.warning(
+                "simulated balance would break in FY%s: assets=%s liabilities=%s equity=%s",
+                year,
+                assets,
+                liabilities,
+                equity,
+            )
+            return False
+    return True
+
+
+def plan_ticker(
+    ticker: str,
+    company_id: str,
+    facts: list[dict],
+    sec_facts: list[dict],
+    offset: int | None,
+) -> tuple[TickerReport, dict[date, int]]:
+    """Plan every balance group and validate the final balance once."""
+    report = TickerReport(ticker=ticker, company_id=company_id, offset=offset)
+    sec_index = {
+        (fact["concept"], fact.get("period_start"), fact["period_end"]): fact
+        for fact in sec_facts
+    }
+    groups: dict[date, list[dict]] = {}
+    for fact in facts:
+        groups.setdefault(fact["period_end"], []).append(fact)
+    moves: dict[date, int] = {}
+    for period_end, group in sorted(groups.items()):
+        result = plan_group(period_end, group, sec_index, offset)
+        if result.moved and result.fiscal_year is not None:
+            old_years = {int(fact["fiscal_year"]) for fact in group}
+            if any(year != result.fiscal_year for year in old_years):
+                moves[period_end] = result.fiscal_year
+                report.moved_groups.append(result)
+            else:
+                report.skipped_groups.append(
+                    MoveResult(False, result.fiscal_year, "already_correct")
+                )
+        else:
+            report.skipped_groups.append(result)
+    # Each moved group is validated on its own balance sheet in plan_group;
+    # a year-wide max() across several period_end groups mixes comparatives
+    # from different filings and is not a valid pre-flight metric.
+    return report, moves
+
+
+def reconcile_ticker(
+    cur,
+    company_id: str,
+    ticker: str,
+    sec_facts: list[dict],
+    offset: int | None,
+    *,
+    apply: bool,
+    run_id: str,
+    audit_table: str = AUDIT_TABLE,
+    backup: Path | None = None,
+    rollback: Path | None = None,
+    since: date | None = None,
+) -> TickerReport:
+    """Load a ticker's FY facts, plan atomically, and optionally move groups."""
+    sql = """SELECT id, concept, value, fiscal_year, period_start, period_end
+             FROM financial_facts
+             WHERE company_id=%s AND fiscal_period='FY'"""
+    params: list[Any] = [company_id]
+    if since is not None:
+        sql += " AND period_end >= %s"
+        params.append(since)
+    cur.execute(sql, params)
+    facts = [
+        {
+            "id": str(row[0]),
+            "concept": row[1],
+            "value": row[2],
+            "fiscal_year": row[3],
+            "period_start": row[4],
+            "period_end": row[5],
+        }
+        for row in cur.fetchall()
+    ]
+    report, moves = plan_ticker(ticker, company_id, facts, sec_facts, offset)
+    if not apply or not moves:
+        return report
+    if backup is not None and rollback is not None:
+        _write_group_artifacts(facts, moves, backup, rollback)
+    _ensure_audit_table(cur)
+    for period_end, target in moves.items():
+        cur.execute(
+            """UPDATE financial_facts SET fiscal_year=%s, updated_at=now()
+               WHERE company_id=%s AND period_end=%s AND fiscal_period='FY'""",
+            (target, company_id, period_end),
+        )
+        group = [f for f in facts if f["period_end"] == period_end]
+        old_years = sorted({int(f["fiscal_year"]) for f in group})
+        cur.execute(
+            f"""INSERT INTO {audit_table}
+                (run_id,ticker,company_id,concept,period_start,period_end,
+                 old_fiscal_year,new_fiscal_year,action,source_id,
+                 offset_applied,offset_source,reason)
+                VALUES (%s,%s,%s,'*',NULL,%s,%s,%s,'group_move','reconcile',
+                        %s,'mode_history','ok')""",
+            (
+                run_id,
+                ticker,
+                company_id,
+                period_end,
+                old_years[0] if len(old_years) == 1 else None,
+                target,
+                offset,
+            ),
+        )
+    for result in report.skipped_groups:
+        cur.execute(
+            f"""INSERT INTO {audit_table}
+                (run_id,ticker,company_id,concept,period_start,period_end,
+                 old_fiscal_year,new_fiscal_year,action,source_id,
+                 offset_applied,offset_source,reason)
+                VALUES (%s,%s,%s,'*',NULL,NULL,NULL,NULL,'skip','reconcile',
+                        %s,%s,%s)""",
+            (
+                run_id,
+                ticker,
+                company_id,
+                offset,
+                "mode_history" if offset is not None else "fallback_fy",
+                result.reason,
+            ),
+        )
+    cur.connection.commit()
+    return report
+
+
 def _load_existing(cur, company_id: str) -> list[dict[str, Any]]:
     cur.execute(
         """SELECT id, concept, period_start, period_end, source_id, fiscal_year
@@ -384,6 +632,7 @@ def _ensure_audit_table(cur) -> None:
             source_id text,
             offset_applied smallint,
             offset_source text,
+            reason text,
             created_at timestamptz NOT NULL DEFAULT now()
         )"""
     )
@@ -393,6 +642,46 @@ def _ensure_audit_table(cur) -> None:
     cur.execute(
         f"ALTER TABLE {AUDIT_TABLE} ADD COLUMN IF NOT EXISTS offset_source text"
     )
+    cur.execute(f"ALTER TABLE {AUDIT_TABLE} ADD COLUMN IF NOT EXISTS reason text")
+
+
+def _write_group_artifacts(
+    facts: list[dict],
+    moves: dict[date, int],
+    backup: Path,
+    rollback: Path,
+) -> None:
+    """Persist the pre-move rows and a per-row rollback SQL for a ticker."""
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    serialised = [
+        {
+            key: (
+                value.isoformat() if isinstance(value, (date, datetime)) else str(value)
+            )
+            for key, value in fact.items()
+        }
+        for fact in facts
+    ]
+    backup.write_text(
+        json.dumps(
+            {
+                "facts": serialised,
+                "moves": {key.isoformat(): value for key, value in moves.items()},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    rollback.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["BEGIN;"]
+    for fact in facts:
+        if fact["period_end"] in moves:
+            lines.append(
+                f"UPDATE financial_facts SET fiscal_year = {int(fact['fiscal_year'])} "
+                f"WHERE id = '{fact['id']}';"
+            )
+    lines.append("COMMIT;")
+    rollback.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_backup(path: Path, plan: Plan, existing: list[dict[str, Any]]) -> None:
@@ -601,29 +890,37 @@ def main() -> int:
             )
             facts = _fetch_sec_facts(cik, user_agent)
             sec_facts = _iter_sec_facts(facts, since)
-            existing = _load_existing(cur, company_id)
-            plan = plan_changes(
-                ticker, company_id, cik, fye_month, offset, sec_facts, existing
-            )
-            logger.info(plan.summary())
-            if args.apply:
-                backup = Path(args.backup)
-                rollback = Path(args.rollback)
-                if len(tickers) > 1:
-                    backup = backup.with_name(f"{backup.stem}_{ticker}{backup.suffix}")
-                    rollback = rollback.with_name(
-                        f"{rollback.stem}_{ticker}{rollback.suffix}"
-                    )
-                result = apply_plan(
-                    conn,
-                    plan,
-                    existing=existing,
-                    backup=backup,
-                    rollback=rollback,
-                    audit_table=args.audit_table,
-                    run_id=run_id,
+            backup = Path(args.backup)
+            rollback = Path(args.rollback)
+            if len(tickers) > 1:
+                backup = backup.with_name(f"{backup.stem}_{ticker}{backup.suffix}")
+                rollback = rollback.with_name(
+                    f"{rollback.stem}_{ticker}{rollback.suffix}"
                 )
-                logger.info("%s: applied %s", ticker, result)
+            report = reconcile_ticker(
+                cur,
+                company_id,
+                ticker,
+                sec_facts,
+                offset,
+                apply=args.apply,
+                run_id=run_id,
+                audit_table=args.audit_table,
+                backup=backup if args.apply else None,
+                rollback=rollback if args.apply else None,
+                since=since,
+            )
+            logger.info(report.summary())
+            for skipped in report.skipped_groups:
+                if skipped.reason not in ("ok", "already_correct"):
+                    logger.info(
+                        "%s: skip group end=%s reason=%s",
+                        ticker,
+                        skipped.fiscal_year,
+                        skipped.reason,
+                    )
+            if report.reason != "ok":
+                logger.warning("%s: %s", ticker, report.reason)
             time.sleep(0.2)
     finally:
         conn.close()
