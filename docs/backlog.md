@@ -47,6 +47,16 @@ Measured 2026-10-14 (stability/precision sprint):
 | Ford typed as financial by the leverage fingerprint | known non-financial sector now wins; Ford gets real verdicts |
 | `historical-valuation` 37 s (one fetch per fiscal year) | one cached full-history fetch; measured 16 s |
 
+## v0.21 candidate: remove 8 canonical fields from fdb_concept_mapping
+
+`core_financials` (FDB 0.2.0+) already provides Revenues, NetIncomeLoss,
+Assets, Liabilities, StockholdersEquity, OperatingIncomeLoss, GrossProfit,
+CashAndCashEquivalentsAtCarryingValue normalized. These 8 are still
+mapped in `fdb_concept_mapping.py` as a safety fallback.
+
+Remove after migrating remaining direct consumers to
+`get_core_financials()`.
+
 ## Remaining
 
 ### P2 — nice to have
