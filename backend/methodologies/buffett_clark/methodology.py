@@ -130,7 +130,12 @@ class BuffettClarkMethodology(Methodology):
     def _rule_1_gross_margin(self, rows) -> _RuleResult:
         """Gross margin ≥ 40% = DCA; < 20% = competitive industry."""
         latest = self._latest(rows)
-        if latest is None or latest.gross_profit is None or latest.revenue is None:
+        if (
+            latest is None
+            or latest.gross_profit is None
+            or latest.revenue is None
+            or latest.revenue <= 0
+        ):
             return _RuleResult(
                 "buffett_clark.rule_1_gross_margin",
                 None,

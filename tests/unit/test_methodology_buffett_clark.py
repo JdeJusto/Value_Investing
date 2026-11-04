@@ -72,6 +72,26 @@ def test_rule_1_gross_margin_insufficient():
     assert result.metrics["rule_1_gross_margin"] is None
 
 
+def test_rule_1_zero_revenue_is_not_evaluable():
+    """A zero-revenue year must not raise ZeroDivisionError (consensus crash)."""
+    rows = [
+        NormalizedFinancials.from_dict(
+            {
+                "ticker": "ZERO",
+                "fiscal_year": 2024,
+                "period": "FY",
+                "revenue": 0,
+                "gross_profit": 10e9,
+                "net_income": 1e9,
+            }
+        )
+    ]
+    result = BuffettClarkMethodology().evaluate("ZERO", rows, _Prices(100.0))
+    assert "buffett_clark.rule_1_gross_margin" not in result.passed_rules
+    assert "buffett_clark.rule_1_gross_margin" not in result.failed_rules
+    assert result.metrics["rule_1_gross_margin"] is None
+
+
 # ----------------------------------------------------------------------
 # Rule 2 — Interest burden
 # ----------------------------------------------------------------------
