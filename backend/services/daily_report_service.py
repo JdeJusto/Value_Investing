@@ -38,6 +38,10 @@ class DailyReport:
     price_stage: dict = field(default_factory=dict)
     yahoo_streak: dict = field(default_factory=dict)
     runtime_seconds: float = 0.0
+    # Which repository served fundamentals this run ("Financial-DataBase",
+    # "PostgreSQL", "JSON fallback", "demo"). A degraded source is visible in
+    # the report header instead of hiding behind a healthy-looking coverage.
+    repository: str = "Financial-DataBase"
     # Supplementary not-from-canon DCF rows for the report (precomputed by
     # the daily workflow; rendered after `## Alerts`, before `## Missing data`).
     dcf_rows: list[dict] = field(default_factory=list)
@@ -59,6 +63,7 @@ class DailyReport:
             "price_stage": self.price_stage,
             "yahoo_streak": self.yahoo_streak,
             "runtime_seconds": self.runtime_seconds,
+            "repository": self.repository,
             "dcf_rows": self.dcf_rows,
         }
 
@@ -131,7 +136,8 @@ def build_markdown(report: DailyReport) -> str:
 
     lines.append(
         f"Universe screened: **{report.universe_size}** companies "
-        f"| prices: **{report.prices_mode}**"
+        f"| prices: **{report.prices_mode}** "
+        f"| repository: **{report.repository}**"
     )
     lines.append("")
     lines.append(

@@ -359,14 +359,43 @@ def build_financial_repository() -> FinancialRepository:
         logger.info("Using demo financial repository (offline bundle)")
         return DemoFinancialRepository(DEMO_FUNDAMENTALS)
 
-    # Try Financial-DataBase repository first
+    # Try Financial-DataBase repository first. The daily systemd unit sets
+    # FDB_READY_TIMEOUT_SECONDS so a run that starts while PostgreSQL is still
+    # coming up waits instead of silently dropping to the legacy JSON store.
+    # VI_REQUIRE_FDB=1 turns an unreachable Financial-DataBase into a hard
+    # failure (the daily unit sets it): a degraded report must not look healthy.
+    try:
+        ready_timeout = float(os.getenv("FDB_READY_TIMEOUT_SECONDS", "0") or 0)
+    except ValueError:
+        logger.warning(
+            "Invalid FDB_READY_TIMEOUT_SECONDS=%r; using 0",
+            os.getenv("FDB_READY_TIMEOUT_SECONDS"),
+        )
+        ready_timeout = 0.0
+    require_fdb = os.getenv("VI_REQUIRE_FDB", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    fdb_error: Exception | None = None
     try:
         financial_db_repo = FinancialDatabaseRepository()
-        if financial_db_repo.available():
+        if financial_db_repo.available(
+            retries=max(0, int(ready_timeout // 2)), retry_delay_s=2.0
+        ):
             logger.info("Using Financial-DataBase financial repository")
             return financial_db_repo
     except Exception as e:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
+        fdb_error = e
         logger.warning(f"Financial-DataBase repository unavailable: {e}")
+
+    if require_fdb:
+        detail = f": {fdb_error}" if fdb_error else ""
+        raise RuntimeError(
+            "Financial-DataBase is required (VI_REQUIRE_FDB=1) but is "
+            f"unreachable{detail}"
+        )
 
     # Fall back to existing PostgreSQL repository
     # (imported lazily — SQLAlchemy is heavy and is only needed on this path)
@@ -377,9 +406,17 @@ def build_financial_repository() -> FinancialRepository:
         logger.info("Using PostgreSQL financial repository")
         return repository
 
-    # Finally fall back to JSON storage
-    logger.warning("PostgreSQL unavailable — falling back to JSON storage")
-    return JsonFinancialRepository(os.getenv("NORMALIZED_DATA_DIR", "data/normalized"))
+    # Finally fall back to JSON storage — loudly. This store is legacy and its
+    # coverage is incomplete (many files predate the FDB pipeline and carry
+    # null values), so the error is visible in the log and the report records
+    # which repository served the run.
+    normalized_dir = os.getenv("NORMALIZED_DATA_DIR", "data/normalized")
+    logger.error(
+        "No usable financial database — falling back to the legacy JSON store "
+        "at %s (incomplete coverage; set VI_REQUIRE_FDB=1 to fail instead)",
+        normalized_dir,
+    )
+    return JsonFinancialRepository(normalized_dir)
 
 
 def build_portfolio_service():

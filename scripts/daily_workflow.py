@@ -123,6 +123,33 @@ def _exit_code(stage_skipped: bool) -> int:
     return EXIT_PARTIAL if stage_skipped else EXIT_OK
 
 
+def _repository_label(repository: object) -> str:
+    """Human label for the fundamentals repository used by this run."""
+    name = type(repository).__name__
+    return {
+        "FinancialDatabaseRepository": "Financial-DataBase",
+        "SqlAlchemyFinancialRepository": "PostgreSQL",
+        "JsonFinancialRepository": "JSON fallback",
+        "DemoFinancialRepository": "demo",
+    }.get(name, name)
+
+
+def _report_path(out_dir: Path, report_date: date, *, degraded: bool) -> Path:
+    """Pick the report path without clobbering a better same-day report.
+
+    A degraded run (network stage skipped or legacy JSON fallback) writes a
+    suffixed file when today's report already exists, so the healthy run's
+    output survives. A healthy rerun still overwrites the canonical file.
+    """
+    path = out_dir / f"daily_{report_date.isoformat()}.md"
+    if degraded and path.exists():
+        return (
+            out_dir
+            / f"daily_{report_date.isoformat()}_{datetime.now():%H%M%S}_partial.md"  # noqa: DTZ005 — local stamp matches the local report date
+        )
+    return path
+
+
 def _raise_if_transient(health) -> None:
     """Raise ``ConnectionError`` for a transient (no-HTTP-status) verdict.
 
@@ -638,6 +665,13 @@ def _run(args) -> int:
     tick = time.time()
 
     fdb_repo = build_financial_repository()
+    repository_label = _repository_label(fdb_repo)
+    json_fallback = repository_label == "JSON fallback"
+    if json_fallback:
+        logger.error(
+            "fundamentals served by the legacy JSON store — coverage is "
+            "incomplete and the report will be marked as degraded"
+        )
     price_service = get_price_service()
     cache: dict[str, dict | None] = {}
 
@@ -1088,6 +1122,7 @@ def _run(args) -> int:
         screened_count=len(screened),
         sec_update=sec_update_status,
         prices_mode=_prices_mode(args, price_service, prefetch_result),
+        repository=repository_label,
         rows=rows,
         dcf_rows=dcf_rows,
         alerts=[alert_to_dict(a) for a in alerts],
@@ -1115,7 +1150,14 @@ def _run(args) -> int:
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    report_path = out_dir / f"daily_{report_date.isoformat()}.md"
+    degraded = stage_skipped or json_fallback
+    report_path = _report_path(out_dir, report_date, degraded=degraded)
+    if degraded and report_path.stem.endswith("_partial"):
+        logger.warning(
+            "degraded run: preserving the existing same-day report and "
+            "writing %s instead",
+            report_path,
+        )
     report_path.write_text(body, encoding="utf-8")
     print(f"Report written: {report_path}")
 
