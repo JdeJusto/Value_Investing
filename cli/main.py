@@ -95,6 +95,7 @@ def main():
         filing_statement,
         filings,
         financial_alerts,
+        financials,
         historical_valuation,
         interactive,
         load_data,
@@ -135,6 +136,7 @@ def main():
     filing_statement.register(sub)
     filing_section.register(sub)
     financial_alerts.register(sub)
+    financials.register(sub)
     interactive.register(sub)
     register_methodologies(sub)
 
