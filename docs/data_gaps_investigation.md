@@ -353,3 +353,38 @@ BRO, JNJ (−$151.25B), PLD, XOM.
 **Action:** Acceptable for v0.19.2. Investigate in a dedicated session if
 user feedback shows the chip confusion is material. No balance-fabrication
 rules added.
+
+## Balance validation: use the last period_end per year, not max across periods
+
+**Discovery (2026-11-04, Phase A.4):** the reconciliation batch balance
+check aggregated with `max(value) GROUP BY (company_id, fiscal_year)`. That
+mixes Assets from an early `period_end` with Liabilities/Equity from a later
+one inside the same fiscal year (the 10-K carries comparatives), producing
+~25/50 false-positive "unbalanced" tickers as the baseline of Batch AA.
+
+**Correct query:** restrict to the latest `period_end` per
+`(company_id, fiscal_year)` — the balance sheet the app actually consumes:
+
+```sql
+WITH latest AS (
+  SELECT company_id, fiscal_year, max(period_end) AS period_end
+  FROM financial_facts
+  WHERE concept IN ('Assets','Liabilities','StockholdersEquity')
+  GROUP BY company_id, fiscal_year
+)
+SELECT ff.*
+FROM financial_facts ff
+JOIN latest l
+  ON ff.company_id = l.company_id
+ AND ff.fiscal_year = l.fiscal_year
+ AND ff.period_end = l.period_end
+WHERE ff.concept IN ('Assets','Liabilities','StockholdersEquity');
+```
+
+With that query the real Batch AA baseline is **1/50** (DIDIY) and Batch AB
+**1/26** (PIII), not 25/50 and 20/26.
+
+**Impact:** regressions reported in the earlier reconciliation attempts
+(A.2/A.3) were partly measurement artifacts. Always validate balance with
+the last-period-end query before declaring a regression and rolling back a
+batch.
