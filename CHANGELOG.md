@@ -1,3 +1,58 @@
+## [0.20.1] - 2026-11-04
+
+### Added
+- `vi financials <ticker>` — two-section balance view (ASSETS |
+  LIABILITIES + EQUITY) with subtotals, totals, balance chip, and
+  `*` markers for derived liabilities (PCAR, 345 tickers) and partial
+  equity (MRX). Supports `--json`, `--no-color`, `--years`, `--period`.
+- `vi rank` — rank tickers by single methodology (`--by graham`) or
+  combination (`--combine graham,lynch --strategy and|or|weighted`).
+  Supports `--universe`, `--top`, `--include-na`, `--json`. Alias
+  `lynch -> lynch_garp`.
+- `cli/theme.py` — synthwave ANSI palette (neon cyan, gold, purple,
+  pink). Opt-in: only new commands use it; the 40 existing commands
+  are unchanged. Respects `--no-color`, `NO_COLOR` and non-TTY stdout.
+
+### JSON contract (`vi financials --json`)
+```json
+{
+  "ticker": "AAPL",
+  "fiscal_year": 2025,
+  "assets": {
+    "current": [{"concept": "...", "label": "...", "value": "..."}],
+    "non_current": [],
+    "total_current": 0,
+    "total_non_current": 0,
+    "total": 0
+  },
+  "liabilities_equity": {
+    "current": [],
+    "non_current": [],
+    "equity": [],
+    "total_current": 0,
+    "total_non_current": 0,
+    "total_equity": 0,
+    "total": 0
+  },
+  "derived": {"liabilities": false, "equity": false},
+  "balanced": true,
+  "delta": 0.0,
+  "balance_sheet": []
+}
+```
+
+### Documentation
+- CLI section in `README.md` and `README.es.md` with examples and an
+  abbreviated `vi financials AAPL` capture.
+
+### Notes
+- Full side-by-side T-view ASCII layout is deferred to v0.21
+  (`# TODO(v0.21)`). The current layout is a flat two-section view with
+  line items, subtotals, totals and balance chip.
+- `--json` retrofit for the 40 existing commands and
+  `vi screen --methodology` are pending.
+- Test count: 2498 -> 2522.
+
 ## [0.20.0] - 2026-11-04
 
 ### Added
