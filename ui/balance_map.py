@@ -329,6 +329,9 @@ MASS_SUBTOTAL_CONCEPTS: dict[str, list[str]] = {
     "liab_current": ["LiabilitiesCurrent"],
     "liab_noncurrent": ["LiabilitiesNoncurrent"],
     "equity": [
+        # FDB 0.2.1 exposes NCI-inclusive equity via core_financials.max().
+        # Prefer it when both tags coexist, so CLI/UI match FDB.
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
         "StockholdersEquity",
         "ShareholdersEquity",
         "TotalEquityGrossMinorityInterest",
