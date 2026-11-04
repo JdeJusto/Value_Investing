@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from backend.methodologies.base import Confidence, MethodologyResult, Verdict
 from backend.services.methodology_ranking_service import (
+    _get_universe_data,
     rank_by_methodology,
     rank_combined,
 )
@@ -503,3 +504,24 @@ def test_rank_combined_weighted_with_weights(
     assert lynch_heavy[0].ticker == "MSFT"
     # Weights change ordering vs equal
     assert equal[0].ticker != graham_heavy[0].ticker
+
+
+@patch("backend.services.price_service.get_price_service")
+@patch("backend.app.cli.build_financial_repository")
+def test_universe_data_reads_best_available_with_core_merge(
+    mock_build_repo, mock_price_service
+):
+    """The ranking path must use the effective-year/core-aware repository."""
+    row = MagicMock()
+    repository = mock_build_repo.return_value
+    repository.get_best_available.return_value = [row]
+    price_service = mock_price_service.return_value
+    price_service.get_current_price.return_value = 150.0
+    price_service.get_market_cap.return_value = 2e12
+
+    fundamentals, prices, market_caps = _get_universe_data(["AAPL"])
+
+    repository.get_best_available.assert_called_once_with("AAPL", max_years=10)
+    assert fundamentals["AAPL"] == [row]
+    assert prices["AAPL"] == 150.0
+    assert market_caps["AAPL"] == 2e12
