@@ -53,6 +53,12 @@ BALANCE_TOLERANCE_MIN = 1.0
 #: Caption shown when the total-liabilities line is derived, not filed.
 DERIVED_LIABILITIES_CAPTION = "* Derived (Assets − Equity); not reported in filing."
 
+#: Caption shown when the equity mass is computed from RetainedEarnings alone
+#: (MRX: the filing does not report a total-equity tag).
+PARTIAL_EQUITY_CAPTION = (
+    "* Partial equity (RetainedEarnings only; full equity not reported)."
+)
+
 #: Display scales offered by the unit selector (label -> scale key).
 SCALE_CHOICES = {
     "As reported": "raw",
@@ -341,6 +347,7 @@ class BalanceModel:
     total_liabilities_derived: bool = False
     total_equity: float | None = None
     total_equity_reported: bool = False
+    partial_equity: bool = False
     delta: float | None = None
     balanced: bool | None = None  # None = cannot evaluate (totals missing)
     partial: bool = False
@@ -587,6 +594,13 @@ def build_balance_model(
     equity_mass = by_key["equity"]
     total_equity = equity_mass.subtotal
     equity_reported = equity_mass.subtotal_reported
+    equity_lines = [line for line in equity_mass.lines if line.value is not None]
+    partial_equity = bool(
+        not equity_reported
+        and len(equity_lines) == 1
+        and equity_lines[0].concept
+        in {"RetainedEarnings", "RetainedEarningsAccumulatedDeficit"}
+    )
 
     delta: float | None = None
     balanced: bool | None = None
@@ -624,6 +638,7 @@ def build_balance_model(
         total_liabilities_derived=derived_current,
         total_equity=total_equity,
         total_equity_reported=equity_reported,
+        partial_equity=partial_equity,
         delta=delta,
         balanced=balanced,
         partial=partial,
@@ -880,6 +895,8 @@ def render_balance_sheet(
         st.caption(f"Memorandum note (not part of the balance) · {memoranda_text}")
     if model.total_liabilities_derived:
         st.caption(DERIVED_LIABILITIES_CAPTION)
+    if model.partial_equity:
+        st.caption(PARTIAL_EQUITY_CAPTION)
     st.caption(
         "* Subtotal computed from the line items when the filing does not report it."
     )

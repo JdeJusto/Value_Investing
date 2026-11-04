@@ -25,6 +25,7 @@ from ui.balance_map import (
 )
 from ui.balance_sheet import (
     DERIVED_LIABILITIES_CAPTION,
+    PARTIAL_EQUITY_CAPTION,
     _total_row,
     build_balance_model,
     default_year_index,
@@ -962,3 +963,57 @@ def test_numeric_from_normalized_drops_prior_year_comparatives():
 
     assert numeric["Assets"][YEAR] == pytest.approx(34_675_100_000.0)
     assert "Equity" not in numeric
+
+
+def test_partial_equity_is_flagged_for_retained_earnings_only():
+    """MRX has no total-equity tag: the equity mass is only RetainedEarnings."""
+    numeric = {
+        "Assets": {YEAR: 34_675_100_000.0},
+        "Liabilities": {YEAR: 33_411_500_000.0},
+        "RetainedEarnings": {YEAR: 982_000_000.0},
+    }
+    units = {concept: "USD" for concept in numeric}
+
+    model = build_balance_model(numeric, units, YEAR, [YEAR])
+
+    assert model.total_equity == pytest.approx(982_000_000.0)
+    assert model.total_equity_reported is False
+    assert model.partial_equity is True
+    assert PARTIAL_EQUITY_CAPTION == (
+        "* Partial equity (RetainedEarnings only; full equity not reported)."
+    )
+
+
+def test_t_view_render_uses_the_partial_equity_caption(tmp_path):
+    script = tmp_path / "partial_equity_app.py"
+    script.write_text(
+        f"""
+import sys
+sys.path.insert(0, {str(REPO)!r})
+
+from ui.balance_sheet import render_balance_sheet
+
+numeric = {{
+    "Assets": {{2025: 34675100000.0}},
+    "Liabilities": {{2025: 33411500000.0}},
+    "RetainedEarnings": {{2025: 982000000.0}},
+}}
+units = {{concept: "USD" for concept in numeric}}
+render_balance_sheet(
+    numeric,
+    units,
+    [2025],
+    2025,
+    ticker="MRX",
+    source="test fixture",
+)
+""",
+        encoding="utf-8",
+    )
+
+    at = AppTest.from_file(str(script), default_timeout=60).run()
+
+    assert not at.exception, at.exception
+    captions = [caption.value for caption in at.caption]
+    assert PARTIAL_EQUITY_CAPTION in captions
+    assert "RetainedEarnings" in PARTIAL_EQUITY_CAPTION
