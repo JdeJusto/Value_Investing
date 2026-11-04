@@ -38,13 +38,26 @@ ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
 AUDIT_TABLE = "reconciliation_log"
 
 
-def derive_fiscal_year(end: date, fye_month: int) -> int:
-    """Fiscal year from the period end, not SEC's ``fy`` presentation field.
+def derive_fiscal_year(fact: dict[str, Any], fye_month: int) -> int:
+    """Return the fiscal year to bucket a fact under.
 
-    A December year-end keeps the calendar year (BJRI: 2025-12-30 → 2025); a
-    period ending after the fiscal-year-end month belongs to the next label.
+    SEC's ``fy`` is the filing's presentation year and is normally the right
+    label, but it can be off by one for start-year conventions (CNM) or 20-F
+    filers (KT, IMOS). Only override it when it is clearly wrong (more than
+    one year away from the period end); otherwise respect the filing.
+
+    ``fye_month`` is kept in the signature for callers/tests that pass it, but
+    the conservative rule anchors on the period end's calendar year.
     """
-    return end.year + 1 if end.month > fye_month else end.year
+    sec_fy = fact.get("fy", fact.get("sec_fy"))
+    end_raw = fact.get("end", fact.get("period_end"))
+    end = date.fromisoformat(end_raw) if isinstance(end_raw, str) else end_raw
+    if sec_fy is None:
+        return end.year
+    expected = end.year
+    if abs(int(sec_fy) - expected) <= 1:
+        return int(sec_fy)
+    return expected
 
 
 def make_source_id(
@@ -130,6 +143,7 @@ def _iter_sec_facts(facts: dict[str, Any], since: date) -> list[dict[str, Any]]:
                             "form": item.get("form"),
                             "filed": filed,
                             "accn": item.get("accn") or "",
+                            "sec_fy": item.get("fy"),
                             "source_id": make_source_id(
                                 item.get("accn") or "", namespace, concept, start, end
                             ),
@@ -160,7 +174,7 @@ def plan_changes(
         if source_id in seen:
             continue
         seen.add(source_id)
-        new_fy = derive_fiscal_year(fact["period_end"], fye_month)
+        new_fy = derive_fiscal_year(fact, fye_month)
         match = by_source.get(source_id)
         if match is None:
             match = by_period.get(
@@ -222,6 +236,48 @@ def _company(cur, ticker: str) -> tuple[str, str] | None:
     )
     row = cur.fetchone()
     return (str(row[0]), row[1]) if row else None
+
+
+def read_tickers_file(path: str | Path) -> list[str]:
+    """One ticker per line; blank lines and ``#`` comments are ignored."""
+    tickers: list[str] = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        value = line.split("#", 1)[0].strip().upper()
+        if value:
+            tickers.append(value)
+    return tickers
+
+
+def find_bucketing_candidates(cur) -> list[str]:
+    """Tickers whose latest FY is sparse while an older FY is rich.
+
+    The BJRI pattern: the latest 10-K was bucketed into an old year, leaving
+    the latest fiscal year with a handful of stray facts.
+    """
+    cur.execute(
+        """
+        WITH per AS (
+          SELECT company_id, fiscal_year, count(*) AS facts
+          FROM financial_facts
+          WHERE fiscal_period='FY' AND fiscal_year BETWEEN 2020 AND 2025
+          GROUP BY 1,2
+        ), ranked AS (
+          SELECT company_id, facts,
+                 row_number() OVER (PARTITION BY company_id
+                                    ORDER BY fiscal_year DESC) AS rn,
+                 max(facts) OVER (PARTITION BY company_id) AS max_facts
+          FROM per
+        )
+        SELECT DISTINCT cl.ticker
+        FROM ranked r
+        JOIN company_listings cl ON cl.company_id=r.company_id AND cl.is_active
+        JOIN company_identifiers ci
+          ON ci.company_id=r.company_id AND ci.identifier_type='CIK'
+        WHERE r.rn=1 AND r.facts < 50 AND r.max_facts > 500
+        ORDER BY cl.ticker
+        """
+    )
+    return [row[0].upper() for row in cur.fetchall() if row[0]]
 
 
 def _fye_month(cur, company_id: str) -> int:
@@ -320,6 +376,7 @@ def apply_plan(
     backup: Path,
     rollback: Path,
     audit_table: str = AUDIT_TABLE,
+    run_id: str | None = None,
 ) -> dict[str, int]:
     _write_backup(backup, plan, existing)
     # Assign stable ids to inserts before writing the rollback so the script
@@ -334,7 +391,7 @@ def apply_plan(
     if not provider:
         raise RuntimeError("SEC EDGAR provider missing from data_providers")
     provider_id = provider[0]
-    run_id = str(uuid.uuid4())
+    run_id = run_id or str(uuid.uuid4())
     _ensure_audit_table(cur)
     updated = inserted = 0
     try:
@@ -416,6 +473,13 @@ def apply_plan(
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--tickers", default="BJRI", help="Comma-separated tickers")
+    p.add_argument("--tickers-file", default=None, help="One ticker per line")
+    p.add_argument(
+        "--identify-bucketing-candidates",
+        action="store_true",
+        help="Print tickers matching the sparse-latest/rich-older pattern",
+    )
+    p.add_argument("--run-id", default=None, help="Audit run id (one per batch)")
     p.add_argument("--apply", action="store_true", help="Write (default: dry-run)")
     p.add_argument("--backup", default="/tmp/reconcile_backup.json")
     p.add_argument("--rollback", default="/tmp/reconcile_rollback.sql")
@@ -436,7 +500,16 @@ def main() -> int:
     conn = psycopg2.connect(DSN)
     cur = conn.cursor()
     failures = 0
-    tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    if args.identify_bucketing_candidates:
+        for ticker in find_bucketing_candidates(cur):
+            print(ticker)
+        conn.close()
+        return 0
+    if args.tickers_file:
+        tickers = read_tickers_file(args.tickers_file)
+    else:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    run_id = args.run_id or str(uuid.uuid4())
     try:
         for ticker in tickers:
             found = _company(cur, ticker)
@@ -467,6 +540,7 @@ def main() -> int:
                     backup=backup,
                     rollback=rollback,
                     audit_table=args.audit_table,
+                    run_id=run_id,
                 )
                 logger.info("%s: applied %s", ticker, result)
             time.sleep(0.2)

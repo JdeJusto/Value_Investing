@@ -5,11 +5,14 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from scripts.reconcile_from_sec import (
     _iter_sec_facts,
     derive_fiscal_year,
     make_source_id,
     plan_changes,
+    read_tickers_file,
 )
 
 BJRI_END = date(2025, 12, 30)
@@ -24,6 +27,8 @@ def _sec_fact(
     start: date | None = BJRI_START,
     end: date = BJRI_END,
     value: str = "1200000000",
+    accn: str = BJRI_ACCN,
+    sec_fy: int = 2025,
 ) -> dict:
     return {
         "concept": concept,
@@ -34,8 +39,9 @@ def _sec_fact(
         "period_end": end,
         "form": "10-K",
         "filed": date(2026, 3, 2),
-        "accn": BJRI_ACCN,
-        "source_id": make_source_id(BJRI_ACCN, namespace, concept, start, end),
+        "accn": accn,
+        "sec_fy": sec_fy,
+        "source_id": make_source_id(accn, namespace, concept, start, end),
     }
 
 
@@ -52,10 +58,28 @@ def _existing(source_id: str, fiscal_year: int) -> list[dict]:
     ]
 
 
-def test_bucketing_assigns_correct_fiscal_year_from_end_date():
-    """BJRI's FY2025 10-K carries SEC fy=2023; the end date wins."""
-    fact = _sec_fact()
-    fact["fy"] = 2023  # presentation year, deliberately wrong for bucketing
+@pytest.mark.parametrize(
+    ("ticker", "sec_fy", "end", "fye_month", "expected"),
+    [
+        ("BJRI", 2023, "2025-12-30", 12, 2025),  # diff 2 -> override
+        ("CNM", 2024, "2025-12-31", 12, 2024),  # diff 1 -> respect (start-year)
+        ("KT", 2024, "2025-12-31", 12, 2024),  # diff 1 -> respect (20-F)
+        ("IMOS", 2024, "2025-12-31", 12, 2024),  # diff 1 -> respect (20-F)
+        ("WMT", 2025, "2026-01-31", 1, 2025),  # diff 1 -> respect (Jan FYE)
+        ("AAPL", 2024, "2024-09-28", 9, 2024),  # diff 0 -> respect
+        ("HD", 2025, "2026-02-01", 2, 2025),
+        ("LOW", 2025, "2026-01-30", 1, 2025),
+        ("TGT", 2025, "2026-01-31", 1, 2025),
+        ("COST", 2025, "2025-08-31", 8, 2025),
+    ],
+)
+def test_derive_fiscal_year(ticker, sec_fy, end, fye_month, expected):
+    fact = {"fy": sec_fy, "end": end}
+    assert derive_fiscal_year(fact, fye_month) == expected, ticker
+
+
+def test_bucketing_overrides_an_absurd_sec_fy_for_bjri():
+    fact = _sec_fact(sec_fy=2023)
     plan = plan_changes(
         "BJRI", "company", "1013488", 12, [fact], _existing(fact["source_id"], 2023)
     )
@@ -139,10 +163,10 @@ def test_iter_sec_facts_keeps_only_annual_filings():
     assert len(parsed) == 1
     assert parsed[0]["period_end"] == BJRI_END
     assert parsed[0]["source_id"].endswith("|2025-01-01|2025-12-30")
+    assert parsed[0]["sec_fy"] == 2023
 
 
-def test_derive_fiscal_year_uses_the_fiscal_year_end_month():
-    assert derive_fiscal_year(date(2025, 12, 30), 12) == 2025
-    assert derive_fiscal_year(date(2026, 1, 31), 12) == 2026
-    # A period after the January year-end belongs to the next label.
-    assert derive_fiscal_year(date(2026, 2, 1), 1) == 2027
+def test_tickers_file_reads_lines_and_ignores_comments(tmp_path):
+    path = tmp_path / "tickers.txt"
+    path.write_text("AAPL\n\nMSFT  # second\n", encoding="utf-8")
+    assert read_tickers_file(path) == ["AAPL", "MSFT"]
