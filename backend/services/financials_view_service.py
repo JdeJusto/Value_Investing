@@ -230,6 +230,10 @@ class FinancialsView:
     other: list[FinancialsRow]
     unmatched_count: int  # concepts not classified (they live in ``other``)
     extraction_warnings: list[str] = field(default_factory=list)
+    #: Years whose total liabilities is derived as ``Assets - Equity``
+    #: because the filing does not tag a ``Liabilities`` line. Mirrors
+    #: Financial-DataBase's ``balance_effective.liabilities_derived``.
+    derived_liability_years: list[int] = field(default_factory=list)
 
 
 def table_rows(rows: list[FinancialsRow], years: list[int]) -> list[dict[str, str]]:
@@ -429,6 +433,24 @@ class FinancialsViewService:
             max(1, min(int(max_years or DEFAULT_MAX_YEARS), MAX_YEARS_CAP)),
         )
 
+    def fetch_normalized_facts(
+        self, ticker: str, fiscal_period: str = "FY"
+    ) -> list[dict]:
+        """Canonical FDB fields from ``financial_facts_normalized`` (0.2.0+).
+
+        The T view overlays these values on the raw facts so its totals use
+        the normalized layer; every non-canonical balance line still comes
+        from the raw facts (the view does not map them).
+        """
+        repo = self._repository()
+        getter = getattr(repo, "get_normalized_facts", None)
+        if not callable(getter):
+            return []
+        try:
+            return getter(ticker.upper().strip(), (fiscal_period or "FY").upper())
+        except Exception:  # noqa: BLE001 — the raw view degrades to facts-only
+            return []
+
     def build(
         self,
         ticker: str,
@@ -527,6 +549,7 @@ class FinancialsViewService:
             other=buckets["other"],
             unmatched_count=len(buckets["other"]),
             extraction_warnings=warnings,
+            derived_liability_years=list(derived_liability_years),
         )
 
     # ------------------------------------------------------------------
@@ -567,4 +590,7 @@ class FinancialsViewService:
             other=other,
             unmatched_count=int(payload.get("unmatched_count") or len(other)),
             extraction_warnings=([str(payload["note"])] if payload.get("note") else []),
+            derived_liability_years=[
+                int(year) for year in payload.get("derived_liability_years", [])
+            ],
         )

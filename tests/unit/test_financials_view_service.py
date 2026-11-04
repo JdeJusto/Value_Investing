@@ -358,3 +358,33 @@ def test_demo_view_rejects_path_traversal():
     service = FinancialsViewService(_Repo(_facts()))
     with pytest.raises(UnsafePathComponent):
         service._demo_view("../etc/passwd", "FY", DEFAULT_MAX_YEARS)
+
+
+def test_build_records_years_with_derived_liabilities():
+    """The T view needs to know which years' Liabilities is not filed."""
+    facts = [
+        {
+            "concept": "Assets",
+            "value": Decimal(100),
+            "unit": "USD",
+            "fiscal_year": 2024,
+            "fiscal_period": "FY",
+            "period_end": "2024-12-31",
+        },
+        {
+            "concept": "StockholdersEquity",
+            "value": Decimal(40),
+            "unit": "USD",
+            "fiscal_year": 2024,
+            "fiscal_period": "FY",
+            "period_end": "2024-12-31",
+        },
+    ]
+
+    view = FinancialsViewService(_Repo(facts)).build("TEST")
+
+    assert view is not None
+    assert view.derived_liability_years == [2024]
+    assert any("derived" in warning.lower() for warning in view.extraction_warnings)
+    liabilities = [row for row in view.balance_sheet if row.concept == "Liabilities"]
+    assert liabilities and liabilities[0].values[2024] == "$60"

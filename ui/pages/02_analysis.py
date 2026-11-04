@@ -87,8 +87,15 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
         FinancialInsightsService,
         load_demo_insights,
     )
-    from backend.services.financials_view_service import FinancialsViewService
-    from ui.balance_sheet import numeric_from_facts, numeric_from_view
+    from backend.services.financials_view_service import (
+        FinancialsViewService,
+        derive_liabilities,
+    )
+    from ui.balance_sheet import (
+        numeric_from_facts,
+        numeric_from_normalized,
+        numeric_from_view,
+    )
 
     service = FinancialsViewService()
     if is_demo():
@@ -111,7 +118,22 @@ def _load_financials_cached(ticker: str, fiscal_period: str, max_years: int):
     alerts = AlertService(facts).build(
         ticker, view.company_name, fiscal_period, abbreviate=True
     )
-    balance_numeric, balance_units = numeric_from_facts(facts, view.years)
+    # The T view needs every balance line, so it reads the raw facts; add the
+    # derived total-liabilities read-view facts here (same identity as FDB's
+    # balance_effective) so the value is displayed and can be marked ``*``.
+    balance_facts, _ = derive_liabilities(facts, set(view.years))
+    balance_numeric, balance_units = numeric_from_facts(balance_facts, view.years)
+    # Overlay the canonical balance fields from FDB 0.2.0's normalized view;
+    # the raw facts remain the source for every non-canonical face line.
+    normalized_facts = service.fetch_normalized_facts(ticker, fiscal_period)
+    if normalized_facts:
+        normalized_numeric, normalized_units = numeric_from_normalized(
+            normalized_facts, view.years
+        )
+        for concept, values in normalized_numeric.items():
+            balance_numeric.setdefault(concept, {}).update(values)
+        for concept, unit in normalized_units.items():
+            balance_units.setdefault(concept, unit)
     return view, report, alerts, balance_numeric, balance_units
 
 
@@ -1155,6 +1177,7 @@ def _financials(ticker: str) -> None:
                             if is_demo()
                             else "Financial-DataBase (SEC EDGAR)"
                         ),
+                        derived_liabilities=set(view.derived_liability_years),
                     )
                     if rows:
                         st.download_button(

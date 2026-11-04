@@ -50,6 +50,9 @@ from ui.theme.labels import label as human_label
 BALANCE_TOLERANCE_RATIO = 0.01
 BALANCE_TOLERANCE_MIN = 1.0
 
+#: Caption shown when the total-liabilities line is derived, not filed.
+DERIVED_LIABILITIES_CAPTION = "* Derived (Assets − Equity); not reported in filing."
+
 #: Display scales offered by the unit selector (label -> scale key).
 SCALE_CHOICES = {
     "As reported": "raw",
@@ -95,14 +98,49 @@ def numeric_from_facts(
     """Numeric matrix from raw repository facts (live mode, exact values).
 
     Uses the backend's ``dedupe_facts`` (read-only) so the T view resolves
-    the same fact per (concept, year) as the flat tables.
+    the same fact per (concept, year) as the flat tables. Balance-sheet facts
+    are restricted to the fiscal year's latest balance ``period_end``: FDB
+    stores prior-year comparatives under the filing's fiscal-year bucket, and
+    a concept only tagged in a comparative (MRX equity) must not leak into
+    the selected year as if it were that year's balance.
     """
-    from backend.services.financials_view_service import dedupe_facts
+    from backend.services.financials_view_service import (
+        classify_concept,
+        dedupe_facts,
+    )
 
     latest = dedupe_facts(facts, set(years))
+    allowed_years = {int(year) for year in years}
+    anchor_periods: dict[int, str] = {}
+    fallback_periods: dict[int, str] = {}
+    for fact in facts:
+        year = fact.get("fiscal_year")
+        period = str(fact.get("period_end") or "")
+        if year is None or int(year) not in allowed_years or not period:
+            continue
+        concept = str(fact.get("concept") or "")
+        if classify_concept(concept) != "balance_sheet":
+            continue
+        key = int(year)
+        fallback = fallback_periods.get(key)
+        if fallback is None or period > fallback:
+            fallback_periods[key] = period
+        if concept in _BALANCE_ANCHOR_CONCEPTS:
+            anchor = anchor_periods.get(key)
+            if anchor is None or period > anchor:
+                anchor_periods[key] = period
+    balance_periods = {
+        year: anchor_periods.get(year) or fallback_periods.get(year)
+        for year in fallback_periods
+    }
+
     numeric: dict[str, dict[int, float]] = {}
     units: dict[str, str] = {}
     for (concept, year), fact in latest.items():
+        if classify_concept(concept) == "balance_sheet":
+            target = balance_periods.get(year)
+            if target and str(fact.get("period_end") or "") != target:
+                continue
         value = fact.get("value")
         if value is None:
             continue
@@ -134,6 +172,89 @@ def numeric_from_view(
     return numeric, units
 
 
+#: Canonical FDB balance fields overlaid on the T view from
+#: ``financial_facts_normalized``. The normalized view only exposes the
+#: canonical fields (not every face line), so the raw facts still supply the
+#: rest of the line-item detail.
+_NORMALIZED_BALANCE_FIELDS = frozenset(
+    {
+        "total_assets",
+        "total_liabilities",
+        "stockholders_equity",
+        "current_assets",
+        "current_liabilities",
+        "cash_and_equivalents",
+        "inventory",
+        "retained_earnings",
+        "net_ppe",
+        "total_debt",
+        "accounts_payable",
+        "accounts_receivable",
+        "ppe_gross",
+        "ppe_accumulated_depreciation",
+    }
+)
+
+
+def numeric_from_normalized(
+    rows: list[dict],
+    years: list[int],
+) -> tuple[dict[str, dict[int, float]], dict[str, str]]:
+    """Numeric matrix from FDB's normalized view (latest period_end wins).
+
+    Only the canonical balance fields are overlaid; the T view keeps the raw
+    facts for every other face line because ``financial_facts_normalized``
+    does not map them.
+    """
+    allowed_years = {int(year) for year in years}
+    latest: dict[tuple[str, int], dict] = {}
+    anchor_periods: dict[int, str] = {}
+    fallback_periods: dict[int, str] = {}
+    for row in rows:
+        field = str(row.get("field") or "")
+        concept = str(row.get("concept") or "")
+        year = row.get("fiscal_year")
+        period = str(row.get("period_end") or "")
+        if field not in _NORMALIZED_BALANCE_FIELDS or not concept or year is None:
+            continue
+        if int(year) not in allowed_years:
+            continue
+        if period:
+            key = int(year)
+            fallback = fallback_periods.get(key)
+            if fallback is None or period > fallback:
+                fallback_periods[key] = period
+            if field in {"total_assets", "total_liabilities", "stockholders_equity"}:
+                anchor = anchor_periods.get(key)
+                if anchor is None or period > anchor:
+                    anchor_periods[key] = period
+        key = (concept, int(year))
+        current = latest.get(key)
+        if current is None or period > str(current.get("period_end") or ""):
+            latest[key] = row
+    anchors = {
+        year: anchor_periods.get(year) or fallback_periods.get(year)
+        for year in fallback_periods
+    }
+
+    numeric: dict[str, dict[int, float]] = {}
+    units: dict[str, str] = {}
+    for (concept, year), row in latest.items():
+        anchor = anchors.get(year)
+        if anchor and str(row.get("period_end") or "") != anchor:
+            # Prior-year comparative stored under the filing's fiscal year.
+            continue
+        value = row.get("value")
+        if value is None:
+            continue
+        try:
+            numeric.setdefault(concept, {})[year] = float(value)
+        except (TypeError, ValueError):
+            continue
+        units.setdefault(concept, str(row.get("unit") or ""))
+    return numeric, units
+
+
 #: Concepts whose presence makes a fiscal year carry balance-sheet data:
 #: every mapped line, the reported subtotals and the statement totals.
 _BALANCE_YEAR_CONCEPTS: frozenset[str] = (
@@ -142,6 +263,23 @@ _BALANCE_YEAR_CONCEPTS: frozenset[str] = (
         concept for concepts in MASS_SUBTOTAL_CONCEPTS.values() for concept in concepts
     )
     .union(concept for concepts in TOTAL_CONCEPTS.values() for concept in concepts)
+)
+
+#: Statement-level concepts used to anchor a fiscal year's balance date.
+#: Share counts and cover-page dates (e.g. ``EntityCommonStockSharesOutstanding``
+#: dated a month after the year end) must not move the anchor.
+_BALANCE_ANCHOR_CONCEPTS: frozenset[str] = (
+    frozenset(concept for concepts in TOTAL_CONCEPTS.values() for concept in concepts)
+    .union(
+        concept for concepts in MASS_SUBTOTAL_CONCEPTS.values() for concept in concepts
+    )
+    .union(
+        {
+            "Equity",
+            "ShareholdersEquity",
+            "TotalEquityGrossMinorityInterest",
+        }
+    )
 )
 
 
@@ -200,6 +338,7 @@ class BalanceModel:
     total_assets_reported: bool = False
     total_liabilities: float | None = None
     total_liabilities_reported: bool = False
+    total_liabilities_derived: bool = False
     total_equity: float | None = None
     total_equity_reported: bool = False
     delta: float | None = None
@@ -372,6 +511,8 @@ def build_balance_model(
     units: dict[str, str],
     year: int,
     years: list[int] | None = None,
+    *,
+    derived_liabilities: set[int] | None = None,
 ) -> BalanceModel:
     """Build the T model for ``year`` from the numeric fact matrix.
 
@@ -380,6 +521,11 @@ def build_balance_model(
     follow the same rule; ``balanced`` is ``None`` until all three totals
     exist. A line missing for this year but present in another year renders
     as a dash and flags the model as partial.
+
+    ``derived_liabilities`` lists the fiscal years whose total liabilities
+    comes from the accounting identity (FDB ``balance_effective``) instead of
+    a filed ``Liabilities`` tag. Such a value is marked with ``*`` in the
+    renderer and explained by :data:`DERIVED_LIABILITIES_CAPTION`.
     """
     known_years = sorted({y for values in numeric.values() for y in values})
     prev_candidates = [y for y in known_years if y < year]
@@ -428,6 +574,16 @@ def build_balance_model(
         noncurrent = by_key["liab_noncurrent"].subtotal
         if current is not None and noncurrent is not None:
             total_liabilities = current + noncurrent
+    # The derived read-view fact is stored under ``Liabilities`` so the
+    # numeric matrix can resolve it; it must still render as derived, not as
+    # a value the filing reported.
+    derived_current = bool(
+        total_liabilities is not None
+        and derived_liabilities
+        and year in derived_liabilities
+    )
+    if derived_current:
+        liab_reported = False
     equity_mass = by_key["equity"]
     total_equity = equity_mass.subtotal
     equity_reported = equity_mass.subtotal_reported
@@ -465,6 +621,7 @@ def build_balance_model(
         total_assets_reported=assets_reported,
         total_liabilities=total_liabilities,
         total_liabilities_reported=liab_reported,
+        total_liabilities_derived=derived_current,
         total_equity=total_equity,
         total_equity_reported=equity_reported,
         delta=delta,
@@ -582,10 +739,18 @@ def _memoranda_unit(line: BalanceLine, units: dict[str, str]) -> str:
 
 
 def _total_row(
-    text: str, value: float | None, model: BalanceModel, scale: str, computed: bool
+    text: str,
+    value: float | None,
+    model: BalanceModel,
+    scale: str,
+    computed: bool,
+    *,
+    derived: bool = False,
 ) -> str:
     marker = "*" if computed else ""
     rendered = fmt_money(value, model.currency, scale=scale)
+    if derived:
+        rendered = f"{rendered} *"
     return (
         f'<div class="vi-bs-total">'
         f'<span class="vi-bs-total-label">{escape(text)}{marker}</span>'
@@ -601,9 +766,16 @@ def render_balance_sheet(
     *,
     ticker: str,
     source: str,
+    derived_liabilities: set[int] | None = None,
 ) -> None:
     """Render the T balance for ``year`` with scale selector and balance chip."""
-    model = build_balance_model(numeric, units, year, years)
+    model = build_balance_model(
+        numeric,
+        units,
+        year,
+        years,
+        derived_liabilities=derived_liabilities,
+    )
 
     head_left, head_right = st.columns([3, 1])
     head_left.caption(
@@ -659,6 +831,19 @@ def render_balance_sheet(
             ):
                 render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
         render_html(_other_block(model.other_liabilities, model, scale))
+        render_html(
+            _total_row(
+                "TOTAL LIABILITIES",
+                model.total_liabilities,
+                model,
+                scale,
+                computed=(
+                    not model.total_liabilities_reported
+                    and not model.total_liabilities_derived
+                ),
+                derived=model.total_liabilities_derived,
+            )
+        )
         right_total = None
         if model.total_liabilities is not None and model.total_equity is not None:
             right_total = model.total_liabilities + model.total_equity
@@ -693,6 +878,8 @@ def render_balance_sheet(
     )
     if memoranda_text:
         st.caption(f"Memorandum note (not part of the balance) · {memoranda_text}")
+    if model.total_liabilities_derived:
+        st.caption(DERIVED_LIABILITIES_CAPTION)
     st.caption(
         "* Subtotal computed from the line items when the filing does not report it."
     )

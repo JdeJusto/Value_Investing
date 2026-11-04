@@ -11,8 +11,10 @@ import json
 from pathlib import Path
 
 import pytest
+from streamlit.testing.v1 import AppTest
 
 from backend.repositories.fdb_concept_mapping import BALANCE_SHEET_CONCEPTS
+from backend.services.financials_view_service import derive_liabilities
 from ui.balance_map import (
     BALANCE_MAP,
     CONTRA_CONCEPTS,
@@ -22,8 +24,12 @@ from ui.balance_map import (
     mapped_concepts,
 )
 from ui.balance_sheet import (
+    DERIVED_LIABILITIES_CAPTION,
+    _total_row,
     build_balance_model,
     default_year_index,
+    numeric_from_facts,
+    numeric_from_normalized,
     numeric_from_view,
     parse_display_value,
 )
@@ -728,3 +734,231 @@ def test_adbe_opens_the_balance_on_the_filed_year():
     assert masses["assets_current"].subtotal_reported  # total_current_assets
     assert model.balanced is True
     assert model.delta == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# Derived total liabilities (FDB balance_effective)
+# ---------------------------------------------------------------------------
+
+
+def test_derived_liabilities_are_marked_and_flagged():
+    model = build_balance_model(
+        _complete_numeric(),
+        _units(),
+        YEAR,
+        [YEAR],
+        derived_liabilities={YEAR},
+    )
+
+    assert model.total_liabilities == pytest.approx(100.0)
+    assert model.total_liabilities_derived is True
+    # The value came from the identity, not from a filed Liabilities tag.
+    assert model.total_liabilities_reported is False
+
+    html = _total_row(
+        "TOTAL LIABILITIES",
+        model.total_liabilities,
+        model,
+        "raw",
+        computed=False,
+        derived=True,
+    )
+    assert "TOTAL LIABILITIES" in html
+    assert " *" in html
+    assert DERIVED_LIABILITIES_CAPTION == (
+        "* Derived (Assets − Equity); not reported in filing."
+    )
+
+
+def test_reported_liabilities_are_not_marked():
+    model = build_balance_model(
+        _complete_numeric(),
+        _units(),
+        YEAR,
+        [YEAR],
+        derived_liabilities=set(),
+    )
+
+    assert model.total_liabilities_derived is False
+    assert model.total_liabilities_reported is True
+    html = _total_row(
+        "TOTAL LIABILITIES",
+        model.total_liabilities,
+        model,
+        "raw",
+        computed=False,
+        derived=False,
+    )
+    assert " *" not in html
+
+
+def test_numeric_from_facts_includes_the_derived_liability():
+    facts = [
+        {
+            "concept": "Assets",
+            "value": 150.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "fiscal_period": "FY",
+            "period_end": f"{YEAR}-12-31",
+        },
+        {
+            "concept": "StockholdersEquity",
+            "value": 50.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "fiscal_period": "FY",
+            "period_end": f"{YEAR}-12-31",
+        },
+    ]
+    derived_facts, derived_years = derive_liabilities(facts, {YEAR})
+    numeric, _units_map = numeric_from_facts(derived_facts, [YEAR])
+
+    assert derived_years == [YEAR]
+    assert numeric["Liabilities"][YEAR] == pytest.approx(100.0)
+
+
+def test_t_view_render_shows_the_derived_marker_and_caption(tmp_path):
+    script = tmp_path / "derived_balance_app.py"
+    script.write_text(
+        f"""
+import sys
+sys.path.insert(0, {str(REPO)!r})
+
+from ui.balance_sheet import render_balance_sheet
+
+numeric = {{
+    "Assets": {{2025: 150.0}},
+    "StockholdersEquity": {{2025: 50.0}},
+    "Liabilities": {{2025: 100.0}},
+    "AssetsCurrent": {{2025: 150.0}},
+    "LiabilitiesCurrent": {{2025: 100.0}},
+    "LiabilitiesNoncurrent": {{2025: 0.0}},
+}}
+units = {{concept: "USD" for concept in numeric}}
+render_balance_sheet(
+    numeric,
+    units,
+    [2025],
+    2025,
+    ticker="TEST",
+    source="test fixture",
+    derived_liabilities={{2025}},
+)
+""",
+        encoding="utf-8",
+    )
+
+    at = AppTest.from_file(str(script), default_timeout=60).run()
+
+    assert not at.exception, at.exception
+    html = "\n".join(markdown.value for markdown in at.markdown)
+    assert "TOTAL LIABILITIES" in html
+    assert " *" in html
+    assert DERIVED_LIABILITIES_CAPTION in [caption.value for caption in at.caption]
+
+
+def test_numeric_from_normalized_uses_the_latest_period_end():
+    rows = [
+        {
+            "field": "total_assets",
+            "concept": "Assets",
+            "value": 100.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "period_end": f"{PRIOR_YEAR}-12-31",
+        },
+        {
+            "field": "total_assets",
+            "concept": "Assets",
+            "value": 150.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "period_end": f"{YEAR}-12-31",
+        },
+        {
+            "field": "net_income",  # not a balance field: ignored
+            "concept": "NetIncomeLoss",
+            "value": 10.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "period_end": f"{YEAR}-12-31",
+        },
+    ]
+
+    numeric, units = numeric_from_normalized(rows, [YEAR])
+
+    assert numeric == {"Assets": {YEAR: 150.0}}
+    assert units == {"Assets": "USD"}
+
+
+def test_numeric_from_facts_drops_prior_year_comparatives():
+    """MRX FY2025 has equity only at 2023-12-31; the T view shows a dash."""
+    facts = [
+        {
+            "concept": "Assets",
+            "value": 34_675_100_000.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "fiscal_period": "FY",
+            "period_end": f"{YEAR}-12-31",
+        },
+        {
+            "concept": "Liabilities",
+            "value": 33_411_500_000.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "fiscal_period": "FY",
+            "period_end": f"{YEAR}-12-31",
+        },
+        {
+            "concept": "Equity",
+            "value": 775_900_000.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "fiscal_period": "FY",
+            "period_end": "2023-12-31",
+        },
+        {
+            # Cover-page share count dated after the balance: must not move
+            # the year's balance anchor.
+            "concept": "EntityCommonStockSharesOutstanding",
+            "value": 100_000_000,
+            "unit": "shares",
+            "fiscal_year": YEAR,
+            "fiscal_period": "FY",
+            "period_end": "2026-01-31",
+        },
+    ]
+
+    numeric, _units_map = numeric_from_facts(facts, [YEAR])
+
+    assert numeric["Assets"][YEAR] == pytest.approx(34_675_100_000.0)
+    assert numeric["Liabilities"][YEAR] == pytest.approx(33_411_500_000.0)
+    assert "Equity" not in numeric
+
+
+def test_numeric_from_normalized_drops_prior_year_comparatives():
+    rows = [
+        {
+            "field": "total_assets",
+            "concept": "Assets",
+            "value": 34_675_100_000.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "period_end": f"{YEAR}-12-31",
+        },
+        {
+            "field": "stockholders_equity",
+            "concept": "Equity",
+            "value": 775_900_000.0,
+            "unit": "USD",
+            "fiscal_year": YEAR,
+            "period_end": "2023-12-31",
+        },
+    ]
+
+    numeric, _units_map = numeric_from_normalized(rows, [YEAR])
+
+    assert numeric["Assets"][YEAR] == pytest.approx(34_675_100_000.0)
+    assert "Equity" not in numeric
