@@ -1017,3 +1017,8 @@ render_balance_sheet(
     captions = [caption.value for caption in at.caption]
     assert PARTIAL_EQUITY_CAPTION in captions
     assert "RetainedEarnings" in PARTIAL_EQUITY_CAPTION
+    # AUDIT-004: partial equity must not render as a plain balanced chip.
+    warnings = [w.value for w in at.warning]
+    successes = [s.value for s in at.success]
+    assert any("partial equity" in w.lower() for w in warnings), warnings
+    assert not any("Balanced (Δ" in s for s in successes), successes

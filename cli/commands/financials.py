@@ -374,7 +374,9 @@ def _render(view, year: int, totals: dict) -> None:
         f"{_big(totals['liabilities_equity'])}"
     )
 
-    if totals["balanced"] is True:
+    if totals["balanced"] is True and partial:
+        print(f"  {theme.gold('⚠ Balanced (partial equity — see caption)')}")
+    elif totals["balanced"] is True:
         print(f"  {theme.neon_cyan('✓ Balanced')} (Δ = {_money(totals['delta'])})")
     elif totals["balanced"] is False:
         print(f"  {theme.gold('⚠ Does not balance')} (Δ = {_money(totals['delta'])})")

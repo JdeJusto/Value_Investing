@@ -874,7 +874,9 @@ def render_balance_sheet(
             )
         )
 
-    if model.balanced is True:
+    if model.balanced is True and model.partial_equity:
+        st.warning("⚠ Balanced (partial equity — see caption)")
+    elif model.balanced is True:
         st.success(
             f"✓ Balanced (Δ = {fmt_delta(model.delta, model.currency, scale=scale)})"
         )
