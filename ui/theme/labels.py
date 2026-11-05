@@ -24,6 +24,9 @@ FIELD_LABELS: dict[str, str] = {
     "AssetsNoncurrent": "Total non-current assets",
     "LiabilitiesCurrent": "Total current liabilities",
     "LiabilitiesNoncurrent": "Total non-current liabilities",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": (
+        "Total equity incl. noncontrolling interest"
+    ),
     "StockholdersEquity": "Total stockholders' equity",
     "ShareholdersEquity": "Total shareholders' equity",
     "Equity": "Total equity",
