@@ -82,3 +82,11 @@ def test_strategy_default_and():
         at.run()
         assert not at.exception
         assert len(at.radio) >= 1
+
+
+def test_methodologies_page_is_registered_in_navigation():
+    """AUDIT-002: 07_methodologies must be part of st.navigation."""
+    source = (Path(__file__).resolve().parents[2] / "ui" / "app.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'st.Page("pages/07_methodologies.py", title="Methodologies")' in source
