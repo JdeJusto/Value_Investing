@@ -1,3 +1,34 @@
+## [0.20.2] - 2026-11-05
+
+### Fixed
+- **AUDIT-001**: NCI-inclusive equity
+  (`StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`)
+  is now recognized as a subtotal in `ui/balance_map.py`. Fixes equity
+  for 7 large caps (JNJ, CAT, T, VZ, CSX, ADM, PG). CLI and UI now
+  agree (JNJ: equity 81.5B, delta 0, `derived.equity=false`).
+- **AUDIT-002**: `ui/pages/07_methodologies.py` registered in
+  `st.navigation`. Methodologies ranking page is now visible in the
+  sidebar.
+- **AUDIT-004**: The "balanced" chip no longer shows plain "Balanced
+  (Δ=0)" when equity is partial (MRX). Now shows "⚠ Balanced (partial
+  equity — see caption)".
+- **AUDIT-005**: `vi screener` no longer refreshes SEC/Yahoo by default.
+  Pass `--refresh` to opt in. `--no-refresh` is deprecated (now the
+  default).
+
+### Documentation
+- READMEs simplified (424 → 102 lines each). 8 badges preserved, 17
+  unused screenshots and GIFs removed from `assets/` (~6 MB). Links to
+  historical release notes verified intact.
+
+### Notes
+- `financial_facts` and FDB unchanged.
+- Test count: 2522 → 2540.
+- CI fix: screener refresh help test made portable (no `./vi` wrapper dependency).
+- Pending: AUDIT-003 (sparse data banks/IFRS), 006, 007, 008 (low
+  severity). Usage notes (`docs/usage_notes.md` Part B) to be filled
+  after 1-2 weeks of real use.
+
 ## [0.20.1] - 2026-11-04
 
 ### Added
