@@ -7,7 +7,6 @@ import pandas as pd
 
 from backend.app.cli import (
     add_demo_argument,
-    add_refresh_arguments,
     build_screener_service,
     refresh_analysis_inputs,
 )
@@ -204,6 +203,13 @@ def _run_screener(args):
 
     if tickers:
         explicit = bool(args.tickers) or bool(args.search)
+        # AUDIT-005: screener is read-only by default; SEC refresh is opt-in.
+        if getattr(args, "no_refresh", False):
+            print(
+                f"  {dim('Note: --no-refresh is deprecated; screener uses cached data by default.')}"
+            )
+        if not getattr(args, "refresh", False):
+            args.no_refresh = True
         refresh_analysis_inputs(
             tickers, args, fetch_prices=not args.no_prices, explicit=explicit
         )
@@ -425,7 +431,24 @@ def register(subparsers):
         ),
     )
     p.add_argument("--save", action="store_true", help="Save results to CSV")
-    add_refresh_arguments(p)
+    refresh = p.add_mutually_exclusive_group()
+    refresh.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Refresh SEC/Yahoo data before screening (default: use cached data)",
+    )
+    refresh.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="Deprecated: this is now the default behaviour",
+    )
+    p.add_argument(
+        "--freshness-hours",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Maximum age (hours) to consider data fresh (default: 168)",
+    )
     add_demo_argument(p)
     p.set_defaults(func=_run)
 
