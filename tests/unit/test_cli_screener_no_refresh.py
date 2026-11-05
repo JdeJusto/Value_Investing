@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from argparse import Namespace
+from pathlib import Path
 
 from cli.commands import screener as screener_cmd
 
@@ -56,11 +58,13 @@ def _base_args(**overrides):
 
 
 def test_screener_help_shows_refresh_opt_in():
+    repo = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        ["./vi", "screener", "--help"],
+        [sys.executable, "main.py", "screener", "--help"],
         capture_output=True,
         text=True,
         check=True,
+        cwd=repo,
     )
     out = result.stdout + result.stderr
     assert "--refresh" in out
