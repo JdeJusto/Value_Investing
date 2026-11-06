@@ -893,3 +893,62 @@ After **93** = 34 dimensions + 45 methodologies + 14 DCF.
 - **NEE EPS duplicate** (0.00 vs 1.48 FY2020): deterministic dedup in the
   insights path.
 - **v0.20.3:** human decision; no release in this session.
+
+---
+
+## C1-M — concept mapping gaps (2026-11-07)
+
+### What changed
+
+| Gap | Cause | Fix |
+|---|---|---|
+| IFRS current split (SNY, BTI, AZN) | FDB stores unprefixed IFRS concepts; only `AssetsCurrent`/`LiabilitiesCurrent` were mapped | `CurrentAssets` → `current_assets`, `CurrentLiabilities` → `current_liabilities` |
+| IFRS net PPE (SNY, AZN) | `PropertyPlantAndEquipment` (carrying amount) unmapped | mapped to `net_ppe` |
+| TTE net PPE | FY2025 files only the ROU-inclusive variant | `PropertyPlantAndEquipmentIncludingRightofuseAssets` → `net_ppe` |
+| T / AMT / APA net PPE | post-2020 filings use the PP&E + finance-lease ROU tag | `...AfterAccumulatedDepreciationAndAmortization` → `net_ppe` (gross sibling → `ppe_gross`) |
+| APA net PPE | the generic net tag is surface assets only (146M) | `CapitalizedCostsOilAndGasProducingActivitiesNet` → `net_ppe` with a balance-field priority so an E&P uses producing properties (12.5B) |
+| IFRS debt (SNY, BTI, AZN, TTE) | only US-GAAP debt tags were summed | `CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings` / `ShorttermBorrowings` (current) and `LongtermBorrowings` (non-current) |
+| EBIT (JNJ, ADM, PCAR, TTE) | no `OperatingIncomeLoss` tag in the latest filings | `ebit = pretax_income + interest_expense`; pretax alone when interest is absent; last resort `net_income + tax + interest` |
+| IFRS pretax / tax / interest | `AccountingProfit`, `ProfitLossBeforeTax`, `IncomeTaxExpenseContinuingOperations`, `FinanceCosts` unmapped | mapped (FinanceCosts ranked after dedicated interest tags) |
+
+The net-PPE concept priority (`BALANCE_FIELD_PRIORITY`) was added because
+several balance concepts now map to `net_ppe`: a plain net tag wins over the
+ROU-inclusive proxy, and producing oil & gas properties win over a residual
+surface PP&E line.
+
+### Measured (30-ticker audit set)
+
+- Greenblatt `INSUFFICIENT_DATA`: **15 → 1** (PCAR).
+  - Resolved by mapping + regenerated S&P 500 ranking: JNJ, T, ADM, APA.
+  - N/A by design: AMT, PLD, SKT (REITs), TD/SAN/JPM/BAC/BNS (financials),
+    SNY, TTE, BTI, RACE, AZN, BRUN, BJRI (outside the S&P 500 ranking universe).
+  - PCAR: unclassified balance sheet (large finance subsidiary), so net working
+    capital cannot be computed. Documented, not forced.
+- IFRS filers now carry current assets/liabilities, net PPE and total debt:
+  SNY, BTI, AZN (complete); TTE (complete, EBIT from AccountingProfit +
+  FinanceCosts).
+- Ranking regenerated: **386** companies (was 284). APA moved from a bogus
+  ROC of 2114% (residual 146M PP&E) to 24.6% (12.5B producing properties).
+
+### Still open
+
+- **RACE** (Ferrari) files an unclassified IFRS balance sheet: no
+  `CurrentLiabilities` concept, so Greenblatt stays N/A (out of the S&P 500
+  ranking anyway).
+- **PCAR** unclassified balance sheet — no mapping can invent the split.
+- **BRUN / SKT**: too few facts (early-stage / partial REIT data); REIT and
+  out-of-universe guards already return N/A.
+- **VZ capex**: Verizon files network capex only as
+  `PaymentsToAcquireOtherProductiveAssets`; mapped (FY2025 17.0B).
+- **TD dividends**: TD Bank files `DividendsPaidClassifiedAsFinancingActivities`;
+  mapped (FY2025 7.66B). JNJ's equity already uses the NCI-inclusive subtotal
+  from v0.20.2 (81.5B), so no further change was needed there.
+
+### Tests
+
+`tests/unit/test_fdb_ifrs_mappings.py` (10 cases): IFRS split/PPE, IFRS debt,
+TTE ROU-inclusive PP&E, US PP&E+ROU variant, EBIT fallback (pretax + interest,
+pretax only, IFRS AccountingProfit + FinanceCosts), "filed operating income
+wins", VZ network capex and TD bank dividends.
+`tests/unit/test_methodology_greenblatt.py` adds the REIT and out-of-universe
+N/A cases.
