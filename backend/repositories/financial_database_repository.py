@@ -38,6 +38,18 @@ from backend.repositories.fdb_mixins.shares_mixin import SharesMixin
 
 logger = logging.getLogger(__name__)
 
+#: The eight canonical ``core_financials`` fields shown in the Evolution tab.
+FIELDS_OF_INTEREST = (
+    "revenue",
+    "net_income",
+    "operating_income",
+    "gross_profit",
+    "total_assets",
+    "total_liabilities",
+    "stockholders_equity",
+    "cash",
+)
+
 
 class FinancialDatabaseRepository(
     FactsMixin,
@@ -365,6 +377,70 @@ class FinancialDatabaseRepository(
             for row in rows
             if hasattr(row, "get") and row.get("ticker")
         }
+
+    def get_financial_timeseries(
+        self, ticker: str, years: int = 10
+    ) -> dict[str, list[tuple[int, float | None]]]:
+        """10-year evolution of the eight canonical ``core_financials`` fields.
+
+        Rows are deduplicated per fiscal year by the latest ``period_end``.
+        Missing fiscal years inside the requested window are returned as
+        ``None`` (gaps), never invented. ``ticker`` may also be a company UUID
+        for callers that already resolved it.
+        """
+        window = max(1, min(int(years), 20))
+        company_id = self._get_company_id_by_ticker(str(ticker))
+        if not company_id:
+            company_id = str(ticker)
+        empty = {field: [] for field in FIELDS_OF_INTEREST}
+        sql = """SELECT fiscal_year, period_end, revenue, net_income,
+                        operating_income, gross_profit, total_assets,
+                        total_liabilities, stockholders_equity, cash
+                 FROM core_financials
+                 WHERE company_id = %s
+                 ORDER BY fiscal_year DESC, period_end DESC"""
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(sql, (company_id,))
+                rows = cur.fetchall()
+        except (psycopg2.Error, KeyError, TypeError, ValueError):
+            logger.debug("core_financials timeseries read failed", exc_info=True)
+            return empty
+        if not rows:
+            return empty
+
+        by_year: dict[int, dict] = {}
+        for row in rows:
+            if not hasattr(row, "get"):
+                continue
+            try:
+                year = int(row["fiscal_year"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            current = by_year.get(year)
+            if current is None or str(row.get("period_end") or "") > str(
+                current.get("period_end") or ""
+            ):
+                by_year[year] = row
+
+        usable = [
+            year
+            for year, row in by_year.items()
+            if any(row.get(field) is not None for field in FIELDS_OF_INTEREST)
+        ]
+        latest = max(usable) if usable else max(by_year)
+        start = latest - window + 1
+        series: dict[str, list[tuple[int, float | None]]] = {
+            field: [] for field in FIELDS_OF_INTEREST
+        }
+        for year in range(start, latest + 1):
+            row = by_year.get(year)
+            for field in FIELDS_OF_INTEREST:
+                value = row.get(field) if row is not None else None
+                series[field].append(
+                    (year, float(value) if value is not None else None)
+                )
+        return series
 
     def get_normalized_facts(
         self, ticker: str, fiscal_period: str = "FY"
