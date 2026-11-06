@@ -334,45 +334,121 @@ def _rows_by_side(view, year: int):
     return assets, liabilities
 
 
+SECTION_HEADERS = {
+    "assets_current": "CURRENT ASSETS",
+    "assets_noncurrent": "NON-CURRENT ASSETS",
+    "liab_current": "CURRENT LIABILITIES",
+    "liab_noncurrent": "NON-CURRENT LIABILITIES",
+    "equity": "SHAREHOLDERS' EQUITY",
+}
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _pad_visible(text: str, width: int) -> str:
+    """Pad by visible width, ignoring ANSI color codes."""
+    visible = _ANSI.sub("", text)
+    return text + " " * max(0, width - len(visible))
+
+
+def _line(label: str, value: str, *, indent: int = 4) -> str:
+    return f"{' ' * indent}{label[:24]:<24}{value:>10}"
+
+
+def _subtotal_line(label: str, value: float | None) -> str:
+    """Bold subtotal with the full section name (no label truncation)."""
+    return theme.bold(f"  {label:<29}{_money(value):>9}")
+
+
+def _mass_items(view, year: int, mass: str) -> list[tuple[str, str]]:
+    """Detail lines of one mass, excluding the subtotal concepts themselves."""
+    assets, liabilities = _rows_by_side(view, year)
+    rows = assets if MASS_COLUMN[mass] == "assets" else liabilities
+    subtotal_concepts = set(MASS_SUBTOTAL_CONCEPTS.get(mass, ()))
+    return [
+        (label, value)
+        for label, value, concept in rows
+        if concept_mass(concept) == mass and concept not in subtotal_concepts
+    ]
+
+
+def _mass_subtotal(
+    view, year: int, mass: str, items: list[tuple[str, str]]
+) -> float | None:
+    row = _find_row(view, MASS_SUBTOTAL_CONCEPTS.get(mass, []), year)
+    subtotal = _parse_money(_value(row, year))
+    if subtotal is not None:
+        return subtotal
+    values = [
+        parsed
+        for parsed in (_parse_money(value) for _label, value in items)
+        if parsed is not None
+    ]
+    return sum(values) if values else None
+
+
+def _section_lines(view, year: int, mass: str) -> list[str]:
+    items = _mass_items(view, year, mass)
+    header = SECTION_HEADERS[mass]
+    lines = [theme.section_header(header), theme.section_rule(header)]
+    for label, value in items:
+        lines.append(_line(label, _short(value)))
+    lines.append(
+        _subtotal_line(
+            f"Total {header.lower()}",
+            _mass_subtotal(view, year, mass, items),
+        )
+    )
+    lines.append("")
+    return lines
+
+
+def _total_line(label: str, value: float | None, *, marked: bool = False) -> str:
+    text = f"{label:<30}{_money(value):>10}"
+    if marked:
+        text += " *"
+    return theme.bold(text)
+
+
 def _render(view, year: int, totals: dict) -> None:
     theme.print_header(
         f"Financials · {view.ticker}",
         f"FY{year} · {view.fiscal_period} · source: Financial-DataBase (SEC EDGAR)",
     )
 
-    assets, liabilities = _rows_by_side(view, year)
     derived = totals["has_derived_liabilities"]
     partial = totals["partial_equity"]
 
-    print(f"  {'ASSETS':<38}LIABILITIES + EQUITY")
-    print("  " + "─" * 38 + "  " + "─" * 38)
-    for index in range(max(len(assets), len(liabilities))):
-        left = assets[index] if index < len(assets) else ("", "", "")
-        right = liabilities[index] if index < len(liabilities) else ("", "", "")
-        left_value = _short(
-            _mark(left[1], derived and left[2] in {"Liabilities", "LiabilitiesTotal"})
-        )
-        right_value = _short(
-            _mark(right[1], derived and right[2] in {"Liabilities", "LiabilitiesTotal"})
-        )
-        print(
-            f"  {left[0][:28]:<28}{left_value:>10}  "
-            f"{right[0][:28]:<28}{right_value:>10}"
-        )
-    print("  " + "─" * 38 + "  " + "─" * 38)
-    print(f"  {'TOTAL ASSETS':<28}{_big(totals['assets'])}")
-    print(
-        f"  {'':<28}{'':>10}  {'TOTAL LIABILITIES':<28}"
-        f"{_big(totals['liabilities'], derived)}"
-    )
-    print(
-        f"  {'':<28}{'':>10}  {'TOTAL EQUITY' + (' *' if partial else ''):<28}"
-        f"{_big(totals['equity'])}"
-    )
-    print(
-        f"  {'':<28}{'':>10}  {'TOTAL LIABILITIES + EQUITY':<28}"
-        f"{_big(totals['liabilities_equity'])}"
-    )
+    left: list[str] = []
+    for mass in ("assets_current", "assets_noncurrent"):
+        left.extend(_section_lines(view, year, mass))
+
+    right: list[str] = []
+    for mass in ("liab_current", "liab_noncurrent", "equity"):
+        right.extend(_section_lines(view, year, mass))
+
+    for index in range(max(len(left), len(right))):
+        left_line = _pad_visible(left[index], 40) if index < len(left) else " " * 40
+        right_line = right[index] if index < len(right) else ""
+        print(f"  {left_line}  {right_line}".rstrip())
+
+    print("  " + "─" * 40 + "  " + "─" * 40)
+    left_total = _total_line("TOTAL ASSETS", totals["assets"])
+    right_totals = [
+        _total_line("TOTAL LIABILITIES", totals["liabilities"], marked=derived),
+        _total_line(
+            "TOTAL EQUITY" + (" *" if partial else ""),
+            totals["equity"],
+        ),
+        _total_line(
+            "TOTAL LIABILITIES + EQUITY",
+            totals["liabilities_equity"],
+        ),
+    ]
+    for index in range(max(1, len(right_totals))):
+        left_line = _pad_visible(left_total, 40) if index == 0 else " " * 40
+        right_line = right_totals[index] if index < len(right_totals) else ""
+        print(f"  {left_line}  {right_line}".rstrip())
 
     if totals["balanced"] is True and partial:
         print(f"  {theme.gold('⚠ Balanced (partial equity — see caption)')}")

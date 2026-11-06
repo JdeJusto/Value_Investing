@@ -121,6 +121,71 @@ def _run(*argv):
     main()
 
 
+def test_financials_renders_five_sections(capsys):
+    _Service.view = _json_view()
+    _run("financials", "AAPL", "--no-color")
+
+    out = capsys.readouterr().out
+    for header in (
+        "CURRENT ASSETS",
+        "NON-CURRENT ASSETS",
+        "CURRENT LIABILITIES",
+        "NON-CURRENT LIABILITIES",
+        "SHAREHOLDERS' EQUITY",
+    ):
+        assert header in out
+    for subtotal in (
+        "Total current assets",
+        "Total non-current assets",
+        "Total current liabilities",
+        "Total non-current liabilities",
+        "Total shareholders' equity",
+    ):
+        assert subtotal in out
+    assert "TOTAL ASSETS" in out
+    assert "TOTAL LIABILITIES + EQUITY" in out
+    assert "Balanced" in out
+
+
+def test_financials_excludes_subtotal_concepts_from_items(capsys):
+    _Service.view = _json_view()
+    _run("financials", "AAPL", "--no-color")
+
+    out = capsys.readouterr().out
+    # Subtotals are rendered as "Total ...", never as ordinary line items.
+    assert "Current Assets" not in out
+    assert "Noncurrent Assets" not in out
+    assert "Current Liabilities" not in out
+    assert "Noncurrent Liabilities" not in out
+    assert "Stockholders Equity" not in out
+
+
+def test_financials_json_contract_unchanged(capsys):
+    _Service.view = _json_view()
+    _run("financials", "AAPL", "--json")
+
+    payload = json.loads(capsys.readouterr().out)
+    assert set(payload) >= {
+        "ticker",
+        "company_name",
+        "fiscal_period",
+        "fiscal_year",
+        "assets",
+        "liabilities_equity",
+        "derived",
+        "balanced",
+        "delta",
+        "balance_sheet",
+    }
+    assert payload["assets"]["total_current"] == 60.0
+    assert payload["assets"]["total_non_current"] == 40.0
+    assert payload["assets"]["total"] == 100.0
+    assert payload["liabilities_equity"]["total_current"] == 25.0
+    assert payload["liabilities_equity"]["total_non_current"] == 15.0
+    assert payload["liabilities_equity"]["total_equity"] == 60.0
+    assert payload["balanced"] is True
+
+
 def test_financials_renders_both_sections(capsys):
     _run("financials", "AAPL")
 

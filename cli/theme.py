@@ -64,6 +64,28 @@ def big_number(text: str) -> str:
     return _wrap(text, BOLD, GOLD)
 
 
+def bold(text: str) -> str:
+    """Bold without changing the color (numbers stay uncolored)."""
+    return _wrap(text, BOLD)
+
+
+def section_header(text: str) -> str:
+    """Cyan bold section header for the hierarchical T-view."""
+    return _wrap(text.upper(), NEON_CYAN, BOLD)
+
+
+def section_rule(text: str) -> str:
+    """Dim underline matching a section header width."""
+    return _wrap("─" * min(len(text) + 4, 40), DIM)
+
+
+def print_section_header(text: str) -> None:
+    """Print a T-view section header with a blank line and underline."""
+    print()
+    print(section_header(text))
+    print(section_rule(text))
+
+
 def color_big_number(text: str) -> str:
     """Alias for :func:`big_number` (the public theme API)."""
     return big_number(text)
