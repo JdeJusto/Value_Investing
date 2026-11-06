@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,6 +39,8 @@ from backend.services.price_service import get_price_service
 RANKINGS_DIR = PROJECT_ROOT / "data" / "rankings"
 UNIVERSE_PATH = PROJECT_ROOT / "config" / "universe.csv"
 NAMED_UNIVERSES = {"sp500", "nasdaq100", "russell2000", "european", "all"}
+
+logger = logging.getLogger(__name__)
 
 
 def load_universe(spec: str) -> list[str]:
@@ -100,6 +103,56 @@ def compute_rankings(tickers: list[str], repository, price_service) -> dict:
     }
 
 
+def _write_ranking_safe(
+    path: Path,
+    universe_size: int,
+    rankings: dict,
+    meta: dict,
+) -> bool:
+    """Write the ranking file only if it has data.
+
+    A run that produces zero rankings (Yahoo failure, empty universe) must
+    never overwrite the last valid file. It writes ``<stem>.failed.json`` with
+    the failure metadata instead, and the caller returns a non-zero exit code
+    so systemd records the failure.
+    """
+    if not rankings or universe_size == 0:
+        failed_path = path.with_name(path.stem + ".failed.json")
+        failed_payload = {
+            "universe_size": universe_size,
+            "rankings": rankings,
+            "error": "empty ranking, not overwriting last valid",
+            "failed_at": datetime.now(UTC).isoformat(),
+            **meta,
+        }
+        failed_path.write_text(
+            json.dumps(failed_payload, indent=2, sort_keys=True) + "\n"
+        )
+        logger.error(
+            "Empty ranking (universe=%d, ranked=%d). Wrote %s; "
+            "preserved last valid %s.",
+            universe_size,
+            len(rankings),
+            failed_path.name,
+            path.name,
+        )
+        return False
+
+    path.write_text(
+        json.dumps(
+            {
+                "universe_size": universe_size,
+                "rankings": rankings,
+                **meta,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -122,9 +175,17 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"greenblatt_{payload['date']}.json"
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    print(f"ranked {payload['universe_size']} companies -> {path}")
-    return 0
+    ok = _write_ranking_safe(
+        path,
+        payload["universe_size"],
+        payload["rankings"],
+        {"date": payload["date"]},
+    )
+    if ok:
+        print(f"ranked {payload['universe_size']} companies -> {path}")
+    else:
+        print(f"empty ranking -> {path.stem}.failed.json; preserved last valid ranking")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
