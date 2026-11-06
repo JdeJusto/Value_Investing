@@ -7,6 +7,7 @@ they are retrieved on demand from Yahoo Finance (with a short in-memory cache).
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from backend.domain.interfaces.financial_repository import FinancialRepository
@@ -14,6 +15,25 @@ from backend.repositories.financial_database_repository import (
     FinancialDatabaseRepository,
 )
 from backend.services.price_service import PriceService
+
+logger = logging.getLogger(__name__)
+
+#: Share counts above this magnitude are suspicious enough to cross-check the
+#: adjacent fiscal years before using them in EPS/P-E. COP FY2011 (1.375e12
+#: vs ~1.375e9) and BTI FY2019 (2.456e15 vs ~2.456e9) are the canonical cases.
+_SUSPICIOUS_SHARES = 1e11
+
+
+def format_pe_for_display(pe: float | None, net_income: float | None) -> str:
+    """Format a P/E for a table: exact unless earnings are near zero.
+
+    The JSON/API keeps the numeric value; only the human table uses ``n.m.``.
+    """
+    if pe is None:
+        return "N/A"
+    if net_income is not None and abs(net_income) < 1e6:
+        return "n.m."
+    return f"{pe:.2f}"
 
 
 class HistoricalValuationService:
@@ -202,11 +222,57 @@ class HistoricalValuationService:
         return ratios
 
     def _safe_shares(self, ticker: str, fiscal_year: int) -> float | None:
+        shares = self._raw_shares(ticker, fiscal_year)
+        if shares is None:
+            return None
+        return self._shares_with_neighbor_sanity(ticker, fiscal_year, shares)
+
+    def _raw_shares(self, ticker: str, fiscal_year: int) -> float | None:
+        """Repository share count without the neighbor sanity check."""
         try:
             shares = self._repository.get_shares_outstanding(ticker, fiscal_year)
             return float(shares) if shares is not None else None
         except Exception:  # noqa: BLE001
             return None
+
+    def _shares_with_neighbor_sanity(
+        self, ticker: str, fiscal_year: int, shares: float
+    ) -> float:
+        """Reject share counts that are 100x+ away from both neighbors.
+
+        Only values above ``_SUSPICIOUS_SHARES`` are cross-checked, so normal
+        companies do not pay for two extra repository reads. The fallback is
+        the neighbor median, not a fabricated number: COP/BTI have the correct
+        count in the adjacent fiscal years.
+        """
+        if shares <= 0 or shares < _SUSPICIOUS_SHARES:
+            return shares
+        neighbors = [
+            value
+            for value in (
+                self._raw_shares(ticker, fiscal_year - 1),
+                self._raw_shares(ticker, fiscal_year + 1),
+            )
+            if value is not None and value > 0
+        ]
+        if not neighbors:
+            return shares
+        median = sorted(neighbors)[len(neighbors) // 2]
+        if median <= 0:
+            return shares
+        ratio = shares / median
+        if ratio > 100 or ratio < 0.01:
+            logger.warning(
+                "shares outlier %s FY%s: %.0f vs neighbor median %.0f "
+                "(%.1fx); using neighbor",
+                ticker,
+                fiscal_year,
+                shares,
+                median,
+                ratio,
+            )
+            return median
+        return shares
 
     def _safe_fiscal_year_end(self, ticker: str, fiscal_year: int):
         """Best-known fiscal year end date, or None to let PriceService fall back."""
@@ -236,9 +302,7 @@ class HistoricalValuationService:
             year = ratio["fiscal_year"]
             price = f"{ratio['price']:.2f}" if ratio["price"] is not None else "N/A"
             eps = f"{ratio['eps']:.2f}" if ratio["eps"] is not None else "N/A"
-            pe_ratio = (
-                f"{ratio['pe_ratio']:.2f}" if ratio["pe_ratio"] is not None else "N/A"
-            )
+            pe_ratio = format_pe_for_display(ratio["pe_ratio"], ratio.get("net_income"))
             fcf_yield = (
                 f"{ratio['fcf_yield']:.2%}" if ratio["fcf_yield"] is not None else "N/A"
             )

@@ -15,6 +15,23 @@ from typing import Any
 #: The radar's radius scale (dimension scores are 0-10).
 RADAR_RANGE = (0, 10)
 
+#: P/E values outside this band are hidden from the Historical line chart;
+#: the table/JSON keep the exact value. Near-zero earnings and share-scale
+#: bugs otherwise flatten every other year in the chart.
+PE_CHART_CAP = 100.0
+
+
+def split_pe_outliers(
+    rows: list[dict[str, Any]], cap: float = PE_CHART_CAP
+) -> tuple[list[dict[str, Any]], int]:
+    """Return ``(chart_rows, hidden_count)`` for the Historical P/E chart."""
+    kept = [
+        row
+        for row in rows
+        if row.get("P/E") is not None and abs(float(row["P/E"])) <= cap
+    ]
+    return kept, len(rows) - len(kept)
+
 
 def radar_data(
     dimensions: list[dict[str, Any]],

@@ -9,7 +9,10 @@ from backend.app.cli import (
     refresh_analysis_inputs,
 )
 from backend.services import cli_output
-from backend.services.historical_valuation_service import HistoricalValuationService
+from backend.services.historical_valuation_service import (
+    HistoricalValuationService,
+    format_pe_for_display,
+)
 from cli.formatters import (
     dim,
     print_header,
@@ -88,9 +91,7 @@ def _run(args):
             )
             print_key_value(
                 "P/E Ratio",
-                f"{latest['pe_ratio']:.2f}"
-                if latest["pe_ratio"] is not None
-                else "N/A",
+                format_pe_for_display(latest["pe_ratio"], latest.get("net_income")),
             )
             print_key_value(
                 "FCF Yield",

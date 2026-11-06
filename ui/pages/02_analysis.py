@@ -1029,11 +1029,14 @@ def _historical(ticker: str) -> None:
     if not data:
         st.info("No historical valuation data for this ticker.")
         return
-    pe_rows = [
+    all_pe_rows = [
         {"Fiscal year": row["fiscal_year"], "P/E": row["pe_ratio"]}
         for row in sorted(data, key=lambda r: r["fiscal_year"])
         if row.get("pe_ratio") is not None
     ]
+    from ui.charts import split_pe_outliers
+
+    pe_rows, hidden_pe = split_pe_outliers(all_pe_rows)
     fcf_rows = [
         {
             "Fiscal year": row["fiscal_year"],
@@ -1042,7 +1045,7 @@ def _historical(ticker: str) -> None:
         for row in sorted(data, key=lambda r: r["fiscal_year"])
         if row.get("fcf_yield") is not None
     ]
-    if not pe_rows and not fcf_rows:
+    if not pe_rows and not fcf_rows and hidden_pe == 0:
         st.info("Not enough historical prices for the chart.")
         return
     col1, col2 = st.columns(2)
@@ -1050,6 +1053,11 @@ def _historical(ticker: str) -> None:
         if pe_rows:
             st.caption("P/E by fiscal year")
             st.line_chart(pe_rows, x="Fiscal year", y="P/E")
+        if hidden_pe:
+            st.caption(
+                f"{hidden_pe} outlier year(s) hidden (|P/E| > 100); "
+                "see the table/JSON for exact values."
+            )
     with col2:
         if fcf_rows:
             st.caption("FCF yield by fiscal year (%)")

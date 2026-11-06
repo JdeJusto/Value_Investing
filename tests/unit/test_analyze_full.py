@@ -306,6 +306,22 @@ def test_valuation_table_keeps_the_text_figures():
     assert [str(cell) for cell in table.columns[4]._cells] == ["12.30%", "N/A"]
 
 
+def test_valuation_table_marks_near_zero_earnings_as_nm():
+    table = valuation_table(
+        [
+            {
+                "fiscal_year": 2025,
+                "price": 15.77,
+                "eps": 0.002786,
+                "pe_ratio": 5_659.7,
+                "net_income": 75_000,
+                "fcf_yield": None,
+            }
+        ]
+    )
+    assert [str(cell) for cell in table.columns[3]._cells] == ["n.m."]
+
+
 def test_section_historical_prefers_the_structured_summary(monkeypatch, capsys):
     """When the service exposes rows, section 5 renders them as a table; the
     text form stays as the fallback for services without rows."""

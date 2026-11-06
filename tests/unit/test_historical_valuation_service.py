@@ -246,6 +246,78 @@ class TestHistoricalValuationService:
         assert [r["fiscal_year"] for r in result] == [2025]
         assert result[0]["price"] == 200.0
 
+    def test_shares_neighbor_check_cop_2011(self, service, mock_repo, mock_prices):
+        """COP FY2011's 1.375e12 duplicate is rejected for ~1.4e9 neighbors."""
+        mock_repo.list_years.return_value = [_financials(2011, 12_436_000_000, 0.0)]
+
+        def shares(_ticker, year):
+            return {
+                2010: 1_400_000_000,
+                2011: 1_375_035_000_000,
+                2012: 1_400_000_000,
+            }[year]
+
+        mock_repo.get_shares_outstanding.side_effect = shares
+        mock_repo.get_fiscal_year_end_date.return_value = None
+        mock_prices.get_price_at_fiscal_year_end.return_value = 33.61
+
+        with (
+            patch.object(service, "_repository", mock_repo),
+            patch.object(service, "_price_service", mock_prices),
+        ):
+            result = service.get_historical_valuation_summary("COP")
+
+        assert result[0]["shares_outstanding"] == pytest.approx(1_400_000_000)
+        assert result[0]["pe_ratio"] == pytest.approx(
+            33.61 / (12_436_000_000 / 1_400_000_000)
+        )
+
+    def test_shares_neighbor_check_bti_2019(self, service, mock_repo, mock_prices):
+        """BTI FY2019's 2.456e15 cover-page tag falls back to 2.456e9."""
+        mock_repo.list_years.return_value = [_financials(2019, 5_849_000_000, 0.0)]
+
+        def shares(_ticker, year):
+            return {
+                2018: 2_456_415_884,
+                2019: 2_456_520_738_000_000,
+                2020: 2_456_591_597,
+            }[year]
+
+        mock_repo.get_shares_outstanding.side_effect = shares
+        mock_repo.get_fiscal_year_end_date.return_value = None
+        mock_prices.get_price_at_fiscal_year_end.return_value = 25.91
+
+        with (
+            patch.object(service, "_repository", mock_repo),
+            patch.object(service, "_price_service", mock_prices),
+        ):
+            result = service.get_historical_valuation_summary("BTI")
+
+        assert result[0]["shares_outstanding"] == pytest.approx(2_456_591_597)
+        assert result[0]["pe_ratio"] == pytest.approx(
+            25.91 / (5_849_000_000 / 2_456_591_597)
+        )
+
+    def test_near_zero_earnings_show_nm_in_table_but_exact_in_json(
+        self, service, mock_repo, mock_prices
+    ):
+        """TRC FY2025: P/E 5,659 is 'n.m.' in the table, numeric in the JSON."""
+        mock_repo.list_years.return_value = [_financials(2025, 75_000, 0.0)]
+        mock_repo.get_shares_outstanding.return_value = 26_916_837
+        mock_repo.get_fiscal_year_end_date.return_value = None
+        mock_prices.get_price_at_fiscal_year_end.return_value = 15.77
+
+        with (
+            patch.object(service, "_repository", mock_repo),
+            patch.object(service, "_price_service", mock_prices),
+        ):
+            result = service.get_historical_valuation_summary("TRC")
+            table_output = service.format_valuation_table("TRC")
+
+        assert result[0]["pe_ratio"] is not None
+        assert result[0]["pe_ratio"] > 1000
+        assert "n.m." in table_output
+
     def test_row_is_empty(self, service):
         """The empty-row predicate mirrors the repository's core-field rule."""
         empty = Mock()

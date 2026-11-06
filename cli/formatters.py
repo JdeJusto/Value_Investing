@@ -1,6 +1,7 @@
 import math
 
 from backend.services import cli_output
+from backend.services.historical_valuation_service import format_pe_for_display
 
 
 class Colors:
@@ -172,7 +173,7 @@ def valuation_table(ratios: list):
             str(ratio.get("fiscal_year")),
             _num(ratio.get("price")),
             _num(ratio.get("eps")),
-            _num(ratio.get("pe_ratio")),
+            format_pe_for_display(ratio.get("pe_ratio"), ratio.get("net_income")),
             _num(ratio.get("fcf_yield"), "{:.2%}"),
         ]
         for ratio in ratios
