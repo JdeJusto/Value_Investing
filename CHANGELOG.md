@@ -1,3 +1,74 @@
+## [0.20.3] - 2026-11-06
+
+### Added
+- **T-view hierarchical sections** (CLI + UI): the balance sheet now
+  shows CURRENT ASSETS / NON-CURRENT ASSETS / CURRENT LIABILITIES /
+  NON-CURRENT LIABILITIES / SHAREHOLDERS' EQUITY as distinct sections
+  with per-section subtotals, always visible in the UI. JSON output
+  (`vi financials --json`) unchanged.
+- **`vi refresh <ticker>`**: re-fetches SEC facts and Yahoo price for a
+  single ticker. Supports `--facts-only`, `--prices-only`, `--json`.
+  Exit codes: 0 (all OK), 1 (partial), 2 (single-domain failure).
+  Prices are fetched on-demand and are not persisted to FDB.
+- **Refresh button** in Streamlit Analysis page: triggers
+  `refresh_ticker`, clears cache, reruns.
+- **N/A state** in scorecard rules: rules that do not apply (e.g.
+  current_ratio for banks) return N/A instead of INSUFFICIENT. N/A is
+  excluded from the dimension denominator.
+
+### Changed
+- **Fiscal window** anchored on `effective_year` (Assets + Equity in
+  `core_financials`) instead of `MAX(fiscal_year)`. The "10 years ago"
+  check now fetches 11 rows for methodologies. Fixes **8 of 8** Fisher
+  dilution cases that were INSUFFICIENT due to the FY2026 stray bucket
+  (including AMT, whose FY2015 row becomes available with the anchored
+  window).
+- **`current_ratio`** is now computed from normalized `current_assets` /
+  `current_liabilities` for non-banks; returns N/A for financials
+  (previously hardcoded INSUFFICIENT in 30/30 tickers).
+
+### Fixed
+- **Greenblatt safety guard**: the weekly ranking job no longer
+  overwrites a valid ranking with an empty one. If the run produces 0
+  rankings (Yahoo DNSError), the payload is written to
+  `greenblatt_<date>.failed.json` and the job exits non-zero, preserving
+  the last valid file.
+- **Greenblatt ranking regenerated** (2026-11-06, 284 companies ranked):
+  8 SP500 tickers (AAPL, MSFT, CAT, CSX, PG, VZ, DUK, NEE) no longer
+  return INSUFFICIENT_DATA for this methodology.
+- **Display**: historical P/E chart excludes `|P/E| > 100` with caption
+  of hidden years; CLI table shows "n.m." when `|net_income| < 1e6`;
+  shares neighbor check rejects ×1000 / ×1e6 outliers (COP FY2011, BTI
+  FY2019).
+
+### Documentation
+- `docs/greenblatt_pipeline.md` (new): pipeline, dependencies,
+  safety guard, failure modes, manual regeneration.
+- `docs/insufficient_data_analysis.md`: C2 / C4a-1 fixes recorded.
+- READMEs: logo at top, `vi refresh` command, T-view section note,
+  prices on-demand note. 8 badges preserved, 1 screenshot.
+
+### Measured
+- INSUFFICIENT_DATA: **104 → 85** across the 30-ticker audit set
+  (34 scorecard dimensions + 37 methodology verdicts + 14 DCF).
+- Greenblatt INSUFFICIENT: **23 → 15** overall. 8 SP500 tickers were
+  resolved by the regenerated ranking; 14 mapping gaps remain, and 8
+  tickers are outside SP500 (7 of them are also in the mapping gaps;
+  BJRI is the remaining out-of-universe case).
+- `current_ratio` INSUFFICIENT: **30/30 → 9/30**.
+- Test count: 2540 → 2579.
+
+### Notes
+- C4a-2 (Fisher aggregation) deferred: requires editing
+  `backend/methodologies/fisher_quantitative_subset/`.
+- C4b (banks/REITs guard): pending product decision.
+- C1-M (mapping): 14 Greenblatt M tickers, IFRS splits, VZ capex, TD
+  dividends.
+- 8 tickers outside SP500 (Russell2000 / Europe): pending
+  multi-universe decision.
+- PostgreSQL unavailable in the systemd job: environment issue,
+  documented, not fixed.
+
 ## [0.20.2] - 2026-11-05
 
 ### Fixed
