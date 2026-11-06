@@ -16,7 +16,9 @@ if str(_root) not in sys.path:
 import streamlit as st
 
 from backend.services.demo_mode import DEMO_TICKERS, is_demo, is_demo_ticker
+from backend.services.fdb_gateway import FdbGateway
 from backend.services.financial_statement_parser import load_financial_statement
+from backend.services.ticker_refresh_service import refresh_ticker
 from backend.services.ui_adapter import (
     fmt_money_short,
     fmt_or_dash,
@@ -230,6 +232,7 @@ def _render_single(ticker: str) -> None:
         return
     quote = load_quote(ticker)
     _price_header(ticker, rows, quote)
+    _refresh_control(ticker)
     with st.spinner(f"Evaluating methodologies and DCF for {ticker}..."):
         view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
         dcf = run_dcf(ticker, rows, get_price_service())
@@ -501,6 +504,53 @@ def _price_header(ticker: str, rows: list, quote: dict) -> None:
     )
     col3.metric("Sector", sector or "—")
     st.divider()
+
+
+def _refresh_control(ticker: str) -> None:
+    """Refresh button and last facts timestamp (prices stay on-demand)."""
+    if is_demo():
+        return
+
+    last_str = "unknown"
+    gateway = None
+    try:
+        gateway = FdbGateway()
+        resolved = gateway.resolve_company(ticker)
+        if resolved is not None:
+            company_id, _cik = resolved
+            last = gateway.last_synced_at(company_id)
+            if last is not None:
+                last_str = last.strftime("%Y-%m-%d %H:%M")
+    except Exception:  # noqa: BLE001 — a missing timestamp must not break the page
+        last_str = "unknown"
+    finally:
+        if gateway is not None:
+            try:
+                gateway.close()
+            except Exception:  # noqa: BLE001, S110
+                pass
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.caption(
+            f"Facts last updated: {last_str} · prices are fetched from Yahoo "
+            "on-demand; not persisted to FDB."
+        )
+    with col2:
+        if st.button("Refresh", key=f"refresh_{ticker}"):
+            with st.spinner(f"Refreshing {ticker}..."):
+                result = refresh_ticker(ticker, facts=True, prices=True)
+            if result.facts_synced and result.prices_synced:
+                st.success(f"Refreshed in {result.duration_seconds:.1f}s")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                errors = [
+                    error
+                    for error in (result.facts_error, result.prices_error)
+                    if error
+                ]
+                st.error("Refresh failed: " + ("; ".join(errors) or "unknown error"))
 
 
 def _overview(rows, quote: dict, view) -> None:

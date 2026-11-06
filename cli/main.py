@@ -103,6 +103,7 @@ def main():
         opportunities,
         portfolio,
         rank,
+        refresh,
         scorecard,
         screener,
         sql_analysis,
@@ -138,6 +139,7 @@ def main():
     filing_section.register(sub)
     financial_alerts.register(sub)
     financials.register(sub)
+    refresh.register(sub)
     rank.register(sub)
     interactive.register(sub)
     register_methodologies(sub)
