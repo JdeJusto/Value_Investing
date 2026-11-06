@@ -196,3 +196,12 @@ def load_sector_map_bulk(tickers: tuple[str, ...]) -> dict[str, str | None]:
     except Exception:  # noqa: BLE001 — DB down: no sectors, filtering degrades
         found = {}
     return {ticker.upper(): found.get(ticker.upper()) for ticker in tickers}
+
+
+@st.cache_data(ttl=3600)
+def load_financial_timeseries(ticker: str) -> dict:
+    """10-year canonical core_financials evolution for the Evolution tab."""
+    try:
+        return build_financial_repository().get_financial_timeseries(ticker, years=10)
+    except Exception:  # noqa: BLE001 — no history is not a crash
+        return {}

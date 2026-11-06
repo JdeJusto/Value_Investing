@@ -40,6 +40,7 @@ from ui._shared import (
 from ui.services import (
     get_price_service,
     load_filings,
+    load_financial_timeseries,
     load_fundamentals,
     load_historical_valuation,
     load_quote,
@@ -245,6 +246,7 @@ def _render_single(ticker: str) -> None:
             "Historical",
             "Filings",
             "Financials",
+            "Evolution",
             "Raw",
         ]
     )
@@ -263,6 +265,8 @@ def _render_single(ticker: str) -> None:
     with tabs[6]:
         _financials(ticker)
     with tabs[7]:
+        _render_evolution_tab(ticker)
+    with tabs[8]:
         _raw(ticker)
 
 
@@ -1112,6 +1116,22 @@ def _historical(ticker: str) -> None:
         if fcf_rows:
             st.caption("FCF yield by fiscal year (%)")
             st.line_chart(fcf_rows, x="Fiscal year", y="FCF Yield %")
+
+
+def _render_evolution_tab(ticker: str) -> None:
+    """10-year evolution of the eight canonical core_financials fields."""
+    from ui.charts import evolution_figures, evolution_has_history
+
+    data = load_financial_timeseries(ticker)
+    st.caption("10-year evolution · source: Financial-DataBase (SEC EDGAR)")
+    if not data or not evolution_has_history(data):
+        st.caption("insufficient history")
+        return
+    figures = evolution_figures(data)
+    columns = st.columns(2)
+    for index, figure in enumerate(figures):
+        with columns[index % 2]:
+            st.plotly_chart(figure, use_container_width=True)
 
 
 def _financials(ticker: str) -> None:

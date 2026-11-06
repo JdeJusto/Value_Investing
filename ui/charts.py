@@ -254,3 +254,80 @@ def peer_pe_figure(card: dict[str, Any]) -> Any | None:
     )
     figure.update_layout(showlegend=False)
     return _style(figure, y_title="")
+
+
+#: Evolution tab: canonical core_financials fields and their labels.
+EVOLUTION_FIELDS = (
+    ("revenue", "Revenue"),
+    ("net_income", "Net income"),
+    ("operating_income", "Operating income"),
+    ("gross_profit", "Gross profit"),
+    ("total_assets", "Total assets"),
+    ("total_liabilities", "Total liabilities"),
+    ("stockholders_equity", "Shareholders' equity"),
+    ("cash", "Cash"),
+)
+
+
+def evolution_has_history(
+    timeseries: dict[str, list[tuple[int, float | None]]],
+    min_years: int = 2,
+) -> bool:
+    """True when at least one field has ``min_years`` non-null observations."""
+    return any(
+        sum(1 for _year, value in timeseries.get(field, []) if value is not None)
+        >= min_years
+        for field, _label in EVOLUTION_FIELDS
+    )
+
+
+def evolution_figures(
+    timeseries: dict[str, list[tuple[int, float | None]]],
+) -> list[Any]:
+    """Eight 10-year evolution figures (USD billions), in a stable order."""
+    import plotly.graph_objects as go
+
+    from ui.theme.plotly_template import (
+        CHROME,
+        GOLD,
+        NEON_CYAN,
+        NEON_PINK,
+    )
+
+    colors = (
+        NEON_CYAN,
+        NEON_PINK,
+        GOLD,
+        CHROME,
+        "#9b4dff",
+        "#5ef2c2",
+        "#ff9f1c",
+        "#b388ff",
+    )
+    figures = []
+    for (field, label), color in zip(EVOLUTION_FIELDS, colors, strict=True):
+        rows = timeseries.get(field, [])
+        years = [year for year, _value in rows]
+        values = [
+            value / 1_000_000_000 if value is not None else None
+            for _year, value in rows
+        ]
+        figure = go.Figure(
+            go.Scatter(
+                x=years,
+                y=values,
+                mode="lines+markers",
+                name=label,
+                line={"color": color, "width": 2},
+                marker={"size": 5, "color": color},
+                hovertemplate="FY%{x}: $%{y:.2f}B<extra></extra>",
+            )
+        )
+        figure.update_layout(
+            title={"text": label, "font": {"size": 13}},
+            showlegend=False,
+            height=250,
+        )
+        _style(figure, y_title="USD B")
+        figures.append(figure)
+    return figures
