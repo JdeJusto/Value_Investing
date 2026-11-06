@@ -74,6 +74,8 @@ BALANCE_MAP: dict[str, list[list[str]]] = {
         # lease ones, which are note-level detail of the same filer.
         [
             "PropertyPlantAndEquipmentNet",
+            "PropertyPlantAndEquipment",
+            "PropertyPlantAndEquipmentIncludingRightofuseAssets",
             "CapitalizedCostsOilAndGasProducingActivitiesNet",
             "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
             "PublicUtilitiesPropertyPlantAndEquipmentNet",
@@ -324,9 +326,9 @@ AGGREGATE_SLOTS: dict[str, set[int]] = {
 #: When several are present the first wins; when none is, the UI computes
 #: the subtotal from the lines and labels it as computed.
 MASS_SUBTOTAL_CONCEPTS: dict[str, list[str]] = {
-    "assets_current": ["AssetsCurrent"],
+    "assets_current": ["AssetsCurrent", "CurrentAssets"],
     "assets_noncurrent": ["AssetsNoncurrent"],
-    "liab_current": ["LiabilitiesCurrent"],
+    "liab_current": ["LiabilitiesCurrent", "CurrentLiabilities"],
     "liab_noncurrent": ["LiabilitiesNoncurrent"],
     "equity": [
         # FDB 0.2.1 exposes NCI-inclusive equity via core_financials.max().

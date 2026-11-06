@@ -21,8 +21,10 @@ FIELD_LABELS: dict[str, str] = {
     "LiabilitiesTotal": "Total liabilities",
     # --- Subtotals (reported masses) ------------------------------------
     "AssetsCurrent": "Total current assets",
+    "CurrentAssets": "Total current assets",
     "AssetsNoncurrent": "Total non-current assets",
     "LiabilitiesCurrent": "Total current liabilities",
+    "CurrentLiabilities": "Total current liabilities",
     "LiabilitiesNoncurrent": "Total non-current liabilities",
     "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": (
         "Total equity incl. noncontrolling interest"
@@ -65,6 +67,10 @@ FIELD_LABELS: dict[str, str] = {
     "OtherAssetsCurrent": "Other current assets",
     # --- Non-current assets ---------------------------------------------
     "PropertyPlantAndEquipmentNet": "Property, plant and equipment, net",
+    "PropertyPlantAndEquipment": "Property, plant and equipment, net",
+    "PropertyPlantAndEquipmentIncludingRightofuseAssets": (
+        "Property, plant and equipment, net (incl. right-of-use assets)"
+    ),
     "PropertyPlantAndEquipmentGross": "Property, plant and equipment, gross",
     "CapitalizedCostsOilAndGasProducingActivitiesNet": (
         "Property, plant and equipment, net (oil & gas)"

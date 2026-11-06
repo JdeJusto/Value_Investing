@@ -14,6 +14,7 @@ from backend.domain.value_objects.financials_normalized import (
 )
 from backend.repositories.fdb_concept_mapping import (
     _COMMON_ONLY_DIVIDEND_CONCEPTS,
+    BALANCE_CONCEPT_RANK,
     BALANCE_SHEET_CONCEPTS,
     BANK_INTEREST_INCOME_CONCEPTS,
     CASH_FLOW_CONCEPT_RANK,
@@ -114,7 +115,10 @@ class NormalizationMixin:
                 pe_ord - ps_ord if pe is not None and ps is not None else 0,
                 pe_ord,
                 -INCOME_CONCEPT_RANK.get(
-                    concept, CASH_FLOW_CONCEPT_RANK.get(concept, 10**9)
+                    concept,
+                    CASH_FLOW_CONCEPT_RANK.get(
+                        concept, BALANCE_CONCEPT_RANK.get(concept, 10**9)
+                    ),
                 ),
                 -ps_ord,
             )
@@ -301,6 +305,29 @@ class NormalizationMixin:
             and income_data.get("operating_income") is not None
         ):
             income_data["ebit"] = income_data["operating_income"]
+
+        # Filers that stopped tagging an operating-income line (JNJ, ADM) still
+        # report pretax income, tax and interest. EBIT = pretax + interest
+        # expense reconstructs the operating result from those lines. When the
+        # interest tag is missing too, pretax income is the closest available
+        # proxy (net interest is small for these non-financial filers); the
+        # approximation is documented in docs/insufficient_data_analysis.md.
+        if income_data.get("ebit") is None:
+            pretax = income_data.get("pretax_income")
+            interest = income_data.get("interest_expense")
+            if pretax is not None:
+                income_data["ebit"] = (
+                    float(pretax) + float(interest) if interest is not None else pretax
+                )
+            else:
+                net_income = income_data.get("net_income")
+                tax = income_data.get("tax_provision")
+                if net_income is not None and tax is not None:
+                    income_data["ebit"] = (
+                        float(net_income)
+                        + float(tax)
+                        + (float(interest) if interest is not None else 0.0)
+                    )
 
         # Gross profit = revenue - cost of revenue is the standard US-GAAP
         # identity, used when a filer does not tag GrossProfit directly. GM

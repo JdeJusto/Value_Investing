@@ -93,12 +93,23 @@ INCOME_STATEMENT_CONCEPTS = {
     # Interest Expense
     "InterestExpense": "interest_expense",
     "InterestExpenseNonoperating": "interest_expense",
+    # IFRS finance costs (interest + other financing charges). Ranked last so
+    # a dedicated interest tag still wins; used to rebuild EBIT for 20-F/40-F
+    # filers that do not file an operating-profit line (TotalEnergies FY2025).
+    "FinanceCosts": "interest_expense",
     # Tax Provision
     "IncomeTaxExpenseBenefit": "tax_provision",
     "IncomeTaxExpense": "tax_provision",
+    # IFRS continuing-operations tax line (TotalEnergies, AstraZeneca).
+    "IncomeTaxExpenseContinuingOperations": "tax_provision",
     # Pretax Income
     "IncomeLossBeforeIncomeTaxes": "pretax_income",
     "PretaxIncome": "pretax_income",
+    # IFRS profit before tax (20-F/40-F filers). TotalEnergies files it as
+    # AccountingProfit, AstraZeneca as ProfitLossBeforeTax; both are used to
+    # rebuild EBIT when no operating-profit tag is filed.
+    "AccountingProfit": "pretax_income",
+    "ProfitLossBeforeTax": "pretax_income",
     # The standard US-GAAP pretax line for most filers (COLD, AAPL, ...)
     "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest": "pretax_income",
     # Pretax variant used by filers with equity-method/minority interests.
@@ -161,6 +172,9 @@ INCOME_FIELD_PRIORITY = {
         "IncomeLossBeforeIncomeTaxes",
         "PretaxIncome",
         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+        # IFRS profit before tax (20-F/40-F filers); after the US-GAAP tags.
+        "AccountingProfit",
+        "ProfitLossBeforeTax",
     ],
     "sga": [
         "SellingGeneralAndAdministrativeExpense",
@@ -175,6 +189,8 @@ INCOME_FIELD_PRIORITY = {
         # REIT/common alternative used when the plain tag is absent (COLD).
         "InterestExpense",
         "InterestExpenseNonoperating",
+        # IFRS finance costs; only chosen when no dedicated interest tag exists.
+        "FinanceCosts",
     ],
     "operating_expense": [
         # OperatingExpenses is the intended total where filed; CostsAndExpenses
@@ -233,6 +249,8 @@ CASH_FLOW_FIELD_PRIORITY = {
         "PaymentsToAcquirePropertyPlantAndEquipment",
         "SegmentExpenditureAdditionToLongLivedAssets",
         "PaymentsToAcquireProductiveAssets",
+        # Verizon tags its network capex only under this variant.
+        "PaymentsToAcquireOtherProductiveAssets",
         "PaymentsForConstructionInProcess",
         "CapitalExpenditures",
         "CapitalExpenditure",
@@ -258,6 +276,8 @@ CASH_FLOW_FIELD_PRIORITY = {
         "DividendsCommonStockCash",
         "PaymentsOfDividends",
         "PaymentsOfOrdinaryDividends",
+        # IFRS cash-flow tag used by TD Bank and other 40-F filers.
+        "DividendsPaidClassifiedAsFinancingActivities",
         "DividendsPaid",
     ],
     "repurchase_of_stock": [
@@ -274,6 +294,26 @@ CASH_FLOW_CONCEPT_RANK = {
     for rank, concept in enumerate(concepts)
 }
 
+# Several balance-sheet concepts can map to the same field. For net PPE the
+# specificity differs: a generic net PP&E tag is the cleanest figure, the
+# ROU-inclusive variant is a proxy, and oil-and-gas capitalized costs are the
+# right net fixed assets for an E&P whose generic PP&E line is only surface
+# assets. Lower rank wins.
+BALANCE_FIELD_PRIORITY = {
+    "net_ppe": [
+        "PropertyPlantAndEquipmentNet",
+        "PropertyPlantAndEquipment",
+        "PropertyPlantAndEquipmentIncludingRightofuseAssets",
+        "CapitalizedCostsOilAndGasProducingActivitiesNet",
+        "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+    ],
+}
+BALANCE_CONCEPT_RANK = {
+    concept: rank
+    for field, concepts in BALANCE_FIELD_PRIORITY.items()
+    for rank, concept in enumerate(concepts)
+}
+
 # Total debt = current + non-current portion, each taken from the newest
 # balance comparative. Companies file several interchangeable tags for the
 # same portion (LongTermDebt / DebtNoncurrent / LongTermDebtNoncurrent for
@@ -286,6 +326,9 @@ DEBT_CURRENT_PRIORITY = [
     "DebtCurrent",
     "ShortTermBorrowings",
     "CommercialPaper",
+    # IFRS current borrowings (20-F/40-F filers: Sanofi, AstraZeneca, BTI).
+    "CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",
+    "ShorttermBorrowings",
     "LongTermDebtAndCapitalLeaseObligationsCurrent",
     "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
     # Current portion of long-term debt; last so a broader current-debt tag wins.
@@ -296,6 +339,8 @@ DEBT_NONCURRENT_PRIORITY = [
     "LongTermDebt",
     "DebtNoncurrent",
     "LongTermDebtNoncurrent",
+    # IFRS non-current borrowings (20-F/40-F filers: Sanofi, AstraZeneca, BTI).
+    "LongtermBorrowings",
     "LongTermNotesPayable",
     "SeniorNotes",
     # REITs (COLD, ...) tag their mortgage/notes debt here when no broader
@@ -317,6 +362,8 @@ BALANCE_SHEET_CONCEPTS = {
     "LiabilitiesAndStockholdersEquity": "total_assets",
     # Current Assets
     "AssetsCurrent": "current_assets",
+    # IFRS current assets (20-F/40-F filers: Sanofi, AstraZeneca, BTI, RACE).
+    "CurrentAssets": "current_assets",
     "CashAndCashEquivalentsAtCarryingValue": "cash_and_equivalents",
     "CashAndCashEquivalents": "cash_and_equivalents",
     "AccountsReceivableNetCurrent": "accounts_receivable",
@@ -328,6 +375,8 @@ BALANCE_SHEET_CONCEPTS = {
     "LiabilitiesTotal": "total_liabilities",
     # Current Liabilities
     "LiabilitiesCurrent": "current_liabilities",
+    # IFRS current liabilities (20-F/40-F filers: Sanofi, AstraZeneca, BTI).
+    "CurrentLiabilities": "current_liabilities",
     "AccountsPayableCurrent": "accounts_payable",
     # Combined payable+accrued line used by unclassified balance sheets.
     "AccountsPayableAndAccruedLiabilitiesCurrent": "accounts_payable",
@@ -346,9 +395,23 @@ BALANCE_SHEET_CONCEPTS = {
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": "cash_and_equivalents",
     # Net property, plant and equipment (Greenblatt's ROC denominator)
     "PropertyPlantAndEquipmentNet": "net_ppe",
+    # IFRS net PP&E carrying amount (20-F/40-F filers: Sanofi, AstraZeneca).
+    "PropertyPlantAndEquipment": "net_ppe",
+    # IFRS PP&E including right-of-use assets (TotalEnergies FY2025 files
+    # only this variant, no plain PP&E tag).
+    "PropertyPlantAndEquipmentIncludingRightofuseAssets": "net_ppe",
+    # E&P filers tag net oil-and-gas properties here; the generic PP&E tags
+    # cover only surface/office assets (APA reports 146M there vs 12.5B of
+    # producing properties). Ranked after the generic net tags below.
+    "CapitalizedCostsOilAndGasProducingActivitiesNet": "net_ppe",
+    # US filers that combine PP&E with finance-lease ROU assets (AT&T, AMT,
+    # APA): the "AfterAccumulatedDepreciation..." tag is the net carrying
+    # amount; the "Before..." sibling is gross.
+    "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization": "net_ppe",
     # Gross - accumulated depreciation identity, used only when no net tag is
     # filed (derived in _calculate_derived_fields).
     "PropertyPlantAndEquipmentGross": "ppe_gross",
+    "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetBeforeAccumulatedDepreciationAndAmortization": "ppe_gross",
     "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment": "ppe_accumulated_depreciation",
     # Working Capital (calculated as Current Assets - Current Liabilities)
     # We'll calculate this separately since it's not typically stored directly
@@ -386,6 +449,7 @@ CASH_FLOW_CONCEPTS = {
     "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations": "operating_cash_flow",
     # Capital Expenditure (positive value)
     "PaymentsToAcquireProductiveAssets": "capital_expenditure",
+    "PaymentsToAcquireOtherProductiveAssets": "capital_expenditure",
     "PaymentsToAcquirePropertyPlantAndEquipment": "capital_expenditure",
     "SegmentExpenditureAdditionToLongLivedAssets": "capital_expenditure",
     "PaymentsForConstructionInProcess": "capital_expenditure",
@@ -405,6 +469,7 @@ CASH_FLOW_CONCEPTS = {
     "DividendsCommonStockCash": "dividends_paid",
     "PaymentsOfDividends": "dividends_paid",
     "PaymentsOfOrdinaryDividends": "dividends_paid",
+    "DividendsPaidClassifiedAsFinancingActivities": "dividends_paid",
     "DividendsPaid": "dividends_paid",
     # Repurchase of Stock
     "PaymentsForRepurchaseOfEquity": "repurchase_of_stock",
