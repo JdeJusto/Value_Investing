@@ -26,8 +26,14 @@ NEON_PINK = "#ff2d95"
 GOLD = "#d4af37"
 #: Chrome: the neutral reference bar (market price, peer median).
 CHROME = "#c0c0d0"
+#: Extra synthwave accents used by the Evolution charts.
+NEON_PURPLE = "#9b4dff"
+NEON_MINT = "#5ef2c2"
+NEON_ORANGE = "#ff9f1c"
+NEON_LAVENDER = "#b388ff"
+
 #: Neon colorway: pink, cyan, purple, gold.
-COLORWAY = [NEON_PINK, NEON_CYAN, "#9b4dff", GOLD]
+COLORWAY = [NEON_PINK, NEON_CYAN, NEON_PURPLE, GOLD]
 
 synthwave = go.layout.Template()
 synthwave.layout = {

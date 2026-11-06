@@ -291,7 +291,11 @@ def evolution_figures(
         CHROME,
         GOLD,
         NEON_CYAN,
+        NEON_LAVENDER,
+        NEON_MINT,
+        NEON_ORANGE,
         NEON_PINK,
+        NEON_PURPLE,
     )
 
     colors = (
@@ -299,10 +303,10 @@ def evolution_figures(
         NEON_PINK,
         GOLD,
         CHROME,
-        "#9b4dff",
-        "#5ef2c2",
-        "#ff9f1c",
-        "#b388ff",
+        NEON_PURPLE,
+        NEON_MINT,
+        NEON_ORANGE,
+        NEON_LAVENDER,
     )
     figures = []
     for (field, label), color in zip(EVOLUTION_FIELDS, colors, strict=True):

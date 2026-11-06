@@ -1131,7 +1131,7 @@ def _render_evolution_tab(ticker: str) -> None:
     columns = st.columns(2)
     for index, figure in enumerate(figures):
         with columns[index % 2]:
-            st.plotly_chart(figure, use_container_width=True)
+            st.plotly_chart(figure, width="stretch")
 
 
 def _financials(ticker: str) -> None:
