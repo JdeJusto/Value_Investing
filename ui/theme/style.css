@@ -212,6 +212,17 @@ div[data-testid="stHorizontalBlock"]:has(> div:nth-child(2) .vi-bs-head)
   padding: 0.4rem 0 0.3rem;
   margin-bottom: 0.2rem;
 }
+/* Always-visible section headers (CURRENT ASSETS / ...): cyan, mono. */
+.vi-bs-section {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--vi-neon-cyan);
+  border-top: 1px solid var(--vi-dim);
+  padding: 0.45rem 0.4rem 0.2rem;
+  margin-top: 0.35rem;
+}
 /* Line-item tables: quiet borders, hierarchy by weight, mono numbers. */
 .vi-bs-lines {
   width: 100%;

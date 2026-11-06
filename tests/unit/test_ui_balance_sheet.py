@@ -1022,3 +1022,66 @@ render_balance_sheet(
     successes = [s.value for s in at.success]
     assert any("partial equity" in w.lower() for w in warnings), warnings
     assert not any("Balanced (Δ" in s for s in successes), successes
+
+
+def test_t_view_render_has_five_visible_section_headers(tmp_path):
+    """The five section headers/subtotals are visible without opening anything."""
+    script = tmp_path / "sections_app.py"
+    script.write_text(
+        f"""
+import sys
+sys.path.insert(0, {str(REPO)!r})
+
+from ui.balance_sheet import render_balance_sheet
+
+numeric = {{
+    "CashAndCashEquivalentsAtCarryingValue": {{2025: 80.0}},
+    "OtherAssetsCurrent": {{2025: 20.0}},
+    "AssetsCurrent": {{2025: 100.0}},
+    "PropertyPlantAndEquipmentNet": {{2025: 50.0}},
+    "AccountsPayableCurrent": {{2025: 30.0}},
+    "OtherLiabilitiesCurrent": {{2025: 30.0}},
+    "LiabilitiesCurrent": {{2025: 60.0}},
+    "LongTermDebtNoncurrent": {{2025: 40.0}},
+    "RetainedEarningsAccumulatedDeficit": {{2025: 50.0}},
+    "StockholdersEquity": {{2025: 50.0}},
+    "Assets": {{2025: 150.0}},
+    "Liabilities": {{2025: 100.0}},
+}}
+units = {{concept: "USD" for concept in numeric}}
+render_balance_sheet(
+    numeric,
+    units,
+    [2025],
+    2025,
+    ticker="TEST",
+    source="test fixture",
+)
+""",
+        encoding="utf-8",
+    )
+
+    at = AppTest.from_file(str(script), default_timeout=60).run()
+
+    assert not at.exception, at.exception
+    html = "\n".join(markdown.value for markdown in at.markdown)
+    normalized = html.replace("&#x27;", "'")
+    for header in (
+        "CURRENT ASSETS",
+        "NON-CURRENT ASSETS",
+        "CURRENT LIABILITIES",
+        "NON-CURRENT LIABILITIES",
+        "SHAREHOLDERS' EQUITY",
+    ):
+        assert header in html, f"missing {header}"
+    for subtotal in (
+        "Total current assets",
+        "Total non-current assets",
+        "Total current liabilities",
+        "Total non-current liabilities",
+        "Total shareholders' equity",
+    ):
+        assert subtotal in normalized, f"missing {subtotal}"
+    assert "TOTAL ASSETS" in html
+    assert "TOTAL LIABILITIES + EQUITY" in html
+    assert any("Balanced" in success.value for success in at.success)

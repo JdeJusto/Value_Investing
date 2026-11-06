@@ -659,6 +659,15 @@ def _resolve_total(
 # Renderer
 # ---------------------------------------------------------------------------
 
+#: Always-visible T-view section headers (the project is English).
+SECTION_HEADERS_EN = {
+    "assets_current": "CURRENT ASSETS",
+    "assets_noncurrent": "NON-CURRENT ASSETS",
+    "liab_current": "CURRENT LIABILITIES",
+    "liab_noncurrent": "NON-CURRENT LIABILITIES",
+    "equity": "SHAREHOLDERS' EQUITY",
+}
+
 
 def _arrow_span(delta: float | None) -> str:
     """▲/▼ with an explicit sign — color is never the only signal."""
@@ -710,7 +719,7 @@ def _lines_table(
 
     marker = "" if mass.subtotal_reported else "*"
     total_cells = [
-        f'<td class="vi-bs-label">{escape(mass.label)}{marker}</td>',
+        f'<td class="vi-bs-label">Total {escape(mass.label.lower())}{marker}</td>',
         f'<td class="vi-bs-num">{escape(fmt_money(mass.subtotal, unit, scale=scale))}</td>',
     ]
     if with_percent:
@@ -820,11 +829,10 @@ def render_balance_sheet(
         for mass in model.masses:
             if MASS_COLUMN[mass.key] != "assets":
                 continue
-            with st.expander(
-                f"{mass.label} · {fmt_money(mass.subtotal, model.currency, scale=scale)}",
-                expanded=mass.key == "assets_current",
-            ):
-                render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
+            render_html(
+                f'<div class="vi-bs-section">{SECTION_HEADERS_EN[mass.key]}</div>'
+            )
+            render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
         render_html(_other_block(model.other_assets, model, scale))
         render_html(
             _total_row(
@@ -840,11 +848,10 @@ def render_balance_sheet(
         for mass in model.masses:
             if MASS_COLUMN[mass.key] != "liabilities":
                 continue
-            with st.expander(
-                f"{mass.label} · {fmt_money(mass.subtotal, model.currency, scale=scale)}",
-                expanded=mass.key == "liab_current",
-            ):
-                render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
+            render_html(
+                f'<div class="vi-bs-section">{SECTION_HEADERS_EN[mass.key]}</div>'
+            )
+            render_html(_lines_table(mass, model, scale, with_percent, with_yoy))
         render_html(_other_block(model.other_liabilities, model, scale))
         render_html(
             _total_row(
