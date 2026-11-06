@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Value Investing logo" width="240">
+</p>
+
 # Value Investing
 
 <p align="center">
@@ -48,10 +52,15 @@ virtualenv.
 ./vi consensus AAPL --universe all             # Canonical consensus (all 8)
 ./vi portfolio view                           # Current portfolio
 ./vi screener --tickers AAPL,MSFT --no-prices --no-refresh  # Screen
+./vi refresh AAPL                             # Re-fetch facts + prices for one ticker
 ```
 
-`./vi --help` lists all 42 commands. All support `--no-color`;
-`vi financials` and `vi rank` also support `--json`.
+`./vi --help` lists all 43 commands. All support `--no-color`;
+`vi financials`, `vi rank`, and `vi refresh` also support `--json`.
+`vi financials` shows a hierarchical T-view (current/non-current assets,
+current/non-current liabilities, shareholders' equity) with per-section
+subtotals. `vi refresh` syncs SEC facts and fetches the current Yahoo price
+on demand; prices are not persisted to FDB.
 
 ## Streamlit
 
