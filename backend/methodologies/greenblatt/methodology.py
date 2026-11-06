@@ -15,13 +15,17 @@ denominator assumes an industrial balance sheet).
 
 from __future__ import annotations
 
+import csv
 import json
 from datetime import UTC, date, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from backend.methodologies.base import (
     FINANCIAL_NA_REASON,
+    REIT_NA_REASON,
+    UNIVERSE_NA_REASON,
     Confidence,
     Methodology,
     MethodologyResult,
@@ -30,6 +34,7 @@ from backend.methodologies.base import (
 from backend.methodologies.common.company_type import (
     financial_na_reason,
     is_financial,
+    is_reit,
 )
 from backend.methodologies.greenblatt.rules import ALL_RULES, RULE_3_RANK
 
@@ -43,6 +48,25 @@ STALE_DAYS = 14
 _BUY_PERCENTILE = 0.10
 _WATCH_PERCENTILE = 0.30
 _HOLD_PERCENTILE = 0.50
+#: Master universe file, used to tell "not ranked because outside the ranking
+#: universe" (N/A) from "ranked universe but inputs missing" (INSUFFICIENT).
+_UNIVERSE_PATH = Path(__file__).resolve().parents[3] / "config" / "universe.csv"
+
+
+@lru_cache(maxsize=1)
+def _universe_source_index() -> dict[str, str]:
+    """Ticker -> source_index labels from the master universe (empty if absent)."""
+    try:
+        with _UNIVERSE_PATH.open(encoding="utf-8") as handle:
+            return {
+                (row.get("ticker") or "").strip().upper(): (
+                    row.get("source_index") or ""
+                ).upper()
+                for row in csv.DictReader(handle)
+                if (row.get("ticker") or "").strip()
+            }
+    except OSError:
+        return {}
 
 
 class GreenblattMethodology(Methodology):
@@ -79,12 +103,36 @@ class GreenblattMethodology(Methodology):
                 na_reason=na_reason,
             )
 
+        # REITs report FFO and present unclassified balance sheets, so net
+        # working capital and net PPE are not comparable with industrials.
+        if is_reit(latest, getattr(latest, "sector", None)):
+            return self._insufficient(
+                ticker,
+                (
+                    "Greenblatt Magic Formula does not apply to REITs: the ROC "
+                    "denominator assumes a classified industrial balance sheet."
+                ),
+                verdict=Verdict.NOT_APPLICABLE,
+                na_reason=REIT_NA_REASON,
+            )
+
         payload, error = self._load_rankings()
         if payload is None:
             return self._insufficient(ticker, error)
 
         entry = (payload.get("rankings") or {}).get(ticker.upper())
         if entry is None:
+            sources = _universe_source_index().get(ticker.upper())
+            if sources is not None and "SP500" not in sources:
+                return self._insufficient(
+                    ticker,
+                    (
+                        "ticker is outside the S&P 500 ranking universe "
+                        f"(source indices: {sources or 'none'})"
+                    ),
+                    verdict=Verdict.NOT_APPLICABLE,
+                    na_reason=UNIVERSE_NA_REASON,
+                )
             return self._insufficient(
                 ticker,
                 (

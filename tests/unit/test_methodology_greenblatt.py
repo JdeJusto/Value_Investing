@@ -179,3 +179,21 @@ def test_no_network_calls_inside_methodology(tmp_path):
     )
     assert result.verdict is Verdict.BUY
     assert result.score == pytest.approx(95.0)
+
+
+def test_reit_is_not_applicable(tmp_path):
+    """REITs abstain: FFO + unclassified balance sheet break the ROC denominator."""
+    _write_ranking(tmp_path)
+    result = _evaluate([_row(sector="Real Estate")], tmp_path)
+    assert result.verdict is Verdict.NOT_APPLICABLE
+    assert any("REIT" in reason for reason in result.reasons)
+
+
+def test_ticker_outside_the_sp500_universe_is_not_applicable(tmp_path):
+    """SNY is in the master universe (CAC40) but not in the SP500 ranking run."""
+    _write_ranking(tmp_path, ticker="OTHER")
+    result = GreenblattMethodology(rankings_dir=tmp_path).evaluate(
+        "SNY", [_row()], _Prices()
+    )
+    assert result.verdict is Verdict.NOT_APPLICABLE
+    assert any("ticker not in universe" in reason for reason in result.reasons)

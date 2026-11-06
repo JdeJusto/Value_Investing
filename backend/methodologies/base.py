@@ -41,6 +41,11 @@ class Verdict(str, Enum):
 #: Canonical reason attached when a methodology abstains on a financial
 #: company. Kept in one place so every methodology and the screener agree.
 FINANCIAL_NA_REASON = "financial company — rules do not apply"
+#: Canonical reason attached when a methodology abstains on a REIT (FFO, not
+#: net income, and unclassified balance sheets).
+REIT_NA_REASON = "REIT — rules do not apply (FFO, not net income)"
+#: Canonical reason for a ticker outside the ranking universe (non-S&P 500).
+UNIVERSE_NA_REASON = "ticker not in universe"
 
 
 class Confidence(str, Enum):
