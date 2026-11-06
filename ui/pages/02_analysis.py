@@ -640,6 +640,7 @@ _SCORECARD_STATUS_MARK = {
     "WATCH": "⚠",
     "FAIL": "✗",
     "INSUFFICIENT": "·",
+    "N/A": "—",
 }
 
 

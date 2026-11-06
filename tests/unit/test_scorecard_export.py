@@ -25,6 +25,10 @@ _DIMENSIONS = (
 )
 
 
+def test_status_mark_includes_na() -> None:
+    assert STATUS_MARK["N/A"] == "—"
+
+
 def _rule(key: str, *, peers: bool = False, value: str | None = "12.4%") -> dict:
     return {
         "rule_id": f"{key}_rule",

@@ -25,12 +25,14 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
+from backend.analytics.ratios.current_ratio import CurrentRatioCalculator
 from backend.analytics.ratios.leverage import InterestCoverageCalculator
 from backend.analytics.ratios.margins import FcfYieldCalculator
 from backend.analytics.ratios.per import PerCalculator
 from backend.analytics.ratios.roic import RoicCalculator
 from backend.analytics.service import effective_tax_rate
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
+from backend.methodologies.common.company_type import is_financial
 from backend.methodologies.registry import discover, registry
 from backend.services.alert_service import AlertService, AlertsReport
 from backend.services.financial_insights_service import (
@@ -43,6 +45,7 @@ from backend.services.financials_view_service import FinancialsViewService
 __all__ = [
     "FAIL",
     "INSUFFICIENT",
+    "NA",
     "PASS",
     "WATCH",
     "DimensionRule",
@@ -56,6 +59,10 @@ PASS = "PASS"
 WATCH = "WATCH"
 FAIL = "FAIL"
 INSUFFICIENT = "INSUFFICIENT"
+#: The rule does not apply to this company (e.g. current ratio for a bank).
+#: Distinct from INSUFFICIENT: it is excluded from the dimension denominator
+#: and does not count as skipped evidence.
+NA = "N/A"
 
 STRONG = "Strong"
 MIXED = "Mixed"
@@ -173,10 +180,10 @@ def _verdict_for(score: int | None) -> str:
 def score_rules(rules: list[DimensionRule]) -> tuple[int | None, str, int]:
     """``(score, verdict, evaluable)`` from the rule statuses.
 
-    ``INSUFFICIENT`` rules are dropped; fewer than two evaluable rules means
-    the dimension itself is ``Insufficient`` (never a 0).
+    ``INSUFFICIENT`` and ``N/A`` rules are dropped; fewer than two evaluable
+    rules means the dimension itself is ``Insufficient`` (never a 0).
     """
-    evaluable = [rule for rule in rules if rule.status != INSUFFICIENT]
+    evaluable = [rule for rule in rules if rule.status not in (INSUFFICIENT, NA)]
     if len(evaluable) < 2:
         return None, INSUFFICIENT_VERDICT, len(evaluable)
     points = sum(_POINTS[rule.status] for rule in evaluable)
@@ -563,14 +570,31 @@ def _financial_health_rules(
         )
     )
 
+    latest = rows[0] if rows else None
+    current_ratio = CurrentRatioCalculator().calculate(
+        current_assets=getattr(latest, "current_assets", None),
+        current_liabilities=getattr(latest, "current_liabilities", None),
+    )
+    if current_ratio is not None:
+        current_status = _band(current_ratio, 1.5, 1.0)
+        current_value = _x(current_ratio)
+        current_reason = f"Current ratio is {current_ratio:.2f}x (target 1.5x)."
+    elif latest is not None and is_financial(latest, getattr(latest, "sector", None)):
+        current_status = NA
+        current_value = "—"
+        current_reason = "N/A — banks do not report a current/non-current split."
+    else:
+        current_status = INSUFFICIENT
+        current_value = "—"
+        current_reason = "Current assets/liabilities are unavailable for this ticker."
     rules.append(
         _rule(
             "current_ratio",
             "Current ratio",
-            INSUFFICIENT,
-            "—",
+            current_status,
+            current_value,
             "≥ 1.5x",
-            "Current ratio is not computed by backend/analytics yet (see backlog).",
+            current_reason,
             source_metric="current_ratio",
         )
     )

@@ -23,6 +23,7 @@ _STATUS_MARK = {
     "WATCH": ("⚠", "yellow"),
     "FAIL": ("✗", cli_output.DANGER),
     "INSUFFICIENT": ("·", cli_output.MUTED),
+    "N/A": ("—", cli_output.MUTED),
 }
 
 #: Dimension verdict -> palette style.

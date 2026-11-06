@@ -24,6 +24,7 @@ from backend.services.scorecard_service import (
     DIMENSION_ORDER,
     FAIL,
     INSUFFICIENT,
+    NA,
     PASS,
     WATCH,
     DimensionRule,
@@ -161,6 +162,18 @@ def test_insufficient_rules_are_dropped_from_the_denominator():
     assert evaluable == 2
 
 
+def test_na_rules_are_dropped_from_the_denominator():
+    score, verdict, evaluable = score_rules([rule(PASS), rule(PASS), rule(NA)])
+    assert score == 10
+    assert verdict == "Strong"
+    assert evaluable == 2
+
+    score, verdict, evaluable = score_rules([rule(PASS), rule(NA), rule(NA)])
+    assert score is None
+    assert verdict == "Insufficient"
+    assert evaluable == 1
+
+
 def test_fewer_than_two_evaluable_rules_is_insufficient_never_zero():
     score, verdict, evaluable = score_rules(
         [rule(PASS), rule(INSUFFICIENT), rule(INSUFFICIENT)]
@@ -239,13 +252,56 @@ def test_growth_cagr_bands():
     assert rules["fcf_cagr_5y"].status == FAIL
 
 
-def test_financial_health_current_ratio_always_insufficient():
+def test_financial_health_current_ratio_missing_is_insufficient():
     rows = [NormalizedFinancials(ticker="T", fiscal_year=2024)]
     m = metrics(metric("debt_to_equity", series={2024: 0.3}))
     rules = {r.rule_id: r for r in _financial_health_rules(m, alerts(), rows)}
-    # Current ratio has no calculator yet: it must degrade, not fabricate.
+    # A non-financial company with no current split still degrades.
     assert rules["current_ratio"].status == INSUFFICIENT
     assert rules["debt_to_equity"].status == PASS
+
+
+def test_current_ratio_computed_for_non_bank():
+    rows = [
+        _row(
+            current_assets=147.957,
+            current_liabilities=165.631,
+            sector="Technology",
+        )
+    ]
+    m = metrics(metric("debt_to_equity", series={2024: 0.3}))
+    rules = {r.rule_id: r for r in _financial_health_rules(m, alerts(), rows)}
+    assert rules["current_ratio"].status == FAIL
+    assert rules["current_ratio"].value == "0.89x"
+
+
+def test_current_ratio_watch_for_cat():
+    rows = [
+        _row(
+            current_assets=52.485,
+            current_liabilities=36.558,
+            sector="Industrials",
+        )
+    ]
+    m = metrics(metric("debt_to_equity", series={2024: 0.3}))
+    rules = {r.rule_id: r for r in _financial_health_rules(m, alerts(), rows)}
+    assert rules["current_ratio"].status == WATCH
+    assert rules["current_ratio"].value == "1.44x"
+
+
+def test_current_ratio_na_for_bank():
+    rows = [
+        _row(
+            ticker="SAN",
+            sector="Financial Services",
+            current_assets=None,
+            current_liabilities=None,
+        )
+    ]
+    m = metrics(metric("debt_to_equity", series={2024: 0.3}))
+    rules = {r.rule_id: r for r in _financial_health_rules(m, alerts(), rows)}
+    assert rules["current_ratio"].status == NA
+    assert rules["current_ratio"].value == "—"
 
 
 def test_financial_health_debt_bands_and_interest_coverage():

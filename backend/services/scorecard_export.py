@@ -30,6 +30,7 @@ STATUS_MARK: dict[str, str] = {
     "WATCH": "⚠",
     "FAIL": "✗",
     "INSUFFICIENT": "·",
+    "N/A": "—",
 }
 
 #: Characters that change meaning inline; escaped with a backslash.
