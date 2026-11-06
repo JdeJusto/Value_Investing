@@ -178,18 +178,65 @@ class FactsMixin:
             return []
 
     @staticmethod
-    def _min_fiscal_year(cur, company_id: str, max_years: int) -> int | None:
-        """Oldest fiscal year a ``max_years`` cap should read (newest N)."""
+    def _last_usable_fiscal_year(cur, company_id: str) -> int | None:
+        """Latest fiscal year with Assets and Equity in ``core_financials``.
+
+        Mirrors ``FinancialDatabaseRepository.get_effective_year``: a year
+        whose latest balance row lacks either total (e.g. MRX FY2025, which
+        has assets + liabilities but no equity) is not usable and must not
+        anchor the history window.
+        """
         cur.execute(
-            "SELECT MAX(fiscal_year) FROM financial_facts "
+            """SELECT cf.fiscal_year
+               FROM core_financials cf
+               JOIN (
+                 SELECT fiscal_year, MAX(period_end) AS period_end
+                 FROM core_financials
+                 WHERE company_id = %s
+                 GROUP BY fiscal_year
+               ) latest
+                 ON latest.fiscal_year = cf.fiscal_year
+                AND latest.period_end = cf.period_end
+               WHERE cf.company_id = %s
+                 AND cf.total_assets IS NOT NULL
+                 AND cf.stockholders_equity IS NOT NULL
+               ORDER BY cf.fiscal_year DESC
+               LIMIT 1""",
+            (company_id, company_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        value = row.get("fiscal_year") if hasattr(row, "get") else None
+        return value if isinstance(value, int) else None
+
+    @staticmethod
+    def _raw_max_fiscal_year(cur, company_id: str) -> int | None:
+        """Raw ``MAX(fiscal_year)`` fallback when the core layer is absent."""
+        cur.execute(
+            "SELECT MAX(fiscal_year) AS max_fy FROM financial_facts "
             "WHERE company_id = %s AND UPPER(fiscal_period) = 'FY'",
             (company_id,),
         )
         row = cur.fetchone()
         if not row:
             return None
-        latest = next(iter(row.values()))
-        return None if latest is None else latest - max_years + 1
+        value = next(iter(row.values()))
+        return value if isinstance(value, int) else None
+
+    @staticmethod
+    def _min_fiscal_year(cur, company_id: str, max_years: int) -> int | None:
+        """Oldest fiscal year a ``max_years`` cap should read (newest N).
+
+        Anchors on the last *usable* fiscal year (Assets + Equity) instead of
+        raw ``MAX(fiscal_year)``, so a stray in-progress FY2026 bucket does not
+        shift a 10-year window to 2017 and hide FY2016. Falls back to the raw
+        maximum when ``core_financials`` has no usable row.
+        """
+        anchor = FactsMixin._last_usable_fiscal_year(cur, company_id)
+        if anchor is None:
+            anchor = FactsMixin._raw_max_fiscal_year(cur, company_id)
+        return None if anchor is None else anchor - max_years + 1
 
     def _list_years_uncached(
         self, ticker: str, max_years: int | None = None

@@ -81,7 +81,8 @@ def _get_universe_data(
 
     for ticker in tickers:
         try:
-            rows = repository.get_best_available(ticker, max_years=10) or []
+            # 11 rows: the "10 years ago" checks need latest - 10.
+            rows = repository.get_best_available(ticker, max_years=11) or []
             fundamentals[ticker] = rows
         except Exception:
             logger.debug("Failed to load fundamentals for %s", ticker, exc_info=True)

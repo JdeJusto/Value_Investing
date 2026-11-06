@@ -521,7 +521,8 @@ def test_universe_data_reads_best_available_with_core_merge(
 
     fundamentals, prices, market_caps = _get_universe_data(["AAPL"])
 
-    repository.get_best_available.assert_called_once_with("AAPL", max_years=10)
+    # 11 rows: the ranking path needs the "10 years ago" row (C2).
+    repository.get_best_available.assert_called_once_with("AAPL", max_years=11)
     assert fundamentals["AAPL"] == [row]
     assert prices["AAPL"] == 150.0
     assert market_caps["AAPL"] == 2e12

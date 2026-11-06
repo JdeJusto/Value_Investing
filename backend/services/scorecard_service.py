@@ -1149,6 +1149,20 @@ class ScorecardService:
             return None
         rows.sort(key=lambda row: row.fiscal_year, reverse=True)
 
+        # Methodologies get one extra year: the "10 years ago" checks (Fisher
+        # dilution, Graham-Dodd earnings stability) compare against FY
+        # ``latest - 10``, which needs 11 rows. Dimensions/DCF keep the
+        # 10-year window above.
+        methodology_rows = [
+            row
+            for row in (
+                repository.get_best_available(symbol, max_years=self._max_years + 1)
+                or []
+            )
+            if row is not None
+        ]
+        methodology_rows.sort(key=lambda row: row.fiscal_year, reverse=True)
+
         facts = FinancialsViewService(repository).fetch_facts(
             symbol, period, self._max_years
         )
@@ -1163,7 +1177,9 @@ class ScorecardService:
         market_cap = _safe(lambda: prices.get_market_cap(symbol))
         dcf = _safe(lambda: _evaluate_dcf(symbol, rows, prices))
 
-        methodology_results = _evaluate_methodologies(symbol, rows, prices)
+        methodology_results = _evaluate_methodologies(
+            symbol, methodology_rows or rows, prices
+        )
         red_flags = next(
             (
                 list(result.red_flags)
