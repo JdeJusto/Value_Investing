@@ -787,10 +787,109 @@ GROUP BY cl.ticker;
   slightly with the price source and the split-adjustment factor.
 - The `N/A` count for financials is correct by design; it is reported
   separately and is not part of the 104.
-- No code or FDB changes were made. The fix proposals are estimates, not
-  applied changes.
+- The diagnostic itself made no code or FDB changes. The Session 2a fixes are
+  recorded below.
 
 ---
 
-**STOP — diagnosis only.** No fix was applied. Await approval before opening
-the fix sessions.
+## Fixes applied (Session 2a)
+
+Three approved fixes were applied; C4a-2 was explicitly deferred. No FDB
+changes, no release.
+
+### C2 — fiscal window
+
+- `_min_fiscal_year` now anchors on the latest **usable** fiscal year
+  (`core_financials` with Assets + Equity, same criterion as
+  `effective_year`) and falls back to raw `MAX(fiscal_year)` only when the core
+  layer has no usable row.
+- Dimensions keep 10 rows. `ScorecardService._evaluate_methodologies` and
+  `methodology_ranking_service` request **11** rows, so the `latest - 10`
+  checks have FY2015.
+- Actual flips: **all 8** C2 Fisher cases — T, VZ, CSX, PLD, DUK, NEE, PCAR,
+  **AMT**. AMT was not a data gap after the anchor: the 11-row window exposes
+  its FY2015 row.
+- Graham 8 → 7 (PLD); Graham-Dodd 8 → 6 (NEE, BJRI); Fisher 12 → 4
+  (TTE, BRUN, SKT, APA remain C1-T/C5).
+- Tests: `tests/unit/test_fiscal_window.py` (anchor, fallback, 11-row
+  methodology fetch).
+- Known side effect: NEE's extra FY2016 fact changed the tie-break for a
+  duplicated FY2020 diluted-EPS fact (0.00 vs 1.48). `eps_cagr_5y` and
+  `per_share_accretion` became INSUFFICIENT, but the Growth dimension verdict
+  did not change. This is a data-dedup issue to fix with C1-M, not a C2
+  failure.
+
+### C4a-1 — `current_ratio`
+
+- New `CurrentRatioCalculator`; `N/A` is a first-class scorecard status,
+  excluded from the dimension denominator and from the skipped-evidence
+  confidence count.
+- Statuses on the 30 tickers: **10 FAIL, 4 WATCH, 7 N/A, 9 INSUFFICIENT**.
+  - PASS/WATCH/FAIL for non-banks with a current split (AAPL 0.89 FAIL,
+    CAT 1.44 WATCH, MSFT 1.23 WATCH, etc.).
+  - N/A for SAN, TD, JPM, BAC, BNS, MRX, AAMI (banks/financials without a
+    current/non-current split).
+  - INSUFFICIENT for SNY, TTE, BTI, RACE, AZN (IFRS split exists in FDB but VI
+    has not mapped it — C1-M), and for PLD/PCAR/BRUN/SKT (no usable split in
+    the normalized layer).
+- The task's Phase 2.4 text expected N/A for the IFRS names. The implementation
+  keeps INSUFFICIENT there because the split **does** exist in FDB and the
+  mapping is recoverable; acceptance #7 says INSUFFICIENT when the rule should
+  apply and the normalized data is missing. A one-line policy change can switch
+  them to N/A if product prefers that.
+- `current_ratio` rule statuses fell from 30/30 INSUFFICIENT to 9/30, but **no
+  dimension crossed the two-evaluable-rule threshold**: the 34 dimension count
+  is unchanged. The remaining dimensions are banks (N/A or industrial rules),
+  IFRS (C1-M), and BRUN/SKT/MRX.
+- Tests: computed AAPL/CAT ratios, bank N/A, N/A denominator, missing-data
+  INSUFFICIENT.
+
+### Display — P/E and shares
+
+- Historical chart excludes `|P/E| > 100` and captions the number of hidden
+  years; the table/JSON keep the exact value.
+- CLI tables render `n.m.` when `|net income| < 1e6`; JSON remains numeric.
+- `HistoricalValuationService` neighbor sanity rejects share counts more than
+  100× away from the adjacent years:
+  - BTI FY2019: 2,456,520,738,000,000 → 2,456,591,597 (P/E 10.88).
+  - COP FY2011: 1,375,035,000,000 → 1,479,330,000 (P/E 5.24).
+- Tests: COP/BTI neighbor fallback, TRC `n.m.` table / exact JSON, ±100 chart
+  filter.
+
+### Measurement
+
+Baseline **104** = 34 dimensions + 56 methodologies + 14 DCF.
+
+After **93** = 34 dimensions + 45 methodologies + 14 DCF.
+
+- Methodologies: greenblatt 23, graham 7 (−1), graham_dodd 6 (−2), fisher 4
+  (−8), lynch 4, marks 1.
+- DCF unchanged at 14; C2 did not flip a DCF verdict.
+- Tickers that improved most: PLD 3→1, NEE 4→2, T 2→1, VZ 3→2, CSX 2→1,
+  AMT 2→1, DUK 3→2, PCAR 2→1, BJRI 3→2.
+- The 75–85 estimate was not reached because `current_ratio` alone does not
+  flip a dimension: the remaining 34 dimensions are banks/IFRS/BRUN/SKT/MRX,
+  where current ratio is N/A by design or still missing (C1-M). The 11-point
+  drop is entirely C2. Reaching 75–85 needs C4b (bank/REIT scorecard policy)
+  and/or C1-M (mapping), both out of this session.
+
+### Verification
+
+- Unit: **2556 passed, 2 skipped, 0 failed** (2540 baseline + 16 new).
+- API: **125 passed, 0 failed**.
+- Ruff: **0 errors, 0 format issues**.
+- Theme: 26 pass / 4 known metric-card gaps (analysis, screener, reports,
+  consensus) — unchanged from baseline.
+- Streamlit demo: HTTP **200** on port 8510.
+
+### Pending
+
+- **C4a-2:** deferred; Fisher aggregation lives in
+  `backend/methodologies/fisher_quantitative_subset/methodology.py` and needs
+  explicit permission to touch it.
+- **C4b:** banks/REITs scorecard policy (N/A with reason vs adapted rules).
+- **C1-M:** mapping gaps (IFRS current assets/capex/dividends/debt, NCI equity,
+  VZ capex, TD dividends).
+- **NEE EPS duplicate** (0.00 vs 1.48 FY2020): deterministic dedup in the
+  insights path.
+- **v0.20.3:** human decision; no release in this session.
