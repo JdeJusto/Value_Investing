@@ -69,6 +69,13 @@ _RND_THRESHOLDS: tuple[tuple[tuple[str, ...], tuple[float, float]], ...] = (
 )
 _RND_THRESHOLDS_UNKNOWN: tuple[float, float] = (0.08, 0.02)
 
+#: Rule status for a metric that does not exist in the company's business
+#: model (R&D in an E&P, gross margin in a REIT). Distinct from
+#: ``INSUFFICIENT_DATA``: the data is not missing, the line item is not part of
+#: how this company operates. N/A rules are excluded from the verdict
+#: denominator and from ``score``.
+_NOT_APPLICABLE = "NOT_APPLICABLE"
+
 
 def _rnd_thresholds_for(sector: str | None) -> tuple[float, float]:
     """(PASS, WATCH) R&D bars for a sector label, first match wins.
@@ -91,6 +98,22 @@ def _pct(ratio: float) -> str:
     """Compact percent text: ``0.08 -> '8%'``, ``0.005 -> '0.5%'``."""
     text = f"{ratio:.1%}"
     return text[:-3] + "%" if text.endswith(".0%") else text
+
+
+def _rnd_not_applicable(sector: str | None) -> bool:
+    """True when the sector sits in the low-R&D tier (no R&D line expected).
+
+    A missing R&D tag in an E&P, a utility or a consumer-staples filer is a
+    business-model fact, not a data gap. Innovation-led, capital-goods and
+    unknown sectors keep ``INSUFFICIENT_DATA`` so a genuinely missing line is
+    not silently excused.
+    """
+    return bool(sector) and _rnd_thresholds_for(sector) == _RND_THRESHOLDS[2][1]
+
+
+#: Sectors whose business model does not expose a gross-margin line (REITs
+#: and other real-estate filers report rental income and property costs).
+_GROSS_MARGIN_NA_KEYWORDS = ("real estate", "reit", "financial")
 
 
 # Point 5 — worthwhile profit margin.
@@ -198,22 +221,31 @@ class FisherQuantitativeSubsetMethodology(Methodology):
         }
 
         passed = sum(1 for s, _ in status.values() if s == "PASS")
-        failed = sum(1 for s, _ in status.values() if s == "FAIL")
         insufficient = sum(1 for s, _ in status.values() if s == "INSUFFICIENT_DATA")
-        evaluable = 4 - insufficient
+        not_applicable = sum(1 for s, _ in status.values() if s == _NOT_APPLICABLE)
+        applicable = len(status) - not_applicable
+        scored = applicable - insufficient
 
         reasons = [
             f"{status_word} {_RULE_IDS[rid]}: {detail}"
             for rid, (status_word, detail) in status.items()
         ]
         reasons.append(
-            f"{passed} of 4 rules passed ({evaluable} evaluable, "
-            f"{insufficient} without data; score based on all 4)"
+            f"{passed} of {applicable} applicable rules passed "
+            f"({not_applicable} not applicable, {insufficient} insufficient, "
+            f"{scored} scored; score based on all applicable rules)"
         )
 
-        verdict = self._verdict(status, passed, failed, insufficient)
+        verdict = self._verdict(status)
         score = (
-            (passed / 4 * 100.0) if verdict is not Verdict.INSUFFICIENT_DATA else None
+            (passed / applicable * 100.0)
+            if applicable
+            and verdict
+            not in (
+                Verdict.INSUFFICIENT_DATA,
+                Verdict.NOT_APPLICABLE,
+            )
+            else None
         )
 
         return MethodologyResult(
@@ -268,6 +300,12 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                     "when a filer's plain tag only carries a residual (JNJ); "
                     "filers reporting neither read INSUFFICIENT_DATA."
                 ),
+                (
+                    "A rule whose line item does not exist in the business "
+                    "model (R&D in low-R&D sectors, gross margin in REITs) is "
+                    "NOT_APPLICABLE and excluded from the verdict; fewer than "
+                    "half of the four points applicable returns N/A."
+                ),
                 "Cost control is proxied by gross-margin stability, not an audit.",
                 "Dilution measured on split-restated share counts (XBRL ratio facts).",
                 "Price is never consulted — a quality screen, not a valuation.",
@@ -281,14 +319,24 @@ class FisherQuantitativeSubsetMethodology(Methodology):
         latest = rows[0]
         revenue = latest.revenue
         rnd = latest.research_development
-        if not revenue or rnd is None:
+        label = latest.sector or "an unknown sector"
+        if not revenue:
+            return (
+                "INSUFFICIENT_DATA",
+                "revenue is missing for the latest fiscal year",
+            )
+        if rnd is None:
+            if _rnd_not_applicable(latest.sector):
+                return (
+                    _NOT_APPLICABLE,
+                    f"R&D is not a line item for {label} (low-R&D sector)",
+                )
             return (
                 "INSUFFICIENT_DATA",
                 "R&D is not reported for the latest fiscal year",
             )
         ratio = rnd / revenue
         rnd_pass, rnd_watch = _rnd_thresholds_for(latest.sector)
-        label = latest.sector or "an unknown sector"
         if ratio >= rnd_pass:
             return (
                 "PASS",
@@ -342,6 +390,13 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             if len(values) >= _MARGIN_YEARS:
                 break
         if len(values) < _MARGIN_YEARS:
+            if not values:
+                label = (rows[0].sector or "").lower()
+                if any(keyword in label for keyword in _GROSS_MARGIN_NA_KEYWORDS):
+                    return (
+                        _NOT_APPLICABLE,
+                        "gross margin is not a line item for this business model",
+                    )
             return (
                 "INSUFFICIENT_DATA",
                 f"only {len(values)} years of gross margin data (need {_MARGIN_YEARS})",
@@ -409,16 +464,40 @@ class FisherQuantitativeSubsetMethodology(Methodology):
     # ------------------------------------------------------------------
     # Verdict / score / confidence / flags / metrics
     # ------------------------------------------------------------------
-    def _verdict(self, status, passed, failed, insufficient) -> Verdict:
-        if insufficient >= 3:
+    def _verdict(self, status) -> Verdict:
+        """Aggregate on applicable rules (N/A excluded, missing data counted).
+
+        - fewer than half of the four points applicable -> N/A;
+        - nothing scorable left -> INSUFFICIENT_DATA;
+        - any FAIL vetoes the verdict (Fisher's points are non-negotiable);
+        - BUY only when every applicable rule passed and none is missing;
+        - fewer than two scored rules -> INSUFFICIENT_DATA (one rule is not
+          enough evidence);
+        - otherwise 75% of applicable PASS -> WATCH, 50% -> HOLD, else AVOID.
+        """
+        rules = [verdict for verdict, _detail in status.values()]
+        applicable = [verdict for verdict in rules if verdict != _NOT_APPLICABLE]
+        if len(applicable) / len(rules) < 0.5:
+            return Verdict.NOT_APPLICABLE
+        scored = [
+            verdict
+            for verdict in applicable
+            if verdict not in (_NOT_APPLICABLE, "INSUFFICIENT_DATA")
+        ]
+        if not scored:
             return Verdict.INSUFFICIENT_DATA
-        if failed > 0:
+        passed = scored.count("PASS")
+        failed = scored.count("FAIL")
+        if failed:
             return Verdict.AVOID
-        if passed == 4:
+        if passed == len(applicable) and len(scored) == len(applicable):
             return Verdict.BUY
-        if passed >= 3:
+        # A verdict from a single rule is not a verdict: too little evidence.
+        if len(scored) < 2:
+            return Verdict.INSUFFICIENT_DATA
+        if passed >= 0.75 * len(applicable):
             return Verdict.WATCH
-        if passed >= 2:
+        if passed >= 0.5 * len(applicable):
             return Verdict.HOLD
         return Verdict.AVOID
 
@@ -494,8 +573,17 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             "gross_margin_sd_5y": gm_sd,
             "share_change_10y": share_change,
             "rules_passed": sum(1 for s, _ in status.values() if s == "PASS"),
-            "rules_evaluable": 4
-            - sum(1 for s, _ in status.values() if s == "INSUFFICIENT_DATA"),
+            "rules_not_applicable": sum(
+                1 for s, _ in status.values() if s == _NOT_APPLICABLE
+            ),
+            "rules_insufficient": sum(
+                1 for s, _ in status.values() if s == "INSUFFICIENT_DATA"
+            ),
+            "rules_evaluable": sum(
+                1
+                for s, _ in status.values()
+                if s not in (_NOT_APPLICABLE, "INSUFFICIENT_DATA")
+            ),
         }
 
 

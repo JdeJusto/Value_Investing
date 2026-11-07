@@ -847,3 +847,98 @@ def test_financial_sector_hint_not_applicable():
     result = FisherQuantitativeSubsetMethodology().evaluate("T", rows, _Prices())
     assert result.verdict == Verdict.NOT_APPLICABLE
     assert result.metrics["financial_company"] is True
+
+
+# ---------------------------------------------------------------------------
+# C4a-2: NOT_APPLICABLE rules and aggregation on applicable rules
+# ---------------------------------------------------------------------------
+def test_rule_1_energy_without_rnd_is_not_applicable():
+    """An E&P does not carry an R&D line: N/A, not a data gap."""
+    res = _evaluate([_row(2024, 100_000_000_000, sector="Energy")])
+    assert _status(res, R1) == "NOT_APPLICABLE"
+    assert "low-R&D sector" in " ".join(res.reasons)
+
+
+def test_rule_1_technology_without_rnd_stays_insufficient():
+    """A software company with no R&D tag is a data gap, not a business model."""
+    res = _evaluate([_row(2024, 100_000_000_000, sector="Technology")])
+    assert _status(res, R1) == "INSUFFICIENT_DATA"
+
+
+def test_rule_3_reit_without_gross_profit_is_not_applicable():
+    """REITs report rental income and property costs, not a gross margin."""
+    res = _evaluate([_row(2024, 100_000_000_000, sector="Real Estate")])
+    assert _status(res, R3) == "NOT_APPLICABLE"
+
+
+def test_reason_counts_not_applicable_insufficient_and_scored():
+    rows = [
+        _row(2024, 100_000_000_000, sector="Energy"),
+        _row(2023, 100_000_000_000, sector="Energy"),
+    ]
+    res = _evaluate(rows)
+    summary = [reason for reason in res.reasons if "applicable rules passed" in reason]
+    assert summary
+    assert "1 not applicable" in summary[0]
+    assert "3 insufficient" in summary[0]
+    assert "0 scored" in summary[0]
+
+
+def test_verdict_not_applicable_below_half_coverage():
+    methodology = FisherQuantitativeSubsetMethodology()
+    status = {
+        "rule_1_rnd_intensity": ("NOT_APPLICABLE", ""),
+        "rule_2_profit_margin_quality": ("NOT_APPLICABLE", ""),
+        "rule_3_cost_control_stability": ("NOT_APPLICABLE", ""),
+        "rule_4_share_dilution": ("PASS", ""),
+    }
+    assert methodology._verdict(status) == Verdict.NOT_APPLICABLE
+
+
+def test_verdict_buy_when_all_applicable_rules_pass():
+    """Low-R&D sector: R&D is N/A, the other three points pass -> BUY."""
+    methodology = FisherQuantitativeSubsetMethodology()
+    status = {
+        "rule_1_rnd_intensity": ("NOT_APPLICABLE", ""),
+        "rule_2_profit_margin_quality": ("PASS", ""),
+        "rule_3_cost_control_stability": ("PASS", ""),
+        "rule_4_share_dilution": ("PASS", ""),
+    }
+    assert methodology._verdict(status) == Verdict.BUY
+
+
+def test_verdict_avoid_when_the_only_scored_rule_fails():
+    """TTE shape: R&D fails, the other three points have no data -> AVOID."""
+    methodology = FisherQuantitativeSubsetMethodology()
+    status = {
+        "rule_1_rnd_intensity": ("FAIL", ""),
+        "rule_2_profit_margin_quality": ("INSUFFICIENT_DATA", ""),
+        "rule_3_cost_control_stability": ("INSUFFICIENT_DATA", ""),
+        "rule_4_share_dilution": ("INSUFFICIENT_DATA", ""),
+    }
+    assert methodology._verdict(status) == Verdict.AVOID
+
+
+def test_verdict_insufficient_when_only_one_rule_is_scored():
+    """One PASS is not enough evidence for HOLD/AVOID."""
+    methodology = FisherQuantitativeSubsetMethodology()
+    status = {
+        "rule_1_rnd_intensity": ("INSUFFICIENT_DATA", ""),
+        "rule_2_profit_margin_quality": ("PASS", ""),
+        "rule_3_cost_control_stability": ("INSUFFICIENT_DATA", ""),
+        "rule_4_share_dilution": ("INSUFFICIENT_DATA", ""),
+    }
+    assert methodology._verdict(status) == Verdict.INSUFFICIENT_DATA
+
+
+def test_rule_1_not_applicable_does_not_penalize_the_score():
+    """R&D N/A in an E&P: three passes score 100 (denominator = applicable)."""
+    methodology = FisherQuantitativeSubsetMethodology()
+    rows = _healthy_rows(10_000_000_000, 10_000_000_000, rnd_ratio=0.0)
+    for row in rows:
+        row.sector = "Energy"
+        row.research_development = None
+    res = methodology.evaluate("TEST", rows, _Prices())
+    assert _status(res, R1) == "NOT_APPLICABLE"
+    assert res.verdict == Verdict.BUY
+    assert res.score == pytest.approx(100.0)
