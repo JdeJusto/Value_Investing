@@ -55,7 +55,8 @@ el virtualenv del proyecto.
 ./vi refresh AAPL                             # Re-sincroniza facts + precios de un ticker
 ```
 
-`./vi --help` lista los 43 comandos. Todos admiten `--no-color`;
+`./vi --help` lista los 43 comandos. Sin argumentos abre un menú
+interactivo. Todos admiten `--no-color`;
 `vi financials`, `vi rank` y `vi refresh` también admiten `--json`.
 `vi financials` muestra una vista T jerárquica (activo corriente/no corriente,
 pasivo corriente/no corriente, patrimonio neto) con subtotales por sección.

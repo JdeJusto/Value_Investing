@@ -162,3 +162,37 @@ def _entry(ran: list) -> interactive.Entry:
     return interactive.Entry(
         "Fake command", _fake_module(ran), prompt="Ticker", default="AAPL"
     )
+
+
+def test_run_menu_opens_the_menu(monkeypatch, capsys):
+    _stdin(monkeypatch, "q")
+
+    interactive.run_menu()
+
+    assert "Value Investing" in capsys.readouterr().out
+
+
+def test_cli_without_arguments_opens_the_menu(monkeypatch, capsys):
+    from cli.main import main
+
+    monkeypatch.setattr(sys, "argv", ["main.py"])
+    _stdin(monkeypatch, "q")
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "Value Investing" in out
+    assert "usage:" not in out
+
+
+def test_cli_help_still_prints_usage_without_the_menu(monkeypatch, capsys):
+    from cli.main import main
+
+    monkeypatch.setattr(sys, "argv", ["main.py", "--help"])
+    with pytest.raises(SystemExit) as exit_info:
+        main()
+
+    assert exit_info.value.code == 0
+    out = capsys.readouterr().out
+    assert "usage:" in out
+    assert "Choice" not in out

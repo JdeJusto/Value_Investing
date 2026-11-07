@@ -149,7 +149,9 @@ def main():
     _add_no_color(parser)
 
     if len(sys.argv) == 1:
-        parser.print_help()
+        # No subcommand: open the one-level menu instead of dumping the
+        # help text. ``vi --help`` still prints the full usage.
+        interactive.run_menu()
         return
 
     args = parser.parse_args()

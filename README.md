@@ -55,7 +55,8 @@ virtualenv.
 ./vi refresh AAPL                             # Re-fetch facts + prices for one ticker
 ```
 
-`./vi --help` lists all 43 commands. All support `--no-color`;
+`./vi --help` lists all 43 commands. Running it with no arguments opens
+an interactive menu. All support `--no-color`;
 `vi financials`, `vi rank`, and `vi refresh` also support `--json`.
 `vi financials` shows a hierarchical T-view (current/non-current assets,
 current/non-current liabilities, shareholders' equity) with per-section

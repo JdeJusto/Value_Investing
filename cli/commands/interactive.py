@@ -22,6 +22,8 @@ from cli.commands import (
     filings,
     financial_alerts,
     portfolio,
+    rank,
+    refresh,
     screener,
 )
 
@@ -49,21 +51,33 @@ class Entry(NamedTuple):
 
 _ENTRIES: tuple[Entry, ...] = (
     Entry(
-        "Full analysis",
+        "Analyze a ticker",
         analyze_full,
         prompt="Ticker(s) and flags",
         default="AAPL --no-refresh",
     ),
+    Entry(
+        "Refresh a ticker (facts + prices)",
+        refresh,
+        prompt="Ticker and flags",
+        default="AAPL",
+    ),
+    Entry(
+        "Rank by methodology",
+        rank,
+        prompt="Methodology and flags",
+        default="--by graham --universe demo --top 5",
+    ),
+    Entry("Portfolio performance", portfolio, ("performance",)),
+    Entry("Consensus verdicts", consensus, prompt="Ticker", default="AAPL"),
     Entry(
         "Screener",
         screener,
         prompt="Filters and flags",
         default="--tickers AAPL,MSFT,GOOGL --top 5",
     ),
-    Entry("Portfolio performance", portfolio, ("performance",)),
-    Entry("Financial alerts", financial_alerts, prompt="Ticker", default="AAPL"),
-    Entry("Consensus verdicts", consensus, prompt="Ticker", default="AAPL"),
     Entry("SEC filings", filings, prompt="Ticker", default="AAPL"),
+    Entry("Financial alerts", financial_alerts, prompt="Ticker", default="AAPL"),
 )
 
 
@@ -137,6 +151,11 @@ def _run(args) -> None:
     except (KeyboardInterrupt, EOFError):
         console.print()
         _say_goodbye(console)
+
+
+def run_menu() -> None:
+    """Open the menu (entry point for ``vi`` with no arguments)."""
+    _run(None)
 
 
 def register(subparsers):
