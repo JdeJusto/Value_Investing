@@ -122,3 +122,24 @@ def test_search_companies_db_failure_returns_empty():
 
     repo, _ = _repo(responder)
     assert repo.search_companies("app") == []
+
+
+def test_public_sector_and_industry_lookups():
+    def responder(sql, params):
+        assert "companies" in sql
+        return (
+            [{"sector": "Technology", "industry": "Software"}]
+            if "sector" in sql
+            else []
+        )
+
+    repo, _ = _repo(responder)
+    repo._get_company_sector = lambda ticker: (  # type: ignore[method-assign]
+        "Technology" if ticker.upper() == "AAPL" else None
+    )
+    repo._get_company_industry = lambda ticker: (  # type: ignore[method-assign]
+        "Consumer Electronics" if ticker.upper() == "AAPL" else None
+    )
+    assert repo.get_company_sector("aapl") == "Technology"
+    assert repo.get_company_industry("aapl") == "Consumer Electronics"
+    assert repo.get_company_sector("ZZZZ") is None

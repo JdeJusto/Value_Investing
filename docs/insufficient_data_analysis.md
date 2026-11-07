@@ -990,3 +990,22 @@ insufficients are graham 4, graham_dodd 4, fisher 4, lynch 3, marks 1.
 
 Banks/REITs now show `overall = N/A` in the scorecard, CLI and JSON instead of
 a misleading "Insufficient data" or a 0-10 score.
+
+---
+
+## Company category visibility (2026-11-07)
+
+The real-usage note "META / ESE / GOOGL: falta la categoría" was a CLI display
+gap, not a data gap: Financial-DataBase already had `sector` and `industry` for
+all three (and for ACN). `vi company` now prints both, read from
+`companies.sector` / `companies.industry` through the new public
+`get_company_sector` / `get_company_industry` lookups. No FDB write was needed.
+
+- META → Communication Services · Internet Content & Information
+- ESE → Technology · Scientific & Technical Instruments
+- GOOGL → Communication Services · Internet Content & Information
+- ACN → Technology · Information Technology Services
+
+ACN's Greenblatt `INSUFFICIENT_DATA` disappeared with the regenerated
+S&P 500 ranking (C1-M): it now ranks WATCH (ROC 101.4%). ESE is outside the
+S&P 500 ranking universe, so Greenblatt returns N/A "ticker not in universe".

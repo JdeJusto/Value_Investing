@@ -175,6 +175,14 @@ class LookupsMixin:
         except Exception:  # noqa: BLE001 — a DB failure reads as "unknown"
             return None
 
+    def get_company_sector(self, ticker: str) -> str | None:
+        """Public sector lookup (see :meth:`_get_company_sector`)."""
+        return self._get_company_sector(ticker)
+
+    def get_company_industry(self, ticker: str) -> str | None:
+        """Public industry lookup (see :meth:`_get_company_industry`)."""
+        return self._get_company_industry(ticker)
+
     def _get_company_industry(self, ticker: str) -> str | None:
         """Company industry label from the Financial-DataBase metadata.
 

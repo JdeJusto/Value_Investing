@@ -46,7 +46,13 @@ def _run(args):
     except Exception:  # noqa: BLE001 — boundary catch-all (external libs/network raise many types)
         mc = None
 
+    repository = getattr(service, "_repository", None)
+    sector = getattr(repository, "get_company_sector", lambda _t: None)(ticker)
+    industry = getattr(repository, "get_company_industry", lambda _t: None)(ticker)
+
     print_key_value("Name", name or dim("Not available"))
+    print_key_value("Sector", sector or dim("Not available"))
+    print_key_value("Industry", industry or dim("Not available"))
     print_key_value("Price", fmt_dollar(price) if price else dim("Not available"))
     print_key_value("Market Cap", fmt_dollar(mc) if mc else dim("Not available"))
 
