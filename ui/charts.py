@@ -335,3 +335,98 @@ def evolution_figures(
         _style(figure, y_title="USD B")
         figures.append(figure)
     return figures
+
+
+#: Peers tab: canonical dimension order and labels (mirrors the scorecard).
+PEER_DIMENSIONS = (
+    ("growth", "Growth"),
+    ("profitability", "Profitability"),
+    ("financial_health", "Financial Health"),
+    ("valuation", "Valuation"),
+    ("shareholder_returns", "Shareholder Returns"),
+    ("management_moat", "Management/Moat"),
+)
+
+
+def peer_dimension_rows(
+    payload: dict[str, dict[str, int | None]],
+) -> list[dict[str, Any]]:
+    """Matrix rows (one per dimension) for ``st.dataframe``.
+
+    Columns are the companies in payload order (the subject first). A missing
+    score shows an em dash, never a zero.
+    """
+    tickers = list(payload)
+    rows: list[dict[str, Any]] = []
+    for key, label in PEER_DIMENSIONS:
+        row: dict[str, Any] = {"Dimension": label}
+        for ticker in tickers:
+            score = payload[ticker].get(key)
+            row[ticker] = "—" if score is None else f"{score}/10"
+        rows.append(row)
+    return rows
+
+
+def peer_radar_figure(payload: dict[str, dict[str, int | None]]) -> Any | None:
+    """One radar trace per company; the subject (first key) is highlighted."""
+    if not payload:
+        return None
+    import plotly.graph_objects as go
+
+    from ui.theme.plotly_template import (
+        GOLD,
+        NEON_CYAN,
+        NEON_LAVENDER,
+        NEON_MINT,
+        NEON_ORANGE,
+        NEON_PINK,
+        NEON_PURPLE,
+    )
+
+    peer_colors = (
+        NEON_PINK,
+        GOLD,
+        NEON_PURPLE,
+        NEON_MINT,
+        NEON_ORANGE,
+        NEON_LAVENDER,
+    )
+    labels = [label for _key, label in PEER_DIMENSIONS]
+    closed_labels = [*labels, labels[0]]
+    figure = go.Figure()
+    for index, (ticker, scores) in enumerate(payload.items()):
+        radii = [scores.get(key) for key, _label in PEER_DIMENSIONS]
+        closed_radii = [*radii, radii[0]]
+        is_subject = index == 0
+        color = NEON_CYAN if is_subject else peer_colors[(index - 1) % len(peer_colors)]
+        has_gap = any(radius is None for radius in radii)
+        figure.add_trace(
+            go.Scatterpolar(
+                r=closed_radii,
+                theta=closed_labels,
+                mode="lines+markers",
+                connectgaps=False,
+                fill="toself" if is_subject and not has_gap else None,
+                fillcolor="rgba(0,240,255,0.12)"
+                if is_subject and not has_gap
+                else None,
+                line={"color": color, "width": 2 if is_subject else 1},
+                marker={"size": 6 if is_subject else 4, "color": color},
+                name=ticker,
+                hovertemplate=f"{ticker} · %{{theta}}: %{{r}}/10<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        polar={
+            "radialaxis": {
+                "range": [0, 10],
+                "tickvals": [0, 2, 4, 6, 8, 10],
+                "visible": True,
+            }
+        },
+        showlegend=True,
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.05, "x": 0},
+        height=460,
+        margin={"l": 60, "r": 60, "t": 50, "b": 40},
+    )
+    return figure

@@ -43,6 +43,7 @@ from ui.services import (
     load_financial_timeseries,
     load_fundamentals,
     load_historical_valuation,
+    load_peer_dimensions,
     load_quote,
     load_scorecard,
     load_scorecard_charts,
@@ -242,6 +243,7 @@ def _render_single(ticker: str) -> None:
             "Overview",
             "Methodologies",
             "Scorecard",
+            "Peers",
             "DCF",
             "Historical",
             "Filings",
@@ -257,16 +259,18 @@ def _render_single(ticker: str) -> None:
     with tabs[2]:
         _render_scorecard(ticker)
     with tabs[3]:
-        _dcf_panel(dcf)
+        _render_peers_tab(ticker)
     with tabs[4]:
-        _historical(ticker)
+        _dcf_panel(dcf)
     with tabs[5]:
-        _filings(ticker)
+        _historical(ticker)
     with tabs[6]:
-        _financials(ticker)
+        _filings(ticker)
     with tabs[7]:
-        _render_evolution_tab(ticker)
+        _financials(ticker)
     with tabs[8]:
+        _render_evolution_tab(ticker)
+    with tabs[9]:
         _raw(ticker)
 
 
@@ -1116,6 +1120,22 @@ def _historical(ticker: str) -> None:
         if fcf_rows:
             st.caption("FCF yield by fiscal year (%)")
             st.line_chart(fcf_rows, x="Fiscal year", y="FCF Yield %")
+
+
+def _render_peers_tab(ticker: str) -> None:
+    """Radar and matrix of the six dimensions: ticker vs same-sector peers."""
+    from ui.charts import peer_dimension_rows, peer_radar_figure
+
+    data = load_peer_dimensions(ticker)
+    st.caption("Peer comparison · same sector · source: Financial-DataBase (SEC EDGAR)")
+    if len(data) < 2:
+        st.caption("No scored peers available for this sector yet.")
+        return
+    figure = peer_radar_figure(data)
+    if figure is not None:
+        st.plotly_chart(figure, width="stretch")
+    st.dataframe(peer_dimension_rows(data), width="stretch", hide_index=True)
+    st.caption("N/A dimensions are gaps, not zeros.")
 
 
 def _render_evolution_tab(ticker: str) -> None:

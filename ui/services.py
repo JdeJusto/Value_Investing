@@ -205,3 +205,16 @@ def load_financial_timeseries(ticker: str) -> dict:
         return build_financial_repository().get_financial_timeseries(ticker, years=10)
     except Exception:  # noqa: BLE001 — no history is not a crash
         return {}
+
+
+@st.cache_data(ttl=3600)
+def load_peer_dimensions(ticker: str, n_peers: int = 5) -> dict:
+    """Six scorecard dimensions for the ticker and its same-sector peers."""
+    try:
+        from backend.services.peer_comparison_service import PeerComparisonService
+
+        return PeerComparisonService(build_financial_repository()).get_peer_dimensions(
+            ticker, n_peers=n_peers
+        )
+    except Exception:  # noqa: BLE001 — no peers is a caption, not a crash
+        return {}

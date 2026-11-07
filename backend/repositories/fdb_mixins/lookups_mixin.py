@@ -237,6 +237,53 @@ class LookupsMixin:
         except Exception:  # noqa: BLE001 — a DB failure reads as "no sector"
             return {}
 
+    def list_peer_tickers(
+        self,
+        sector: str | None = None,
+        industry: str | None = None,
+        exclude: str | None = None,
+        limit: int = 10,
+    ) -> list[str]:
+        """Active listings in a sector (industry fallback), largest first.
+
+        Ordering uses the latest ``core_financials.total_assets`` as a
+        deterministic size proxy — no prices, no network. ``exclude`` drops the
+        subject ticker. Read-only metadata; a DB failure returns ``[]``.
+        """
+        group, value = ("sector", sector) if sector else ("industry", industry)
+        if not value:
+            return []
+        wanted = max(int(limit), 0)
+        if wanted == 0:
+            return []
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT UPPER(cl.ticker) AS ticker
+                    FROM company_listings cl
+                    JOIN companies c ON c.id = cl.company_id
+                    LEFT JOIN LATERAL (
+                        SELECT cf.total_assets
+                        FROM core_financials cf
+                        WHERE cf.company_id = c.id
+                          AND cf.total_assets IS NOT NULL
+                        ORDER BY cf.fiscal_year DESC, cf.period_end DESC
+                        LIMIT 1
+                    ) size ON TRUE
+                    WHERE cl.is_active
+                      AND c.{group} = %s
+                      AND UPPER(cl.ticker) <> %s
+                    ORDER BY size.total_assets DESC NULLS LAST, UPPER(cl.ticker)
+                    LIMIT %s
+                    """,
+                    (value, str(exclude or "").upper(), wanted),
+                )
+                return [row["ticker"] for row in cur.fetchall()]
+        except Exception:  # noqa: BLE001 — a DB failure reads as "no peers"
+            return []
+
     def search_companies(self, query: str, limit: int = 20) -> list[dict]:
         """Ticker prefix/substring matches, then legal-name substring matches.
 
