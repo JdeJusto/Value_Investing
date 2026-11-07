@@ -33,6 +33,7 @@ from backend.services.scorecard_service import (
     _Alerts,
     _attach_peers,
     _build_dimension,
+    _build_dimensions,
     _confidence_for,
     _disagreements,
     _financial_health_rules,
@@ -877,3 +878,47 @@ def test_build_survives_a_broken_peer_service(tmp_path):
     card = svc.build("T")
     assert card is not None  # a broken peer source never breaks the card
     assert {d.peer_group for d in card.dimensions} == {None}
+
+
+# ---------------------------------------------------------------------------
+# C4b: banks and REITs are N/A by design
+# ---------------------------------------------------------------------------
+def test_bank_scorecard_dimensions_are_na():
+    rows = [_row(sector="Financial Services", industry="Banks - Diversified")]
+    dimensions = _build_dimensions(metrics(), alerts(), rows, None, 1_000.0, None)
+
+    assert len(dimensions) == len(DIMENSION_ORDER)
+    assert {dimension.verdict for dimension in dimensions} == {NA}
+    assert all(dimension.score is None for dimension in dimensions)
+    assert all("Banks" in dimension.summary for dimension in dimensions)
+    assert _overall(dimensions) == NA
+
+
+def test_reit_scorecard_dimensions_are_na():
+    rows = [_row(sector="Real Estate")]
+    dimensions = _build_dimensions(metrics(), alerts(), rows, None, 1_000.0, None)
+
+    assert {dimension.verdict for dimension in dimensions} == {NA}
+    assert all("REIT" in dimension.summary for dimension in dimensions)
+
+
+def test_standard_company_keeps_scored_dimensions():
+    rows = [_row(sector="Technology")]
+    dimensions = _build_dimensions(metrics(), alerts(), rows, None, 1_000.0, None)
+
+    assert all(dimension.verdict != NA for dimension in dimensions)
+
+
+def test_utility_is_not_na():
+    rows = [_row(sector="Utilities")]
+    dimensions = _build_dimensions(metrics(), alerts(), rows, None, 1_000.0, None)
+
+    assert all(dimension.verdict != NA for dimension in dimensions)
+
+
+def test_payment_network_keeps_the_industrial_scorecard():
+    """V/MA sit in "Financial Services" but are product-like, not banks."""
+    rows = [_row(sector="Financial Services", industry="Credit Services")]
+    dimensions = _build_dimensions(metrics(), alerts(), rows, None, 1_000.0, None)
+
+    assert all(dimension.verdict != NA for dimension in dimensions)

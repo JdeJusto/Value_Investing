@@ -32,7 +32,13 @@ from backend.analytics.ratios.per import PerCalculator
 from backend.analytics.ratios.roic import RoicCalculator
 from backend.analytics.service import effective_tax_rate
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
-from backend.methodologies.common.company_type import is_financial
+from backend.methodologies.base import REIT_NA_REASON
+from backend.methodologies.common.company_type import (
+    FinancialSubtype,
+    detect_financial_subtype,
+    is_financial,
+    is_reit,
+)
 from backend.methodologies.registry import discover, registry
 from backend.services.alert_service import AlertService, AlertsReport
 from backend.services.financial_insights_service import (
@@ -68,6 +74,15 @@ STRONG = "Strong"
 MIXED = "Mixed"
 WEAK = "Weak"
 INSUFFICIENT_VERDICT = "Insufficient"
+#: A whole dimension that does not apply to this company (banks, REITs).
+#: Distinct from ``INSUFFICIENT_VERDICT``: the data is not missing, the
+#: industrial framework is simply the wrong lens.
+NA_VERDICT = NA
+#: Scorecard-specific N/A reasons (the methodology reasons live in base.py).
+BANK_DIMENSION_NA_REASON = (
+    "Banks and insurers use different valuation frameworks "
+    "(no current/non-current split, leverage is the business model)"
+)
 
 #: Per-dimension confidence, derived from how many of its rules could not be
 #: evaluated (``INSUFFICIENT``). Deliberately independent from the
@@ -138,6 +153,9 @@ class DimensionScore:
     peer_group: str | None = None
     peer_group_level: str | None = None
     peer_group_size: int | None = None
+    #: Why the dimension is N/A (banks/REITs), or ``None`` for scored
+    #: dimensions. Mirrors ``summary`` so consumers can show it separately.
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -980,6 +998,57 @@ def _build_dimension(
     )
 
 
+def _not_applicable_dimension(key: str, reason: str) -> DimensionScore:
+    """A dimension that does not apply (banks, REITs): verdict N/A.
+
+    It carries no rules and no score, so it is excluded from ``_overall`` and
+    from any roll-up that counts scored dimensions. The reason is mirrored in
+    ``summary`` and ``reason`` so both the CLI table and the UI can show why.
+    """
+    label, question = _DIMENSION_META[key]
+    return DimensionScore(
+        key=key,
+        label=label,
+        question=question,
+        score=None,
+        verdict=NA_VERDICT,
+        confidence=CONFIDENCE_LOW,
+        evaluable_rules=0,
+        rules=(),
+        trend="stable",
+        summary=reason,
+        reason=reason,
+    )
+
+
+def _dimension_na_reason(rows: list[NormalizedFinancials]) -> str | None:
+    """Reason to N/A every dimension, or ``None`` for a standard company."""
+    latest = rows[0] if rows else None
+    if latest is None:
+        return None
+    sector = getattr(latest, "sector", None)
+    industry = getattr(latest, "industry", None)
+    # The industry carries the discriminating label ("Banks - Diversified",
+    # "Insurance - Life", "Capital Markets"); the sector alone is just
+    # "Financial Services" for banks, insurers and payment networks alike.
+    hint = " ".join(part for part in (sector, industry) if part) or None
+    if is_reit(latest, hint):
+        return REIT_NA_REASON
+    # Banks, insurers and capital-markets firms abstain. Payment networks and
+    # asset managers keep the industrial scorecard: their balance sheet and
+    # unit economics are product-like (V/MA/BLK).
+    if not is_financial(latest, hint):
+        return None
+    subtype = detect_financial_subtype(latest, rows, hint)
+    if subtype in (
+        FinancialSubtype.BANK,
+        FinancialSubtype.INSURANCE,
+        FinancialSubtype.CAPITAL_MARKETS,
+    ):
+        return BANK_DIMENSION_NA_REASON
+    return None
+
+
 def _trend_from_metric(value: str | None) -> str:
     if value == "growing":
         return "improving"
@@ -998,6 +1067,8 @@ def _median(values: list[int]) -> float:
 
 def _overall(dimensions: tuple[DimensionScore, ...]) -> str:
     """A label, never a mastered number (disagreement stays visible)."""
+    if dimensions and all(dimension.verdict == NA for dimension in dimensions):
+        return NA
     scored = [d.score for d in dimensions if d.score is not None]
     insufficient = len(dimensions) - len(scored)
     if len(scored) < 2 or insufficient >= 4:
@@ -1267,6 +1338,14 @@ def _build_dimensions(
     market_cap: float | None,
     red_flags: list[str] | None,
 ) -> tuple[DimensionScore, ...]:
+    # Banks/insurers and REITs are scored with an industrial lens that does not
+    # apply (leverage is the business model; REITs report FFO). Every dimension
+    # is N/A with a visible reason instead of a misleading 0-10 score.
+    na_reason = _dimension_na_reason(rows)
+    if na_reason is not None:
+        return tuple(
+            _not_applicable_dimension(key, na_reason) for key in DIMENSION_ORDER
+        )
     return (
         _build_dimension(
             "growth",

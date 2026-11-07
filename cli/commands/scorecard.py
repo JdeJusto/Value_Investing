@@ -174,6 +174,8 @@ def _render_dimension(console, dim) -> None:
     console.print(cli_output.rule())
     for rule in dim.rules:
         console.print(_rule_line(rule), soft_wrap=True)
+    if not dim.rules and getattr(dim, "summary", None):
+        console.print(Text(f"  {dim.summary}", style=cli_output.MUTED), soft_wrap=True)
 
 
 def _peer_summary(card) -> str:
