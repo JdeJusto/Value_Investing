@@ -338,7 +338,7 @@ incoherencias CLI ↔ Streamlit.
 SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
 
 
-## Sprint 2026-11-08 (v0.23.0) — closed and deferred
+## Sprint 2026-11-07 (v0.23.0) — closed and deferred
 
 ### Closed in v0.23.0
 
