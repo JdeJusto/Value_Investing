@@ -1009,3 +1009,45 @@ all three (and for ACN). `vi company` now prints both, read from
 ACN's Greenblatt `INSUFFICIENT_DATA` disappeared with the regenerated
 S&P 500 ranking (C1-M): it now ranks WATCH (ROC 101.4%). ESE is outside the
 S&P 500 ranking universe, so Greenblatt returns N/A "ticker not in universe".
+
+---
+
+## Final state (v0.23.0)
+
+Measured on the same 30-ticker audit set after the Fisher aggregation, the
+DCF reason work, the Greenblatt N/A reasons and the screener filters.
+
+| Metric | v0.22.0 | v0.23.0 |
+|---|---|---|
+| Scorecard dimensions `Insufficient` | 12 | **12** |
+| Methodology verdicts `INSUFFICIENT_DATA` | 17 | **16** |
+| DCF `INSUFFICIENT_DATA` | 14 | **12** |
+| **Total** | **43** | **40** |
+| Methodology verdicts `N/A` | 66 | 66 |
+
+- **Fisher:** 4 → 3. TTE now returns AVOID (R&D FAIL is the only scored rule
+  and a FAIL vetoes); BRUN (0 scored), SKT (2 N/A + 2 insufficient) and APA
+  (in-progress latest row without revenue) keep `INSUFFICIENT_DATA` as
+  legitimate missing evidence.
+- **DCF:** the count is price-dependent (the model needs a current price). At
+  measurement time 12 were insufficient and **all carry a reason**: 7
+  insufficient FCF history, 2 negative FCF, 1 short DDM history, 1 bank with
+  no dividend stream, 1 REIT without FFO.
+- **Dimensions (12):** BRUN 5 (early stage), and one each in SNY, TTE, BTI,
+  RACE, AZN, AAMI, BJRI. The IFRS names fail `shareholder_returns`
+  (dividend/share history); AAMI fails `financial_health`; BJRI
+  `shareholder_returns`.
+- **Methodologies (16):** graham 4, graham_dodd 4, lynch 3, fisher 3,
+  greenblatt 1 (PCAR), marks 1.
+
+### Remaining INSUFFICIENT is legitimate
+
+- **DCF:** banks/REITs without their variant inputs and companies without
+  usable FCF — the reason is now visible, so the user knows whether it is
+  "no cash flow" or "no price".
+- **Fisher:** fewer than two scored rules (a verdict needs evidence).
+- **Greenblatt:** PCAR only (unclassified balance sheet; see
+  `docs/data_gaps_investigation.md`).
+- **Dimensions:** BRUN (1-2 years of data) and individual `shareholder_returns`
+  gaps for IFRS filers whose dividend/share history is shorter than the
+  window.

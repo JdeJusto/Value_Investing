@@ -338,13 +338,27 @@ incoherencias CLI ↔ Streamlit.
 SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
 
 
-## Sprint 2026-11-07 (v0.21.0 / v0.22.0) — deferred items
+## Sprint 2026-11-08 (v0.23.0) — closed and deferred
 
-| Item | Status | Notes |
+### Closed in v0.23.0
+
+| Item | Resolution |
+|---|---|
+| Fisher aggregation (C4a-2) | Rules whose line item does not exist in the business model are N/A; the verdict aggregates on applicable rules. TTE no longer INSUFFICIENT. |
+| DCF reason | Every INSUFFICIENT_DATA DCF carries a one-line reason in CLI, JSON and UI. |
+| Greenblatt out-of-universe | N/A "ticker not in ranking universe (SP500)"; in-universe gaps say "regenerate". |
+| Screener `--methodology` | `vi screener --methodology graham:BUY` (repeatable, AND). |
+| Screener caching | Persistent `AnalysisCache` wired into the screener; Streamlit enrichment cached 5 min. |
+| 8 tickers outside SP500 | N/A with reason; no multi-universe expansion planned. |
+
+### Deferred (v0.24+)
+
+| Item | Status | Reason |
 |---|---|---|
-| **Screener redesign** | **Needs product discussion** | Out of scope for the sprint. The current screener works; a redesign (filters, ranking presentation, saved screens) requires product decisions before implementation. |
-| **Research-grade backtest** | Deferred to v0.23+ | The v0.22 PoC uses current normalized fundamentals (restated), a current-constituent universe, price return only and annual granularity. A research-grade version needs point-in-time fundamentals, delisted prices, dividends and monthly rebalancing. See `docs/backtesting_design.md`. |
-| **`methodologies show <ticker>`** | Documented, not fixed | The command takes a methodology name, not a ticker; accepting a ticker would require choosing which methodology/verdict to evaluate and is a UX redesign, not a flag. |
-| **PostgreSQL unavailable in the systemd Greenblatt job** | Environment issue, documented | See `docs/greenblatt_pipeline.md`. The JSON fallback masks it; not fixed in the sprint. |
-| **PCAR Greenblatt** | Data limitation | Unclassified balance sheet (finance subsidiary); net working capital cannot be computed. |
+| **Screener UX redesign** | **Needs mockup approval** | Functional gaps ("lento", "poco útil") were addressed in v0.23.0. The visual/interaction redesign (single-page form vs wizard vs filter chips) needs a human-approved mockup before implementation. Target: v0.24+ after 2 weeks of real use. |
+| **Research-grade backtest** | Deferred to v0.24+ | Requires historical universe, transaction costs, rebalancing and survivorship-bias handling. The v0.22 PoC stays as the reference. See `docs/backtesting_design.md`. |
+| **`methodologies show <ticker>`** | Documented, not fixed | The command takes a methodology name, not a ticker; accepting a ticker requires choosing which methodology/verdict to evaluate and is a UX redesign. |
+| **PostgreSQL unavailable in the systemd Greenblatt job** | Environment issue, documented | `EnvironmentFile=` how-to in `docs/greenblatt_pipeline.md`; no unit-file change from the repo. |
+| **PCAR** | Data limitation | Unclassified balance sheet (finance subsidiary); no net working capital. See `docs/data_gaps_investigation.md` and `docs/fdb_tickets.md`. |
+| **BRUN** | Data limitation | 1-2 years of fundamentals; no 10-year history. See `docs/data_gaps_investigation.md`. |
 | **Circular "build your own circle" search** | Backlog | Similarity search by arbitrary dimension ranges (the Simply Wall St idea) builds on the Peers tab but is not implemented. |

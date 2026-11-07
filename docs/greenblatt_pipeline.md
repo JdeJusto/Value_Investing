@@ -149,3 +149,36 @@ The 2026-09-30 file and the four empty files were backed up to
 `/tmp/greenblatt_rankings_backup/` before the job change, with SHA-256 in
 `/tmp/greenblatt_rankings_backup.sha256`. To roll back the generated data,
 copy the backup back into `data/rankings/`.
+
+## Systemd environment (PostgreSQL unavailable)
+
+The unit log shows `PostgreSQL unavailable — falling back to JSON storage`.
+Cause: the systemd unit does not pass `DATABASE_URL` / `PGPASSWORD` into the
+service environment (an `EnvironmentFile=` pointing at the repo `.env` is
+either missing or unreadable by the service user). The script then falls back
+to JSON and the ranking is written to the local data directory instead of
+FDB-backed storage.
+
+Fix (outside this repository, documented here):
+
+```ini
+# /etc/systemd/system/greenblatt-rankings.service
+[Service]
+Type=oneshot
+User=caudillo
+WorkingDirectory=/home/caudillo/Value_Investing
+EnvironmentFile=/home/caudillo/Value_Investing/.env
+ExecStart=/home/caudillo/Value_Investing/.venv/bin/python -m scripts.compute_greenblatt_rankings --universe sp500
+```
+
+Then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start greenblatt-rankings.service
+journalctl -u greenblatt-rankings.service -n 50 --no-pager
+# The log must NOT contain "PostgreSQL unavailable — falling back to JSON storage".
+```
+
+This is an environment/ops issue, not a code issue; it is intentionally not
+fixed from the application.

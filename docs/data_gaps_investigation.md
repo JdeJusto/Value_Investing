@@ -388,3 +388,31 @@ With that query the real Batch AA baseline is **1/50** (DIDIY) and Batch AB
 (A.2/A.3) were partly measurement artifacts. Always validate balance with
 the last-period-end query before declaring a regression and rolling back a
 batch.
+
+---
+
+## v0.23.0 residual data gaps
+
+These are the two remaining gaps after C1-M and C4b. Both are genuine data
+limitations, not mapping bugs that a simple tag change can close.
+
+### PCAR — unclassified balance sheet
+
+- PACCAR files a balance sheet without `AssetsCurrent` / `LiabilitiesCurrent`
+  (large financial-services subsidiary), so net working capital cannot be
+  computed and Greenblatt ROC is not defined. Greenblatt correctly returns
+  `INSUFFICIENT_DATA` with "regenerate the ranking" (in-universe ticker).
+- Cash exists only under
+  `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations`
+  (FY2025: 6.31B), not under the plain carrying-value tag. Total debt is also
+  not exposed under the canonical tags, so earnings yield would stay
+  incomplete even if cash were mapped. Tracked in `docs/fdb_tickets.md`.
+- Action: no fix without confirming the 10-K face classification. Documented.
+
+### BRUN — insufficient history
+
+- Boost Run has 2 usable fiscal years and no latest-year total assets/equity;
+  5 of the 6 scorecard dimensions and 5 methodology verdicts are
+  `INSUFFICIENT_DATA`.
+- Cannot compute a 10-year Greenblatt/quality history. Documented as a known
+  limitation; no data can be invented.

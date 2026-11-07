@@ -48,3 +48,24 @@ curl -s -H "User-Agent: $SEC_USER_AGENT" \
 If the concept returns 200 and a value but
 `SELECT count(*) FROM financial_facts WHERE company_id=... AND concept='<Concept>'`
 returns 0, the gap is confirmed.
+
+## PCAR — PACCAR (unclassified balance sheet)
+
+- CIK: 0000075362
+- FDB lacks `AssetsCurrent` / `LiabilitiesCurrent` for the latest years: the
+  10-K face is unclassified (industrial + financial-services segments), so
+  this may be structural rather than a missing fact.
+- Cash is only stored as
+  `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations`
+  (FY2025: 6.31B); the plain `CashAndCashEquivalentsAtCarryingValue` tag is
+  absent. Canonical debt tags are absent too.
+- Impact: Greenblatt EY/ROC cannot be computed; `vi financials` shows a
+  partial balance view. Requires a product decision (segment-level treatment)
+  before mapping a restricted-inclusive cash figure to `cash`.
+
+## BRUN — Boost Run
+
+- Only 1-2 fiscal years with usable fundamentals; latest total assets and
+  equity are missing.
+- Impact: scorecard and methodology history are mostly `INSUFFICIENT_DATA`.
+  Not an FDB ingestion ticket: the company has not filed enough history.
