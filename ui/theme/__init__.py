@@ -26,6 +26,7 @@ PALETTE = {
     "neon_pink": "#ff2d95",
     "neon_cyan": "#00f0ff",
     "neon_purple": "#9b4dff",
+    "neon_cyan_dim": "#0a8f9c",
     "gold": "#d4af37",
     "cream": "#f0e6d2",
     "chrome": "#c0c0d0",
@@ -34,7 +35,9 @@ PALETTE = {
 
 #: Semantic verdict colors (design-system mapping).
 VERDICT_COLORS = {
+    "STRONG_BUY": PALETTE["gold"],
     "BUY": PALETTE["neon_cyan"],
+    "WEAK_BUY": PALETTE["neon_cyan_dim"],
     "WATCH": PALETTE["gold"],
     "HOLD": PALETTE["neon_purple"],
     "AVOID": PALETTE["neon_pink"],

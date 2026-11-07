@@ -636,7 +636,9 @@ def _methodologies(ticker: str, view) -> None:
     with st.expander("Consensus entry", expanded=False):
         _consensus_entry(ticker)
     st.dataframe(
-        _color_dataframe(view.table, {"Verdict": VERDICT_COLORS}),
+        _color_dataframe(
+            view.table, {"Verdict": VERDICT_COLORS, "Tier": VERDICT_COLORS}
+        ),
         width="stretch",
         hide_index=True,
     )
@@ -646,6 +648,7 @@ def _methodologies(ticker: str, view) -> None:
             metric_row(
                 [
                     ("Verdict", detail["verdict"]),
+                    ("Tier", detail.get("tier") or "—"),
                     ("Score", fmt_or_dash(detail["score"])),
                     ("Confidence", detail["confidence"]),
                 ]

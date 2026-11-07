@@ -25,9 +25,16 @@ from typing import Any
 
 
 class Verdict(str, Enum):
-    """The verdict a methodology returns for one company."""
+    """The verdict a methodology returns for one company.
 
+    ``BUY`` is kept as the normal positive tier; ``STRONG_BUY`` and
+    ``WEAK_BUY`` are the relative sub-tiers assigned by the demote-only
+    ranking (the methodology's own verdict is the ceiling).
+    """
+
+    STRONG_BUY = "STRONG_BUY"
     BUY = "BUY"
+    WEAK_BUY = "WEAK_BUY"
     WATCH = "WATCH"
     HOLD = "HOLD"
     AVOID = "AVOID"
@@ -36,6 +43,22 @@ class Verdict(str, Enum):
     #: means "the data to decide is missing".
     NOT_APPLICABLE = "N/A"
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
+#: The three positive verdicts (any of them is a buy signal).
+POSITIVE_VERDICTS = (
+    Verdict.STRONG_BUY,
+    Verdict.BUY,
+    Verdict.WEAK_BUY,
+)
+
+
+def is_positive(verdict: Verdict | str | None) -> bool:
+    """True when a verdict is a positive investment signal (any tier)."""
+    if verdict is None:
+        return False
+    value = verdict.value if isinstance(verdict, Verdict) else str(verdict)
+    return value in {member.value for member in POSITIVE_VERDICTS}
 
 
 #: Canonical reason attached when a methodology abstains on a financial
@@ -104,6 +127,10 @@ class MethodologyResult:
     sources: list[SourceRef]
     failed_rules: list[str] = field(default_factory=list)
     passed_rules: list[str] = field(default_factory=list)
+    #: The relative buy sub-tier (STRONG_BUY/BUY/WEAK_BUY) when the result
+    #: came from a tiered context, else None. The rule verdict is the ceiling:
+    #: a WATCH/HOLD/AVOID is never promoted, so its tier stays None.
+    tier: str | None = None
 
 
 class Methodology(ABC):

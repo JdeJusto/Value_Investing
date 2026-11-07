@@ -40,6 +40,7 @@ from backend.methodologies.common.company_type import (
     is_reit,
 )
 from backend.methodologies.registry import discover, registry
+from backend.methodologies.tiers import apply_absolute_tiers
 from backend.services.alert_service import AlertService, AlertsReport
 from backend.services.financial_insights_service import (
     FinancialInsightsService,
@@ -1319,6 +1320,7 @@ class ScorecardService:
                 {
                     "name": result.methodology,
                     "verdict": result.verdict.value,
+                    "tier": result.tier,
                     "score": result.score,
                     "confidence": result.confidence.value,
                     "red_flags": len(result.red_flags),
@@ -1506,6 +1508,7 @@ def _evaluate_methodologies(
             if methodology is None:
                 continue
             results.append(methodology.evaluate(ticker, rows, price_service))
+        apply_absolute_tiers(results)
         return results
     except Exception:  # noqa: BLE001 — methodology context is best-effort
         return []

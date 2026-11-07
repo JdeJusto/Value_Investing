@@ -18,11 +18,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from backend.methodologies.base import is_positive
 from backend.methodologies.lynch_garp.methodology import (
     CATEGORY_SHORT,
     LynchCategory,
 )
 from backend.methodologies.registry import discover, registry
+from backend.methodologies.tiers import apply_absolute_tiers
 from backend.services.narrative_extractor import SOURCE_LABELS
 
 # Compatibility re-exports: pages and tests import the portfolio view-models
@@ -144,6 +146,7 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
                 "Methodology": result.methodology,
                 "Family": result.family,
                 "Verdict": result.verdict.value,
+                "Tier": getattr(result, "tier", None) or "—",
                 "Score": fmt_or_dash(result.score, 2),
                 "Confidence": result.confidence.value,
                 "Key reason": key_reason,
@@ -154,6 +157,7 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
                 "methodology": result.methodology,
                 "family": result.family,
                 "verdict": result.verdict.value,
+                "tier": getattr(result, "tier", None),
                 "score": result.score,
                 "confidence": result.confidence.value,
                 "category": metrics.get("lynch_category_label"),
@@ -223,7 +227,7 @@ def disagreement_narrative(results: list[Any]) -> dict[str, str]:
         or "DCA" in result.family.upper()
     ]
     value_rejects = any(r.verdict.value == "AVOID" for r in value_members)
-    quality_buys = any(r.verdict.value == "BUY" for r in quality_members)
+    quality_buys = any(is_positive(r.verdict) for r in quality_members)
     if value_members and quality_members and value_rejects and quality_buys:
         value_names = ", ".join(m.methodology for m in value_members)
         quality_names = ", ".join(m.methodology for m in quality_members)
@@ -240,7 +244,7 @@ def disagreement_narrative(results: list[Any]) -> dict[str, str]:
             "The methodologies answer different questions (price vs quality "
             "vs growth); see the family lines and reasons below."
         )
-    buys = sum(1 for result in results if result.verdict.value == "BUY")
+    buys = sum(1 for result in results if is_positive(result.verdict))
     if buys == 0:
         consensus = (
             "No methodology gives BUY; the consensus is between rejection and hold."
@@ -340,10 +344,10 @@ def _sensitivity_rows(result: Any) -> list[dict[str, Any]]:
     return rows
 
 
-def run_methodologies(
+def evaluate_all_methodologies(
     ticker: str, rows: list[Any], price: float | None, market_cap: float | None = None
-) -> MethodologiesView:
-    """Evaluate every registered methodology on one ticker (thin orchestration)."""
+) -> list[Any]:
+    """Raw results for every registered methodology (no tier assignment)."""
     discover()
     prices = _Prices(price, market_cap)
     results = []
@@ -352,6 +356,26 @@ def run_methodologies(
         if methodology is None:
             continue
         results.append(methodology.evaluate(ticker, rows, prices))
+    return results
+
+
+def run_methodologies(
+    ticker: str,
+    rows: list[Any],
+    price: float | None,
+    market_cap: float | None = None,
+    *,
+    tier_mode: str = "absolute",
+) -> MethodologiesView:
+    """Evaluate every registered methodology on one ticker (thin orchestration).
+
+    ``tier_mode="absolute"`` applies the small-universe buy-tier fallback
+    (only to base BUYs). ``tier_mode="none"`` returns the raw rule verdicts so
+    batch callers can rank them against the whole universe before tiering.
+    """
+    results = evaluate_all_methodologies(ticker, rows, price, market_cap)
+    if tier_mode != "none":
+        apply_absolute_tiers(results)
     return build_methodologies_view(ticker, results)
 
 

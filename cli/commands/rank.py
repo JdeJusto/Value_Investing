@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from backend.methodologies.base import is_positive
 from backend.services import demo_mode
 from backend.services.methodology_ranking_service import (
     CombinedRankedTicker,
@@ -71,6 +72,11 @@ def register(subparsers) -> None:
         help="Include N/A verdicts (with their reason)",
     )
     parser.add_argument(
+        "--positive-only",
+        action="store_true",
+        help="Keep only positive signals (STRONG_BUY/BUY/WEAK_BUY)",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Print the ranked payload as JSON",
@@ -96,6 +102,7 @@ def _single_dict(item: RankedTicker) -> dict:
     return {
         "ticker": item.ticker,
         "verdict": item.verdict.value,
+        "tier": item.tier,
         "score": item.score,
         "family": item.family,
         "n_a_reason": item.n_a_reason,
@@ -158,6 +165,13 @@ def _run(args) -> None:
         print(f"  {red('ERROR:')} Ranking failed: {exc}")
         raise SystemExit(3) from exc
 
+    if getattr(args, "positive_only", False):
+        if args.by:
+            results = [item for item in results if is_positive(item.verdict)]
+        else:
+            results = [item for item in results if is_positive(item.combined_verdict)]
+        mode += " · positive only"
+
     if args.json:
         payload = (
             [_single_dict(item) for item in results]
@@ -189,7 +203,14 @@ def _run(args) -> None:
 
 
 def _render_single(results: list[RankedTicker], include_na: bool) -> None:
-    headers = [("Rank", 1), ("Ticker", 0), ("Verdict", 0), ("Score", 1), ("Family", 0)]
+    headers = [
+        ("Rank", 1),
+        ("Ticker", 0),
+        ("Tier", 0),
+        ("Verdict", 0),
+        ("Score", 1),
+        ("Family", 0),
+    ]
     if include_na:
         headers.append(("N/A reason", 0))
     rows = []
@@ -197,6 +218,7 @@ def _render_single(results: list[RankedTicker], include_na: bool) -> None:
         row = [
             str(index),
             item.ticker,
+            item.tier or "—",
             theme.color_verdict(item.verdict),
             f"{item.score:.2f}" if item.score is not None else "—",
             item.family,

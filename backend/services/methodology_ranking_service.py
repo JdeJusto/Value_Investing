@@ -15,14 +15,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from backend.methodologies.base import Verdict
+from backend.methodologies.base import Verdict, is_positive
 from backend.methodologies.registry import discover, registry
+from backend.methodologies.tiers import compute_tiers_from_pairs
 from backend.services.ui_adapter import run_methodologies
 
 logger = logging.getLogger(__name__)
 
 VERDICT_ORDER = {
-    Verdict.BUY: 4,
+    Verdict.STRONG_BUY: 6,
+    Verdict.BUY: 5,
+    Verdict.WEAK_BUY: 4,
     Verdict.WATCH: 3,
     Verdict.HOLD: 2,
     Verdict.AVOID: 1,
@@ -38,6 +41,7 @@ class RankedTicker:
     score: float | None
     family: str
     n_a_reason: str | None  # None if scored/evaluable, else why it's N/A
+    tier: str | None = None
 
 
 @dataclass
@@ -118,7 +122,7 @@ def _rank_key_combined(item: CombinedRankedTicker) -> tuple:
         item.combined_score if item.combined_score is not None else -float("inf")
     )
     buy_count = sum(
-        1 for rt in item.per_methodology.values() if rt.verdict == Verdict.BUY
+        1 for rt in item.per_methodology.values() if is_positive(rt.verdict)
     )
     return (-score_key, -buy_count, item.ticker)
 
@@ -142,69 +146,66 @@ def rank_by_methodology(
 
     top_n = max(1, int(top_n))
     fundamentals, prices, market_caps = _get_universe_data(universe)
-    results: list[RankedTicker] = []
+    details_by_ticker: dict[str, dict[str, Any]] = {}
 
-    def _eval_one(ticker: str) -> RankedTicker | None:
+    def _eval_one(ticker: str) -> dict[str, Any] | None:
         try:
             rows = fundamentals.get(ticker, [])
             price = prices.get(ticker)
             market_cap = market_caps.get(ticker)
-            view = run_methodologies(ticker, rows, price, market_cap)
-            # Find the result for this methodology
+            view = run_methodologies(ticker, rows, price, market_cap, tier_mode="none")
             for detail in view.details:
                 if detail.get("methodology") == methodology:
-                    verdict_str = detail.get("verdict", "INSUFFICIENT_DATA")
-                    try:
-                        verdict = Verdict(verdict_str)
-                    except (ValueError, AttributeError):
-                        verdict = Verdict.INSUFFICIENT_DATA
-                    score = detail.get("score")
-                    family = detail.get("family") or methodology_obj.family
-                    na_reason = None
-                    if _is_na(verdict):
-                        reasons = detail.get("reasons") or []
-                        na_reason = _n_a_reason(verdict, reasons)
-                    return RankedTicker(
-                        ticker=ticker,
-                        verdict=verdict,
-                        score=score if score is not None else None,
-                        family=family,
-                        n_a_reason=na_reason,
-                    )
-            # Not found in details - treat as insufficient
-            return RankedTicker(
-                ticker=ticker,
-                verdict=Verdict.INSUFFICIENT_DATA,
-                score=None,
-                family=methodology_obj.family,
-                n_a_reason="Insufficient data",
-            )
+                    return detail
         except Exception:
             logger.debug(
                 "Failed to evaluate %s for %s", ticker, methodology, exc_info=True
             )
-            return RankedTicker(
-                ticker=ticker,
-                verdict=Verdict.INSUFFICIENT_DATA,
-                score=None,
-                family=methodology_obj.family,
-                n_a_reason="Evaluation error",
-            )
+        return None
 
     workers = max(1, min(int(max_workers), 4))
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {executor.submit(_eval_one, ticker): ticker for ticker in universe}
         for future in as_completed(futures):
             try:
-                result = future.result()
-                if result is None:
-                    continue
-                if _is_na(result.verdict) and not include_na:
-                    continue
-                results.append(result)
+                detail = future.result()
             except Exception:
                 logger.debug("Future failed", exc_info=True)
                 continue
+            if detail is not None:
+                details_by_ticker[futures[future]] = detail
+
+    # Demote-only ranking across the whole universe: only base BUYs can be
+    # tiered or demoted; WATCH/HOLD/AVOID are never promoted.
+    pairs: dict[str, tuple[Verdict, float | None]] = {}
+    for ticker, detail in details_by_ticker.items():
+        try:
+            verdict = Verdict(detail.get("verdict", "INSUFFICIENT_DATA"))
+        except (ValueError, AttributeError):
+            verdict = Verdict.INSUFFICIENT_DATA
+        score = detail.get("score")
+        pairs[ticker] = (verdict, float(score) if score is not None else None)
+    tier_map = compute_tiers_from_pairs(pairs)
+
+    results: list[RankedTicker] = []
+    for ticker, detail in details_by_ticker.items():
+        base = pairs[ticker][0]
+        verdict, tier = tier_map.get(ticker, (base, None))
+        if _is_na(verdict) and not include_na:
+            continue
+        na_reason = None
+        if _is_na(verdict):
+            na_reason = _n_a_reason(verdict, detail.get("reasons") or [])
+        results.append(
+            RankedTicker(
+                ticker=ticker,
+                verdict=verdict,
+                score=detail.get("score"),
+                family=detail.get("family") or methodology_obj.family,
+                n_a_reason=na_reason,
+                tier=tier,
+            )
+        )
 
     results.sort(key=_rank_key_single)
     return results[:top_n]
@@ -266,7 +267,8 @@ def rank_combined(
         if strategy == "and":
             # Require BUY or WATCH in ALL
             all_pass = all(
-                rt_map[m].verdict in (Verdict.BUY, Verdict.WATCH) for m in methodologies
+                is_positive(rt_map[m].verdict) or rt_map[m].verdict == Verdict.WATCH
+                for m in methodologies
             )
             if not all_pass:
                 continue
@@ -276,7 +278,7 @@ def rank_combined(
             ]
             combined_score = sum(scores) / len(scores) if scores else None
             # Determine combined verdict
-            buys = sum(1 for m in methodologies if rt_map[m].verdict == Verdict.BUY)
+            buys = sum(1 for m in methodologies if is_positive(rt_map[m].verdict))
             if buys == len(methodologies):
                 combined_verdict = Verdict.BUY
             else:
@@ -298,7 +300,8 @@ def rank_combined(
         elif strategy == "or":
             # Require BUY or WATCH in AT LEAST ONE
             any_pass = any(
-                rt_map[m].verdict in (Verdict.BUY, Verdict.WATCH) for m in methodologies
+                is_positive(rt_map[m].verdict) or rt_map[m].verdict == Verdict.WATCH
+                for m in methodologies
             )
             if not any_pass:
                 continue
@@ -307,12 +310,12 @@ def rank_combined(
             ]
             combined_score = sum(scores) / len(scores) if scores else None
             # Combined verdict = best verdict among passing
-            passing_verdicts = [
+            passing = [
                 rt_map[m].verdict
                 for m in methodologies
-                if rt_map[m].verdict in (Verdict.BUY, Verdict.WATCH)
+                if is_positive(rt_map[m].verdict) or rt_map[m].verdict == Verdict.WATCH
             ]
-            if Verdict.BUY in passing_verdicts:
+            if any(is_positive(verdict) for verdict in passing):
                 combined_verdict = Verdict.BUY
             else:
                 combined_verdict = Verdict.WATCH
@@ -355,11 +358,11 @@ def rank_combined(
                 if any(rt_map[m].verdict == Verdict.AVOID for m in methodologies):
                     combined_verdict = Verdict.WATCH  # Conservative
                 elif all(
-                    rt_map[m].verdict in (Verdict.BUY, Verdict.WATCH)
+                    is_positive(rt_map[m].verdict) or rt_map[m].verdict == Verdict.WATCH
                     for m in methodologies
                 ):
                     buys = sum(
-                        1 for m in methodologies if rt_map[m].verdict == Verdict.BUY
+                        1 for m in methodologies if is_positive(rt_map[m].verdict)
                     )
                     combined_verdict = (
                         Verdict.BUY if buys >= len(methodologies) / 2 else Verdict.WATCH

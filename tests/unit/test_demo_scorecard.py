@@ -100,3 +100,14 @@ def test_is_demo_reads_the_flag(monkeypatch):
     assert is_demo()
     monkeypatch.delenv("VI_DEMO")
     assert not is_demo()
+
+
+def test_every_methodology_exposes_a_tier_key():
+    """v0.24: the scorecard methodology payload always carries a tier field."""
+    service = ScorecardService(
+        repository=_repository(), price_service=DemoPriceService()
+    )
+    card = service.build("AAPL")
+    assert card is not None
+    assert card.methodologies  # non-empty
+    assert all("tier" in row for row in card.methodologies)

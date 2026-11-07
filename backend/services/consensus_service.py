@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from backend.methodologies.base import is_positive
 from backend.services.path_safety import safe_join
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,13 @@ def summarize_verdicts(verdicts: Mapping[str, str]) -> dict[str, int]:
     Single source of truth shared by the consensus computation script
     (``scripts.compute_consensus_rankings.build_company_consensus``) and the
     API's methodologies endpoint. ``consensus_score`` is BUYs minus AVOIDs;
-    ``N/A`` (abstained by design) and ``INSUFFICIENT_DATA`` are counted
-    separately and never scored.
+    the BUY count aggregates all three positive tiers
+    (STRONG_BUY/BUY/WEAK_BUY) via :func:`is_positive`, which keeps pre-v0.24
+    consensus files compatible. ``N/A`` (abstained by design) and
+    ``INSUFFICIENT_DATA`` are counted separately and never scored.
     """
     values = [str(verdict) for verdict in (verdicts or {}).values()]
-    buy = sum(1 for verdict in values if verdict == "BUY")
+    buy = sum(1 for verdict in values if is_positive(verdict))
     watch = sum(1 for verdict in values if verdict == "WATCH")
     hold = sum(1 for verdict in values if verdict == "HOLD")
     avoid = sum(1 for verdict in values if verdict == "AVOID")

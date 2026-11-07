@@ -10,7 +10,7 @@ from backend.services.methodology_ranking_service import (
 )
 
 
-def _make_result(methodology="graham", verdict=Verdict.BUY, score=8.5, reasons=None):
+def _make_result(methodology="graham", verdict=Verdict.BUY, score=85.0, reasons=None):
     return MethodologyResult(
         methodology=methodology,
         version="1.0.0",
@@ -53,7 +53,7 @@ def test_rank_by_methodology_returns_top_n(
                     "methodology": "graham",
                     "family": "DEEP_VALUE",
                     "verdict": "BUY",
-                    "score": 9.2,
+                    "score": 92,
                     "confidence": "HIGH",
                     "category": None,
                     "category_short": None,
@@ -76,7 +76,7 @@ def test_rank_by_methodology_returns_top_n(
                     "methodology": "graham",
                     "family": "DEEP_VALUE",
                     "verdict": "BUY",
-                    "score": 8.9,
+                    "score": 89,
                     "confidence": "HIGH",
                     "category": None,
                     "category_short": None,
@@ -96,7 +96,7 @@ def test_rank_by_methodology_returns_top_n(
     results = rank_by_methodology("graham", ["AAPL", "MSFT"], top_n=1)
     assert len(results) == 1
     assert results[0].ticker == "AAPL"
-    assert results[0].score == 9.2
+    assert results[0].score == 92
 
 
 @patch("backend.services.methodology_ranking_service.run_methodologies")
@@ -201,7 +201,7 @@ def test_rank_combined_and_requires_buy_or_watch(
 
     from backend.services.ui_adapter import MethodologiesView
 
-    def side_effect(ticker, rows, price, market_cap):
+    def side_effect(ticker, rows, price, market_cap, **kwargs):
         if ticker == "AAPL":
             return MethodologiesView(
                 ticker="AAPL",
@@ -211,7 +211,7 @@ def test_rank_combined_and_requires_buy_or_watch(
                         "methodology": "graham",
                         "family": "DEEP_VALUE",
                         "verdict": "BUY",
-                        "score": 9.0,
+                        "score": 90,
                         "confidence": "HIGH",
                         "category": None,
                         "category_short": None,
@@ -224,7 +224,7 @@ def test_rank_combined_and_requires_buy_or_watch(
                         "methodology": "lynch_garp",
                         "family": "GARP",
                         "verdict": "WATCH",
-                        "score": 7.5,
+                        "score": 75,
                         "confidence": "HIGH",
                         "category": None,
                         "category_short": None,
@@ -269,7 +269,7 @@ def test_rank_combined_or_includes_any(
 
     from backend.services.ui_adapter import MethodologiesView
 
-    def side_effect(ticker, rows, price, market_cap):
+    def side_effect(ticker, rows, price, market_cap, **kwargs):
         return MethodologiesView(
             ticker="AAPL",
             table=[],
@@ -278,7 +278,7 @@ def test_rank_combined_or_includes_any(
                     "methodology": "graham",
                     "family": "DEEP_VALUE",
                     "verdict": "BUY",
-                    "score": 9.0,
+                    "score": 90,
                     "confidence": "HIGH",
                     "category": None,
                     "category_short": None,
@@ -291,7 +291,7 @@ def test_rank_combined_or_includes_any(
                     "methodology": "lynch_garp",
                     "family": "GARP",
                     "verdict": "AVOID",
-                    "score": 3.0,
+                    "score": 30,
                     "confidence": "HIGH",
                     "category": None,
                     "category_short": None,
@@ -327,7 +327,7 @@ def test_rank_combined_weighted_requires_numeric_scores(
 
     from backend.services.ui_adapter import MethodologiesView
 
-    def side_effect(ticker, rows, price, market_cap):
+    def side_effect(ticker, rows, price, market_cap, **kwargs):
         return MethodologiesView(
             ticker="AAPL",
             table=[],
@@ -349,7 +349,7 @@ def test_rank_combined_weighted_requires_numeric_scores(
                     "methodology": "lynch_garp",
                     "family": "GARP",
                     "verdict": "BUY",
-                    "score": 7.5,
+                    "score": 75,
                     "confidence": "HIGH",
                     "category": None,
                     "category_short": None,
@@ -390,7 +390,7 @@ def test_rank_combined_weighted_with_weights(
 
     from backend.services.ui_adapter import MethodologiesView
 
-    def side_effect(ticker, rows, price, market_cap):
+    def side_effect(ticker, rows, price, market_cap, **kwargs):
         if ticker == "AAPL":
             return MethodologiesView(
                 ticker="AAPL",
@@ -400,7 +400,7 @@ def test_rank_combined_weighted_with_weights(
                         "methodology": "graham",
                         "family": "DEEP_VALUE",
                         "verdict": "BUY",
-                        "score": 9.5,
+                        "score": 95,
                         "confidence": "HIGH",
                         "category": None,
                         "category_short": None,
@@ -413,7 +413,7 @@ def test_rank_combined_weighted_with_weights(
                         "methodology": "lynch_garp",
                         "family": "GARP",
                         "verdict": "BUY",
-                        "score": 5.0,
+                        "score": 50,
                         "confidence": "HIGH",
                         "category": None,
                         "category_short": None,
@@ -437,7 +437,7 @@ def test_rank_combined_weighted_with_weights(
                         "methodology": "graham",
                         "family": "DEEP_VALUE",
                         "verdict": "BUY",
-                        "score": 6.0,
+                        "score": 60,
                         "confidence": "HIGH",
                         "category": None,
                         "category_short": None,
@@ -450,7 +450,7 @@ def test_rank_combined_weighted_with_weights(
                         "methodology": "lynch_garp",
                         "family": "GARP",
                         "verdict": "BUY",
-                        "score": 9.0,
+                        "score": 90,
                         "confidence": "HIGH",
                         "category": None,
                         "category_short": None,
@@ -526,3 +526,63 @@ def test_universe_data_reads_best_available_with_core_merge(
     assert fundamentals["AAPL"] == [row]
     assert prices["AAPL"] == 150.0
     assert market_caps["AAPL"] == 2e12
+
+
+@patch("backend.services.methodology_ranking_service.run_methodologies")
+@patch("backend.services.methodology_ranking_service._get_universe_data")
+@patch("backend.services.methodology_ranking_service.registry")
+@patch("backend.services.methodology_ranking_service.discover")
+def test_rank_by_methodology_applies_demote_only_tiers(
+    mock_discover, mock_registry, mock_get_data, mock_run
+):
+    """Absolute fallback (<50 scored): 95->STRONG, 65->BUY, 55->WEAK; WATCH stays."""
+    mock_discover.return_value = None
+    mock_method = MagicMock()
+    mock_method.family = "DEEP_VALUE"
+    mock_registry.get.return_value = mock_method
+    tickers = ["STRONG", "NORMAL", "WEAK", "WATCHY"]
+    mock_get_data.return_value = (
+        {},
+        {ticker: 150.0 for ticker in tickers},
+        {ticker: 2e12 for ticker in tickers},
+    )
+
+    from backend.services.ui_adapter import MethodologiesView
+
+    def view(ticker, verdict, score):
+        return MethodologiesView(
+            ticker=ticker,
+            table=[],
+            details=[
+                {
+                    "methodology": "graham",
+                    "family": "DEEP_VALUE",
+                    "verdict": verdict,
+                    "score": score,
+                    "confidence": "HIGH",
+                    "reasons": [verdict],
+                    "red_flags": [],
+                }
+            ],
+            agreement=True,
+            family_lines=[],
+            explanation="",
+            consensus="",
+        )
+
+    mock_run.side_effect = lambda ticker, *args, **kwargs: {
+        "STRONG": view("STRONG", "BUY", 95.0),
+        "NORMAL": view("NORMAL", "BUY", 65.0),
+        "WEAK": view("WEAK", "BUY", 55.0),
+        "WATCHY": view("WATCHY", "WATCH", 99.0),
+    }[ticker]
+
+    results = {item.ticker: item for item in rank_by_methodology("graham", tickers)}
+
+    assert results["STRONG"].verdict is Verdict.STRONG_BUY
+    assert results["STRONG"].tier == "STRONG_BUY"
+    assert results["NORMAL"].verdict is Verdict.BUY
+    assert results["WEAK"].verdict is Verdict.WEAK_BUY
+    # Demote-only: a high score never promotes a WATCH.
+    assert results["WATCHY"].verdict is Verdict.WATCH
+    assert results["WATCHY"].tier is None
