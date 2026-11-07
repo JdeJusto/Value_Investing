@@ -45,7 +45,7 @@ FINANCIAL_NA_REASON = "financial company — rules do not apply"
 #: net income, and unclassified balance sheets).
 REIT_NA_REASON = "REIT — rules do not apply (FFO, not net income)"
 #: Canonical reason for a ticker outside the ranking universe (non-S&P 500).
-UNIVERSE_NA_REASON = "ticker not in universe"
+UNIVERSE_NA_REASON = "ticker not in ranking universe (SP500)"
 
 
 class Confidence(str, Enum):

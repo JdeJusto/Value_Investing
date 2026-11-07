@@ -127,8 +127,8 @@ class GreenblattMethodology(Methodology):
                 return self._insufficient(
                     ticker,
                     (
-                        "ticker is outside the S&P 500 ranking universe "
-                        f"(source indices: {sources or 'none'})"
+                        "Greenblatt Magic Formula only ranks S&P 500 "
+                        f"constituents (source indices: {sources or 'none'})."
                     ),
                     verdict=Verdict.NOT_APPLICABLE,
                     na_reason=UNIVERSE_NA_REASON,
@@ -136,8 +136,9 @@ class GreenblattMethodology(Methodology):
             return self._insufficient(
                 ticker,
                 (
-                    "ticker not in the Greenblatt ranking "
-                    "(run scripts/compute_greenblatt_rankings.py)"
+                    "Ticker is in the universe but missing from the latest "
+                    "Greenblatt ranking. Regenerate it with "
+                    "scripts/compute_greenblatt_rankings.py."
                 ),
             )
 

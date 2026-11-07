@@ -148,7 +148,10 @@ def test_missing_ticker_is_insufficient(tmp_path):
     _write_ranking(tmp_path, ticker="OTHER")
     result = _evaluate([_row()], tmp_path)
     assert result.verdict is Verdict.INSUFFICIENT_DATA
-    assert any("not in the Greenblatt ranking" in reason for reason in result.reasons)
+    assert any(
+        "missing from the latest Greenblatt ranking" in reason
+        for reason in result.reasons
+    )
 
 
 def test_financial_company_is_not_applicable(tmp_path):
@@ -196,4 +199,32 @@ def test_ticker_outside_the_sp500_universe_is_not_applicable(tmp_path):
         "SNY", [_row()], _Prices()
     )
     assert result.verdict is Verdict.NOT_APPLICABLE
-    assert any("ticker not in universe" in reason for reason in result.reasons)
+    assert any("ticker not in ranking universe" in reason for reason in result.reasons)
+
+
+def test_bjri_russell2000_is_not_applicable_with_reason(tmp_path):
+    """BJRI (Russell 2000) is outside the S&P 500 ranking universe."""
+    _write_ranking(tmp_path, ticker="OTHER")
+    result = GreenblattMethodology(rankings_dir=tmp_path).evaluate(
+        "BJRI", [_row()], _Prices()
+    )
+    assert result.verdict is Verdict.NOT_APPLICABLE
+    assert result.reasons[0] == "ticker not in ranking universe (SP500)"
+
+
+def test_sp500_ticker_keeps_its_ranking_verdict(tmp_path):
+    _write_ranking(tmp_path, ticker="AAPL", percentile=0.05)
+    result = GreenblattMethodology(rankings_dir=tmp_path).evaluate(
+        "AAPL", [_row()], _Prices()
+    )
+    assert result.verdict is Verdict.BUY
+
+
+def test_sp500_ticker_missing_from_the_ranking_asks_to_regenerate(tmp_path):
+    """An in-universe gap is a stale ranking, not an N/A company."""
+    _write_ranking(tmp_path, ticker="OTHER")
+    result = GreenblattMethodology(rankings_dir=tmp_path).evaluate(
+        "JNJ", [_row()], _Prices()
+    )
+    assert result.verdict is Verdict.INSUFFICIENT_DATA
+    assert any("Regenerate" in reason for reason in result.reasons)
