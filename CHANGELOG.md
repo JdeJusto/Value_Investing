@@ -1,3 +1,42 @@
+## [0.22.0] - 2026-11-07
+
+### Added
+- **Peers tab** (Streamlit Analysis): a radar and a dimension matrix with the
+  six scorecard dimensions of the company and up to five same-sector peers.
+  The subject is highlighted in neon cyan; peers use the synthwave accents;
+  missing scores stay gaps, never 0.
+- **`PeerComparisonService`**: same-sector peers (industry fallback) ordered
+  by Yahoo market cap (USD, on demand, never persisted) because
+  `core_financials.total_assets` is reported in the filing currency. Banks,
+  insurers and REITs are skipped (their dimensions are N/A).
+- **`LookupsMixin.list_peer_tickers`**: one read-only metadata query over
+  `company_listings` + `companies`.
+- **Methodology backtesting PoC** (`vi backtest --methodology NAME --years N`)
+  and `scripts/backtest_methodologies.py`: re-evaluates each book methodology
+  at every fiscal-year end with only the fundamentals known then, holds the
+  BUY set equal-weighted for one year, and reports CAGR, equal-weight
+  benchmark, hit rate, Sharpe (no risk-free rate) and per-year rows.
+  Results go to `data/backtest/` (git-ignored).
+- **`docs/circle_chart_design.md`**: radar-of-peers decision, ASCII mockup,
+  selection rule and non-goals.
+- **`docs/backtesting_design.md`**: metric definitions, data sources and the
+  explicit limitations (price return only, survivorship, restatements,
+  annual granularity, no costs, Greenblatt excluded).
+
+### Changed
+- The methodology backtest universe sample is evenly spaced across the sorted
+  tickers (`--limit`), not the first N alphabetically, so the PoC does not
+  over-represent A-tickers.
+
+### Notes
+- Greenblatt is not historically backtestable: its verdict reads the current
+  point-in-time ranking file, so using it for past years would be look-ahead.
+- The backtest is a PoC, **not research-grade**. A research-grade version
+  (point-in-time fundamentals, delisted prices, dividends, monthly rebalancing)
+  is recorded in `docs/backlog.md`.
+- No Financial-DataBase writes: every new query is read-only.
+- Test count: **2607 → 2624**.
+
 ## [0.21.0] - 2026-11-07
 
 ### Added
