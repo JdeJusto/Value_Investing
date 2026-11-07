@@ -170,6 +170,9 @@ data/reports/daily_run_state*.json
 # Peer statistics (weekly local build product; scripts/build_peer_stats.py)
 data/peer_stats/
 
+# Methodology backtest results (PoC artifacts; scripts/backtest_methodologies.py)
+data/backtest/
+
 # Daily run artifacts (regenerated every run; git history keeps the old ones)
 data/reports/daily_*.md
 data/reports/daily_state.json

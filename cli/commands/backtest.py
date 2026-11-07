@@ -1,5 +1,8 @@
 """CLI: backtest a strategy against historical yearly snapshots."""
 
+import csv
+from pathlib import Path
+
 from backend.app.cli import build_financial_repository, build_universe
 from backend.backtesting import get_strategy, run_backtest, sort_snapshots
 from backend.intelligence.scoring_model import assess_investment
@@ -32,6 +35,27 @@ def register(subparsers):
         choices=("buffett", "momentum"),
         default="buffett",
         help="Selection strategy (default: buffett)",
+    )
+    p.add_argument(
+        "--methodology",
+        action="append",
+        default=None,
+        help=(
+            "Backtest a book methodology by name (graham, graham_dodd, "
+            "buffett_classic, fisher_quantitative_subset, lynch_garp, marks). "
+            "Repeatable; greenblatt is excluded (point-in-time ranking)."
+        ),
+    )
+    p.add_argument(
+        "--universe",
+        default="sp500",
+        help="Universe subset for --methodology (default sp500)",
+    )
+    p.add_argument(
+        "--limit",
+        type=int,
+        default=25,
+        help="Max tickers for --methodology (default 25, PoC)",
     )
     p.add_argument("--years", type=int, default=10, help="Use the last N fiscal years")
     p.add_argument(
@@ -90,7 +114,94 @@ def _build_snapshots(tickers, years):
     return snapshots_by_year
 
 
+def _load_universe_subset(spec: str, limit: int) -> list[str]:
+    """Tickers from the master universe for a named subset (PoC size cap)."""
+    path = Path(__file__).resolve().parents[2] / "config" / "universe.csv"
+    selected = spec.upper()
+    include_all = spec.lower() in {"", "all"} or selected == "ALL"
+    tickers: list[str] = []
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for row in csv.DictReader(handle):
+                sources = {
+                    source.strip().upper()
+                    for source in (row.get("source_index") or "").split(",")
+                }
+                if include_all or selected in sources:
+                    ticker = (row.get("ticker") or "").strip().upper()
+                    if ticker:
+                        tickers.append(ticker)
+    except OSError:
+        return []
+    unique = sorted(set(tickers))
+    if not limit or limit >= len(unique):
+        return unique
+    step = len(unique) / max(int(limit), 1)
+    return [unique[int(index * step)] for index in range(int(limit))]
+
+
+def _run_methodology_backtest(args) -> None:
+    from backend.services.methodology_backtest_service import (
+        MethodologyBacktestService,
+    )
+
+    tickers = [t.upper() for t in args.tickers] or _load_universe_subset(
+        args.universe, args.limit
+    )
+    if not tickers:
+        print(f"  {yellow('No tickers to backtest.')}")
+        return
+    print_header(f"Methodology backtest: {len(tickers)} tickers · {args.years} years")
+    service = MethodologyBacktestService()
+    rows: list[list[str]] = []
+    for name in args.methodology:
+        try:
+            result = service.run(tickers, name, years=args.years)
+        except ValueError as exc:
+            print(f"  {red('SKIPPED')} {name}: {exc}")
+            continue
+        rows.append(
+            [
+                result.methodology,
+                str(len(result.years)),
+                str(result.buy_signals),
+                fmt_pct(result.annualized_return)
+                if result.annualized_return is not None
+                else dim("N/A"),
+                fmt_pct(result.benchmark_annualized)
+                if result.benchmark_annualized is not None
+                else dim("N/A"),
+                fmt_pct(result.hit_rate) if result.hit_rate is not None else dim("N/A"),
+                f"{result.sharpe:.2f}" if result.sharpe is not None else dim("N/A"),
+            ]
+        )
+    if not rows:
+        return
+    print_table(
+        [
+            ("Methodology", 0),
+            ("Years", 1),
+            ("BUYs", 1),
+            ("CAGR", 1),
+            ("Bench", 1),
+            ("Hit", 1),
+            ("Sharpe", 1),
+        ],
+        rows,
+    )
+    print()
+    print(
+        dim(
+            "PoC, not research-grade: equal-weighted yearly BUY sets, cash years "
+            "at 0%, no dividends or survivorship correction."
+        )
+    )
+
+
 def _run(args):
+    if getattr(args, "methodology", None):
+        _run_methodology_backtest(args)
+        return
     if args.top < 1:
         parser_error = "top must be >= 1"
         raise SystemExit(f"error: {parser_error}")
