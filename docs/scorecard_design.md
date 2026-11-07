@@ -128,7 +128,7 @@ the two dimensions do not double-count the same signal.
 For each dimension:
 
 ```
-evaluable = rules with status in {PASS, WATCH, FAIL}      # INSUFFICIENT excluded
+evaluable = rules with status in {PASS, WATCH, FAIL}      # INSUFFICIENT / N/A excluded
 points    = Σ (PASS:2, WATCH:1, FAIL:0)
 if len(evaluable) < 2:
     score = None            # dimension verdict = INSUFFICIENT
@@ -144,9 +144,19 @@ else:
 | 5–7 | **Mixed** |
 | ≤ 4 | **Weak** |
 | `None` | **Insufficient** |
+| — (by design) | **N/A** |
+
+**Company-type N/A (banks, insurers, REITs):** when the latest row is a bank,
+insurer, capital-markets firm or REIT, all six dimensions are `N/A` with a
+visible reason (``reason``/``summary``) and no score. The industrial lens does
+not apply: banks have no current/non-current split and leverage is the business
+model; REITs report FFO. Payment networks and asset managers (V, MA, BLK) keep
+the standard scorecard because the detected subtype is PAYMENTS /
+ASSET_MANAGEMENT. Utilities keep it too (DUK, NEE).
 
 **Overall label (no number):**
 
+- `N/A` — every dimension is N/A (bank/insurer/REIT).
 - `Insufficient data` — ≥ 4 of 6 dimensions are Insufficient.
 - `Strong` — median dimension score ≥ 8 **and** no dimension ≤ 3.
 - `Weak` — ≥ 3 dimensions ≤ 4.
@@ -173,7 +183,7 @@ information" rule made concrete.
 DimensionRule
   rule_id              str          # "revenue_cagr_5y"
   label                str          # "Revenue CAGR (5y)"
-  status               PASS | WATCH | FAIL | INSUFFICIENT
+  status               PASS | WATCH | FAIL | INSUFFICIENT | N/A
   value                str          # "12.4%" (formatted, from insights)
   threshold            str          # "≥ 10%"
   reason               str          # templated one-liner
@@ -186,12 +196,13 @@ DimensionRule
 DimensionScore
   key, label, question str          # "growth", "Growth", "Is the business getting bigger?"
   score                int | None   # 0..10, None when INSUFFICIENT
-  verdict              str          # Strong | Mixed | Weak | Insufficient
+  verdict              str          # Strong | Mixed | Weak | Insufficient | N/A
   confidence           str          # HIGH | MEDIUM | LOW (rules not evaluable)
   evaluable_rules      int
   rules                list[DimensionRule]
   trend                str          # improving | stable | deteriorating
   summary              str          # "7/10 — revenue CAGR 12.4%, EPS CAGR 9.1%"
+  reason               str | None   # why the dimension is N/A (banks/REITs)
   peer_group           str | None   # resolved group ("Semiconductors")
   peer_group_level     str | None   # "industry" | "sector"
   peer_group_size      int | None   # members behind the artifact

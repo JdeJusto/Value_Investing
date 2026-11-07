@@ -952,3 +952,41 @@ pretax only, IFRS AccountingProfit + FinanceCosts), "filed operating income
 wins", VZ network capex and TD bank dividends.
 `tests/unit/test_methodology_greenblatt.py` adds the REIT and out-of-universe
 N/A cases.
+
+---
+
+## C4b — banks and REITs scorecard N/A (2026-11-07)
+
+### Decision
+
+All six scorecard dimensions return `N/A` with a visible reason for banks,
+insurers, capital-markets firms and REITs. No adapted valuation rules.
+
+- financials: "Banks and insurers use different valuation frameworks (no
+  current/non-current split, leverage is the business model)".
+- REITs: "REIT — rules do not apply (FFO, not net income)".
+
+The guard uses `detect_financial_subtype` on sector **and industry**, so
+"Banks - Diversified" resolves to BANK even though the sector is shared with
+payment networks and asset managers. V/MA (industry "Credit Services") and BLK
+("Asset Management") keep the standard scorecard; DUK/NEE (utilities) keep it
+too. Reversible by deleting `_dimension_na_reason`'s guard in
+`backend/services/scorecard_service.py`.
+
+### Measured (30-ticker audit set)
+
+| Metric | v0.20.3 | now |
+|---|---|---|
+| Dimensions `Insufficient` | 34 | **12** |
+| Methodology verdicts `INSUFFICIENT_DATA` | 37 | **17** |
+| Methodology verdicts `N/A` | 56 | **66** |
+| DCF `INSUFFICIENT_DATA` | 14 | 14 |
+| **Total (dims + methodologies)** | **71** | **29** |
+
+The remaining dimension gaps are concentrated in BRUN (5, early-stage with
+almost no history), plus one each in SNY, TTE, BTI, RACE, AZN, AAMI and BJRI.
+Greenblatt is down to 1 (PCAR, documented in C1-M); the other methodology
+insufficients are graham 4, graham_dodd 4, fisher 4, lynch 3, marks 1.
+
+Banks/REITs now show `overall = N/A` in the scorecard, CLI and JSON instead of
+a misleading "Insufficient data" or a 0-10 score.
