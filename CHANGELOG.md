@@ -1,3 +1,67 @@
+## [0.23.0] - 2026-11-07
+
+### Fixed
+- **Fisher aggregation (C4a-2)**: rules whose line item does not exist in the
+  business model (R&D in a low-R&D sector, gross margin in a REIT) return
+  `NOT_APPLICABLE` instead of `INSUFFICIENT_DATA` and are excluded from the
+  verdict denominator. The verdict aggregates on applicable rules: <50%
+  applicable → N/A, no scorable rule → INSUFFICIENT, any FAIL → AVOID, BUY
+  only when every applicable rule passed and none is missing. A single scored
+  rule is not enough evidence. Summary reasons report
+  "N not applicable, M insufficient, K scored". TTE moves from
+  INSUFFICIENT_DATA to AVOID (the R&D failure is the only scored rule).
+- **DCF reason field**: every `INSUFFICIENT_DATA` DCF now carries a one-line
+  `reason` (FCF history, negative FCF, DDM history, bank without a dividend
+  stream, REIT without FFO, missing terminal input, missing shares/price).
+  Rendered by `vi dcf` ("Verdict: INSUFFICIENT_DATA — <reason>"), included in
+  the new `vi dcf --json` payload and shown by the Streamlit DCF panel.
+- **Greenblatt out-of-universe**: tickers outside the S&P 500 ranking universe
+  return N/A with the canonical reason "ticker not in ranking universe
+  (SP500)". An in-universe ticker missing from the latest ranking (PCAR)
+  returns INSUFFICIENT with "Regenerate it with
+  scripts/compute_greenblatt_rankings.py", so a stale ranking is not mistaken
+  for an N/A company.
+- **Screener performance**: the screener now reuses the persistent
+  `AnalysisCache` that single-ticker commands use, instead of re-reading the
+  same normalized fundamentals on every run; the Streamlit methodology
+  enrichment is cached for 5 minutes. Measured: two consecutive screens of
+  AAPL/MSFT hit the cache for every ticker (hits 2 → 4, misses 0).
+
+### Added
+- **`vi screener --methodology NAME:VERDICT`**: keeps only tickers whose
+  methodology verdict matches (e.g. `graham:BUY`, `lynch:WATCH`). Repeatable
+  with AND semantics:
+  `--methodology graham:BUY --methodology lynch:BUY`. Methodology names,
+  aliases (lynch → lynch_garp) and verdicts are validated; the flag cannot be
+  combined with the Buffett quality engine.
+
+### Documentation
+- `docs/data_gaps_investigation.md` and `docs/fdb_tickets.md`: PCAR
+  (unclassified balance sheet, restricted-inclusive cash only) and BRUN
+  (1-2 years of history) documented as residual data gaps.
+- `docs/greenblatt_pipeline.md`: explicit `EnvironmentFile=` systemd how-to
+  and the log check for the PostgreSQL fallback.
+- `docs/backlog.md`: closed vs deferred table. The screener UX redesign needs
+  a human-approved mockup (v0.24+); the research-grade backtest requires
+  historical universe, costs and rebalancing (v0.24+).
+- `docs/insufficient_data_analysis.md`: final state after v0.23.0.
+
+### Measured
+- INSUFFICIENT_DATA on the 30-ticker audit set: **43 → 40**
+  (dimensions 12 → 12, methodology verdicts 17 → 16, DCF 14 → 12 measured;
+  the DCF count is price-dependent and every remaining one has a reason).
+- Fisher `INSUFFICIENT_DATA`: **4 → 3**.
+- DCF reasons at measurement: 7 insufficient FCF history, 2 negative FCF,
+  1 short DDM history, 1 bank without dividends, 1 REIT without FFO.
+- Test count: **2624 → 2655**.
+
+### Notes
+- "Screener is slow" was partly the missing cache and partly the old default
+  SEC refresh (already opt-in since v0.20.2). The UX redesign is out of scope
+  until a mockup is approved.
+- No Financial-DataBase writes: the new queries and the backtest are
+  read-only.
+
 ## [0.22.0] - 2026-11-07
 
 ### Added
