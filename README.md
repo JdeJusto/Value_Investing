@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2522%20passed-10A77A?style=for-the-badge" alt="2,522 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2655%20passed-10A77A?style=for-the-badge" alt="2,655 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
   <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
@@ -53,11 +53,13 @@ virtualenv.
 ./vi portfolio view                           # Current portfolio
 ./vi screener --tickers AAPL,MSFT --no-prices --no-refresh  # Screen
 ./vi refresh AAPL                             # Re-fetch facts + prices for one ticker
+./vi backtest --methodology graham --years 5   # Backtest methodology (PoC)
+./vi screener --methodology graham:BUY         # Screen with methodology filter
 ```
 
-`./vi --help` lists all 43 commands. Running it with no arguments opens
-an interactive menu. All support `--no-color`;
-`vi financials`, `vi rank`, and `vi refresh` also support `--json`.
+`./vi --help` lists all 43 commands. Run `vi` without arguments for an
+interactive menu. All support `--no-color`; `vi financials`, `vi rank`,
+`vi refresh`, and `vi dcf` also support `--json`.
 `vi financials` shows a hierarchical T-view (current/non-current assets,
 current/non-current liabilities, shareholders' equity) with per-section
 subtotals. `vi refresh` syncs SEC facts and fetches the current Yahoo price
@@ -75,8 +77,10 @@ VI_DEMO=1 ./run_ui.sh
 ```
 
 Opens at <http://localhost:8501>. Registered pages: Home, Analysis (overview,
-financials, methodologies, DCF, filings), Screener, Portfolio, Reports,
-Consensus. Methodology ranking is available from the CLI with `vi rank`.
+financials, methodologies, DCF, filings, evolution, peers), Screener,
+Portfolio, Reports, Consensus. Analysis includes 10-year evolution charts and
+a peer comparison radar. Methodology ranking is available from the CLI with
+`vi rank`.
 
 ## Daily workflow
 
