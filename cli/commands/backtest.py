@@ -1,6 +1,7 @@
 """CLI: backtest a strategy against historical yearly snapshots."""
 
 import csv
+import json
 from pathlib import Path
 
 from backend.app.cli import build_financial_repository, build_universe
@@ -12,6 +13,7 @@ from cli.formatters import (
     fmt_pct,
     green,
     print_header,
+    print_section,
     print_table,
     red,
     yellow,
@@ -68,6 +70,11 @@ def register(subparsers):
         help="File with historical prices: 'TICKER,YEAR,PRICE' per line",
     )
     p.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the result payload as JSON (methodology or strategy mode)",
+    )
+    p.add_argument(
         "tickers",
         type=str,
         nargs="*",
@@ -114,8 +121,8 @@ def _build_snapshots(tickers, years):
     return snapshots_by_year
 
 
-def _load_universe_subset(spec: str, limit: int) -> list[str]:
-    """Tickers from the master universe for a named subset (PoC size cap)."""
+def _universe_members(spec: str) -> list[str]:
+    """Every ticker in a named universe subset (before the PoC size cap)."""
     path = Path(__file__).resolve().parents[2] / "config" / "universe.csv"
     selected = spec.upper()
     include_all = spec.lower() in {"", "all"} or selected == "ALL"
@@ -133,11 +140,170 @@ def _load_universe_subset(spec: str, limit: int) -> list[str]:
                         tickers.append(ticker)
     except OSError:
         return []
-    unique = sorted(set(tickers))
+    return sorted(set(tickers))
+
+
+def _load_universe_subset(spec: str, limit: int) -> list[str]:
+    """Evenly spaced deterministic sample of a named universe (PoC size cap)."""
+    unique = _universe_members(spec)
     if not limit or limit >= len(unique):
         return unique
     step = len(unique) / max(int(limit), 1)
     return [unique[int(index * step)] for index in range(int(limit))]
+
+
+def parse_methodology_arg(value: str) -> tuple[str, str | None]:
+    """Parse ``'graham:BUY'`` into ``('graham', 'BUY')``."""
+    if ":" in value:
+        name, verdict = value.split(":", 1)
+        return name.strip().lower(), verdict.strip().upper()
+    return value.strip().lower(), None
+
+
+def _pct_or_dash(value: float | None) -> str:
+    return fmt_pct(value) if value is not None else dim("—")
+
+
+def _ratio_or_dash(value: float | None) -> str:
+    return f"{value:.2f}" if value is not None else dim("—")
+
+
+def _rule_label(rule_id: str) -> str:
+    """Short human label from a rule id (``graham.criterion_6_pe`` -> pe)."""
+    return rule_id.rsplit(".", 1)[-1].replace("criterion_", "").replace("_", " ")
+
+
+def _render_year_verdicts(result) -> None:
+    from backend.services.methodology_backtest_service import VERDICT_ORDER
+
+    print_section("Verdicts by year")
+    rows = []
+    for item in result.per_year:
+        label = str(item.year) + ("" if item.complete else " (YTD)")
+        rows.append(
+            [label] + [str(item.verdicts.get(verdict, 0)) for verdict in VERDICT_ORDER]
+        )
+    print_table(
+        [
+            ("Year", 0),
+            ("BUY", 1),
+            ("WATCH", 1),
+            ("HOLD", 1),
+            ("AVOID", 1),
+            ("N/A", 1),
+            ("INSUFF", 1),
+        ],
+        rows,
+    )
+    print(
+        dim(
+            "  N/A: banks/REITs (not applicable). INSUFF: missing fundamentals "
+            "for that year."
+        )
+    )
+
+
+def _render_performance(result) -> None:
+    complete = result.complete_years
+    if complete:
+        window = f"{min(complete)}-{max(complete)} ({len(complete)}y)"
+    else:
+        window = "no complete years"
+    rows = [
+        ["Complete years", window],
+        [
+            "Portfolio CAGR",
+            _pct_or_dash(result.annualized_return)
+            + ("" if result.invested_years else "  (all cash)"),
+        ],
+        ["Opportunity set CAGR", _pct_or_dash(result.opportunity_set_annualized)],
+        ["SPY CAGR", _pct_or_dash(result.spy_annualized)],
+        ["Alpha vs opportunity set", _pct_or_dash(result.alpha_vs_opportunity_set)],
+        ["Alpha vs SPY", _pct_or_dash(result.alpha_vs_spy)],
+        [
+            "Portfolio Sharpe",
+            _ratio_or_dash(result.sharpe)
+            + ("" if result.sharpe is not None else "  (no invested years)"),
+        ],
+        ["Opportunity set Sharpe", _ratio_or_dash(result.opportunity_set_sharpe)],
+        ["SPY Sharpe", _ratio_or_dash(result.spy_sharpe)],
+    ]
+    print_section("Performance (equal-weighted, cash if no signals)")
+    print_table([("Metric", 0), ("Value", 0)], rows)
+    print(
+        dim(
+            "  Opportunity set = equal-weighted every priced ticker in the "
+            "sample. SPY = SPDR S&P 500 ETF at fiscal-year ends."
+        )
+    )
+
+
+def _render_no_buy(result) -> None:
+    reason = result.no_buy_reason
+    print_section(f"Why no {result.selected_verdict} signals")
+    if reason["rules"]:
+        print(f"  {bold('Rules (all must pass):')}")
+        for rule in reason["rules"]:
+            print(f"    • {rule['name']}")
+    closest = reason["closest"]
+    if closest:
+        print(f"\n  {bold('Closest across evaluated ticker-years:')}")
+        for index, record in enumerate(closest, 1):
+            failed = ", ".join(_rule_label(rule) for rule in record["failed"]) or "—"
+            print(
+                f"    {index}. {record['ticker']} {record['year']}  "
+                f"failed: {failed} "
+                f"({record['n_failed']} of {len(reason['rules']) or '?'} rules)"
+            )
+    counts = reason["counts"]
+    print(
+        dim(
+            f"  Ticker-years with <3 failed rules: {counts['lt3_failed']}; "
+            f"<5 failed rules: {counts['lt5_failed']}."
+        )
+    )
+
+
+def _render_methodology(result) -> None:
+    universe_total = result.universe_total or result.sample_size
+    name = result.universe_name.upper()
+    complete = result.complete_years
+    span = (
+        f"{min(complete)}-{max(complete)} ({len(complete)}y CAGR)"
+        if complete
+        else "no complete years"
+    )
+    ytd = [str(item.year) for item in result.per_year if not item.complete]
+    header = (
+        f"Backtest · {result.methodology}"
+        + (f":{result.selected_verdict}" if result.selected_verdict != "BUY" else "")
+        + f" · {name} · sample {result.sample_size}/{universe_total} · {span} · "
+        f"{result.evaluated} evaluated"
+    )
+    if ytd:
+        header += f" · + {'/'.join(ytd)} YTD"
+    print_header(header)
+
+    if not result.buy_signals:
+        print(
+            f"  {yellow(f'0 {result.selected_verdict} set, nothing to compute')} "
+            f"— every complete year is cash."
+        )
+        print()
+
+    _render_year_verdicts(result)
+    _render_performance(result)
+    if not result.buy_signals:
+        _render_no_buy(result)
+
+    if result.skipped:
+        print_section("Skipped tickers")
+        for item in result.skipped:
+            print(f"  • {item['ticker']}: {item['reason']}")
+
+    print()
+    for note in result.notes:
+        print(dim(f"  {note}"))
 
 
 def _run_methodology_backtest(args) -> None:
@@ -145,57 +311,88 @@ def _run_methodology_backtest(args) -> None:
         MethodologyBacktestService,
     )
 
-    tickers = [t.upper() for t in args.tickers] or _load_universe_subset(
-        args.universe, args.limit
-    )
+    custom = bool(args.tickers)
+    if custom:
+        tickers = [t.upper() for t in args.tickers]
+        universe_name = "custom"
+        universe_total = len(tickers)
+    else:
+        tickers = _load_universe_subset(args.universe, args.limit)
+        universe_name = args.universe
+        universe_total = len(_universe_members(args.universe))
     if not tickers:
         print(f"  {yellow('No tickers to backtest.')}")
         return
-    print_header(f"Methodology backtest: {len(tickers)} tickers · {args.years} years")
+
     service = MethodologyBacktestService()
-    rows: list[list[str]] = []
-    for name in args.methodology:
+    results = []
+    for raw in args.methodology:
+        name, verdict_filter = parse_methodology_arg(raw)
         try:
-            result = service.run(tickers, name, years=args.years)
+            results.append(
+                service.run(
+                    tickers,
+                    name,
+                    years=args.years,
+                    verdict_filter=verdict_filter,
+                    universe_name=universe_name,
+                    universe_total=universe_total,
+                )
+            )
         except ValueError as exc:
-            print(f"  {red('SKIPPED')} {name}: {exc}")
-            continue
-        rows.append(
-            [
-                result.methodology,
-                str(len(result.years)),
-                str(result.buy_signals),
-                fmt_pct(result.annualized_return)
-                if result.annualized_return is not None
-                else dim("N/A"),
-                fmt_pct(result.benchmark_annualized)
-                if result.benchmark_annualized is not None
-                else dim("N/A"),
-                fmt_pct(result.hit_rate) if result.hit_rate is not None else dim("N/A"),
-                f"{result.sharpe:.2f}" if result.sharpe is not None else dim("N/A"),
-            ]
-        )
-    if not rows:
+            print(f"  {red('SKIPPED')} {raw}: {exc}")
+    if not results:
         return
+
+    if getattr(args, "json", False):
+        payload = [result.to_dict() for result in results]
+        print(
+            json.dumps(
+                payload[0] if len(payload) == 1 else payload,
+                indent=2,
+                default=str,
+            )
+        )
+        return
+
+    if len(results) == 1:
+        _render_methodology(results[0])
+        return
+
+    # Several methodologies: one summary row each, no repeated year blocks.
+    print_header(
+        f"Backtest · {', '.join(r.methodology for r in results)} · "
+        f"{universe_name.upper()} · sample {len(tickers)}/{universe_total}"
+    )
+    rows = [
+        [
+            result.methodology,
+            str(len(result.complete_years)),
+            str(result.buy_signals),
+            _pct_or_dash(result.annualized_return),
+            _pct_or_dash(result.opportunity_set_annualized),
+            _pct_or_dash(result.spy_annualized),
+            _pct_or_dash(result.hit_rate),
+            _ratio_or_dash(result.sharpe),
+        ]
+        for result in results
+    ]
     print_table(
         [
             ("Methodology", 0),
             ("Years", 1),
-            ("BUYs", 1),
+            ("Signals", 1),
             ("CAGR", 1),
-            ("Bench", 1),
+            ("Opp set", 1),
+            ("SPY", 1),
             ("Hit", 1),
             ("Sharpe", 1),
         ],
         rows,
     )
     print()
-    print(
-        dim(
-            "PoC, not research-grade: equal-weighted yearly BUY sets, cash years "
-            "at 0%, no dividends or survivorship correction."
-        )
-    )
+    for note in results[0].notes:
+        print(dim(f"  {note}"))
 
 
 def _run(args):
@@ -239,6 +436,10 @@ def _run(args):
         top_n=args.top,
         rebalance_every=args.rebalance,
     )
+
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2, default=str))
+        return
 
     metrics = [
         (

@@ -544,24 +544,29 @@ Backtesting over yearly snapshots. Two modes:
 - **Strategy mode** (default): simulates an equal-weighted portfolio with
   rebalancing every N years, using `--strategy {buffett,momentum}`.
 - **Methodology mode** (`--methodology`): re-evaluates a book methodology at
-  every fiscal-year end using only the fundamentals known then, holds its BUY
-  set for one year and reports CAGR, benchmark, hit rate and Sharpe. This is
-  a **PoC**, not research-grade. Greenblatt is excluded (its ranking file is
-  point-in-time).
+  every fiscal-year end using only the fundamentals known then, holds the
+  selected verdict for one year and reports the verdict breakdown per year,
+  CAGR vs the equal-weight opportunity set and vs SPY, alpha, hit rate and
+  Sharpe. A partial year is shown as `YTD` and excluded from CAGR/Sharpe.
+  This is a **PoC**, not research-grade. Greenblatt is excluded (its ranking
+  file is point-in-time).
 
 Flags:
 - `--strategy {buffett,momentum}` (default `buffett`)
-- `--methodology METHOD`: repeatable; `graham`, `graham_dodd`,
-  `buffett_classic`, `fisher_quantitative_subset`, `lynch_garp`, `marks`
+- `--methodology METHOD[:VERDICT]`: repeatable; `graham`, `graham_dodd`,
+  `buffett_classic`, `fisher_quantitative_subset`, `lynch_garp`, `marks`.
+  Add `:VERDICT` to hold another verdict (e.g. `graham:AVOID`)
 - `--universe UNIVERSE` (for `--methodology`, default `sp500`)
 - `--limit N` (max tickers for `--methodology`, default `25`)
 - `--years N`, `--top N` (default `5`), `--rebalance N` (default `1`)
 - `--prices FILE`: `TICKER,YEAR,PRICE` per line for real returns
+- `--json`: same payload as the rendered report (shape in Appendix)
 - positional `tickers` (optional)
 
 ```bash
 ./vi backtest --strategy buffett --top 5
 ./vi backtest --methodology graham --years 5
+./vi backtest --methodology graham:AVOID --years 5
 ./vi backtest --methodology graham --methodology lynch_garp --limit 50
 ```
 
@@ -722,7 +727,8 @@ System diagnostics and quick tests.
 ## Appendix: JSON output shapes
 
 Only these commands accept `--json`: `scorecard`, `financials`, `rank`,
-`refresh` and `dcf`. `screener` has no `--json` (use `--save` for CSV).
+`refresh`, `dcf` and `backtest`. `screener` has no `--json` (use `--save`
+for CSV).
 
 ### `vi scorecard --json`
 
@@ -855,6 +861,44 @@ Notes:
   persisted to FDB).
 - `facts_synced = true`: SEC facts synced to FDB.
 - With `--facts-only`/`--prices-only`, the other domain stays `false`.
+
+### `vi backtest --json` (methodology mode)
+
+```json
+{
+  "methodology": "graham",
+  "verdict_filter": "BUY",
+  "universe": {"name": "sp500", "evaluated": 25, "total": 25,
+               "sample_of": 500},
+  "years": [{"year": 2021, "complete": true},
+            {"year": 2025, "complete": false, "label": "YTD"}],
+  "verdicts_by_year": {
+    "2021": {"BUY": 0, "WATCH": 0, "HOLD": 0, "AVOID": 11, "N/A": 7,
+             "INSUFFICIENT_DATA": 1}
+  },
+  "performance": {
+    "portfolio_cagr": 0.0,
+    "opportunity_set_cagr": -0.009,
+    "spy_cagr": 0.11,
+    "alpha_vs_opportunity_set": 0.009,
+    "alpha_vs_spy": -0.11,
+    "portfolio_sharpe": null,
+    "opportunity_set_sharpe": -0.02,
+    "spy_sharpe": 0.70,
+    "complete_years": [2021, 2022, 2023, 2024]
+  },
+  "no_buy_reason": {"rules": [{"id": "...", "name": "..."}],
+                    "closest": [{"ticker": "BIIB", "year": 2022,
+                                 "failed": ["..."], "n_failed": 2}],
+                    "counts": {"lt3_failed": 4, "lt5_failed": 47}},
+  "skipped_tickers": [{"ticker": "GEHC", "reason": "..."}],
+  "notes": ["..."],
+  "per_year": []
+}
+```
+
+`universe.total` is the sample size (`--limit`), `sample_of` the full named
+universe. `alpha_*` is `portfolio_cagr − benchmark_cagr`.
 
 ### `vi dcf --json`
 

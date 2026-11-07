@@ -12,9 +12,10 @@ Buffett/Classic, Fisher, Lynch, Marks):
 
 1. Re-evaluate the methodology at every fiscal-year end in the window using
    **only the fundamentals available at that fiscal year**.
-2. Hold every BUY for one year, equal-weighted.
-3. Compare the compounded return with an equal-weight benchmark of the same
-   evaluated universe.
+2. Hold every selected verdict (BUY by default, or the `:VERDICT` filter) for
+   one year, equal-weighted.
+3. Compare the compounded return with two benchmarks: the **opportunity set**
+   (equal-weighted same-sample basket) and **SPY** (market context).
 
 Greenblatt is **excluded**: its verdict is a lookup in the current
 `data/rankings/greenblatt_<date>.json`, which did not exist in past years.
@@ -25,26 +26,35 @@ Using today's ranking to label a 2021 company would be pure look-ahead.
 Per signal year `Y`:
 
 ```text
-buy_set(Y)       = tickers whose verdict is BUY with rows up to fiscal year Y
+selected_set(Y)  = tickers whose verdict matches the filter (BUY by default)
+                   with rows up to fiscal year Y
 forward(Y, t)    = price(t, FY_end(Y+1)) / price(t, FY_end(Y)) - 1
-portfolio(Y)     = mean(forward(Y, t) for t in buy_set(Y))   # 0 if empty (cash)
-benchmark(Y)     = mean(forward(Y, t) for every priced ticker)
+portfolio(Y)     = mean(forward(Y, t) for t in selected_set(Y))  # 0 = cash
+opportunity(Y)   = mean(forward(Y, t) for every priced ticker)
+spy(Y)           = SPY price(FY_end(Y+1)) / SPY price(FY_end(Y)) - 1
 ```
 
-Aggregates over the signal years `Y` that had at least one priced ticker:
+**Complete vs YTD.** A year `Y` is complete only when `FY_end(Y+1)` has
+already passed. An incomplete year is shown in the breakdown as `YTD` and is
+**excluded from every CAGR/Sharpe** (including its return, so a partial year
+cannot inflate the result).
+
+Aggregates over the **complete** signal years:
 
 | Metric | Definition |
 |---|---|
 | **CAGR** | `(∏ (1 + portfolio(Y)))^(1 / #years) − 1`, cash years included at 0% |
-| **Benchmark CAGR** | same compounding over `benchmark(Y)` |
-| **Hit rate** | share of **invested** years (`buy_set(Y)` non-empty) with `portfolio(Y) > 0` |
-| **Sharpe** | `mean(portfolio(Y)) / pstdev(portfolio(Y))`, **no risk-free rate** |
-| **BUYs** | total BUY signals across ticker-years |
+| **Opportunity set CAGR** | same compounding over `opportunity(Y)` |
+| **SPY CAGR** | same compounding over `spy(Y)` |
+| **Alpha** | `portfolio CAGR − benchmark CAGR` (opportunity set and SPY) |
+| **Hit rate** | share of **invested** years (`selected_set(Y)` non-empty) with `portfolio(Y) > 0` |
+| **Sharpe** | `mean(returns) / pstdev(returns)`, **no risk-free rate** |
 | **Signals** | count per verdict (`BUY/WATCH/HOLD/AVOID/N/A/INSUFFICIENT_DATA`) |
 
 Cash years are included in CAGR and Sharpe (the strategy really was out of the
 market) but excluded from the hit rate (a cash year is neither a hit nor a
-miss).
+miss). The "closest" block ranks scored ticker-years by `len(failed_rules)`
+from the methodology result; N/A companies do not participate.
 
 ## Data
 
@@ -70,8 +80,18 @@ python -m scripts.backtest_methodologies --all --years 10 --limit 50
 python -m scripts.backtest_methodologies --tickers AAPL,MSFT,JNJ --all
 ```
 
-Output: table on stdout and `data/backtest/backtest_<date>.json` (git-ignored,
-one payload with every methodology, the tickers and the per-year rows).
+Output: a context header (sample/evaluated/complete years), verdicts by year,
+the performance table (portfolio, opportunity set, SPY, alpha, Sharpe), the
+"closest to a signal" block when the selected set is empty, skipped tickers
+and the PoC notes. `--json` emits the same payload:
+
+```text
+methodology, verdict_filter, universe {name, evaluated, total, sample_of},
+years [{year, complete, label?}], verdicts_by_year, performance, no_buy_reason,
+skipped_tickers, notes, per_year
+```
+
+The script writes `data/backtest/backtest_<date>.json` (git-ignored).
 
 ## Limitations (explicit)
 
