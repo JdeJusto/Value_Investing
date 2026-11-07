@@ -1,3 +1,74 @@
+## [0.21.0] - 2026-11-07
+
+### Added
+- **Evolution tab** (Streamlit Analysis): eight 10-year charts over the
+  canonical `core_financials` fields (revenue, net income, operating income,
+  gross profit, total assets, total liabilities, equity, cash), USD billions,
+  per-field synthwave colours. Missing years are shown as gaps, never
+  invented; fewer than two non-null observations render "insufficient
+  history".
+- **`get_financial_timeseries`** (`FinancialDatabaseRepository`): windowed
+  10-year series deduplicated per fiscal year by the latest `period_end`;
+  accepts a ticker (or a company UUID).
+- **Interactive menu**: `vi` with no arguments now opens the one-level menu
+  (analyze, refresh, rank, portfolio, consensus, screener, filings, alerts).
+  `vi --help` still prints the full usage.
+- **Sector and industry in `vi company`**: both fields are printed from
+  Financial-DataBase metadata via the new `get_company_sector` /
+  `get_company_industry` lookups.
+
+### Changed
+- **C1-M concept mapping**: IFRS current asset/liability splits and net PP&E
+  (`CurrentAssets`, `CurrentLiabilities`, `PropertyPlantAndEquipment`), the
+  ROU-inclusive PP&E variants (TotalEnergies, AT&T, AMT, APA), oil-and-gas
+  producing properties (APA), IFRS borrowings, and IFRS pretax/tax/finance
+  costs. A net-PPE concept priority keeps a residual surface PP&E line from
+  outranking producing properties.
+- **EBIT fallback**: when no operating-income tag is filed, EBIT is rebuilt
+  from pretax income + interest (pretax alone without interest, then net
+  income + tax + interest). Fixes JNJ, ADM, PCAR and TotalEnergies.
+- **Cash-flow mappings**: Verizon network capex
+  (`PaymentsToAcquireOtherProductiveAssets`) and TD Bank dividends
+  (`DividendsPaidClassifiedAsFinancingActivities`).
+- **Banks, insurers, capital-markets firms and REITs** now return `N/A` on
+  all six scorecard dimensions, with a visible reason, instead of a
+  misleading 0-10 score. Payment networks and asset managers (V, MA, BLK)
+  and utilities (DUK, NEE) keep the standard scorecard. Overall becomes
+  `N/A` when every dimension is `N/A`.
+- **Greenblatt**: REITs and tickers outside the S&P 500 ranking universe
+  return `N/A` with an explicit reason instead of `INSUFFICIENT_DATA`.
+- **Greenblatt ranking regenerated** (2026-11-06, 386 companies, was 284).
+
+### Fixed
+- **T-view slots and labels** for the new IFRS/ROU/oil-and-gas balance
+  concepts, so the UI can place them instead of hiding them as orphans.
+- **APA return on capital** no longer uses a 146M residual PP&E line
+  (ROC 2114%); it now uses 12.5B of producing properties (ROC 24.6%).
+- **ACN Greenblatt**: resolved by the regenerated ranking (WATCH, ROC 101.4%).
+
+### Measured
+- INSUFFICIENT_DATA on the 30-ticker audit set: **85 → 43**
+  (dimensions 34 → 12, methodology verdicts 37 → 17, DCF unchanged at 14).
+- Greenblatt `INSUFFICIENT_DATA`: **15 → 1** (PCAR, unclassified balance
+  sheet, documented). N/A methodology verdicts: 56 → 66.
+- Test count: **2579 → 2607**.
+
+### Documentation
+- `docs/insufficient_data_analysis.md`: C1-M and C4b sections, company-category
+  note, measured deltas.
+- `docs/scorecard_design.md`: N/A status, company-type guard and the
+  `reason` field in the dimension contract.
+- READMEs: `vi` with no arguments opens the menu.
+
+### Notes
+- PCAR keeps `INSUFFICIENT_DATA` for Greenblatt: its balance sheet is
+  unclassified (large finance subsidiary), so net working capital cannot be
+  computed. RACE files no `CurrentLiabilities` for the same reason and is N/A
+  by universe.
+- BRUN (5 of the remaining 12 dimensions) is early-stage with almost no
+  history.
+- Prices remain on-demand from Yahoo, never persisted.
+
 ## [0.20.3] - 2026-11-06
 
 ### Added
