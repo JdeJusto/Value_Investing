@@ -157,9 +157,11 @@ def apply_absolute_tiers(results: list[MethodologyResult]) -> None:
     """
     for result in results:
         result.tier = None
-        if result.verdict is not Verdict.BUY or result.score is None:
+        verdict = getattr(result, "verdict", None)
+        score = getattr(result, "score", None)
+        if verdict is not Verdict.BUY or score is None:
             continue
-        label = absolute_label(float(result.score))
+        label = absolute_label(float(score))
         result.verdict = Verdict(label)
         result.tier = label if label in _POSITIVE_LABELS else None
 
