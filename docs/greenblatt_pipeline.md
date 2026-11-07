@@ -60,7 +60,7 @@ job was regenerated manually:
 
 ```text
 universe: 500 tickers (sp500)
-ranked 284 companies -> data/rankings/greenblatt_2026-11-06.json
+ranked 386 companies -> data/rankings/greenblatt_2026-11-06.json
 ```
 
 ### PostgreSQL unavailable — JSON fallback
@@ -82,10 +82,12 @@ intended.
 
 `--universe sp500` only ranks SP500 names. BJRI (Russell2000) and European
 names (CAC40/FTSE100/FTSE_MIB/OMXS30) will never appear in an SP500 ranking.
-They remain `INSUFFICIENT_DATA` with “ticker not in the Greenblatt ranking”.
-This is a product decision: explicit `N/A — not covered by universe` vs a
-multi-universe ranking (`sp500,russell2000,european`). It is not a data bug and
-not fixed here.
+Since v0.21 they return **N/A with reason "ticker not in universe"** (the
+master universe file says their source_index is not SP500) instead of
+`INSUFFICIENT_DATA`; a ticker inside the SP500 that is missing from the
+ranking still returns `INSUFFICIENT_DATA` so a real mapping gap is not hidden.
+Running a multi-universe ranking (`sp500,russell2000,european`) remains a
+product decision and is not implemented.
 
 ## Manual regeneration
 

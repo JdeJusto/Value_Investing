@@ -336,3 +336,15 @@ incoherencias CLI ↔ Streamlit.
 
 **Actualización 2026-11-05 (FASE 1-5):** AUDIT-001/002/004/005 resueltos; ver
 SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
+
+
+## Sprint 2026-11-07 (v0.21.0 / v0.22.0) — deferred items
+
+| Item | Status | Notes |
+|---|---|---|
+| **Screener redesign** | **Needs product discussion** | Out of scope for the sprint. The current screener works; a redesign (filters, ranking presentation, saved screens) requires product decisions before implementation. |
+| **Research-grade backtest** | Deferred to v0.23+ | The v0.22 PoC uses current normalized fundamentals (restated), a current-constituent universe, price return only and annual granularity. A research-grade version needs point-in-time fundamentals, delisted prices, dividends and monthly rebalancing. See `docs/backtesting_design.md`. |
+| **`methodologies show <ticker>`** | Documented, not fixed | The command takes a methodology name, not a ticker; accepting a ticker would require choosing which methodology/verdict to evaluate and is a UX redesign, not a flag. |
+| **PostgreSQL unavailable in the systemd Greenblatt job** | Environment issue, documented | See `docs/greenblatt_pipeline.md`. The JSON fallback masks it; not fixed in the sprint. |
+| **PCAR Greenblatt** | Data limitation | Unclassified balance sheet (finance subsidiary); net working capital cannot be computed. |
+| **Circular "build your own circle" search** | Backlog | Similarity search by arbitrary dimension ranges (the Simply Wall St idea) builds on the Peers tab but is not implemented. |
