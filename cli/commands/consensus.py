@@ -136,7 +136,16 @@ def _run(args) -> None:
         counts[verdict] = counts.get(verdict, 0) + 1
     summary = "  ·  ".join(
         f"{key}: {counts.get(key, 0)}"
-        for key in ("BUY", "WATCH", "HOLD", "AVOID", "N/A", "INSUFFICIENT_DATA")
+        for key in (
+            "STRONG_BUY",
+            "BUY",
+            "WEAK_BUY",
+            "WATCH",
+            "HOLD",
+            "AVOID",
+            "N/A",
+            "INSUFFICIENT_DATA",
+        )
     )
     print(f"  {summary}")
     print(f"  Consensus score: {company.consensus_score}  (BUYs minus AVOIDs)")

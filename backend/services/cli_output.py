@@ -45,7 +45,9 @@ HEADER = "bold white"  # table headers and titles
 
 # Verdict -> color mapping.
 VERDICT_COLORS = {
+    "STRONG_BUY": "bright_yellow",
     "BUY": "bright_green",
+    "WEAK_BUY": "green",
     "WATCH": "yellow",
     "HOLD": "cyan",
     "AVOID": "bright_red",

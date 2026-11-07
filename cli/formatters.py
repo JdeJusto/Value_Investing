@@ -52,7 +52,9 @@ def dim(text: str) -> str:
 def verdict_color(verdict: str) -> str:
     """Method verdict -> terminal color (identity for HOLD/unknown)."""
     return {
+        "STRONG_BUY": yellow,
         "BUY": green,
+        "WEAK_BUY": green,
         "WATCH": yellow,
         "HOLD": lambda text: text,
         "AVOID": red,

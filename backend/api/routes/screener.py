@@ -36,7 +36,16 @@ CACHE_TTL_SECONDS = 300
 MAX_PAGE_SIZE = 200
 
 #: Verdicts a client may filter on (the screener's methodology outcomes).
-VALID_VERDICTS = {"BUY", "WATCH", "HOLD", "AVOID", "N/A", "INSUFFICIENT_DATA"}
+VALID_VERDICTS = {
+    "STRONG_BUY",
+    "BUY",
+    "WEAK_BUY",
+    "WATCH",
+    "HOLD",
+    "AVOID",
+    "N/A",
+    "INSUFFICIENT_DATA",
+}
 
 _cache: dict[str, tuple[float, list[dict]]] = {}
 _cache_lock = threading.Lock()

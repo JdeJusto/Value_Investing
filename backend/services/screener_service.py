@@ -121,6 +121,7 @@ class StockScreenerService:
         that cannot be computed (INSUFFICIENT_DATA) never matches.
         """
         from backend.methodologies.registry import discover, registry
+        from backend.methodologies.tiers import apply_absolute_tiers
 
         discover()
         rows = self._methodology_rows(ticker)
@@ -142,6 +143,7 @@ class StockScreenerService:
                 return False
             try:
                 result = method.evaluate(ticker, rows, prices)
+                apply_absolute_tiers([result])
                 verdict = getattr(result.verdict, "value", str(result.verdict))
             except Exception:  # noqa: BLE001 — a failing screen does not match
                 return False

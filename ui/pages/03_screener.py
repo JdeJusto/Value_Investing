@@ -48,7 +48,16 @@ from ui.services import (
 from ui.theme import VERDICT_COLORS
 
 DEFAULT_METHODOLOGY = "buffett_classic"
-VERDICTS = ["BUY", "WATCH", "HOLD", "AVOID", "N/A", "INSUFFICIENT_DATA"]
+VERDICTS = [
+    "STRONG_BUY",
+    "BUY",
+    "WEAK_BUY",
+    "WATCH",
+    "HOLD",
+    "AVOID",
+    "N/A",
+    "INSUFFICIENT_DATA",
+]
 CATEGORIES = [
     "SLOW_GROWER",
     "STALWART",
