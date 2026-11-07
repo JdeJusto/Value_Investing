@@ -1,3 +1,53 @@
+## [0.24.0] - 2026-11-07
+
+### Added
+- **BUY tiers (demote-only)**: methodology verdicts now include
+  `STRONG_BUY` (top 3% of the scored universe, ranked by score), `BUY`
+  (3-10%) and `WEAK_BUY` (10-15%). BUYs outside the top 15% are demoted to
+  `WATCH`/`HOLD`/`AVOID`. The rule's verdict is the ceiling: `WATCH`/`HOLD`/
+  `AVOID` are never promoted, so a rule rejection stays a rejection.
+  Universes under 50 scored companies fall back to absolute cut-offs
+  (≥80/60/50/40/30). A BUY without a numeric score stays `BUY` with
+  `tier=None`.
+- **Tier-weighted backtest**: `vi backtest` weights `STRONG_BUY` 60%,
+  `BUY` 30% and `WEAK_BUY` 10%, normalized to the tiers present that year
+  (BUY+WEAK → 75/25, STRONG+BUY → 66.7/33.3, one tier → 100%).
+  `--equal-weight` restores the legacy equal-weight behaviour.
+- `is_positive(verdict)` helper grouping the three positive tiers for
+  backwards-compatible "buy signal" checks.
+
+### Changed
+- Verdict distribution on the S&P 500 with `buffett_classic`: **150 BUY
+  (30.1%) → 65 positive** (13 STRONG_BUY + 30 BUY + 22 WEAK_BUY, 15.2%).
+  Graham, Graham & Dodd and Marks keep **0 positive** because their rules
+  reject the universe; those verdicts are never promoted.
+- `vi rank` shows a **Tier** column and adds `--positive-only`; the JSON
+  carries `tier` (and keeps `verdict`).
+- `vi scorecard --json` includes `tier` on every methodology.
+- Consensus `buy_count` aggregates all three tiers via `is_positive`
+  (pre-v0.24 consensus files stay compatible).
+- UI ticks/chips use tier colours (gold STRONG_BUY, cyan BUY, dim cyan
+  WEAK_BUY); the consensus summary lists the new labels.
+- The screener's `--methodology NAME:VERDICT` filter applies the
+  single-ticker absolute fallback, so `buffett_classic:BUY` matches the
+  tiered verdict.
+
+### Notes
+- **Demote-only semantics**: a high score never promotes a WATCH/HOLD/AVOID
+  into a buy. This preserves each methodology's own criteria.
+- **Backwards compatibility**: the `verdict` field is preserved. Code that
+  checked `verdict == "BUY"` should migrate to `is_positive(verdict)` to
+  match every positive tier.
+- **BUY without score** (e.g. some Lynch results) stays `BUY` with
+  `tier=None`; the backtest counts it with BUY weight (30%).
+- **Historical backtests are not comparable** after this release; re-run
+  `vi backtest` (use `--equal-weight` to reproduce the pre-v0.24
+  behaviour).
+- Measured backtest (`buffett_classic`, 10 years, limit 400): tier-weighted
+  CAGR 14.1% / Sharpe 1.22 vs legacy equal 14.2% / 1.20; opportunity set
+  15.2%, SPY 14.7%.
+- Test count: **2661 → 2678**.
+
 ## [0.23.0] - 2026-11-07
 
 ### Fixed
