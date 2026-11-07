@@ -17,14 +17,18 @@ class StockScreenerService:
         market_provider: MarketDataProvider,
         loader: DataLoader | None = None,
         price_service: PriceService | None = None,
+        analysis_cache=None,
     ):
         self._analysis = CompanyAnalysisService(
-            repository, market_provider, loader=loader
+            repository, market_provider, loader=loader, history_cache=analysis_cache
         )
         self._market = market_provider
         self._repository = repository
         self._loader = loader
         self._price_service = price_service or PriceService()
+        # One fundamentals read per ticker per run, shared by the methodology
+        # filter (the analysis keeps its own persistent AnalysisCache).
+        self._rows_cache: dict[str, list] = {}
 
     def screen(
         self,
@@ -33,6 +37,7 @@ class StockScreenerService:
         top_n: int | None = None,
         progress_callback=None,
         no_prices: bool = False,
+        methodology_filters: list[tuple[str, str]] | None = None,
     ) -> list[ScreenerRow]:
         if tickers is None:
             tickers = TICKERS
@@ -73,6 +78,10 @@ class StockScreenerService:
                 row = self._analyze_ticker(ticker, no_prices=no_prices)
                 if row is None:
                     continue
+                if methodology_filters and not self._passes_methodology(
+                    ticker, methodology_filters, no_prices=no_prices
+                ):
+                    continue
                 if self._passes_filters(row, filters):
                     results.append(row)
             except Exception:  # noqa: BLE001, S112 — boundary catch-all (external libs/network raise many types)
@@ -87,6 +96,58 @@ class StockScreenerService:
         if top_n is not None:
             results = results[:top_n]
         return results
+
+    def _methodology_rows(self, ticker: str) -> list:
+        """Fundamentals for a methodology check, read once per ticker/run."""
+        if ticker not in self._rows_cache:
+            try:
+                rows = self._repository.get_best_available(ticker, max_years=11)
+            except Exception:  # noqa: BLE001 — one unreadable ticker is skipped
+                rows = []
+            self._rows_cache[ticker] = rows or []
+        return self._rows_cache[ticker]
+
+    def _passes_methodology(
+        self,
+        ticker: str,
+        methodology_filters: list[tuple[str, str]],
+        *,
+        no_prices: bool = False,
+    ) -> bool:
+        """True when the ticker matches every ``(methodology, verdict)`` pair.
+
+        AND semantics: ``graham:BUY,lynch:BUY`` requires both. Each methodology
+        is evaluated only for the categories the filters name; a methodology
+        that cannot be computed (INSUFFICIENT_DATA) never matches.
+        """
+        from backend.methodologies.registry import discover, registry
+
+        discover()
+        rows = self._methodology_rows(ticker)
+        if not rows:
+            return False
+        price = None
+        market_cap = None
+        if not no_prices:
+            try:
+                price = self._price_service.get_current_price(ticker)
+                market_cap = self._price_service.get_market_cap(ticker)
+            except Exception:  # noqa: BLE001 — price is optional for some screens
+                price = None
+                market_cap = None
+        prices = _ScreenerPrices(price, market_cap)
+        for name, expected in methodology_filters:
+            method = registry.get(name)
+            if method is None:
+                return False
+            try:
+                result = method.evaluate(ticker, rows, prices)
+                verdict = getattr(result.verdict, "value", str(result.verdict))
+            except Exception:  # noqa: BLE001 — a failing screen does not match
+                return False
+            if verdict.upper() != expected.upper():
+                return False
+        return True
 
     def search(self, query: str) -> list[str]:
         q = query.upper().strip()
@@ -256,3 +317,17 @@ def _get_field(row: ScreenerRow, field: str):
     if hasattr(row, field):
         return getattr(row, field)
     return row.extra.get(field)
+
+
+class _ScreenerPrices:
+    """Minimal price context for one methodology evaluation."""
+
+    def __init__(self, price: float | None, market_cap: float | None) -> None:
+        self._price = price
+        self._market_cap = market_cap
+
+    def get_current_price(self, _ticker: str) -> float | None:
+        return self._price
+
+    def get_market_cap(self, _ticker: str) -> float | None:
+        return self._market_cap

@@ -28,6 +28,54 @@ from cli.formatters import (
 
 _PCT_FIELDS = {"roe", "roic", "fcf_yield", "op_margin", "net_margin", "revenue_growth"}
 
+#: Short aliases accepted by --methodology (the registry uses full names).
+_METHODOLOGY_ALIASES = {"lynch": "lynch_garp"}
+#: Accepted verdict labels for --methodology name:VERDICT.
+_METHODOLOGY_VERDICTS = {
+    "BUY",
+    "WATCH",
+    "HOLD",
+    "AVOID",
+    "N/A",
+    "INSUFFICIENT_DATA",
+}
+
+
+def _parse_methodology_filters(raw: list[str]) -> list[tuple[str, str]]:
+    """Parse ``name:VERDICT`` pairs (AND semantics across several pairs)."""
+    from backend.methodologies.registry import discover, registry
+
+    discover()
+    known = set(registry.list())
+    parsed: list[tuple[str, str]] = []
+    for item in raw:
+        if ":" not in item:
+            print(
+                f"  {red('ERROR:')} --methodology expects NAME:VERDICT "
+                f"(e.g. graham:BUY), got '{item}'"
+            )
+            sys.exit(1)
+        name, _, verdict = item.partition(":")
+        name = name.strip().lower()
+        name = _METHODOLOGY_ALIASES.get(name, name)
+        verdict = verdict.strip().upper()
+        if verdict == "NA":
+            verdict = "N/A"
+        if name not in known:
+            print(
+                f"  {red('ERROR:')} Unknown methodology '{name}'. "
+                f"Available: {', '.join(sorted(known))}"
+            )
+            sys.exit(1)
+        if verdict not in _METHODOLOGY_VERDICTS:
+            print(
+                f"  {red('ERROR:')} Unknown verdict '{verdict}'. "
+                f"Use one of: {', '.join(sorted(_METHODOLOGY_VERDICTS))}"
+            )
+            sys.exit(1)
+        parsed.append((name, verdict))
+    return parsed
+
 
 def _pct(value: float | None) -> float | None:
     if value is None:
@@ -164,6 +212,9 @@ _PRICE_BASED_FILTERS = {
 def _run_screener(args):
     service = build_screener_service()
     filters = _build_filters(args)
+    methodology_filters = _parse_methodology_filters(
+        getattr(args, "methodology", []) or []
+    )
 
     tickers = None
     universe = getattr(args, "universe", None)
@@ -224,6 +275,10 @@ def _run_screener(args):
 
     total_tickers = len(tickers) if tickers else "~150"
     filter_desc = ", ".join(str(f) for f in filters) if filters else "(no filters)"
+    if methodology_filters:
+        filter_desc += " | methodology: " + ", ".join(
+            f"{name}:{verdict}" for name, verdict in methodology_filters
+        )
     mode = "without real prices" if args.no_prices else "real-time prices"
     print(f"  Tickers: {total_tickers}  |  Filters: {filter_desc}  |  {mode}")
     print()
@@ -244,6 +299,7 @@ def _run_screener(args):
             top_n=args.top,
             progress_callback=progress,
             no_prices=args.no_prices,
+            methodology_filters=methodology_filters or None,
         )
     elapsed = time.time() - start
 
@@ -430,6 +486,17 @@ def register(subparsers):
             '"min_score=80", "min_roic=0.12" (Buffett quality engine)'
         ),
     )
+    p.add_argument(
+        "--methodology",
+        action="append",
+        default=None,
+        metavar="NAME:VERDICT",
+        help=(
+            "Keep only tickers whose methodology verdict matches: "
+            "'graham:BUY', 'lynch:WATCH'. Repeat for AND semantics "
+            "('--methodology graham:BUY --methodology lynch:BUY')."
+        ),
+    )
     p.add_argument("--save", action="store_true", help="Save results to CSV")
     refresh = p.add_mutually_exclusive_group()
     refresh.add_argument(
@@ -573,6 +640,12 @@ def _run_investment_screener(args) -> None:
 
 def _run(args):
     uses_buffett = any("=" in f for f in args.filter)
+    if getattr(args, "methodology", None) and uses_buffett:
+        print(
+            f"  {red('ERROR:')} --methodology cannot be combined with the "
+            "Buffett quality engine (--filter key=value)."
+        )
+        sys.exit(1)
     if uses_buffett:
         market_flags = [
             args.pe_max,

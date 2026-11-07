@@ -32,11 +32,21 @@ class _Service:
     last: ClassVar[dict] = {}
     callbacks: ClassVar[list] = []
 
-    def screen(self, *, tickers, filters, top_n, progress_callback, no_prices):
+    def screen(
+        self,
+        *,
+        tickers,
+        filters,
+        top_n,
+        progress_callback,
+        no_prices,
+        methodology_filters=None,
+    ):
         type(self).last = {
             "tickers": tickers,
             "top_n": top_n,
             "no_prices": no_prices,
+            "methodology_filters": methodology_filters,
         }
         type(self).callbacks = []
         for index, ticker in enumerate(tickers or [], 1):
