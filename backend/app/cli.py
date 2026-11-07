@@ -131,13 +131,28 @@ def build_analysis_service(
 
 def build_screener_service() -> StockScreenerService:
     from backend.providers.yahoo import YahooFinanceProvider
+    from backend.services.analysis_cache import AnalysisCache
 
     yahoo = YahooFinanceProvider()
+    repository = build_financial_repository()
+    # The screener used to bypass the persistent AnalysisCache that single-
+    # ticker commands already use, so every run re-read the same normalized
+    # fundamentals from Financial-DataBase. Attaching it makes repeated
+    # screens (and reruns) skip those reads.
+    cache = AnalysisCache(
+        repository=repository,
+        enabled=os.environ.get("ANALYSIS_CACHE", "1").lower()
+        not in ("0", "false", "no"),
+    )
+    attach = getattr(repository, "attach_analysis_cache", None)
+    if callable(attach):
+        attach(cache)
     return StockScreenerService(
-        repository=build_financial_repository(),
+        repository=repository,
         market_provider=yahoo,
         loader=build_data_pipeline(),
         price_service=get_price_service(),
+        analysis_cache=cache,
     )
 
 

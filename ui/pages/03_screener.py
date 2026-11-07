@@ -254,6 +254,7 @@ def _universe_tickers(universes: tuple[str, ...]) -> list[str]:
     return parse_universe_tickers(UNIVERSE_PATH.read_text(encoding="utf-8"), universes)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def _enrich(
     rows: list[dict], methodology: str, sectors: dict, include_funds: bool = False
 ) -> list[dict]:
