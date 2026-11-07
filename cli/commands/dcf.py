@@ -7,7 +7,8 @@ appears in ``compare-methodologies`` or ``methodologies list``.
 
 from __future__ import annotations
 
-from dataclasses import replace
+import json
+from dataclasses import asdict, replace
 
 from backend.app.cli import add_demo_argument
 from backend.valuation.base import SOURCE
@@ -60,6 +61,11 @@ def register(subparsers):
     )
     p.add_argument("ticker", help="Ticker to value (e.g. AAPL)")
     p.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the result payload as JSON (includes the reason)",
+    )
+    p.add_argument(
         "--wacc",
         type=float,
         default=None,
@@ -98,6 +104,9 @@ def _run(args):
     repo = build_financial_repository()
     rows = repo.get_best_available(args.ticker)
     result = DCFValuation(assumptions).evaluate(args.ticker, rows, get_price_service())
+    if args.json:
+        print(json.dumps(asdict(result), indent=2, default=str))
+        return
     _render(result)
 
 
@@ -106,7 +115,11 @@ def _render(result):
     print_header(f"DCF Valuation — {ticker} ({SOURCE})")
 
     if result.verdict == "INSUFFICIENT_DATA":
-        print_key_value("Verdict", _verdict_color("INSUFFICIENT_DATA"))
+        reason = getattr(result, "reason", None)
+        verdict = "INSUFFICIENT_DATA"
+        if reason:
+            verdict = f"INSUFFICIENT_DATA — {reason}"
+        print_key_value("Verdict", _verdict_color(verdict))
         print_section("Notes")
         for reason in result.reasons:
             print(f"  {dim('•')} {reason}")

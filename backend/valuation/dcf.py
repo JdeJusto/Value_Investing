@@ -59,6 +59,37 @@ OVERVALUED = "OVERVALUED"
 INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 
+def _insufficient_reason(result: DCFResult, missing) -> str | None:
+    """One-line cause for an INSUFFICIENT_DATA verdict.
+
+    Maps the variant + missing inputs to a short, user-facing sentence; the
+    detailed ``reasons`` list still carries the full explanation.
+    """
+    missing_set = set(missing or [])
+    variant = result.variant or "standard"
+    if variant.startswith("ddm_financial"):
+        if "dividends per share" in missing_set:
+            return "Bank/insurer — DCF not applicable (no dividend stream for the DDM)"
+        if any("dividend history" in item for item in missing_set):
+            return "Insufficient dividend history for the DDM (need >=3 years)"
+    if variant == "reit" and "funds from operations" in missing_set:
+        return "REIT — FFO not computable (net income or depreciation missing)"
+    if "positive free cash flow" in missing_set:
+        years = result.fcf_years or _FCF_BASE_YEARS
+        return f"FCF negative (last {years} years)"
+    if "free cash flow" in missing_set:
+        return "Insufficient FCF history (need >=3 years)"
+    if "wacc > terminal growth" in missing_set:
+        return "Missing terminal value input (WACC or growth)"
+    if "shares outstanding" in missing_set:
+        return "Missing shares outstanding"
+    if "current price" in missing_set:
+        return "Current price unavailable"
+    if "revenue" in missing_set:
+        return "Latest revenue missing"
+    return None
+
+
 class DCFValuation:
     """Two-stage discounted cash flow valuation with WACC + sensitivity."""
 
@@ -958,5 +989,6 @@ class DCFValuation:
         result.verdict = INSUFFICIENT_DATA
         result.reasons = reasons
         result.missing_inputs = missing
+        result.reason = _insufficient_reason(result, missing)
         result.sensitivity = {}
         return result

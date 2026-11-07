@@ -58,6 +58,10 @@ class DCFResult:
     sensitivity: dict[tuple[float, float], float | None] = field(default_factory=dict)
     reasons: list[str] = field(default_factory=list)
     missing_inputs: list[str] = field(default_factory=list)
+    #: One-line human-readable cause when ``verdict`` is INSUFFICIENT_DATA
+    #: (e.g. "FCF negative (last 3 years)", "REIT - FFO not computable").
+    #: ``None`` for a computable valuation.
+    reason: str | None = None
     source: str = SOURCE
     #: Which valuation variant produced this result. ``evaluate`` dispatches
     #: on the shared company-type detector: ``standard`` (free cash flow),

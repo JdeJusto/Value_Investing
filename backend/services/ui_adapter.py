@@ -126,6 +126,7 @@ class DCFView:
     sensitivity_rows: list[dict[str, Any]] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
     missing_inputs: list[str] = field(default_factory=list)
+    reason: str | None = None
     is_insufficient: bool = False
 
 
@@ -318,6 +319,7 @@ def build_dcf_view(result: Any) -> DCFView:
         sensitivity_rows=_sensitivity_rows(result),
         reasons=list(result.reasons),
         missing_inputs=list(result.missing_inputs),
+        reason=getattr(result, "reason", None),
         is_insufficient=result.verdict == "INSUFFICIENT_DATA",
     )
 

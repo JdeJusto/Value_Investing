@@ -1052,7 +1052,11 @@ def _dcf_panel(dcf) -> None:
     st.caption(DCF_DISCLAIMER.replace("**not-from-canon** — ", ""))
     st.caption(f"Variant: **{dcf.variant_label}**")
     if dcf.is_insufficient:
-        st.metric("Verdict", "INSUFFICIENT_DATA")
+        reason = getattr(dcf, "reason", None)
+        st.metric(
+            "Verdict",
+            f"INSUFFICIENT_DATA — {reason}" if reason else "INSUFFICIENT_DATA",
+        )
         for reason in dcf.reasons:
             st.markdown(f"- {reason}")
         if dcf.missing_inputs:
