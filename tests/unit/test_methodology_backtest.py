@@ -40,11 +40,13 @@ class _Method:
         by_year: dict[int, Verdict] | None = None,
         failed_by_ticker: dict[str, tuple[str, ...]] | None = None,
         na_tickers: set[str] | None = None,
+        score_by_ticker: dict[str, float] | None = None,
     ):
         self.verdict = verdict
         self.by_year = by_year or {}
         self.failed_by_ticker = failed_by_ticker or {}
         self.na_tickers = na_tickers or set()
+        self.score_by_ticker = score_by_ticker or {}
         self.seen: list[int] = []
 
     def rules(self):
@@ -67,7 +69,7 @@ class _Method:
             version="1.0",
             family="TEST",
             verdict=verdict,
-            score=None,
+            score=self.score_by_ticker.get(ticker),
             metrics={},
             reasons=[],
             red_flags=[],
@@ -207,7 +209,9 @@ def test_backtest_output_has_year_breakdown():
     assert payload["verdicts_by_year"]["2022"]["WATCH"] == 1
     assert payload["verdicts_by_year"]["2023"]["AVOID"] == 1
     assert set(payload["verdicts_by_year"]["2023"]) == {
+        "STRONG_BUY",
         "BUY",
+        "WEAK_BUY",
         "WATCH",
         "HOLD",
         "AVOID",
@@ -343,3 +347,96 @@ def test_backtest_json_shape():
     assert "closest" in payload["no_buy_reason"]
     assert isinstance(payload["skipped_tickers"], list)
     assert isinstance(payload["notes"], list)
+
+
+# ---------------------------------------------------------------------------
+# Tier-weighted backtest (v0.24.0)
+# ---------------------------------------------------------------------------
+def _tier_series():
+    """Three tickers with constant yearly forwards +10%, +5%, +2%."""
+
+    def path(step):
+        values = {2019: 100.0, 2020: 100.0}
+        price = 100.0
+        for year in range(2021, 2025):
+            price *= 1.0 + step
+            values[year] = price
+        return values
+
+    return {
+        "STRONG": path(0.10),
+        "NORMAL": path(0.05),
+        "WEAK": path(0.02),
+    }
+
+
+def test_backtest_uses_tier_weighting():
+    method = _Method(
+        verdict=Verdict.BUY,
+        score_by_ticker={"STRONG": 95.0, "NORMAL": 75.0, "WEAK": 55.0},
+    )
+    service, _ = _service(method, series=_tier_series())
+    result = service.run(["STRONG", "NORMAL", "WEAK"], "graham", years=4, today=TODAY)
+
+    # 0.6*10 + 0.3*5 + 0.1*2 = 7.7% every complete year.
+    assert result.annualized_return == pytest.approx(0.077)
+    assert result.weighting == "tier"
+    assert result.per_year[0].verdicts["STRONG_BUY"] == 1
+    assert result.per_year[0].verdicts["BUY"] == 1
+    assert result.per_year[0].verdicts["WEAK_BUY"] == 1
+    assert result.tier_counts == {"STRONG_BUY": 3, "BUY": 3, "WEAK_BUY": 3}
+
+
+def test_equal_weight_restores_legacy():
+    method = _Method(
+        verdict=Verdict.BUY,
+        score_by_ticker={"STRONG": 95.0, "NORMAL": 75.0, "WEAK": 55.0},
+    )
+    service, _ = _service(method, series=_tier_series())
+    result = service.run(
+        ["STRONG", "NORMAL", "WEAK"],
+        "graham",
+        years=4,
+        weighting="equal",
+        today=TODAY,
+    )
+
+    assert result.weighting == "equal"
+    assert result.annualized_return == pytest.approx((0.10 + 0.05 + 0.02) / 3)
+
+
+def test_backtest_verdict_filter_selects_exact_tier():
+    method = _Method(
+        verdict=Verdict.BUY,
+        score_by_ticker={"STRONG": 95.0, "NORMAL": 75.0, "WEAK": 55.0},
+    )
+    service, _ = _service(method, series=_tier_series())
+    result = service.run(
+        ["STRONG", "NORMAL", "WEAK"],
+        "graham",
+        years=4,
+        verdict_filter="BUY",
+        today=TODAY,
+    )
+
+    # Only NORMAL is the plain BUY tier -> +5% each year.
+    assert result.buy_signals == 3
+    assert result.annualized_return == pytest.approx(0.05)
+
+
+def test_json_has_weighting_and_tier_counts():
+    method = _Method(
+        verdict=Verdict.BUY,
+        score_by_ticker={"STRONG": 95.0, "NORMAL": 75.0, "WEAK": 55.0},
+    )
+    service, _ = _service(method, series=_tier_series())
+    result = service.run(["STRONG", "NORMAL", "WEAK"], "graham", years=4, today=TODAY)
+    payload = result.to_dict()
+
+    assert payload["weighting_method"] == "tier"
+    assert payload["tier_counts"] == {
+        "STRONG_BUY": 3,
+        "BUY": 3,
+        "WEAK_BUY": 3,
+    }
+    assert payload["verdicts_by_year"]["2021"]["STRONG_BUY"] == 1

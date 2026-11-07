@@ -34,6 +34,20 @@ opportunity(Y)   = mean(forward(Y, t) for every priced ticker)
 spy(Y)           = SPY price(FY_end(Y+1)) / SPY price(FY_end(Y)) - 1
 ```
 
+**Buy tiers (demote-only).** Each year, the evaluated tickers' scores are
+ranked (score desc, ticker asc). Only tickers whose methodology verdict is
+``BUY`` can be tiered: top 3% → STRONG_BUY, 3–10% → BUY, 10–15% → WEAK_BUY;
+BUYs outside the top 15% are demoted to WATCH/HOLD/AVOID. WATCH/HOLD/AVOID
+are never promoted, so a rule's rejection is preserved. A BUY without a
+numeric score (e.g. some Lynch results) stays BUY with ``tier=None``. Small
+universes (<50 scored) use absolute cut-offs: ≥80/60/50/40/30.
+
+**Portfolio weighting.** ``weighting="tier"`` (default) weights STRONG_BUY
+60%, BUY 30%, WEAK_BUY 10%, normalized to the tiers present that year
+(BUY+WEAK → 75/25, STRONG+BUY → 66.7/33.3, only one tier → 100%).
+``--equal-weight`` restores the legacy equal-weight behaviour (every positive
+signal counts the same). In both modes an empty positive set is cash (0%).
+
 **Complete vs YTD.** A year `Y` is complete only when `FY_end(Y+1)` has
 already passed. An incomplete year is shown in the breakdown as `YTD` and is
 **excluded from every CAGR/Sharpe** (including its return, so a partial year
@@ -80,15 +94,17 @@ python -m scripts.backtest_methodologies --all --years 10 --limit 50
 python -m scripts.backtest_methodologies --tickers AAPL,MSFT,JNJ --all
 ```
 
-Output: a context header (sample/evaluated/complete years), verdicts by year,
-the performance table (portfolio, opportunity set, SPY, alpha, Sharpe), the
-"closest to a signal" block when the selected set is empty, skipped tickers
-and the PoC notes. `--json` emits the same payload:
+Output: a context header (sample/evaluated/complete years), verdicts by year
+with the three buy tiers, the weighting line, the performance table
+(portfolio, opportunity set, SPY, alpha, Sharpe), the "closest to a signal"
+block when the selected set is empty, skipped tickers and the PoC notes.
+`--json` emits the same payload:
 
 ```text
-methodology, verdict_filter, universe {name, evaluated, total, sample_of},
-years [{year, complete, label?}], verdicts_by_year, performance, no_buy_reason,
-skipped_tickers, notes, per_year
+methodology, verdict_filter, weighting_method, tier_counts,
+universe {name, evaluated, total, sample_of},
+years [{year, complete, label?}], verdicts_by_year, performance,
+no_buy_reason, skipped_tickers, notes, per_year
 ```
 
 The script writes `data/backtest/backtest_<date>.json` (git-ignored).

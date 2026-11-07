@@ -75,6 +75,14 @@ def register(subparsers):
         help="Print the result payload as JSON (methodology or strategy mode)",
     )
     p.add_argument(
+        "--equal-weight",
+        action="store_true",
+        help=(
+            "Legacy: equal-weight every positive signal instead of the "
+            "STRONG 60 / BUY 30 / WEAK 10 tier weighting"
+        ),
+    )
+    p.add_argument(
         "tickers",
         type=str,
         nargs="*",
@@ -186,12 +194,14 @@ def _render_year_verdicts(result) -> None:
     print_table(
         [
             ("Year", 0),
+            ("STRONG", 1),
             ("BUY", 1),
+            ("WEAK", 1),
             ("WATCH", 1),
             ("HOLD", 1),
             ("AVOID", 1),
             ("N/A", 1),
-            ("INSUFF", 1),
+            ("INS", 1),
         ],
         rows,
     )
@@ -209,7 +219,14 @@ def _render_performance(result) -> None:
         window = f"{min(complete)}-{max(complete)} ({len(complete)}y)"
     else:
         window = "no complete years"
+    weighting = result.weighting
+    weighting_label = (
+        "tier (STRONG 60 / BUY 30 / WEAK 10)"
+        if weighting == "tier"
+        else "equal (legacy)"
+    )
     rows = [
+        ["Weighting", weighting_label],
         ["Complete years", window],
         [
             "Portfolio CAGR",
@@ -240,7 +257,10 @@ def _render_performance(result) -> None:
 
 def _render_no_buy(result) -> None:
     reason = result.no_buy_reason
-    print_section(f"Why no {result.selected_verdict} signals")
+    label = (
+        "positive" if result.selected_verdict == "POSITIVE" else result.selected_verdict
+    )
+    print_section(f"Why no {label} signals")
     if reason["rules"]:
         print(f"  {bold('Rules (all must pass):')}")
         for rule in reason["rules"]:
@@ -274,9 +294,13 @@ def _render_methodology(result) -> None:
         else "no complete years"
     )
     ytd = [str(item.year) for item in result.per_year if not item.complete]
+    filter_label = (
+        ""
+        if result.selected_verdict in ("BUY", "POSITIVE")
+        else f":{result.selected_verdict}"
+    )
     header = (
-        f"Backtest · {result.methodology}"
-        + (f":{result.selected_verdict}" if result.selected_verdict != "BUY" else "")
+        f"Backtest · {result.methodology}{filter_label}"
         + f" · {name} · sample {result.sample_size}/{universe_total} · {span} · "
         f"{result.evaluated} evaluated"
     )
@@ -285,8 +309,13 @@ def _render_methodology(result) -> None:
     print_header(header)
 
     if not result.buy_signals:
+        label = (
+            "positive"
+            if result.selected_verdict == "POSITIVE"
+            else result.selected_verdict
+        )
         print(
-            f"  {yellow(f'0 {result.selected_verdict} set, nothing to compute')} "
+            f"  {yellow(f'0 {label} set, nothing to compute')} "
             f"— every complete year is cash."
         )
         print()
@@ -335,6 +364,9 @@ def _run_methodology_backtest(args) -> None:
                     name,
                     years=args.years,
                     verdict_filter=verdict_filter,
+                    weighting="equal"
+                    if getattr(args, "equal_weight", False)
+                    else "tier",
                     universe_name=universe_name,
                     universe_total=universe_total,
                 )

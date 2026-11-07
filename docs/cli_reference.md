@@ -359,10 +359,12 @@ Flags:
   `all` | path to a CSV
 - `--top N`: rows to show (default `20`)
 - `--include-na`: include N/A verdicts with their reason
+- `--positive-only`: keep only positive signals (STRONG_BUY/BUY/WEAK_BUY)
 - `--json`: ranked payload (shape in Appendix)
 
 ```bash
 ./vi rank --by graham --top 20
+./vi rank --by buffett_classic --top 20 --positive-only
 ./vi rank --combine graham,lynch_garp --strategy and --universe sp500
 ```
 
@@ -560,13 +562,16 @@ Flags:
 - `--limit N` (max tickers for `--methodology`, default `25`)
 - `--years N`, `--top N` (default `5`), `--rebalance N` (default `1`)
 - `--prices FILE`: `TICKER,YEAR,PRICE` per line for real returns
+- `--equal-weight`: legacy equal weighting (default is tier-weighted:
+  STRONG 60 / BUY 30 / WEAK 10, re-scaled when a tier is empty)
 - `--json`: same payload as the rendered report (shape in Appendix)
 - positional `tickers` (optional)
 
 ```bash
 ./vi backtest --strategy buffett --top 5
 ./vi backtest --methodology graham --years 5
-./vi backtest --methodology graham:AVOID --years 5
+./vi backtest --methodology buffett_classic --years 10 --limit 400
+./vi backtest --methodology graham:AVOID --years 5 --equal-weight
 ./vi backtest --methodology graham --methodology lynch_garp --limit 50
 ```
 
@@ -762,8 +767,8 @@ for CSV).
   ],
   "overall": "Mixed",
   "disagreements": [],
-  "methodologies": [{"name": "graham", "verdict": "AVOID", "score": 0.0,
-                     "confidence": "HIGH", "red_flags": 0}],
+  "methodologies": [{"name": "graham", "verdict": "AVOID", "tier": null,
+                     "score": 0.0, "confidence": "HIGH", "red_flags": 0}],
   "data_quality": "HIGH",
   "notes": []
 }
@@ -825,7 +830,7 @@ Single methodology (`--by`): a list of rows.
 
 ```json
 [
-  {"ticker": "AES", "verdict": "AVOID", "score": 57.14,
+  {"ticker": "AES", "verdict": "AVOID", "tier": null, "score": 57.14,
    "family": "DEEP_VALUE", "n_a_reason": null}
 ]
 ```
@@ -837,8 +842,8 @@ Combination (`--combine`): a list of combined rows.
   {"ticker": "AAPL", "verdict": "BUY", "score": 82.0,
    "rationale": "...",
    "per_methodology": {
-     "graham": {"ticker": "AAPL", "verdict": "AVOID", "score": 0.0,
-                "family": "DEEP_VALUE", "n_a_reason": null}
+     "graham": {"ticker": "AAPL", "verdict": "AVOID", "tier": null,
+                "score": 0.0, "family": "DEEP_VALUE", "n_a_reason": null}
    }}
 ]
 ```
@@ -876,6 +881,8 @@ Notes:
     "2021": {"BUY": 0, "WATCH": 0, "HOLD": 0, "AVOID": 11, "N/A": 7,
              "INSUFFICIENT_DATA": 1}
   },
+  "weighting_method": "tier",
+  "tier_counts": {"STRONG_BUY": 13, "BUY": 30, "WEAK_BUY": 22},
   "performance": {
     "portfolio_cagr": 0.0,
     "opportunity_set_cagr": -0.009,

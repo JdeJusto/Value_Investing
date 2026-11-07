@@ -28,18 +28,28 @@ from __future__ import annotations
 
 import statistics
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from typing import Any
 
-from backend.methodologies.base import Verdict
+from backend.methodologies.base import Verdict, is_positive
+from backend.methodologies.tiers import compute_tiers_from_pairs, compute_year_return
 
 #: Years of history a company needs before it can be evaluated at all.
 MIN_ROWS = 3
 #: Methodologies the PoC cannot backtest (no historical inputs).
 EXCLUDED = frozenset({"greenblatt"})
 #: Canonical verdict labels, in display order.
-VERDICT_ORDER = ("BUY", "WATCH", "HOLD", "AVOID", "N/A", "INSUFFICIENT_DATA")
+VERDICT_ORDER = (
+    "STRONG_BUY",
+    "BUY",
+    "WEAK_BUY",
+    "WATCH",
+    "HOLD",
+    "AVOID",
+    "N/A",
+    "INSUFFICIENT_DATA",
+)
 
 
 class _HistoricalPrices:
@@ -58,11 +68,15 @@ class _HistoricalPrices:
 
 @dataclass(frozen=True)
 class SignalRecord:
-    """One evaluated ticker-year (used for the closest-to-selected summary)."""
+    """One evaluated ticker-year (final tier + raw rule evidence)."""
 
     ticker: str
     year: int
     verdict: str
+    base_verdict: str
+    score: float | None
+    forward: float
+    tier: str | None = None
     failed_rules: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,6 +84,10 @@ class SignalRecord:
             "ticker": self.ticker,
             "year": self.year,
             "verdict": self.verdict,
+            "base_verdict": self.base_verdict,
+            "tier": self.tier,
+            "score": self.score,
+            "forward": self.forward,
             "failed": list(self.failed_rules),
             "n_failed": len(self.failed_rules),
         }
@@ -106,7 +124,8 @@ class MethodologyBacktest:
 
     methodology: str
     years: tuple[int, ...]
-    selected_verdict: str = "BUY"
+    selected_verdict: str = "POSITIVE"
+    weighting: str = "tier"
     universe_name: str = "sp500"
     universe_total: int | None = None
     sample_size: int = 0
@@ -233,6 +252,14 @@ class MethodologyBacktest:
         return self.annualized_return - self.spy_annualized
 
     @property
+    def tier_counts(self) -> dict[str, int]:
+        """Aggregate final counts for the three positive tiers."""
+        counts = Counter(record.verdict for record in self.records)
+        return {
+            label: counts.get(label, 0) for label in ("STRONG_BUY", "BUY", "WEAK_BUY")
+        }
+
+    @property
     def no_buy_reason(self) -> dict[str, Any]:
         """Closest ticker-years to the selected verdict (fewest failed rules).
 
@@ -277,6 +304,8 @@ class MethodologyBacktest:
         return {
             "methodology": self.methodology,
             "verdict_filter": self.selected_verdict,
+            "weighting_method": self.weighting,
+            "tier_counts": self.tier_counts,
             "universe": {
                 "name": self.universe_name,
                 "evaluated": self.evaluated,
@@ -359,16 +388,18 @@ class MethodologyBacktestService:
         years: int = 10,
         *,
         verdict_filter: str | None = None,
+        weighting: str = "tier",
         universe_name: str = "sp500",
         universe_total: int | None = None,
         today: date | None = None,
     ) -> MethodologyBacktest:
         """Backtest one methodology over ``years`` fiscal years.
 
-        ``verdict_filter`` selects which verdict is held (default BUY); it also
-        powers ``--methodology graham:BUY``. A year whose forward window is not
-        complete yet (``today`` before the end of year + 1) is marked YTD and
-        excluded from every CAGR/Sharpe.
+        ``verdict_filter`` defaults to every positive tier. A named tier
+        (``graham:BUY``) selects exactly that tier. ``weighting="tier"`` uses
+        the 60/30/10 tier weights; ``"equal"`` is the legacy behaviour. A year
+        whose forward window is not complete yet is marked YTD and excluded
+        from every CAGR/Sharpe.
         """
         name = str(methodology).lower().strip()
         if name in EXCLUDED:
@@ -380,15 +411,21 @@ class MethodologyBacktestService:
         method = self._methodologies().get(name)
         if method is None:
             raise ValueError(f"unknown methodology: {methodology}")
-        selected = (verdict_filter or Verdict.BUY.value).upper()
-        if selected not in {verdict.value for verdict in Verdict}:
+        selected = verdict_filter.upper() if verdict_filter else "POSITIVE"
+        if selected != "POSITIVE" and selected not in {
+            verdict.value for verdict in Verdict
+        }:
             raise ValueError(f"unknown verdict filter: {selected}")
+        weighting = str(weighting).lower()
+        if weighting not in ("tier", "equal"):
+            raise ValueError(f"unknown weighting: {weighting}")
 
         reference = today or datetime.now(UTC).date()
         result = MethodologyBacktest(
             methodology=name,
             years=(),
             selected_verdict=selected,
+            weighting=weighting,
             universe_name=universe_name,
             universe_total=universe_total,
             sample_size=len(tickers),
@@ -400,8 +437,7 @@ class MethodologyBacktestService:
         if not tickers:
             return result
 
-        per_year: dict[int, dict[str, Any]] = {}
-        signals: dict[str, int] = Counter()
+        raw_by_year: dict[int, list[SignalRecord]] = {}
         evaluated = 0
         for ticker in tickers:
             history = self._history(ticker, years)
@@ -424,27 +460,21 @@ class MethodologyBacktestService:
                 rows = [row for row in history.values() if row.fiscal_year <= year]
                 if len(rows) < MIN_ROWS:
                     continue
-                bucket = per_year.setdefault(
-                    year,
-                    {"selected": [], "market": [], "verdicts": Counter()},
-                )
                 forward = prices[year + 1] / prices[year] - 1.0
-                bucket["market"].append(forward)
-                verdict, failed = self._evaluate(
+                verdict, failed, score = self._evaluate(
                     method, ticker, rows, prices[year], history
                 )
-                signals[verdict] += 1
-                bucket["verdicts"][verdict] += 1
-                result.records.append(
+                raw_by_year.setdefault(year, []).append(
                     SignalRecord(
                         ticker=ticker,
                         year=year,
                         verdict=verdict,
+                        base_verdict=verdict,
+                        score=score,
+                        forward=forward,
                         failed_rules=failed,
                     )
                 )
-                if verdict == selected:
-                    bucket["selected"].append(forward)
                 ticker_signals += 1
                 evaluated += 1
             if not ticker_signals:
@@ -459,30 +489,69 @@ class MethodologyBacktestService:
                 )
 
         year_rows: list[YearResult] = []
-        for year in sorted(per_year):
-            bucket = per_year[year]
-            selected_returns = bucket["selected"]
+        signals: Counter = Counter()
+        for year in sorted(raw_by_year):
+            raw = raw_by_year[year]
+            pairs = {
+                record.ticker: (Verdict(record.base_verdict), record.score)
+                for record in raw
+            }
+            tier_map = compute_tiers_from_pairs(pairs)
+            final_records = []
+            for record in raw:
+                if record.ticker in tier_map:
+                    verdict, tier = tier_map[record.ticker]
+                    final_records.append(
+                        replace(record, verdict=verdict.value, tier=tier)
+                    )
+                else:
+                    final_records.append(replace(record, tier=None))
+            result.records.extend(final_records)
+            for record in final_records:
+                signals[record.verdict] += 1
+            selected_records = [
+                record
+                for record in final_records
+                if self._is_selected(record.verdict, selected)
+            ]
+            returns = {record.ticker: record.forward for record in final_records}
+            verdicts_by_ticker = {
+                record.ticker: Verdict(record.verdict) for record in final_records
+            }
+            if selected == "POSITIVE":
+                portfolio_return = compute_year_return(
+                    returns, verdicts_by_ticker, weighting
+                )
+            elif selected_records:
+                portfolio_return = statistics.fmean(
+                    record.forward for record in selected_records
+                )
+            else:
+                portfolio_return = 0.0
             verdicts = {
-                label: int(bucket["verdicts"].get(label, 0)) for label in VERDICT_ORDER
+                label: int(
+                    sum(1 for record in final_records if record.verdict == label)
+                )
+                for label in VERDICT_ORDER
             }
             year_rows.append(
                 YearResult(
                     year=year,
-                    buys=len(selected_returns),
-                    portfolio_return=(
-                        statistics.fmean(selected_returns) if selected_returns else 0.0
-                    ),
+                    buys=len(selected_records),
+                    portfolio_return=portfolio_return,
                     benchmark_return=(
-                        statistics.fmean(bucket["market"]) if bucket["market"] else None
+                        statistics.fmean(record.forward for record in final_records)
+                        if final_records
+                        else None
                     ),
                     verdicts=verdicts,
                     complete=self._is_complete(year, reference),
                 )
             )
-        result.years = tuple(sorted(per_year))
+        result.years = tuple(sorted(raw_by_year))
         result.signals = dict(signals)
         result.per_year = year_rows
-        result.spy_returns = self._spy_series(sorted(per_year))
+        result.spy_returns = self._spy_series(sorted(raw_by_year))
         result.notes = self._notes(result, evaluated)
         return result
 
@@ -522,8 +591,13 @@ class MethodologyBacktestService:
                 "sample, same fiscal-year window."
             ),
             (
-                "Portfolio = selected verdict equal-weighted; cash (0%) when a "
-                "year has no signal."
+                "Portfolio = positive signals weighted 60/30/10 by "
+                "STRONG_BUY/BUY/WEAK_BUY (re-scaled when a tier is empty); "
+                "cash (0%) when a year has no signal."
+            ),
+            (
+                "Tiers are demote-only: only a rule's BUY can be tiered or "
+                "demoted; WATCH/HOLD/AVOID are never promoted."
             ),
         ]
         if any(not item.complete for item in result.per_year):
@@ -576,6 +650,14 @@ class MethodologyBacktestService:
                 prices[year] = float(price)
         return prices
 
+    @staticmethod
+    def _is_selected(verdict: str, selected: str) -> bool:
+        if selected == "POSITIVE":
+            return is_positive(verdict)
+        if selected == "BUY":
+            return verdict == "BUY"
+        return verdict == selected
+
     def _evaluate(
         self,
         method: Any,
@@ -583,7 +665,7 @@ class MethodologyBacktestService:
         rows: list[Any],
         price: float | None,
         history: dict[int, Any],
-    ) -> tuple[str, tuple[str, ...]]:
+    ) -> tuple[str, tuple[str, ...], float | None]:
         latest = rows[-1] if rows else None
         shares = getattr(latest, "shares_outstanding", None) if latest else None
         factor = getattr(latest, "split_adjustment_factor", 1.0) if latest else 1.0
@@ -593,7 +675,8 @@ class MethodologyBacktestService:
                 ticker, list(reversed(rows)), _HistoricalPrices(price, market_cap)
             )
         except Exception:  # noqa: BLE001 — a methodology failure is INSUFFICIENT
-            return Verdict.INSUFFICIENT_DATA.value, ()
+            return Verdict.INSUFFICIENT_DATA.value, (), None
         verdict = getattr(result.verdict, "value", str(result.verdict))
         failed = tuple(getattr(result, "failed_rules", ()) or ())
-        return verdict, failed
+        score = getattr(result, "score", None)
+        return verdict, failed, score
