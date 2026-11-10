@@ -11,13 +11,16 @@ prices live here, in real time.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import random
 import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 
 class _LazyModuleProxy:
@@ -44,12 +47,139 @@ class _LazyModuleProxy:
 yf = _LazyModuleProxy("yfinance")
 
 logger = logging.getLogger("backend.price_service")
+# yfinance logs "Crumb fetch rate-limited (HTTP 429)" at WARNING. The retry
+# below handles it; keep the output clean unless debugging is requested.
+if os.getenv("PRICE_YF_VERBOSE", "").lower() not in ("1", "true", "yes"):
+    logging.getLogger("yfinance").setLevel(logging.ERROR)
 
 DEFAULT_CACHE_TTL_SECONDS = 900  # 15 minutes
 # Maximum number of yfinance requests per minute to avoid rate limiting
 MAX_REQUESTS_PER_MINUTE = 60
 # Minimum delay between batches of requests (seconds)
 MIN_BATCH_DELAY = 1.0
+
+# --- yfinance retry / pacing / on-disk cache -------------------------------
+#: Minimum gap between two yfinance calls (seconds). Override in tests with
+#: ``PRICE_MIN_INTERVAL=0`` so the suite does not sleep.
+MIN_REQUEST_INTERVAL = float(os.getenv("PRICE_MIN_INTERVAL", "1.0"))
+#: Attempts per yfinance call (exponential backoff + jitter on 429/transient).
+RETRY_ATTEMPTS = max(1, int(os.getenv("PRICE_RETRY_ATTEMPTS", "3")))
+#: Local disk cache for historical prices (a cache, not a database).
+DISK_CACHE_DIR = Path(os.getenv("PRICE_DISK_CACHE_DIR", "data/price_cache"))
+DISK_CACHE_ENABLED = os.getenv("PRICE_DISK_CACHE", "1").lower() not in (
+    "0",
+    "false",
+    "no",
+)
+#: A range ending within this many days is re-fetched after one day.
+DISK_CACHE_RECENT_DAYS = 7
+DISK_CACHE_RECENT_TTL_SECONDS = 24 * 60 * 60
+#: Message used by refresh/backtest when Yahoo rate-limits persistently.
+RATE_LIMIT_REASON = "Yahoo rate-limited (429). Retry later or cache."
+
+_request_lock = threading.Lock()
+_last_request_at = 0.0
+
+
+def _throttle() -> None:
+    """Space yfinance calls by at least MIN_REQUEST_INTERVAL seconds."""
+    global _last_request_at
+    interval = float(MIN_REQUEST_INTERVAL)
+    if interval <= 0:
+        return
+    with _request_lock:
+        elapsed = time.monotonic() - _last_request_at
+        if elapsed < interval:
+            time.sleep(interval - elapsed)
+        _last_request_at = time.monotonic()
+
+
+def _yf_call(fetcher: Callable[[], object], *, description: str = "yfinance"):
+    """Call ``fetcher`` with throttling, retries and exponential backoff.
+
+    Retries every failure except an explicit 401/unauthorized session (which
+    retrying cannot fix). 429 is retried a bounded number of times with
+    jitter; after the last attempt the exception propagates so callers can
+    report the rate-limit reason.
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        _throttle()
+        try:
+            return fetcher()
+        except Exception as exc:
+            last_exc = exc
+            _non_transient, status, _reason = classify_fetch_exception(exc)
+            if status == 401:
+                raise
+            if attempt == RETRY_ATTEMPTS:
+                raise
+            delay = (
+                0.0
+                if MIN_REQUEST_INTERVAL <= 0
+                else (2 ** (attempt - 1)) + random.uniform(0.0, 0.5)
+            )
+            logger.debug(
+                "%s failed (attempt %d/%d): %s; retrying in %.1fs",
+                description,
+                attempt,
+                RETRY_ATTEMPTS,
+                exc,
+                delay,
+            )
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
+def _disk_cache_path(
+    ticker: str, start_date: date | None, end_date: date | None
+) -> Path:
+    start = start_date.isoformat() if start_date else "full"
+    end = end_date.isoformat() if end_date else "now"
+    return DISK_CACHE_DIR / f"{ticker.upper()}_{start}_{end}.json"
+
+
+def _disk_cache_get(
+    ticker: str, start_date: date | None, end_date: date | None
+) -> list[tuple[date, float]] | None:
+    if not DISK_CACHE_ENABLED:
+        return None
+    path = _disk_cache_path(ticker, start_date, end_date)
+    try:
+        if not path.exists():
+            return None
+        recent = end_date is None or end_date >= datetime.now(UTC).date() - timedelta(
+            days=DISK_CACHE_RECENT_DAYS
+        )
+        if recent:
+            age = time.time() - path.stat().st_mtime
+            if age > DISK_CACHE_RECENT_TTL_SECONDS:
+                return None
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return [(date.fromisoformat(day), float(close)) for day, close in payload]
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def _disk_cache_set(
+    ticker: str,
+    start_date: date | None,
+    end_date: date | None,
+    prices: list[tuple[date, float]],
+) -> None:
+    if not DISK_CACHE_ENABLED or not prices:
+        return
+    try:
+        DISK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path = _disk_cache_path(ticker, start_date, end_date)
+        path.write_text(
+            json.dumps([[day.isoformat(), close] for day, close in prices]),
+            encoding="utf-8",
+        )
+    except OSError:
+        logger.debug("Could not write the price cache for %s", ticker, exc_info=True)
+
 
 # Categories for a failed price/quote fetch (see classify_price_failure).
 PRICE_FAILURE_DELISTED = "delisted"
@@ -122,6 +252,10 @@ def _snapshot_price(snap: dict) -> float | None:
     return None
 
 
+class _EmptyFrame(Exception):
+    """Retryable empty history frame (transient Yahoo window)."""
+
+
 class PriceService:
     """Fetch real-time prices from Yahoo Finance without persisting them.
 
@@ -166,6 +300,23 @@ class PriceService:
             "aborted_reason": None,
             "aborted_after": 0,
         }
+        # Last per-ticker failure, so refresh can say *why* a price is absent
+        # (not just "unavailable"). Cleared on a successful fetch.
+        self._last_error: dict[str, str] = {}
+
+    def get_last_error(self, ticker: str) -> str | None:
+        """Human-readable reason for the ticker's last failed price fetch."""
+        return self._last_error.get(str(ticker).upper())
+
+    def _info(self, ticker: str, *, retries: bool = True) -> dict:
+        """``yf.Ticker(ticker).info``; retries unless the caller owns them.
+
+        ``_fetch_market_snapshot`` keeps its own 3-attempt loop (and treats a
+        429 as a stage-abort signal), so it opts out to avoid 3x3 calls.
+        """
+        if not retries:
+            return yf.Ticker(ticker).info
+        return _yf_call(lambda: yf.Ticker(ticker).info, description=f"info {ticker}")
 
     # ------------------------------------------------------------------
     # cache helpers
@@ -246,17 +397,25 @@ class PriceService:
     ) -> list[tuple[date, float]]:
         """Return ``(date, close_price)`` pairs for a ticker and date range.
 
-        Fetches fresh from Yahoo Finance; never persists. An empty list is
-        returned when no data is available (or the provider fails).
+        Order: in-memory cache, then the local disk cache
+        (``data/price_cache/``), then Yahoo. Nothing is written to FDB; the
+        disk cache is a gitignored local artifact and recent ranges expire
+        after one day.
         """
         key = f"hist:{ticker.upper()}:{start_date}:{end_date}"
         cached = self._get_cached(key)
         if cached is not None:
             return list(cached)
 
+        from_disk = _disk_cache_get(ticker, start_date, end_date)
+        if from_disk is not None:
+            self._set_cached(key, tuple(from_disk))
+            return list(from_disk)
+
         prices = self._fetch_historical_prices(ticker, start_date, end_date)
         # Cache an immutable tuple so callers can't mutate the cached value.
         self._set_cached(key, tuple(prices))
+        _disk_cache_set(ticker, start_date, end_date, prices)
         return prices
 
     def get_price_on_date(
@@ -319,7 +478,7 @@ class PriceService:
             return int(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             shares = info.get("sharesOutstanding")
             if shares is not None:
                 shares = int(shares)
@@ -340,7 +499,7 @@ class PriceService:
             return float(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             market_cap = info.get("marketCap")
             if market_cap is not None:
                 market_cap = float(market_cap)
@@ -358,7 +517,7 @@ class PriceService:
             return float(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             ev = info.get("enterpriseValue")
             if ev is not None:
                 ev = float(ev)
@@ -376,7 +535,7 @@ class PriceService:
             return float(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             beta = info.get("beta")
             if beta is not None:
                 try:
@@ -400,7 +559,7 @@ class PriceService:
             return float(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             # trailingAnnualDividendYield is a decimal; dividendYield is a percentage
             yield_ = info.get("trailingAnnualDividendYield")
             if yield_ is None:
@@ -423,7 +582,7 @@ class PriceService:
             return float(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             rate = info.get("dividendRate")
             if rate is not None:
                 rate = float(rate)
@@ -441,7 +600,7 @@ class PriceService:
             return float(cached)
 
         try:
-            info = yf.Ticker(ticker).info
+            info = self._info(ticker)
             yld = info.get("fiveYearAvgDividendYield")
             if yld is not None:
                 yld = float(yld) / 100.0
@@ -655,7 +814,7 @@ class PriceService:
             reason = None
             non_transient = False
             try:
-                info = yf.Ticker(ticker).info
+                info = self._info(ticker, retries=False)
                 if isinstance(info, dict) and info:
                     self._record_yahoo(
                         latency_ms=(time.time() - started) * 1000.0,
@@ -844,7 +1003,7 @@ class PriceService:
         """
         for attempt in (1, 2):
             try:
-                info = yf.Ticker(ticker).info
+                info = self._info(ticker)
                 if isinstance(info, dict) and info.get("quoteType") is not None:
                     return True
             except Exception:  # noqa: BLE001, S110 — probe must never raise
@@ -911,7 +1070,9 @@ class PriceService:
             return list(cached)
 
         try:
-            series = yf.Ticker(ticker).splits
+            series = _yf_call(
+                lambda: yf.Ticker(ticker).splits, description=f"splits {ticker}"
+            )
             result: list[tuple[date, float]] = []
             if series is not None and not series.empty:
                 for idx, ratio in series.items():
@@ -932,33 +1093,35 @@ class PriceService:
     def _fetch_current_price(self, ticker: str) -> float | None:
         """Latest close for ``ticker``, or None on failure.
 
-        yfinance occasionally returns an empty ``period="1d"`` frame for a
-        transient window (rate limiting); one short retry usually recovers
-        it. Nothing is ever persisted.
+        Calls go through :func:`_yf_call` (throttle + bounded retries), so a
+        transient 429 no longer drops the quote. The failure reason is stored
+        for ``refresh`` to report after the retries are exhausted.
         """
         if self._yahoo_is_known_down():
             return None
-        for attempt in (1, 2):
-            started = time.time()
-            reason = None
-            try:
-                hist = yf.Ticker(ticker).history(period="1d")
-                if hist is not None and not hist.empty:
-                    self._record_yahoo(
-                        latency_ms=(time.time() - started) * 1000.0,
-                        retries=attempt - 1,
-                    )
-                    return float(hist["Close"].iloc[-1])
-                reason = "empty history frame"
-            except Exception as exc:  # noqa: BLE001 — transient Yahoo errors
-                reason = str(exc)
-            self._record_yahoo(
-                latency_ms=(time.time() - started) * 1000.0,
-                retries=attempt - 1,
-                reason=reason,
+        started = time.time()
+        try:
+
+            def _fetch_frame():
+                frame = yf.Ticker(ticker).history(period="1d")
+                if frame is None or frame.empty:
+                    raise _EmptyFrame("empty history frame")
+                return frame
+
+            hist = _yf_call(_fetch_frame, description=f"price {ticker}")
+            self._record_yahoo(latency_ms=(time.time() - started) * 1000.0, retries=0)
+            self._last_error.pop(str(ticker).upper(), None)
+            return float(hist["Close"].iloc[-1])
+        except Exception as exc:  # noqa: BLE001 — reported, never raised here
+            _non_transient, status, reason = classify_fetch_exception(exc)
+            self._last_error[str(ticker).upper()] = (
+                RATE_LIMIT_REASON if status == 429 else f"{type(exc).__name__}: {exc}"
             )
-            if attempt == 1:
-                time.sleep(0.75)
+        self._record_yahoo(
+            latency_ms=(time.time() - started) * 1000.0,
+            retries=RETRY_ATTEMPTS - 1,
+            reason=reason,
+        )
         return None
 
     def _fetch_historical_prices(
@@ -973,7 +1136,10 @@ class PriceService:
                 kwargs["start"] = start_date
             if end_date is not None:
                 kwargs["end"] = end_date
-            hist = yf.Ticker(ticker).history(**kwargs)
+            hist = _yf_call(
+                lambda: yf.Ticker(ticker).history(**kwargs),
+                description=f"history {ticker}",
+            )
             if hist is None or hist.empty:
                 return []
 
@@ -990,8 +1156,13 @@ class PriceService:
                     prices.append((d, float(close)))
                 except (TypeError, ValueError):
                     continue
+            self._last_error.pop(str(ticker).upper(), None)
             return prices
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — a failed fetch is an empty series
+            _non_transient, status, _reason = classify_fetch_exception(exc)
+            self._last_error[str(ticker).upper()] = (
+                RATE_LIMIT_REASON if status == 429 else f"{type(exc).__name__}: {exc}"
+            )
             return []
 
 

@@ -173,6 +173,9 @@ data/peer_stats/
 # Methodology backtest results (PoC artifacts; scripts/backtest_methodologies.py)
 data/backtest/
 
+# yfinance historical-price cache (PriceService; regenerated on demand)
+data/price_cache/
+
 # Daily run artifacts (regenerated every run; git history keeps the old ones)
 data/reports/daily_*.md
 data/reports/daily_state.json

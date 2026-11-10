@@ -89,7 +89,10 @@ def refresh_ticker(
     if prices:
         price = (getattr(refreshed, "prices", None) or {}).get(symbol)
         if price is None:
-            result.prices_error = (
+            price_service = getattr(refresh, "_price_service", None)
+            getter = getattr(price_service, "get_last_error", None)
+            reason = getter(symbol) if callable(getter) else None
+            result.prices_error = reason or (
                 "Yahoo price unavailable (on-demand fetch returned no quote)"
             )
         else:
