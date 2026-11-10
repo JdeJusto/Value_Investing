@@ -1,3 +1,50 @@
+## [0.25.0] - 2026-11-10
+
+### Added
+- **Categorized interactive menu**: `vi` without arguments now groups its
+  19 routes by area (Analysis, Ranking & screening, Portfolio, Data &
+  refresh, Backtesting) and adds a Help section. `?` prints the grouped
+  command catalog, `s` searches it and `q` quits. The ranking entry
+  defaults to `--by graham --universe sp500 --top 20`; scorecard, balance,
+  DCF, compare, consensus ranking, data status, load-data and backtest are
+  reachable from the menu.
+- **`vi help <command>`**: alias of `vi <command> --help`.
+- **`vi help --search <query>`**: search over command names, keywords and
+  descriptions, top 5 with an example (e.g. `vi help --search methodology`
+  returns methodologies, compare-methodologies, rank, backtest, screener).
+- **Unknown-command suggestions**: `vi top` -> "Did you mean 'vi rank'?";
+  intent aliases also cover balance/valuation/scores/menu.
+- **Common tasks table** in `docs/cli_reference.md`: "What do you want to
+  do?" -> command (top 20 by methodology, balance, scorecard, compare,
+  refresh, backtest, consensus, screener by verdict, portfolio, data status,
+  filings). Both READMEs link to the reference and mention the search.
+- **Price retry and disk cache**: yfinance calls are paced
+  (`MIN_REQUEST_INTERVAL=1s`), retried up to 3 times with exponential
+  backoff + jitter (no retry for 401), and historical prices are cached in
+  the gitignored `data/price_cache/`. Recent ranges expire after one day.
+
+### Changed
+- `vi --help` now ends with a Common tasks block and the categorized command
+  list instead of only the alphabetical subparser dump.
+- `vi rank` without `--by`/`--combine` prints the canonical example
+  (`vi rank --by graham --top 20`) instead of a bare argparse error; its
+  `--help` includes executable examples.
+- The `.info` snapshot path keeps its own 3-attempt/abort policy, so a 429
+  during a large stage still aborts the stage instead of retrying every
+  ticker.
+
+### Fixed
+- `vi refresh` reports `Yahoo rate-limited (429). Retry later or cache.`
+  when the retries are exhausted, instead of the generic "price
+  unavailable".
+- yfinance's "Crumb fetch rate-limited (HTTP 429)" warning is hidden from
+  normal output (`PRICE_YF_VERBOSE=1` restores it).
+
+### Measured
+- Repeated `vi backtest --methodology graham --years 5`: 38 s first run
+  (fills the cache) -> 7-8 s second run (<20%).
+- Test count: **2678 → 2697**.
+
 ## [0.24.0] - 2026-11-07
 
 ### Added
