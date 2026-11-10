@@ -1,3 +1,43 @@
+## [0.27.1] - 2026-11-10
+
+### Fixed
+- **Batch DCF**: the batch price adapters now expose `get_beta`, so the DCF
+  margin-of-safety rule is evaluated in rank, screener, compare and backtest
+  instead of silently degrading to `N/A`. Previously the Buffett score in
+  those contexts was computed on a subset of rules (the critical DCF rule was
+  missing).
+- **Quote-summary cache**: `PriceService._info` caches the whole Yahoo
+  `.info` dict for the TTL, so `get_market_cap()` + `get_beta()` share one
+  network request per ticker instead of issuing two.
+- `BatchPriceContext` (new, `backend/services/price_adapter.py`) centralizes
+  the price/market-cap/beta surface for batch callers. The backtest passes
+  `beta=None` on purpose (no point-in-time beta; the DCF uses its documented
+  1.0 fallback, avoiding look-ahead).
+- The backtest legend now says `N/A: banks/insurers` (REITs are scored and
+  flagged `[REIT]`).
+
+### Measured
+- **Buffett backtest** (`buffett_classic --years 10 --limit 400`,
+  2015–2024, 392 evaluated): **CAGR 23.8% / Sharpe 1.53** (before, with the
+  DCF rule N/A: 13.8% / 1.09). Opportunity set 15.2%, SPY 14.7%. The
+  activated rule makes the basket smaller and more valuation-driven; the
+  PoC has no dividends, costs or survivorship correction.
+- **Buffett rank distribution** (SP500): 8 STRONG_BUY / 0 BUY / 63 WATCH /
+  177 HOLD / 153 AVOID / 71 N/A / 28 INSUFFICIENT (before: 12 / 9 / 73 /
+  150 / 148 / 71 / 37). The fix changed 84 verdicts (75 downgrades) and
+  moved 9 unique tickers out of INSUFFICIENT_DATA; across the backtest
+  2016–2024 signal-years it removed ~142 INSUFFICIENT rows.
+- REITs (28) with the DCF active: 6 HOLD / 17 AVOID / 5 INSUFFICIENT
+  (was 2 / 12 / 14). Banks (71) remain N/A.
+- **Graham is unchanged**: its methodology has no DCF rule, so its backtest
+  stays at the v0.26.0 4.2% CAGR / 0.50 Sharpe.
+
+### Tests
+- 8 new tests: batch adapter surface, DCF rule active with a beta and with
+  the 1.0 fallback, backtest context, legacy-adapter regression guard, and
+  the shared `.info` cache (one request for market cap + beta).
+- Test count: **2751 → 2759**.
+
 ## [0.27.0] - 2026-11-10
 
 ### Changed
