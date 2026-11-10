@@ -178,8 +178,10 @@ Flags:
 
 #### `vi analyze-graham <ticker>`
 
-Graham defensive-investor screen: seven criteria plus the combined P/E × P/BV
-test.
+Graham defensive-investor screen: 22 weighted rules across financial
+strength, earnings quality, valuation, growth, dividends and margin of
+safety (see `docs/graham_rules.md`). The verdict uses a weighted pass ratio
+(BUY ≥ 0.85, WATCH ≥ 0.70, HOLD ≥ 0.50, else AVOID).
 
 Flags: `--era-adjustment` (rescale the size threshold to 2024 dollars,
 labelled `graham_modernized`), `--refresh` / `--no-refresh`,

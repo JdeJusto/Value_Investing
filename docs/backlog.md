@@ -362,3 +362,41 @@ SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
 | **PCAR** | Data limitation | Unclassified balance sheet (finance subsidiary); no net working capital. See `docs/data_gaps_investigation.md` and `docs/fdb_tickets.md`. |
 | **BRUN** | Data limitation | 1-2 years of fundamentals; no 10-year history. See `docs/data_gaps_investigation.md`. |
 | **Circular "build your own circle" search** | Backlog | Similarity search by arbitrary dimension ranges (the Simply Wall St idea) builds on the Peers tab but is not implemented. |
+
+## Methodology deep expansion plan (v0.27+)
+
+Only **Graham** was expanded in v0.26.0 (8 → 22 rules, weighted score). The
+remaining seven methodologies keep their current rules and are scheduled one
+per session, highest value first:
+
+1. **buffett_classic** — owner earnings, ROIC persistence, gross-margin
+   stability, capital allocation. Target 15-20 rules.
+2. **buffett_clark** — durable competitive advantage framework. 10-15 rules.
+3. **lynch_garp** — category-specific criteria (slow/stable/fast/cyclical/
+   turnaround/asset play) and PEG < 1. 12-15 rules.
+4. **graham_dodd** — Security Analysis depth: balance-sheet quality and
+   hidden assets. 15-20 rules.
+5. **fisher_quantitative_subset** — expand from 4 to the full quantifiable
+   subset of the 15 points. 10-12 rules.
+6. **marks** — cycle positioning and credit-cycle proxies. 8-10 rules.
+7. **greenblatt** — already works through the external ranking; low priority.
+
+Each session: 4-6 hours per methodology, one methodology per session.
+
+## Graham rules deferred — requires data pipeline
+
+| Rule | Reason |
+|---|---|
+| Long-term debt vs net working capital (separate `long_term_debt`) | the repository does not populate `long_term_debt`; the current rule uses `total_debt` (stricter) |
+| Full 20-year dividend record | FDB history is ~16 years; the no-suspension rule checks the available years |
+| EPV with dynamic WACC | the current EPV uses a fixed 9% discount rate |
+| Insider ownership and management quality | qualitative, not in FDB |
+| True net-net NCAV (cash + receivables − all liabilities) | the approximation uses current assets − total liabilities |
+
+## Menu / discoverability follow-ups
+
+- The synthwave menu uses numbered navigation only (no arrow keys) to avoid a
+  new dependency. A future `questionary`/`prompt_toolkit` pass can add arrows
+  and mouse support.
+- `vi help --search` is substring/keyword based, not fuzzy; `difflib` is used
+  only for unknown-command suggestions.

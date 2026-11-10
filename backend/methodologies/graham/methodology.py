@@ -35,6 +35,11 @@ from backend.methodologies.common.ratio_guards import (
     is_meaningful_pbv,
     is_meaningful_pe,
 )
+from backend.methodologies.graham.deep_checks import (
+    CHECKS,
+    OLD_WEIGHTS,
+    run_checks,
+)
 from backend.methodologies.graham.rules import (
     ALL_RULES,
     VERDICT_CRITERIA,
@@ -76,7 +81,7 @@ class GrahamMethodology(Methodology):
     """The defensive-investor screen, as a self-contained methodology."""
 
     name = "graham"
-    version = "1.0.0"
+    version = "2.0.0"
     family = "DEEP_VALUE"
 
     def __init__(self, era_adjustment: bool = False) -> None:
@@ -142,14 +147,19 @@ class GrahamMethodology(Methodology):
             self._criterion_7_pbv(rows, price),
         ]
         combined = self._combined_test(results)
+        deep = run_checks(rows, price)
 
         passed = [r for r in results if r.passed is True]
         failed = [r for r in results if r.passed is False]
-        unknown = [r for r in results if r.passed is None]
 
-        verdict, score, confidence = self._verdict(passed, failed, unknown, combined)
+        outcomes = [(r.rule_id, r.passed, OLD_WEIGHTS[r.rule_id]) for r in results] + [
+            (d.rule_id, d.passed, d.weight) for d in deep
+        ]
+        verdict, score, confidence = self._weighted_verdict(outcomes)
+
         red_flags = self._red_flags(results, combined)
-        reasons = self._reasons(results, combined, verdict)
+        red_flags.extend(f"{d.name}: {d.detail}" for d in deep if d.passed is False)
+        reasons = self._reasons(results, combined, verdict, deep)
 
         return MethodologyResult(
             methodology=self.name + ("_modernized" if self.era_adjustment else ""),
@@ -157,17 +167,20 @@ class GrahamMethodology(Methodology):
             family=self.family,
             verdict=verdict,
             score=score,
-            metrics=self._metrics(results, combined, price),
+            metrics=self._metrics(results, combined, price, deep),
             reasons=reasons,
             red_flags=red_flags,
             confidence=confidence,
-            sources=[rule.source for rule in ALL_RULES],
-            passed_rules=[r.rule_id for r in passed],
-            failed_rules=[r.rule_id for r in failed],
+            sources=[rule.source for rule in ALL_RULES]
+            + [check.source for check in CHECKS],
+            passed_rules=[r.rule_id for r in passed]
+            + [d.rule_id for d in deep if d.passed is True],
+            failed_rules=[r.rule_id for r in failed]
+            + [d.rule_id for d in deep if d.passed is False],
         )
 
     def rules(self):
-        return list(ALL_RULES)
+        return list(ALL_RULES) + [check.rule() for check in CHECKS]
 
     def metadata(self) -> dict:
         label = "graham_modernized" if self.era_adjustment else "graham"
@@ -182,21 +195,26 @@ class GrahamMethodology(Methodology):
             "source": "The Intelligent Investor, 4th revised (1973), Ch. 14",
             "known_limitations": [
                 (
-                    "criterion 2 (current ratio >= 2:1) needs the current-assets / "
-                    "current-liabilities split, which NormalizedFinancials does not "
-                    "carry; it returns INSUFFICIENT_DATA unless supplied"
+                    "the current ratio uses the current-assets / "
+                    "current-liabilities split when the row carries it; older "
+                    "rows without the split read INSUFFICIENT_DATA"
                 ),
                 (
-                    "criterion 3 uses total_debt as a conservative proxy for "
-                    "long-term debt (stricter than the book)"
+                    "long-term debt is proxied by total_debt (stricter than the "
+                    "book's criterion 3)"
                 ),
                 (
-                    "criterion 4 counts years with dividends_paid > 0; a missing "
-                    "cash-flow statement reads as no dividend"
+                    "the 20-year dividend criterion is capped by the available "
+                    "FDB history (~16 years); the deep no-suspension check "
+                    "covers every year the data holds"
                 ),
                 (
-                    "written for industrials and utilities; banks and financials do "
-                    "not fit the balance-sheet criteria"
+                    "Graham Number, NCAV and EPV are public-knowledge "
+                    "derivations; EPV uses a fixed 9% discount rate"
+                ),
+                (
+                    "written for industrials and utilities; banks and financials "
+                    "do not fit the balance-sheet criteria"
                 ),
             ],
         }
@@ -493,25 +511,42 @@ class GrahamMethodology(Methodology):
     # verdict, score, confidence, flags
     # ------------------------------------------------------------------
     @staticmethod
-    def _verdict(
-        passed, failed, unknown, combined
-    ) -> tuple[Verdict, float | None, Confidence]:
-        if len(unknown) > 2:
+    def _weighted_verdict(outcomes) -> tuple[Verdict, float | None, Confidence]:
+        """Weighted pass ratio with Graham's strict thresholds.
+
+        ``outcomes`` is ``[(rule_id, passed-or-None, weight)]``. Informational
+        rules (weight 0) never enter the score. More than 30% of the weighted
+        rules missing the data makes the whole verdict INSUFFICIENT_DATA.
+        """
+        weighted = [(passed, weight) for _id, passed, weight in outcomes if weight > 0]
+        total_all = sum(weight for _passed, weight in weighted)
+        insufficient = sum(weight for passed, weight in weighted if passed is None)
+        if total_all <= 0 or insufficient / total_all > 0.30:
             return Verdict.INSUFFICIENT_DATA, None, Confidence.LOW
-        score = round(len(passed) / len(VERDICT_CRITERIA) * 100, 2)
-        if len(passed) >= 6 and combined.passed is True:
-            return (
-                Verdict.BUY,
-                score,
-                (Confidence.HIGH if not unknown else Confidence.MEDIUM),
-            )
-        if len(passed) >= 5:
-            return (
-                Verdict.WATCH,
-                score,
-                (Confidence.HIGH if not unknown else Confidence.MEDIUM),
-            )
-        return Verdict.AVOID, score, Confidence.LOW
+        evaluable = [
+            (passed, weight) for passed, weight in weighted if passed is not None
+        ]
+        total = sum(weight for _passed, weight in evaluable)
+        if total <= 0:
+            return Verdict.INSUFFICIENT_DATA, None, Confidence.LOW
+        passed_weight = sum(weight for passed, weight in evaluable if passed)
+        ratio = passed_weight / total
+        if ratio >= 0.85:
+            verdict = Verdict.BUY
+        elif ratio >= 0.70:
+            verdict = Verdict.WATCH
+        elif ratio >= 0.50:
+            verdict = Verdict.HOLD
+        else:
+            verdict = Verdict.AVOID
+        confidence = (
+            Confidence.HIGH
+            if insufficient == 0
+            else Confidence.MEDIUM
+            if insufficient / total_all <= 0.10
+            else Confidence.LOW
+        )
+        return verdict, round(ratio * 100, 2), confidence
 
     @staticmethod
     def _red_flags(results, combined) -> list[str]:
@@ -525,7 +560,7 @@ class GrahamMethodology(Methodology):
         return flags
 
     @staticmethod
-    def _reasons(results, combined, verdict) -> list[str]:
+    def _reasons(results, combined, verdict, deep) -> list[str]:
         parts = []
         for r in results:
             mark = (
@@ -540,10 +575,19 @@ class GrahamMethodology(Methodology):
             else "N/A"
         )
         parts.append(f"[{mark}] {combined.detail}")
+        for check in deep:
+            mark = (
+                "PASS"
+                if check.passed is True
+                else "FAIL"
+                if check.passed is False
+                else "N/A"
+            )
+            parts.append(f"[{mark}] {check.detail}")
         parts.append(f"verdict: {verdict.value}")
         return parts
 
-    def _metrics(self, results, combined, price) -> dict[str, Any]:
+    def _metrics(self, results, combined, price, deep) -> dict[str, Any]:
         metrics: dict[str, Any] = {
             "era_adjustment_applied": self.era_adjustment,
         }
@@ -552,4 +596,6 @@ class GrahamMethodology(Methodology):
             metrics[key] = r.value
         metrics["pe_pbv_product"] = combined.value
         metrics["current_price"] = price
+        for check in deep:
+            metrics[check.rule_id.replace("graham.", "")] = check.value
         return metrics

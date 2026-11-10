@@ -287,28 +287,50 @@ def test_combined_test_rejects_a_negative_pe_product():
 # ----------------------------------------------------------------------
 
 
-def test_verdict_buy_needs_six_passes_and_the_combined_test():
+def test_weighted_verdict_buy_fixture():
     result = _evaluate("graham_pass.json", price=100.0)
     assert result.verdict == Verdict.BUY
-    assert len(result.passed_rules) == 7  # criterion 2 now evaluable (split present)
+    assert result.score == pytest.approx(95.83, abs=0.01)
 
 
-def test_verdict_watch_at_five_passes():
-    result = _evaluate("graham_watch.json", price=500.0)
-    # With criteria 2/3 now evaluable, the watch fixture passes 4 of 7
-    assert result.verdict == Verdict.AVOID
-    assert len(result.passed_rules) == 4
+@pytest.mark.parametrize(
+    "passed,total,expected",
+    [
+        (9, 10, Verdict.BUY),
+        (75, 100, Verdict.WATCH),
+        (6, 10, Verdict.HOLD),
+        (3, 10, Verdict.AVOID),
+    ],
+)
+def test_weighted_verdict_thresholds(passed, total, expected):
+    outcomes = [("r", True, 1)] * passed + [("r", False, 1)] * (total - passed)
+    verdict, _score, _confidence = GrahamMethodology._weighted_verdict(outcomes)
+    assert verdict == expected
 
 
-def test_verdict_avoid_below_five_passes():
+def test_weighted_verdict_insufficient_when_missing_weight_exceeds_30pct():
+    outcomes = [("pass", True, 2), ("miss1", None, 2), ("miss2", None, 2)]
+    verdict, score, confidence = GrahamMethodology._weighted_verdict(outcomes)
+    assert verdict == Verdict.INSUFFICIENT_DATA
+    assert score is None
+    assert confidence == Confidence.LOW
+
+
+def test_informational_weight_zero_is_ignored():
+    outcomes = [("pass", True, 1), ("fail", False, 1), ("info", False, 0)]
+    verdict, score, _confidence = GrahamMethodology._weighted_verdict(outcomes)
+    assert verdict == Verdict.HOLD
+    assert score == pytest.approx(50.0)
+
+
+def test_weighted_verdict_avoid_fixture():
     result = _evaluate("graham_fail.json", price=10.0)
     assert result.verdict == Verdict.AVOID
-    assert len(result.passed_rules) == 1  # only the current-ratio test passes
 
 
-def test_verdict_insufficient_data_when_more_than_two_unknown():
+def test_weighted_verdict_insufficient_fixture():
     result = _evaluate("graham_incomplete.json", price=100.0)
-    assert result.verdict == Verdict.AVOID  # 0 of 7 evaluated -> AVOID
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
 
 
 # ----------------------------------------------------------------------
@@ -316,20 +338,20 @@ def test_verdict_insufficient_data_when_more_than_two_unknown():
 # ----------------------------------------------------------------------
 
 
-def test_score_is_passed_over_seven_times_hundred():
+def test_score_is_the_weighted_pass_ratio():
     result = _evaluate("graham_pass.json", price=100.0)
-    assert result.score == pytest.approx(100.0, abs=0.01)
+    assert result.score == pytest.approx(95.83, abs=0.01)
 
 
 def test_score_is_none_when_insufficient_data():
     result = _evaluate("graham_incomplete.json", price=100.0)
-    # With criteria 2/3 now evaluable, the incomplete fixture passes 4 of 7
-    assert result.score == pytest.approx(57.14, abs=0.01)
+    assert result.score is None
 
 
-def test_confidence_medium_with_one_unknown():
+def test_confidence_medium_with_unknown_deep_rules():
+    # The fixture has no EBIT line, so interest coverage and EPV are N/A.
     result = _evaluate("graham_pass.json", price=100.0)
-    assert result.confidence == Confidence.HIGH  # all criteria evaluated
+    assert result.confidence == Confidence.MEDIUM
 
 
 def test_confidence_low_when_verdict_is_insufficient():
@@ -391,8 +413,7 @@ def test_era_adjustment_raises_the_size_bar():
 
 def test_red_flags_are_listed_for_each_failed_criterion():
     result = _evaluate("graham_fail.json", price=10.0)
-    # With criterion 2 now evaluable, the fail fixture has 6 red flags
-    assert len(result.red_flags) == 6
+    assert len(result.red_flags) >= 6
     joined = " | ".join(result.red_flags)
     assert "Adequate Size" in joined
     assert "Dividend Record" in joined
@@ -407,7 +428,7 @@ def test_sources_carry_book_page_and_era():
         assert ref.book == "The Intelligent Investor"
         assert ref.year == 1973
         assert ref.era == "1973"
-        assert ref.page.startswith("Ch. 14")
+        assert ref.page.startswith(("Ch. 14", "Ch. 15"))
 
 
 def test_evaluation_is_deterministic():
@@ -418,10 +439,11 @@ def test_evaluation_is_deterministic():
     assert first == second
 
 
-def test_rules_expose_all_eight_criteria():
+def test_rules_expose_the_eight_original_plus_deep_checks():
     methodology = GrahamMethodology()
     ids = {rule.id for rule in methodology.rules()}
-    assert ids == {
+    assert len(ids) == 22
+    assert {
         "graham.criterion_1_size",
         "graham.criterion_2_current_ratio",
         "graham.criterion_3_debt_vs_working_capital",
@@ -430,12 +452,17 @@ def test_rules_expose_all_eight_criteria():
         "graham.criterion_6_pe",
         "graham.criterion_7_pbv",
         "graham.criterion_8_pe_pbv_product",
-    }
+        "graham.deep_graham_number",
+        "graham.deep_interest_coverage",
+        "graham.deep_ncav_margin",
+    } <= ids
 
 
 def test_metadata_reports_known_limitations():
     metadata = GrahamMethodology().metadata()
-    assert "criterion 2" in metadata["known_limitations"][0].lower()
+    limitations = " ".join(metadata["known_limitations"]).lower()
+    assert "total_debt" in limitations
+    assert "9%" in limitations
     assert metadata["era_adjustment"] is False
 
 
@@ -445,9 +472,9 @@ def test_no_price_means_no_network_and_no_db():
     prices = _Prices(None)
     result = methodology.evaluate("TEST", _rows("graham_pass.json"), prices)
     assert prices.calls == ["TEST"]  # exactly one price lookup, by the service
-    # With criteria 2/3 now evaluable from fundamentals alone, the verdict
-    # is WATCH (4 of 7 pass without a price) rather than INSUFFICIENT_DATA.
-    assert result.verdict == Verdict.WATCH
+    # The valuation and margin-of-safety checks need a price; with the deep
+    # rules that is more than 30% of the weight, so the verdict is INSUFFICIENT.
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
 
 
 def test_pe_and_pbv_are_evaluated_when_shares_exist():
