@@ -54,6 +54,15 @@ def neon_cyan(text: str) -> str:
     return _wrap(text, NEON_CYAN)
 
 
+def neon_pink(text: str) -> str:
+    return _wrap(text, NEON_PINK)
+
+
+def color(text: str, *codes: str) -> str:
+    """Wrap ``text`` in ANSI ``codes`` (identity when colour is disabled)."""
+    return _wrap(text, *codes)
+
+
 def gold(text: str) -> str:
     return _wrap(text, GOLD)
 
