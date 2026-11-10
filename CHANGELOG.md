@@ -1,3 +1,49 @@
+## [0.28.0] - 2026-11-11
+
+### Added
+- **Guided interactive menu**: every option in `vi` (no arguments) now asks
+  for its inputs with numbered selectors, numeric fields with visible
+  defaults and y/n questions, instead of asking for raw CLI flags. No flag
+  knowledge is required.
+  - **Backtest**: methodology list (greenblatt excluded because the PoC
+    cannot backtest it), years (`[5]`), limit (`[400]`) and equal-weight
+    (`y/N`).
+  - **Rank**: methodology list (or `[c] Combine`), top N (`[20]`) and
+    universe (demo / indices / all). Combine asks for 2+ methodologies and
+    the AND/OR/weighted strategy.
+  - **Screener**: optional methodology+verdict filter, universe and top N.
+  - **Analysis**: ticker validation for scorecard (optional JSON), balance
+    (years), methodologies, DCF, compare and full report (space-separated
+    tickers, optional live prices).
+  - **Data**: refresh (facts/prices/both), data status, load (years, force),
+    filings (limit) and financial alerts.
+  - Portfolio view/performance need no prompts.
+- **`[x] Advanced`** on the home screen: type a raw command
+  (`backtest --methodology graham --years 10`) for cases outside the guided
+  flows.
+- **Ticker validation**: `ask_ticker()` checks Financial-DataBase and
+  re-prompts on an unknown ticker; a database outage degrades gracefully
+  instead of blocking the menu.
+- **Clean cancellation**: `q` / `back` at any prompt (or `Ctrl+C` / EOF)
+  raises `PromptCancelled`; the menu returns to the previous screen without
+  executing anything.
+- **Synthwave prompts** (`cli/menu_prompts.py`): cyan bold titles, gold
+  numbers, dim visible defaults and pink validation errors, sharing the main
+  menu's `--no-color` / `NO_COLOR` handling.
+
+### Changed
+- The `Methodology and flags [...]` text prompt is gone. Direct commands
+  (`vi backtest --methodology graham --years 10`) are unchanged; the guided
+  menu is an alternative layer, not a replacement.
+- `vi interactive --help` and the command catalogue describe the guided
+  flows and the advanced mode.
+
+### Tests
+- 59 new tests: 28 for the prompt helpers (selectors, defaults, ranges,
+  validators, cancellation, colour on/off) and 31 end-to-end menu flows
+  (one per option plus cancellation, advanced mode and the no-flags
+  guarantee). Test count: **2759 → 2818**.
+
 ## [0.27.1] - 2026-11-10
 
 ### Fixed
