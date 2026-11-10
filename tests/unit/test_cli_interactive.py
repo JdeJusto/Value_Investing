@@ -196,3 +196,65 @@ def test_cli_help_still_prints_usage_without_the_menu(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "usage:" in out
     assert "Choice" not in out
+
+
+def test_menu_shows_categories(monkeypatch, capsys):
+    _stdin(monkeypatch, "q")
+
+    interactive._run(Namespace())
+
+    out = capsys.readouterr().out
+    for category in (
+        "ANALYSIS",
+        "RANKING & SCREENING",
+        "PORTFOLIO",
+        "DATA & REFRESH",
+        "BACKTESTING",
+        "HELP",
+    ):
+        assert category in out
+
+
+def test_menu_help_option_prints_the_catalog(monkeypatch, capsys):
+    _stdin(monkeypatch, "?", "q")
+
+    interactive._run(Namespace())
+
+    out = capsys.readouterr().out
+    assert "Common tasks:" in out
+    assert "Search: vi help --search" in out
+
+
+def test_menu_search_finds_rank(monkeypatch, capsys):
+    _stdin(monkeypatch, "s", "methodology", "q")
+
+    interactive._run(Namespace())
+
+    out = capsys.readouterr().out
+    assert "Top matches for 'methodology'" in out
+    assert "vi rank" in out
+
+
+def test_rank_entry_defaults_to_top_20():
+    entry = next(e for e in interactive._ENTRIES if e.label == "Top N by methodology")
+    args = entry.build(shlex.split(entry.default))
+
+    assert args.by == "graham"
+    assert args.top == 20
+    assert callable(args.func)
+
+
+def test_five_menu_routes_parse_and_dispatch():
+    wanted = {
+        "Scorecard (six dimensions)",
+        "Top N by methodology",
+        "Portfolio view",
+        "Refresh a ticker (facts + prices)",
+        "Backtest a methodology (PoC)",
+    }
+    entries = [entry for entry in interactive._ENTRIES if entry.label in wanted]
+    assert len(entries) == 5
+    for entry in entries:
+        extra = shlex.split(entry.default) if entry.prompt else []
+        args = entry.build(extra)
+        assert callable(args.func), entry.label
