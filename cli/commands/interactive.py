@@ -15,6 +15,7 @@ import argparse
 import re
 import shlex
 import shutil
+from collections.abc import Callable
 from typing import NamedTuple
 
 from backend.services import cli_output
@@ -38,6 +39,16 @@ from cli.commands import (
     screener,
 )
 from cli.help_utils import render_help_footer, render_search_results
+from cli.menu_prompts import (
+    PromptCancelled,
+    ask_choice,
+    ask_int,
+    ask_methodology,
+    ask_text,
+    ask_ticker,
+    ask_universe,
+    ask_yes_no,
+)
 
 _ANSI = {
     "cyan": "\033[38;5;51m",
@@ -52,6 +63,7 @@ _QUIT = "q"
 _HOME = "h"
 _HELP = "?"
 _SEARCH = "s"
+_ADVANCED = "x"
 
 
 class Action(NamedTuple):
@@ -63,6 +75,10 @@ class Action(NamedTuple):
     argv: tuple[str, ...] = ()
     prompt: str = ""
     default: str = ""
+    #: Guided flow returning the extra argv, or ``None`` when cancelled.
+    #: Every built-in action has one; ``prompt``/``default`` remain only as
+    #: a fallback for ad-hoc actions (tests, third-party callers).
+    guide: Callable[[], list[str] | None] | None = None
 
     def build(self, extra: list[str]):
         parser = argparse.ArgumentParser(prog="main.py")
@@ -79,6 +95,174 @@ class Category(NamedTuple):
     actions: tuple[Action, ...]
 
 
+# ---------------------------------------------------------------------------
+# guided flows (one per menu option)
+# ---------------------------------------------------------------------------
+def _guide_none() -> list[str]:
+    """Options that need no input (portfolio view/performance)."""
+    return []
+
+
+def _guide_scorecard() -> list[str]:
+    ticker = ask_ticker("Ticker")
+    as_json = ask_yes_no("Show JSON output?", default=False)
+    return [ticker, *(["--json"] if as_json else [])]
+
+
+def _guide_balance() -> list[str]:
+    ticker = ask_ticker("Ticker")
+    years = ask_int("How many fiscal years?", default=5, min_val=1, max_val=20)
+    return [ticker, "--years", str(years)]
+
+
+def _guide_methodologies() -> list[str]:
+    methods, _strategy = ask_methodology("Which methodology?")
+    return [methods[0]]
+
+
+def _guide_dcf() -> list[str]:
+    return [ask_ticker("Ticker")]
+
+
+def _guide_compare() -> list[str]:
+    return [ask_ticker("Ticker")]
+
+
+def _guide_full() -> list[str]:
+    tickers = ask_text("Ticker(s), space-separated", default="AAPL")
+    prices = ask_yes_no("Fetch live prices?", default=True)
+    return shlex.split(tickers) + ([] if prices else ["--no-prices"])
+
+
+def _rank_args(
+    methods: list[str], strategy: str | None, top: int, universe: str
+) -> list[str]:
+    if strategy:
+        return [
+            "--combine",
+            ",".join(methods),
+            "--strategy",
+            strategy,
+            "--top",
+            str(top),
+            "--universe",
+            universe,
+        ]
+    return ["--by", methods[0], "--top", str(top), "--universe", universe]
+
+
+def _guide_rank() -> list[str]:
+    methods, strategy = ask_methodology("Which methodology?", include_combine=True)
+    top = ask_int("How many top tickers?", default=20, min_val=1, max_val=500)
+    universe = ask_universe()
+    return _rank_args(methods, strategy, top, universe)
+
+
+def _guide_combine() -> list[str]:
+    methods, strategy = ask_methodology(
+        "Which methodologies?", include_combine=True, combine_only=True
+    )
+    top = ask_int("How many top tickers?", default=20, min_val=1, max_val=500)
+    universe = ask_universe()
+    return _rank_args(methods, strategy or "and", top, universe)
+
+
+def _guide_consensus() -> list[str]:
+    ticker = ask_ticker("Ticker")
+    universe = ask_universe()
+    return [ticker, "--universe", universe]
+
+
+def _guide_consensus_ranking() -> list[str]:
+    universe = ask_universe()
+    top = ask_int("How many rows?", default=20, min_val=1, max_val=500)
+    return ["--universe", universe, "--top", str(top)]
+
+
+def _guide_screener() -> list[str]:
+    filter_type = ask_choice(
+        "Filter by",
+        [("No filter", "none"), ("Methodology verdict", "methodology")],
+    )
+    args = ["--universe", ask_universe("demo")]
+    if filter_type == "methodology":
+        methods, _strategy = ask_methodology("Which methodology?")
+        verdict = ask_choice(
+            "Verdict",
+            [("BUY", "BUY"), ("WATCH", "WATCH"), ("HOLD", "HOLD"), ("AVOID", "AVOID")],
+        )
+        args += ["--methodology", f"{methods[0]}:{verdict}"]
+    top = ask_int("How many results?", default=20, min_val=1, max_val=100)
+    return [*args, "--top", str(top)]
+
+
+def _guide_refresh() -> list[str]:
+    ticker = ask_ticker("Ticker")
+    mode = ask_choice(
+        "Refresh",
+        [
+            ("Both facts and prices", "both"),
+            ("Facts only", "facts"),
+            ("Prices only", "prices"),
+        ],
+    )
+    if mode == "facts":
+        return [ticker, "--facts-only"]
+    if mode == "prices":
+        return [ticker, "--prices-only"]
+    return [ticker]
+
+
+def _guide_data_status() -> list[str]:
+    return [ask_ticker("Ticker")]
+
+
+def _guide_load_data() -> list[str]:
+    ticker = ask_ticker("Ticker")
+    years = ask_int("How many fiscal years?", default=10, min_val=1, max_val=30)
+    force = ask_yes_no("Overwrite existing data?", default=False)
+    return [ticker, "--years", str(years), *(["--force"] if force else [])]
+
+
+def _guide_filings() -> list[str]:
+    ticker = ask_ticker("Ticker")
+    limit = ask_int("How many filings?", default=40, min_val=1, max_val=200)
+    return [ticker, "--limit", str(limit)]
+
+
+def _guide_alerts() -> list[str]:
+    return [ask_ticker("Ticker")]
+
+
+def _backtest_methodologies() -> list[str]:
+    """Registered methodologies the backtest can evaluate (no greenblatt)."""
+    from backend.methodologies.registry import discover, registry
+
+    discover()
+    return [name for name in registry.list() if name != "greenblatt"]
+
+
+def _guide_backtest() -> list[str]:
+    methods, _strategy = ask_methodology(
+        "Which methodology?", names=_backtest_methodologies()
+    )
+    years = ask_int("How many years?", default=5, min_val=1, max_val=20)
+    limit = ask_int("How many tickers (limit)?", default=400, min_val=10, max_val=500)
+    equal_weight = ask_yes_no("Use equal-weight (legacy)?", default=False)
+    return [
+        "--methodology",
+        methods[0],
+        "--years",
+        str(years),
+        "--limit",
+        str(limit),
+        *(["--equal-weight"] if equal_weight else []),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# menu model
+# ---------------------------------------------------------------------------
 _ANALYSIS = Category(
     "analysis",
     "Analysis",
@@ -90,6 +274,7 @@ _ANALYSIS = Category(
             scorecard,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_scorecard,
         ),
         Action(
             "Balance",
@@ -97,6 +282,7 @@ _ANALYSIS = Category(
             financials,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_balance,
         ),
         Action(
             "Methodologies",
@@ -105,14 +291,23 @@ _ANALYSIS = Category(
             argv=("show",),
             prompt="Methodology",
             default="graham",
+            guide=_guide_methodologies,
         ),
-        Action("DCF", "Two-stage valuation", dcf, prompt="Ticker", default="AAPL"),
+        Action(
+            "DCF",
+            "Two-stage valuation",
+            dcf,
+            prompt="Ticker",
+            default="AAPL",
+            guide=_guide_dcf,
+        ),
         Action(
             "Compare",
             "All methods side-by-side",
             compare_methodologies,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_compare,
         ),
         Action(
             "Full analysis",
@@ -120,6 +315,7 @@ _ANALYSIS = Category(
             analyze_full,
             prompt="Ticker(s) and flags",
             default="AAPL --no-prices",
+            guide=_guide_full,
         ),
     ),
 )
@@ -135,6 +331,7 @@ _RANKING = Category(
             rank,
             prompt="Methodology and flags",
             default="--by graham --universe sp500 --top 20",
+            guide=_guide_rank,
         ),
         Action(
             "Combine methods",
@@ -142,6 +339,7 @@ _RANKING = Category(
             rank,
             prompt="Methods and flags",
             default="--combine graham,lynch_garp --strategy and --top 20",
+            guide=_guide_combine,
         ),
         Action(
             "Consensus",
@@ -149,6 +347,7 @@ _RANKING = Category(
             consensus,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_consensus,
         ),
         Action(
             "Consensus ranking",
@@ -156,6 +355,7 @@ _RANKING = Category(
             consensus_ranking,
             prompt="Flags",
             default="--universe sp500 --top 10",
+            guide=_guide_consensus_ranking,
         ),
         Action(
             "Screener",
@@ -163,6 +363,7 @@ _RANKING = Category(
             screener,
             prompt="Filters and flags",
             default="--tickers AAPL,MSFT,GOOGL --top 5 --no-refresh",
+            guide=_guide_screener,
         ),
     ),
 )
@@ -172,14 +373,27 @@ _DATA = Category(
     "Portfolio · Data · Backtesting",
     "Portfolio · refresh · filings",
     (
-        Action("Portfolio view", "Positions and scores", portfolio, argv=("view",)),
-        Action("Performance", "PnL and allocation", portfolio, argv=("performance",)),
+        Action(
+            "Portfolio view",
+            "Positions and scores",
+            portfolio,
+            argv=("view",),
+            guide=_guide_none,
+        ),
+        Action(
+            "Performance",
+            "PnL and allocation",
+            portfolio,
+            argv=("performance",),
+            guide=_guide_none,
+        ),
         Action(
             "Refresh",
             "Facts + prices for a ticker",
             refresh,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_refresh,
         ),
         Action(
             "Data status",
@@ -187,6 +401,7 @@ _DATA = Category(
             data_status,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_data_status,
         ),
         Action(
             "Load data",
@@ -194,14 +409,23 @@ _DATA = Category(
             load_data,
             prompt="Ticker and flags",
             default="AAPL",
+            guide=_guide_load_data,
         ),
-        Action("Filings", "SEC documents", filings, prompt="Ticker", default="AAPL"),
+        Action(
+            "Filings",
+            "SEC documents",
+            filings,
+            prompt="Ticker",
+            default="AAPL",
+            guide=_guide_filings,
+        ),
         Action(
             "Financial alerts",
             "Cash, margins, debt",
             financial_alerts,
             prompt="Ticker",
             default="AAPL",
+            guide=_guide_alerts,
         ),
         Action(
             "Backtest",
@@ -209,6 +433,7 @@ _DATA = Category(
             backtest,
             prompt="Methodology and flags",
             default="--methodology graham --years 5",
+            guide=_guide_backtest,
         ),
     ),
 )
@@ -218,6 +443,28 @@ _CATEGORIES: dict[str, Category] = {
     "ranking": _RANKING,
     "data": _DATA,
 }
+
+#: Command name -> module, used by the advanced raw-command mode.
+_MODULES: dict[str, object] = {
+    "analyze-full": analyze_full,
+    "backtest": backtest,
+    "compare-methodologies": compare_methodologies,
+    "consensus": consensus,
+    "consensus-ranking": consensus_ranking,
+    "data-status": data_status,
+    "dcf": dcf,
+    "filings": filings,
+    "financial-alerts": financial_alerts,
+    "financials": financials,
+    "load-data": load_data,
+    "methodologies": methodologies,
+    "portfolio": portfolio,
+    "rank": rank,
+    "refresh": refresh,
+    "scorecard": scorecard,
+    "screener": screener,
+}
+_COMMAND_OF = {id(module): name for name, module in _MODULES.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +574,14 @@ def render_home() -> str:
             )
         )
     lines.append("")
-    lines.append(_footer(("s", "Search"), ("?", "Help"), ("q", "Quit")))
+    lines.append(
+        _footer(
+            ("s", "Search"),
+            ("?", "Help"),
+            ("x", "Advanced"),
+            ("q", "Quit"),
+        )
+    )
     return "\n".join(lines)
 
 
@@ -364,17 +618,69 @@ def _render(screen: str) -> tuple[str, dict[str, str]]:
 # ---------------------------------------------------------------------------
 # interaction
 # ---------------------------------------------------------------------------
+def _execute(parsed) -> None:
+    """Run one parsed command (the seam the flow tests patch)."""
+    parsed.func(parsed)
+
+
+def _legacy_extra(action: Action) -> list[str] | None:
+    """Fallback text prompt for ad-hoc actions without a guided flow."""
+    if not action.prompt:
+        return []
+    try:
+        raw = input(f"  {action.prompt} [{action.default}]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        raise PromptCancelled() from None
+    return shlex.split(raw or action.default)
+
+
+def _display_command(action: Action, extra: list[str]) -> str:
+    command = _COMMAND_OF.get(id(action.module))
+    parts = ([command] if command else []) + list(action.argv) + list(extra)
+    return "vi " + " ".join(shlex.quote(part) for part in parts if part)
+
+
 def _run_action(action: Action) -> None:
-    extra: list[str] = []
-    if action.prompt:
-        raw = input(f"  {action.prompt} [{action.default}]: ").strip() or action.default
-        extra = shlex.split(raw)
+    try:
+        extra = action.guide() if action.guide is not None else _legacy_extra(action)
+    except PromptCancelled:
+        print(_c("  (back to the menu)", "dim"))
+        return
+    if extra is None:
+        return
+    print(_c(f"  Running: {_display_command(action, extra)}", "dim"))
     try:
         parsed = action.build(extra)
     except SystemExit:
         print(_c("  (back to the menu)", "dim"))
         return
-    parsed.func(parsed)
+    _execute(parsed)
+
+
+def _advanced() -> None:
+    """Raw-command mode for power users / cases outside the guided flows."""
+    try:
+        raw = ask_text(
+            "Enter full command (e.g. backtest --methodology graham --years 10)",
+            allow_empty=True,
+        )
+    except PromptCancelled:
+        return
+    if not raw.strip():
+        return
+    argv = shlex.split(raw)
+    module = _MODULES.get(argv[0])
+    if module is None:
+        print(_c(f"  Unknown command: {argv[0]}", "pink"))
+        return
+    print(_c(f"  Running: vi {raw}", "dim"))
+    try:
+        parsed = Action("", "", module).build(argv[1:])
+    except SystemExit:
+        print(_c("  (back to the menu)", "dim"))
+        return
+    _execute(parsed)
 
 
 def _run(_args=None) -> None:
@@ -399,11 +705,23 @@ def _run(_args=None) -> None:
             print(render_help_footer())
             continue
         if choice == _SEARCH:
-            query = input("  Search commands: ").strip()
-            print(render_search_results(query) or f"No commands match '{query}'.")
+            try:
+                query = ask_text("Search commands", allow_empty=True)
+            except PromptCancelled:
+                continue
+            if query:
+                print(render_search_results(query) or f"No commands match '{query}'.")
+            continue
+        if choice == _ADVANCED:
+            _advanced()
             continue
         if choice not in choices:
-            print(_c(f"  Choose {', '.join(sorted(choices))}, h, s, ?, q.", "dim"))
+            print(
+                _c(
+                    f"  Choose {', '.join(sorted(choices))}, h, s, x, ?, q.",
+                    "dim",
+                )
+            )
             continue
         if screen == "home":
             screen = choices[choice]
@@ -422,11 +740,13 @@ def run_menu() -> None:
 def register(subparsers):
     p = subparsers.add_parser(
         "interactive",
-        help="Menu mode: pick a command, type its arguments, run it",
+        help="Menu mode: guided prompts for every command",
         description=(
-            "Shows a synthwave categorized menu of the regular commands, asks "
-            "for their arguments and runs them in-process. h=home, s=search, "
-            "?=help, q=quit."
+            "Shows a synthwave categorized menu of the regular commands with "
+            "guided prompts (numbered selectors, numeric fields with defaults, "
+            "y/n), and runs them in-process. h=home, s=search, x=advanced "
+            "raw command, ?=help, q=quit. q/back/Ctrl+C cancels a prompt and "
+            "returns to the previous menu."
         ),
     )
     p.set_defaults(func=_run)

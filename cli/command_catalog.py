@@ -194,7 +194,7 @@ CATALOG: dict[str, CommandInfo] = {
     "interactive": CommandInfo(
         "interactive",
         "Analysis",
-        "Open the interactive command menu",
+        "Open the guided interactive command menu",
         "vi interactive",
         ("menu", "interactive", "help"),
     ),

@@ -372,9 +372,12 @@ Flags:
 
 #### `vi interactive`
 
-One-level menu over the regular commands. It parses the arguments with each
-command's own parser and dispatches in-process. Press `q` or `Ctrl+C` to
-leave. Running `vi` with no arguments opens the same menu.
+Guided menu over the regular commands. Every option asks for its inputs with
+numbered selectors, numeric fields (with visible defaults) and y/n questions;
+no CLI flags need to be memorised. `x` opens the advanced raw-command mode,
+`s` searches the help catalogue, `h` returns home and `q` quits. Typing `q`
+or `back` at any prompt (or `Ctrl+C`) cancels it and returns to the previous
+menu. Running `vi` with no arguments opens the same menu.
 
 ```bash
 ./vi interactive
