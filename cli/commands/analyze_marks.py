@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.app.cli import add_demo_argument, add_refresh_arguments
+from backend.methodologies.common.company_type import company_flags
 from cli.formatters import (
     confidence_color,
     dim,
@@ -60,6 +61,7 @@ def _run(args):
         if row is not None
     ]
     result = methodology.evaluate(ticker, rows, get_price_service())
+    result.flags = company_flags(rows[0] if rows else None)
 
     print_header(f"Marks (quantitative subset) — {ticker}")
     print_key_value("Verdict", verdict_color(result.verdict.value))

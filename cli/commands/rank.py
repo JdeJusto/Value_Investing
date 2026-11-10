@@ -115,6 +115,7 @@ def _single_dict(item: RankedTicker) -> dict:
         "score": item.score,
         "family": item.family,
         "n_a_reason": item.n_a_reason,
+        "flags": list(item.flags),
     }
 
 
@@ -228,9 +229,13 @@ def _render_single(results: list[RankedTicker], include_na: bool) -> None:
         headers.append(("N/A reason", 0))
     rows = []
     for index, item in enumerate(results, 1):
+        ticker = item.ticker
+        badges = theme.company_badges(item.flags)
+        if badges:
+            ticker = f"{ticker} {badges}"
         row = [
             str(index),
-            item.ticker,
+            ticker,
             item.tier or "—",
             theme.color_verdict(item.verdict),
             f"{item.score:.2f}" if item.score is not None else "—",

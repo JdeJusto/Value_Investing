@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from backend.api.auth import require_api_key
 from backend.api.deps import get_price_service, get_repository, load_company_rows
 from backend.api.responses import ApiError, ok
+from backend.methodologies.common.company_type import company_flags
 from backend.methodologies.registry import discover, registry
 from backend.services.consensus_service import summarize_verdicts
 
@@ -33,11 +34,14 @@ def company_methodologies(
     try:
         discover()
         results = []
+        flags = company_flags(rows[0] if rows else None)
         for name in registry.list():
             methodology = registry.get(name)
             if methodology is None:
                 continue
-            results.append(methodology.evaluate(normalized, rows, price_service))
+            result = methodology.evaluate(normalized, rows, price_service)
+            result.flags = set(flags)
+            results.append(result)
     except Exception as exc:  # a failure here is a 503, not a 500
         raise ApiError(
             503, "SERVICE_UNAVAILABLE", "Methodology evaluation failed"
@@ -70,4 +74,5 @@ def _methodology_payload(result: Any) -> dict[str, Any]:
         "red_flags": list(result.red_flags),
         "failed_rules": list(result.failed_rules),
         "passed_rules": list(result.passed_rules),
+        "flags": sorted(getattr(result, "flags", set()) or set()),
     }

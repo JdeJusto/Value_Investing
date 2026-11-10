@@ -55,7 +55,7 @@ def test_sector_banks_and_insurance_are_financial():
 def test_sector_real_estate_is_reit():
     row = _row(2024, sector="Real Estate")
     assert detect_company_type(row, sector_hint=row.sector) is CompanyType.REIT
-    assert is_reit(row, row.sector) is True
+    assert is_reit(row.sector, row.industry) is True
     assert is_financial(row, row.sector) is False
 
 
@@ -63,7 +63,7 @@ def test_sector_utilities_is_utility():
     row = _row(2024, sector="Utilities")
     assert detect_company_type(row, sector_hint=row.sector) is CompanyType.UTILITY
     assert is_utility(row, row.sector) is True
-    assert is_reit(row, row.sector) is False
+    assert is_reit(row.sector, row.industry) is False
 
 
 def test_sector_hint_beats_balance_sheet_for_reit():

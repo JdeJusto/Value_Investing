@@ -15,6 +15,7 @@ import sys
 from rich.text import Text
 
 from backend.services import cli_output
+from cli import theme
 from cli.formatters import print_header, red
 
 #: Per-rule glyph and color (PASS / WATCH / FAIL / INSUFFICIENT).
@@ -118,6 +119,9 @@ def _render(card):
     sector = card.sector or "Unknown sector"
     print_header(f"{card.ticker} · {card.company} · {sector} · overall {card.overall}")
     console = cli_output.get_console()
+    if card.overall_flags:
+        badges = theme.company_badges(card.overall_flags)
+        console.print(Text.from_ansi("  " + badges), soft_wrap=True)
 
     print(f"  {_peer_summary(card)}")
 

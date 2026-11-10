@@ -69,23 +69,19 @@ def test_other_periods_are_empty():
 def test_scorecard_computes_for_every_demo_ticker():
     """At least four of six dimensions are numeric (not ``None``/empty).
 
-    PLD is a REIT and is N/A by design since v0.21 (C4b): all six dimensions
-    carry the visible N/A reason instead of a score, so it is asserted
-    separately rather than exempted silently.
+    PLD is a REIT; since v0.27.0 it is scored with the standard rules and
+    carries the visible ``reit`` flag instead of six N/A dimensions.
     """
     repository = _repository()
     service = ScorecardService(repository=repository, price_service=DemoPriceService())
-    by_design_na = {"PLD"}
     for ticker in DEMO_TICKERS:
         card = service.build(ticker)
         assert card is not None, ticker
-        if ticker in by_design_na:
-            assert all(dim.verdict == "N/A" for dim in card.dimensions), ticker
-            assert all(dim.reason for dim in card.dimensions), ticker
-            continue
         numeric = [dim for dim in card.dimensions if dim.score is not None]
         assert len(numeric) >= 4, f"{ticker}: {len(numeric)}/6"
         assert any(dim.evaluable_rules for dim in card.dimensions)
+        if ticker == "PLD":
+            assert "reit" in card.overall_flags
 
 
 def test_demo_scorecard_is_deterministic():

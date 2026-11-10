@@ -32,12 +32,11 @@ from backend.analytics.ratios.per import PerCalculator
 from backend.analytics.ratios.roic import RoicCalculator
 from backend.analytics.service import effective_tax_rate
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
-from backend.methodologies.base import REIT_NA_REASON
 from backend.methodologies.common.company_type import (
     FinancialSubtype,
+    company_flags,
     detect_financial_subtype,
     is_financial,
-    is_reit,
 )
 from backend.methodologies.registry import discover, registry
 from backend.methodologies.tiers import apply_absolute_tiers
@@ -177,6 +176,10 @@ class Scorecard:
     methodologies: tuple[dict[str, Any], ...]
     data_quality: str
     notes: tuple[str, ...]
+    #: Visible company-type flags for the whole card: ``("reit",)``,
+    #: ``("bank",)`` or empty. Banks keep their N/A dimensions; REITs are
+    #: scored under the standard rules (v0.27.0).
+    overall_flags: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-friendly dict (tuples serialize as arrays)."""
@@ -1033,11 +1036,9 @@ def _dimension_na_reason(rows: list[NormalizedFinancials]) -> str | None:
     # "Insurance - Life", "Capital Markets"); the sector alone is just
     # "Financial Services" for banks, insurers and payment networks alike.
     hint = " ".join(part for part in (sector, industry) if part) or None
-    if is_reit(latest, hint):
-        return REIT_NA_REASON
-    # Banks, insurers and capital-markets firms abstain. Payment networks and
-    # asset managers keep the industrial scorecard: their balance sheet and
-    # unit economics are product-like (V/MA/BLK).
+    # v0.27.0 policy: REITs are scored with the standard industrial rules and
+    # carry a visible [REIT] badge; they are no longer excluded here. Banks,
+    # insurers and capital-markets firms still abstain.
     if not is_financial(latest, hint):
         return None
     subtype = detect_financial_subtype(latest, rows, hint)
@@ -1302,7 +1303,15 @@ class ScorecardService:
             dimensions = peered
         overall = _overall(dimensions)
         disagreements = _disagreements(dimensions)
-        notes = _notes(dimensions, insights)
+        notes = list(_notes(dimensions, insights))
+        flags = tuple(sorted(company_flags(rows[0] if rows else None)))
+        if "reit" in flags:
+            notes.append(
+                "REIT — scoring uses standard industrial rules; "
+                "FFO considerations may apply"
+            )
+        elif "bank" in flags:
+            notes.append("Bank — specialized analysis planned (see docs/backlog.md)")
 
         return Scorecard(
             ticker=symbol,
@@ -1324,11 +1333,13 @@ class ScorecardService:
                     "score": result.score,
                     "confidence": result.confidence.value,
                     "red_flags": len(result.red_flags),
+                    "flags": sorted(getattr(result, "flags", set()) or set()),
                 }
                 for result in methodology_results
             ),
             data_quality=_data_quality(rows),
-            notes=notes,
+            notes=tuple(notes),
+            overall_flags=flags,
         )
 
 
@@ -1503,11 +1514,14 @@ def _evaluate_methodologies(
     try:
         discover()
         results = []
+        flags = company_flags(rows[0] if rows else None)
         for name in registry.list():
             methodology = registry.get(name)
             if methodology is None:
                 continue
-            results.append(methodology.evaluate(ticker, rows, price_service))
+            result = methodology.evaluate(ticker, rows, price_service)
+            result.flags = set(flags)
+            results.append(result)
         apply_absolute_tiers(results)
         return results
     except Exception:  # noqa: BLE001 — methodology context is best-effort

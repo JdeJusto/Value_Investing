@@ -185,10 +185,12 @@ def build_company_consensus(
     """Pure aggregation: a methodologies view -> one JSON company row."""
     verdicts: dict[str, str] = {}
     category = "UNKNOWN"
+    flags: set[str] = set()
     for detail in view.details:
         methodology = str(detail.get("methodology") or "")
         if methodology in METHODOLOGY_KEYS:
             verdicts[methodology] = str(detail.get("verdict") or "INSUFFICIENT_DATA")
+        flags.update(detail.get("flags") or ())
         if methodology == "lynch_garp":
             # Prefer the canonical enum key (metrics["lynch_category"]); the
             # detail's ``category`` is the human label fallback.
@@ -210,6 +212,7 @@ def build_company_consensus(
         "lynch_category": category,
         "price": price,
         "prices_available": prices_available,
+        "flags": sorted(flags),
     }
 
 

@@ -267,9 +267,44 @@ def is_financial(row: Any = None, sector_hint: Any = None) -> bool:
     return detect_company_type(row, sector_hint=sector_hint) is CompanyType.FINANCIAL
 
 
-def is_reit(row: Any = None, sector_hint: Any = None) -> bool:
-    """True for real estate investment trusts."""
-    return detect_company_type(row, sector_hint=sector_hint) is CompanyType.REIT
+def is_reit(sector: Any = None, industry: Any = None) -> bool:
+    """True for real estate investment trusts (REITs).
+
+    The industry label is authoritative: it must contain "REIT" (or "real
+    estate investment trust"). Some providers omit the industry, so a
+    "Real Estate" sector without one still counts. Real-estate *services*
+    firms (CBRE, CSGP: brokerage, data, property management) are operating
+    companies, not REITs, and are deliberately excluded.
+
+    A REIT is not a financial company for the purpose of ``is_financial``:
+    ``detect_company_type`` checks the REIT keywords before the financial
+    balance-sheet fingerprint.
+    """
+    sector_text = str(sector).strip().lower() if sector else ""
+    industry_text = str(industry).strip().lower() if industry else ""
+    if industry_text:
+        if "reit" in industry_text or "real estate investment trust" in industry_text:
+            return True
+        return "real estate" in sector_text and "services" not in industry_text
+    return "reit" in sector_text or "real estate" in sector_text
+
+
+def company_flags(row: Any = None, sector_hint: Any = None) -> set[str]:
+    """Visible company-type flags for one latest fundamentals row.
+
+    Returns ``{"reit"}`` for a REIT and ``{"bank"}`` for a bank/insurer (the
+    canonical financial-company bucket). Both can coexist only if the data
+    is contradictory; in practice they are mutually exclusive.
+    """
+    if row is None:
+        return set()
+    sector = sector_hint or getattr(row, "sector", None)
+    flags: set[str] = set()
+    if is_reit(sector, getattr(row, "industry", None)):
+        flags.add("reit")
+    if is_financial(row, sector):
+        flags.add("bank")
+    return flags
 
 
 def is_utility(row: Any = None, sector_hint: Any = None) -> bool:

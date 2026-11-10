@@ -104,6 +104,9 @@ class CompanyConsensus:
     prices_available: bool = False
     #: Methodologies that abstained by design (financial company -> "N/A").
     na_count: int = 0
+    #: Visible company-type flags (``("reit",)``, ``("bank",)``) from v3
+    #: consensus files; empty for older files.
+    flags: tuple[str, ...] = ()
 
     @property
     def is_data_hole(self) -> bool:
@@ -247,6 +250,7 @@ class ConsensusService:
                         if row.get("na_count") is not None
                         else sum(1 for v in verdicts.values() if v == "N/A")
                     ),
+                    flags=tuple(str(flag) for flag in (row.get("flags") or ())),
                 )
             )
         snapshot = {

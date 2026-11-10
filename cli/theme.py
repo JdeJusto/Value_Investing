@@ -93,6 +93,18 @@ def color_big_number(text: str) -> str:
     return big_number(text)
 
 
+def company_badges(flags) -> str:
+    """``[REIT]`` / ``[BANK]`` chips for one company, colored per palette."""
+    labels: list[str] = []
+    for flag, color, label in (
+        ("reit", GOLD, "[REIT]"),
+        ("bank", NEON_PURPLE, "[BANK]"),
+    ):
+        if flag in (flags or ()):
+            labels.append(_wrap(label, color, BOLD))
+    return " ".join(labels)
+
+
 def color_verdict(verdict: str) -> str:
     """Color one verdict; identity for HOLD-free/unknown values."""
     value = getattr(verdict, "value", verdict)

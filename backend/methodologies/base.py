@@ -131,6 +131,10 @@ class MethodologyResult:
     #: came from a tiered context, else None. The rule verdict is the ceiling:
     #: a WATCH/HOLD/AVOID is never promoted, so its tier stays None.
     tier: str | None = None
+    #: Visible company-type flags (``{"reit"}``, ``{"bank"}``). Consumers add
+    #: them after evaluation from the latest fundamentals row; the verdict is
+    #: never N/A because of a REIT (v0.27.0 policy).
+    flags: set[str] = field(default_factory=set)
 
 
 class Methodology(ABC):

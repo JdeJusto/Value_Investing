@@ -969,6 +969,14 @@ def _scorecard_header(card: dict) -> None:
     via CSS, used nowhere else).
     """
     st.markdown(f"**{card['ticker']} · {card['company']}**")
+    card_flags = card.get("overall_flags") or []
+    if card_flags:
+        chips = " ".join(
+            f'<span class="vi-chip{" vi-chip-bank" if flag == "bank" else ""}">'
+            f"[{flag.upper()}]</span>"
+            for flag in card_flags
+        )
+        render_html(chips)
     price = card.get("price")
     left, spot = st.columns([3, 1])
     with left:

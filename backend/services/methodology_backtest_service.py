@@ -33,6 +33,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from backend.methodologies.base import Verdict, is_positive
+from backend.methodologies.common.company_type import company_flags
 from backend.methodologies.tiers import compute_tiers_from_pairs, compute_year_return
 
 #: Years of history a company needs before it can be evaluated at all.
@@ -78,6 +79,7 @@ class SignalRecord:
     forward: float
     tier: str | None = None
     failed_rules: tuple[str, ...] = ()
+    flags: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,6 +92,7 @@ class SignalRecord:
             "forward": self.forward,
             "failed": list(self.failed_rules),
             "n_failed": len(self.failed_rules),
+            "flags": list(self.flags),
         }
 
 
@@ -461,7 +464,7 @@ class MethodologyBacktestService:
                 if len(rows) < MIN_ROWS:
                     continue
                 forward = prices[year + 1] / prices[year] - 1.0
-                verdict, failed, score = self._evaluate(
+                verdict, failed, score, flags = self._evaluate(
                     method, ticker, rows, prices[year], history
                 )
                 raw_by_year.setdefault(year, []).append(
@@ -473,6 +476,7 @@ class MethodologyBacktestService:
                         score=score,
                         forward=forward,
                         failed_rules=failed,
+                        flags=flags,
                     )
                 )
                 ticker_signals += 1
@@ -665,18 +669,19 @@ class MethodologyBacktestService:
         rows: list[Any],
         price: float | None,
         history: dict[int, Any],
-    ) -> tuple[str, tuple[str, ...], float | None]:
+    ) -> tuple[str, tuple[str, ...], float | None, tuple[str, ...]]:
         latest = rows[-1] if rows else None
         shares = getattr(latest, "shares_outstanding", None) if latest else None
         factor = getattr(latest, "split_adjustment_factor", 1.0) if latest else 1.0
         market_cap = price * shares * factor if price is not None and shares else None
+        flags = tuple(sorted(company_flags(latest)))
         try:
             result = method.evaluate(
                 ticker, list(reversed(rows)), _HistoricalPrices(price, market_cap)
             )
         except Exception:  # noqa: BLE001 — a methodology failure is INSUFFICIENT
-            return Verdict.INSUFFICIENT_DATA.value, (), None
+            return Verdict.INSUFFICIENT_DATA.value, (), None, flags
         verdict = getattr(result.verdict, "value", str(result.verdict))
         failed = tuple(getattr(result, "failed_rules", ()) or ())
         score = getattr(result, "score", None)
-        return verdict, failed, score
+        return verdict, failed, score, flags

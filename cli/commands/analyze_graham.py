@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.app.cli import add_demo_argument, add_refresh_arguments
+from backend.methodologies.common.company_type import company_flags
 from backend.services import cli_output
 from cli.formatters import (
     confidence_color,
@@ -63,6 +64,7 @@ def _run(args):
     price = get_price_service().get_current_price(ticker)
 
     result = methodology.evaluate(ticker, rows, _Prices(price))
+    result.flags = company_flags(rows[0] if rows else None)
 
     print_header(f"Graham analysis — {ticker}")
     print_key_value("Verdict", verdict_color(result.verdict.value))

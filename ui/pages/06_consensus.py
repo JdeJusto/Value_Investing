@@ -90,6 +90,7 @@ def _rank_rows(companies: list[CompanyConsensus]) -> list[dict]:
         {
             "Rank": rank,
             "Ticker": company.ticker,
+            "Flags": " ".join(f"[{flag.upper()}]" for flag in company.flags),
             "Name": company.name,
             "Category": company.lynch_category,
             "BUYs": company.buy_count,
@@ -103,7 +104,12 @@ def _rank_rows(companies: list[CompanyConsensus]) -> list[dict]:
 
 def _verdict_rows(companies: list[CompanyConsensus]) -> list[dict]:
     return [
-        {"Ticker": company.ticker, "Name": company.name, **company.verdicts}
+        {
+            "Ticker": company.ticker,
+            "Flags": " ".join(f"[{flag.upper()}]" for flag in company.flags),
+            "Name": company.name,
+            **company.verdicts,
+        }
         for company in companies
     ]
 
@@ -185,7 +191,7 @@ def main() -> None:
         verdict_columns = [
             column
             for column in (matrix[0].keys() if matrix else ())
-            if column not in ("Ticker", "Name")
+            if column not in ("Ticker", "Flags", "Name")
         ]
         st.dataframe(
             _color_dataframe(

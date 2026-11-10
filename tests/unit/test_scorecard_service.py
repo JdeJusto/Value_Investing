@@ -894,12 +894,13 @@ def test_bank_scorecard_dimensions_are_na():
     assert _overall(dimensions) == NA
 
 
-def test_reit_scorecard_dimensions_are_na():
-    rows = [_row(sector="Real Estate")]
+def test_reit_scorecard_dimensions_are_scored_not_na():
+    """v0.27.0 policy: REITs keep the standard industrial dimensions."""
+    rows = [_row(sector="Real Estate", industry="REIT - Retail")]
     dimensions = _build_dimensions(metrics(), alerts(), rows, None, 1_000.0, None)
 
-    assert {dimension.verdict for dimension in dimensions} == {NA}
-    assert all("REIT" in dimension.summary for dimension in dimensions)
+    assert all(dimension.verdict != NA for dimension in dimensions)
+    assert all(dimension.reason is None for dimension in dimensions)
 
 
 def test_standard_company_keeps_scored_dimensions():

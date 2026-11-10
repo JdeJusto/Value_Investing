@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.methodologies.base import is_positive
+from backend.methodologies.common.company_type import company_flags
 from backend.methodologies.lynch_garp.methodology import (
     CATEGORY_SHORT,
     LynchCategory,
@@ -170,6 +171,7 @@ def build_methodologies_view(ticker: str, results: list[Any]) -> MethodologiesVi
                 "metrics": metrics,
                 "reasons": list(result.reasons),
                 "red_flags": list(result.red_flags),
+                "flags": sorted(getattr(result, "flags", set()) or set()),
             }
         )
         if result.methodology == "lynch_garp":
@@ -350,12 +352,15 @@ def evaluate_all_methodologies(
     """Raw results for every registered methodology (no tier assignment)."""
     discover()
     prices = _Prices(price, market_cap)
+    flags = company_flags(rows[0] if rows else None)
     results = []
     for name in registry.list():
         methodology = registry.get(name)
         if methodology is None:
             continue
-        results.append(methodology.evaluate(ticker, rows, prices))
+        result = methodology.evaluate(ticker, rows, prices)
+        result.flags = set(flags)
+        results.append(result)
     return results
 
 

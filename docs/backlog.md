@@ -400,3 +400,35 @@ Each session: 4-6 hours per methodology, one methodology per session.
   and mouse support.
 - `vi help --search` is substring/keyword based, not fuzzy; `difflib` is used
   only for unknown-command suggestions.
+
+## Specialized analyzers (v0.28+)
+
+### Bank analyzer
+
+- **Inputs**: NIM, CET1, loan-to-deposit, non-performing loans / total,
+  ROA/ROE bank-specific, provision coverage, efficiency ratio.
+- **Dimensions**: Capital adequacy, Asset quality, Profitability,
+  Liquidity, Efficiency, Growth.
+- **Prerequisite**: FDB needs bank-specific tags. Verify which exist.
+- **Priority**: medium (~10-15% of SP500). Banks keep the scorecard `N/A`
+  and the `[BANK]` badge until this lands.
+
+### REIT analyzer
+
+- **Inputs**: FFO, AFFO, FFO/share, payout ratio (div/AFFO), occupancy,
+  same-store NOI growth, debt/EBITDA.
+- **Dimensions**: FFO growth, FFO yield, Leverage, Occupancy, Payout
+  safety, Asset quality.
+- **Prerequisite**: FDB needs FFO-specific tags; some require supplementary
+  sources (not all in SEC XBRL).
+- **Priority**: medium (~5-8% of SP500). Since v0.27.0 REITs are scored with
+  the standard rules and carry `[REIT]`; that score can mislead (VICI reads
+  as a Graham WATCH on industrial rules).
+
+### Shared
+
+- New package `backend/methodologies/specialized/` with a `SectorAnalyzer`
+  base class.
+- Scorecard dispatch: `is_financial()` -> `BankAnalyzer`;
+  `is_reit()` -> `REITAnalyzer`; else standard.
+- Badges `[BANK]`/`[REIT]` (v0.27.0) are prerequisites.

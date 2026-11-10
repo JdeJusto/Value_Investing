@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.app.cli import add_demo_argument, add_refresh_arguments
+from backend.methodologies.common.company_type import company_flags
 from cli.formatters import (
     dim,
     green,
@@ -67,6 +68,7 @@ def _run(args):
 
     prices = get_price_service()
     result = methodology.evaluate(args.ticker, rows, prices)
+    result.flags = company_flags(rows[0] if rows else None)
 
     print_header(f"Fisher quantitative subset — {args.ticker}")
     print_key_value("Ticker", args.ticker.upper())

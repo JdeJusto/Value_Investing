@@ -8,6 +8,7 @@ heuristic.
 
 from backend.methodologies.common.company_type import (
     CompanyType,
+    company_flags,
     detect_company_type,
     is_financial,
     is_hyper_growth,
@@ -17,6 +18,7 @@ from backend.methodologies.common.company_type import (
 
 __all__ = [
     "CompanyType",
+    "company_flags",
     "detect_company_type",
     "is_financial",
     "is_hyper_growth",

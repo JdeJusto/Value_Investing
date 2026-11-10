@@ -42,6 +42,9 @@ class RankedTicker:
     family: str
     n_a_reason: str | None  # None if scored/evaluable, else why it's N/A
     tier: str | None = None
+    #: Visible company-type flags from the evaluated result (``("reit",)``,
+    #: ``("bank",)``). Kept on the row so the CLI can render the badge.
+    flags: tuple[str, ...] = ()
 
 
 @dataclass
@@ -204,6 +207,7 @@ def rank_by_methodology(
                 family=detail.get("family") or methodology_obj.family,
                 n_a_reason=na_reason,
                 tier=tier,
+                flags=tuple(detail.get("flags") or ()),
             )
         )
 

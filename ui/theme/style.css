@@ -190,6 +190,12 @@ body {
   font-size: 0.8rem;
 }
 
+/* Bank badge: purple, same chip shape (banks stay N/A in the scorecard). */
+.vi-chip-bank {
+  border-color: var(--vi-neon-purple, #b48cff);
+  color: var(--vi-neon-purple, #b48cff);
+}
+
 /* Links: neon cyan. */
 a {
   color: var(--vi-neon-cyan);

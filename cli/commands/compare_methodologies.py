@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.app.cli import add_demo_argument
+from backend.methodologies.common.company_type import company_flags
 from cli.formatters import bold, dim, print_header, print_section, verdict_color
 
 
@@ -54,7 +55,9 @@ def _run(args):
 
             print(yellow(f"WARNING: unknown methodology '{name}', skipped."))
             continue
-        results.append(methodology.evaluate(ticker, rows, _Prices(price)))
+        result = methodology.evaluate(ticker, rows, _Prices(price))
+        result.flags = company_flags(rows[0] if rows else None)
+        results.append(result)
 
     print_header(f"Methodology comparison — {ticker}")
     print(f"  {'methodology':<18} {'verdict':<18} {'score':<8} {'confidence':<10}")
