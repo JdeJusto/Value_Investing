@@ -1,3 +1,73 @@
+## [0.27.0] - 2026-11-10
+
+### Changed
+- **REIT policy (product change)**: REITs are now scored by all
+  methodologies and by the scorecard with the standard industrial rules,
+  instead of returning `N/A` on the six dimensions (v0.23.0 behaviour). The
+  user decides whether the score is meaningful; every surface shows a visible
+  `[REIT]` badge, and the scorecard adds "REIT — scoring uses standard
+  industrial rules; FFO considerations may apply". Banks and insurers keep
+  their structural `N/A`.
+- **`is_reit()` fix**: the classification is now industry-first ("REIT" in
+  the industry, or a Real Estate sector without an industry). Real-estate
+  services firms (CBRE, CSGP) are operating companies, not REITs, and keep a
+  normal scorecard.
+
+### Added
+- **`[BANK]` badge**: banks/insurers keep the `N/A` scorecard but now carry a
+  purple `[BANK]` badge plus a "specialized analysis planned" note. The badge
+  is visible in the scorecard, rank, backtest JSON and the UI.
+- **`MethodologyResult.flags`**: `{"reit"}`, `{"bank"}` (set centrally from
+  the latest fundamentals), exposed as `overall_flags` in the scorecard JSON
+  and `flags` in every methodology payload, rank row and backtest signal.
+- **Buffett deep expansion**: `buffett_classic` goes from the wrapped
+  4-pillar engine to **20 explicit rules** across moat, financial strength,
+  earnings quality, capital allocation, valuation and management. Weighted
+  scoring matches Graham v0.26.0: BUY ≥ 0.85, WATCH ≥ 0.70, HOLD ≥ 0.50,
+  else AVOID; >30% missing weight returns INSUFFICIENT_DATA. Critical rules
+  (×2): ROIC current + 10-year persistence, positive FCF (5y), net margin
+  ≥ 10%, no dilution (5y) and DCF margin of safety ≥ 20%. Insider ownership
+  and R&D intensity are informational (weight 0).
+- New Buffett rules: gross-margin stability, operating-margin trend, pricing
+  power, interest coverage ≥ 10×, current ratio ≥ 1.5, FCF conversion ≥ 80%,
+  5-year EPS consistency, owner earnings (NI + D&A − capex proxy), buybacks
+  in 3 of 5 years, earnings yield ≥ 5%, P/E ≤ 20 and DCF margin ≥ 20%.
+- **Specialized analyzers backlog**: bank (NIM, CET1, loan book) and REIT
+  (FFO/AFFO, occupancy) analyzers documented in `docs/backlog.md` for
+  v0.28+; the v0.27.0 badges are their prerequisites.
+
+### Measured
+- Buffett distribution on the S&P 500 (2026-11-10): **12 STRONG_BUY /
+  9 BUY / 73 WATCH / 150 HOLD / 148 AVOID / 71 N/A (banks) / 37
+  INSUFFICIENT_DATA** — 21 positives (4.2%). No forced BUYs; the three
+  valuation rules are what hold the market back.
+- REITs (28): 2 HOLD, 12 AVOID, 14 INSUFFICIENT_DATA, 0 positive. The
+  INSUFFICIENT share comes from the unclassified REIT balance sheet (the
+  FFO analyzer is the v0.28+ fix), not from an N/A guard.
+- AAPL WATCH 73.91 (moat/FCF/capital allocation pass; valuation fails at
+  ~52× earnings). KO HOLD 58.33 (1.27× debt/equity, 8.3× coverage, 40% FCF
+  conversion, ~36× earnings). Keeping KO at HOLD is the honest result of the
+  no-forced-verdict policy.
+- Backtest `buffett_classic --years 10 --limit 400` (2015–2024): portfolio
+  **CAGR 13.8% / Sharpe 1.09** vs the v0.24.0 baseline 14.1% / 1.22;
+  opportunity set 15.2%, SPY 14.7%.
+- Scorecard: VICI is scored (overall Mixed, `[REIT]`), JPM stays `N/A` with
+  `[BANK]`; CBRE/CSGP are no longer classified as REITs.
+
+### Documentation
+- `docs/buffett_rules.md` (new): 20-rule table, weights, sources, measured
+  distribution, backtest and deferred rules.
+- `docs/scoring_methodology.md`: company-type policy (REIT scored + badge,
+  banks N/A + badge).
+- `docs/backlog.md`: dedicated bank/REIT analyzers and the remaining six
+  methodology expansions.
+
+### Notes
+- The menu is unchanged.
+- Only `buffett_classic` was expanded in this release; the other six
+  methodologies keep their rules.
+- Test count: **2711 → 2751**.
+
 ## [0.26.0] - 2026-11-10
 
 ### Added
