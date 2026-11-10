@@ -1,3 +1,56 @@
+## [0.26.0] - 2026-11-10
+
+### Added
+- **Synthwave interactive menu**: `vi` without arguments now opens an 80s
+  trading-terminal menu with ANSI-256 neon colors (cyan, pink, gold), heavy
+  box drawing and a compact VALUE INVESTING header. The home screen shows
+  three categories (~22 lines) instead of the previous 19-route flat list:
+  Analysis, Ranking & screening, and Portfolio · Data · Backtesting.
+  Submenus of 5-8 options; `[1-9]` selects, `h` returns home, `s` searches,
+  `?` opens the grouped help, `q` quits. `--no-color`, `NO_COLOR` and a
+  non-TTY stdout fall back to ASCII borders with no ANSI. The ranking entry
+  defaults to `--by graham --universe sp500 --top 20`.
+- **Graham deep expansion**: from 8 criteria to **22 weighted rules** across
+  six categories (Financial Strength, Earnings Quality, Valuation, Growth,
+  Dividends, Margin of Safety). New checks: debt/equity, interest coverage,
+  positive working capital, positive 10-year earnings, EPS stability, 3-year
+  net-income growth, positive EPS, Graham Number, enterprising P/E ≤ 10
+  (informational), revenue CAGR vs 3% inflation, payout ratio, no dividend
+  suspension, price vs 2/3 EPV (9% fixed discount) and NCAV vs 1.5× price.
+  Sources and weights are documented in `docs/graham_rules.md`.
+- **Weighted Graham score**: `Σ passed weight / Σ evaluable weight` with
+  thresholds BUY ≥ 0.85, WATCH ≥ 0.70, HOLD ≥ 0.50, else AVOID; >30% of the
+  weighted rules missing data returns INSUFFICIENT_DATA. The base verdict
+  feeds the v0.24 demote-only tiers unchanged.
+
+### Changed
+- Graham distribution on the S&P 500 (2026-11-10): **0 BUY / 3 WATCH /
+  95 HOLD / 310 AVOID / 71 N/A / 21 INSUFFICIENT** (before: 0 / 2 / 54 /
+  419 / 71 / 8). The three WATCH names are VICI (84.2), LEN (80.0) and SMCI
+  (77.3); no company clears the 0.85 BUY line in the current market. That is
+  the honest result, not a forced positive.
+- Backtest (`graham --years 5 --limit 400`): one 2022 STRONG_BUY, portfolio
+  CAGR 4.2% vs opportunity set 21.2% and SPY 14.3% (mostly cash). The 2021-22
+  INSUFFICIENT counts are visible in the breakdown because the deep rules
+  need history/EBIT/current-split data that older years do not always carry.
+
+### Documentation
+- `docs/graham_rules.md` (new): all 22 rules, weights, sources, distribution
+  and deferred rules.
+- `docs/backlog.md`: one-methodology-per-session plan for the remaining seven
+  methodologies (buffett_classic, buffett_clark, lynch_garp, graham_dodd,
+  fisher, marks, greenblatt) and the Graham rules that require a data-pipeline
+  change (separate long-term debt tag, full 20-year history, dynamic-WACC EPV,
+  insider/management quality, true net-net NCAV).
+
+### Notes
+- Only Graham was expanded in this release; the other seven methodologies
+  keep their current rules.
+- `vi analyze-graham` now prints ~22 rules with their category/weight and the
+  weighted verdict; the JSON contract (`verdict`, `score`, `tier`) is
+  unchanged.
+- Test count: **2697 → 2711**.
+
 ## [0.25.0] - 2026-11-10
 
 ### Added
