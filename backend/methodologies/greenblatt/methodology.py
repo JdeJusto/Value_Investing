@@ -105,9 +105,7 @@ class GreenblattMethodology(Methodology):
 
         # REITs report FFO and present unclassified balance sheets, so net
         # working capital and net PPE are not comparable with industrials.
-        if is_reit(
-            getattr(latest, "sector", None), getattr(latest, "industry", None)
-        ):
+        if is_reit(getattr(latest, "sector", None), getattr(latest, "industry", None)):
             return self._insufficient(
                 ticker,
                 (

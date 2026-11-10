@@ -58,7 +58,7 @@ the book's formulation needs data the pipeline does not hold.
 | WATCH | 2 | 3 |
 | HOLD | 54 | 95 |
 | AVOID | 419 | 310 |
-| N/A (financial/REIT) | 71 | 71 |
+| N/A (banks/insurers) | 71 | 71 |
 | INSUFFICIENT_DATA | 8 | 21 |
 
 The three WATCH names are the closest to the BUY line: VICI (84.21), LEN

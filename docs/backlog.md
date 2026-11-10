@@ -365,12 +365,11 @@ SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
 
 ## Methodology deep expansion plan (v0.27+)
 
-Only **Graham** was expanded in v0.26.0 (8 → 22 rules, weighted score). The
-remaining seven methodologies keep their current rules and are scheduled one
-per session, highest value first:
+**Graham** was expanded in v0.26.0 (8 → 22 rules) and **buffett_classic** in
+v0.27.0 (7 → 20 rules). The remaining six methodologies keep their current
+rules and are scheduled one per session, highest value first:
 
-1. **buffett_classic** — owner earnings, ROIC persistence, gross-margin
-   stability, capital allocation. Target 15-20 rules.
+1. ~~**buffett_classic**~~ — done in v0.27.0 (20 weighted rules).
 2. **buffett_clark** — durable competitive advantage framework. 10-15 rules.
 3. **lynch_garp** — category-specific criteria (slow/stable/fast/cyclical/
    turnaround/asset play) and PEG < 1. 12-15 rules.
@@ -382,6 +381,16 @@ per session, highest value first:
 7. **greenblatt** — already works through the external ranking; low priority.
 
 Each session: 4-6 hours per methodology, one methodology per session.
+
+## Buffett rules deferred — requires data pipeline
+
+| Rule | Reason |
+|---|---|
+| Exact maintenance capex for owner earnings | FDB has total capex but no maintenance-capex line; the rule uses total capex as a documented proxy |
+| Insider ownership | not in FDB (informational, weight 0) |
+| Qualitative moat (brand, switching costs, regulation) | needs a supplementary source |
+| DCF with a policy-consistent discount rate | the rule reuses the not-from-canon two-stage DCF and is N/A when beta/inputs are missing |
+| REIT FFO/AFFO analysis | REITs are scored with industrial rules and flagged `[REIT]`; see "Specialized analyzers" |
 
 ## Graham rules deferred — requires data pipeline
 

@@ -168,3 +168,18 @@ spans ~10-90 and never compresses to a narrow range.
 - `backend/screener/screener_service.py` — `_screen` orchestration
 - `scripts/daily_workflow.py` — daily universe report
 - `docs/scoring_validation.md` — empirical validation on a 20-ticker universe
+## Company-type policy (v0.27.0)
+
+- **Banks and insurers** stay outside the industrial scorecard: all six
+  dimensions are `N/A`, the overall label is `N/A`, and the CLI/UI show a
+  `[BANK]` badge. The reason is structural (no current/non-current split,
+  leverage is the business model), not a data gap.
+- **REITs** are scored with the standard industrial rules and carry a
+  `[REIT]` badge. This is a deliberate v0.27.0 policy change from v0.23.0,
+  where they were `N/A`: the user decides whether an industrial score is
+  meaningful for a REIT. The scorecard adds the caption "REIT — scoring uses
+  standard industrial rules; FFO considerations may apply". A dedicated
+  FFO/AFFO analyzer is planned for v0.28+ (`docs/backlog.md`).
+- **Real-estate services firms** (CBRE, CSGP) are *not* REITs: `is_reit()`
+  requires "REIT" in the industry, or a Real Estate sector without an
+  industry. They keep a normal scorecard.

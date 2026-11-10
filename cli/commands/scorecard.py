@@ -15,7 +15,6 @@ import sys
 from rich.text import Text
 
 from backend.services import cli_output
-from cli import theme
 from cli.formatters import print_header, red
 
 #: Per-rule glyph and color (PASS / WATCH / FAIL / INSUFFICIENT).
@@ -115,13 +114,27 @@ def _run(args):
     _render(card)
 
 
+def _badge_title(card) -> Text:
+    """Panel title with the company-type badges before the ticker."""
+    title = Text()
+    styles = {
+        "reit": ("gold", "bold"),
+        "bank": ("medium_purple", "bold"),
+    }
+    for flag in card.overall_flags:
+        style, weight = styles.get(flag, (cli_output.HEADER, ""))
+        title.append(f"[{flag.upper()}] ", style=f"{weight} {style}".strip())
+    title.append(
+        f"{card.ticker} · {card.company} · "
+        f"{card.sector or 'Unknown sector'} · overall {card.overall}",
+        style=cli_output.HEADER,
+    )
+    return title
+
+
 def _render(card):
-    sector = card.sector or "Unknown sector"
-    print_header(f"{card.ticker} · {card.company} · {sector} · overall {card.overall}")
+    print_header(_badge_title(card))
     console = cli_output.get_console()
-    if card.overall_flags:
-        badges = theme.company_badges(card.overall_flags)
-        console.print(Text.from_ansi("  " + badges), soft_wrap=True)
 
     print(f"  {_peer_summary(card)}")
 

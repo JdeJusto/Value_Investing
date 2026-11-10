@@ -205,8 +205,11 @@ Flags: `--refresh` / `--no-refresh`, `--freshness-hours N`, `--demo`.
 
 #### `vi analyze-buffett-classic <ticker>`
 
-The existing deterministic Buffett filter (profitability, financial strength,
-cash generation, stability) mapped to the methodology framework.
+Buffett/Munger quality compounder: 20 explicit weighted rules across moat,
+financial strength, earnings quality, capital allocation, valuation and
+management (see `docs/buffett_rules.md`). Verdict thresholds match Graham:
+BUY ≥ 0.85, WATCH ≥ 0.70, HOLD ≥ 0.50, else AVOID. Banks return `N/A`; REITs
+are scored and carry a `[REIT]` badge.
 
 Flags: `--refresh` / `--no-refresh`, `--freshness-hours N`, `--demo`.
 

@@ -160,16 +160,17 @@ class _EmptyBody:
         return iter(())
 
 
-def print_banner(title: str, body=None, *, console: Console | None = None) -> None:
+def print_banner(title, body=None, *, console: Console | None = None) -> None:
     """Print the command banner: a bordered panel titled with ``title``.
 
-    ``body`` is optional supporting text (facts, subtitles); without it the
-    panel is a two-line banner.
+    ``title`` may be a plain string or a pre-styled :class:`Text` (used for
+    company badges such as ``[REIT]``). ``body`` is optional supporting text
+    (facts, subtitles); without it the panel is a two-line banner.
     """
     console = console or get_console()
     panel = Panel(
         body if body is not None else _EmptyBody(),
-        title=Text(title, style=HEADER),
+        title=title if isinstance(title, Text) else Text(title, style=HEADER),
         border_style=PRIMARY,
         padding=(0, 1),
     )

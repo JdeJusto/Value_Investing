@@ -1,4 +1,4 @@
-"""`analyze-buffett-classic` — run the wrapped Buffett 4-pillar filter on one company."""
+"""`analyze-buffett-classic` — run the 20-rule Buffett/Munger screen."""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-buffett-classic",
-        help="Run the Buffett/Munger 4-pillar qualitative filter (wrapped engine)",
+        help="Run the 20-rule Buffett/Munger quality compounder",
         description=(
-            "Evaluates the existing deterministic Buffett filter "
-            "(profitability, financial strength, cash generation, stability) "
-            "as a methodology. The engine in backend/intelligence is not "
-            "modified; this command only maps its output to the framework."
+            "Evaluates 20 explicit rules across moat, financial strength, "
+            "earnings quality, capital allocation, valuation and management, "
+            "aggregated with a weighted score (BUY >= 0.85, WATCH >= 0.70, "
+            "HOLD >= 0.50). See docs/buffett_rules.md."
         ),
     )
     p.add_argument("ticker", help="Ticker to evaluate (e.g. AAPL)")
@@ -60,7 +60,7 @@ def _run(args):
     print_key_value("Score", f"{result.score:.2f}" if result.score is not None else "—")
     print_key_value("Confidence", result.confidence.value)
 
-    print_section("Pillars")
+    print_section("Metrics")
     for key, value in result.metrics.items():
         if value is None:
             continue

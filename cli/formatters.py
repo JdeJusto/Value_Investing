@@ -111,11 +111,13 @@ def print_separator(char: str = "=", width: int = 72):
     print(char * width)
 
 
-def print_header(text: str, char: str = "=", width: int = 72):
+def print_header(text, char: str = "=", width: int = 72):
     """Command banner, rendered as a bordered Rich panel.
 
-    ``char`` and ``width`` only describe the old ``===`` rule; the panel sizes
-    itself from the console, so they are accepted for signature compatibility.
+    ``text`` may be a plain string or a pre-styled :class:`rich.text.Text`
+    (company badges). ``char`` and ``width`` only describe the old ``===``
+    rule; the panel sizes itself from the console, so they are accepted for
+    signature compatibility.
     """
     cli_output.print_banner(text)
 

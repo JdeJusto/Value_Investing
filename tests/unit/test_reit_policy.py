@@ -64,6 +64,37 @@ def test_company_flags_reit_vs_bank():
     assert company_flags(None) == set()
 
 
+def test_bank_and_reit_flags_never_collide_in_a_sample():
+    known_reits = (
+        "VICI",
+        "O",
+        "AMT",
+        "PLD",
+        "SPG",
+        "EQIX",
+        "PSA",
+        "WELL",
+        "DLR",
+        "CCI",
+    )
+    known_banks = ("JPM", "BAC", "WFC", "C", "GS", "MS", "USB", "PNC")
+    reit_rows = [
+        _row(sector="Real Estate", industry="REIT - Retail") for _ in known_reits
+    ]
+    bank_rows = [
+        _row(sector="Financial Services", industry="Banks - Diversified")
+        for _ in known_banks
+    ]
+
+    for row in reit_rows:
+        assert company_flags(row) == {"reit"}
+    for row in bank_rows:
+        assert company_flags(row) == {"bank"}
+    assert all(
+        not ({"reit", "bank"} <= company_flags(row)) for row in reit_rows + bank_rows
+    )
+
+
 # ---------------------------------------------------------------------------
 # scorecard
 # ---------------------------------------------------------------------------
@@ -226,6 +257,30 @@ def test_cli_bank_badge_is_purple_and_visible():
     cli_output.reset_no_color()
     text = theme.company_badges(("bank",))
     assert "[BANK]" in text
+
+
+def test_cli_scorecard_shows_bank_badge(capsys):
+    cli_output.reset_no_color()
+    card = Scorecard(
+        ticker="JPM",
+        company="JPMorgan Chase",
+        sector="Financial Services",
+        industry="Banks - Diversified",
+        period="FY",
+        price=200.0,
+        market_cap=600_000.0,
+        generated="",
+        dimensions=(),
+        overall=NA,
+        disagreements=(),
+        methodologies=(),
+        data_quality="HIGH",
+        notes=(),
+        overall_flags=("bank",),
+    )
+    _render(card)
+
+    assert "[BANK]" in capsys.readouterr().out
 
 
 def test_rank_shows_reit_flag_in_json_and_row():

@@ -47,7 +47,7 @@ All commands from `main.py` (40 subcommands):
 | `methodologies` | Multi-methodology engine commands (wrapper) |
 | `analyze-graham` | Run the Graham defensive-investor screen on one company |
 | `analyze-buffett-clark` | Run the Buffett/Clark DCA screen on one company |
-| `analyze-buffett-classic` | Run the Buffett/Munger 4-pillar qualitative filter |
+| `analyze-buffett-classic` | Run the Buffett/Munger 20-rule quality compounder |
 | `analyze-fisher-quant` | Run Fisher's 4 quantifiable points (R&D, margins, costs, dilution) |
 | `analyze-graham-dodd` | Run the Graham & Dodd deep-value screen on one company |
 | `analyze-lynch-garp` | Run the Lynch GARP (growth at a reasonable price) screen |
@@ -118,7 +118,7 @@ Each methodology implements `Methodology` ABC with `evaluate(ticker, fundamental
 | `graham` | DEEP_VALUE | 7 criteria + combined P/E×P/BV test |
 | `graham_dodd` | DEEP_VALUE | NWC, fixed charge coverage, earnings stability |
 | `buffett_clark` | QUALITY_COMPOUNDER | Gross margin, interest burden, debt/equity, capex/FCF |
-| `buffett_classic` | QUALITY_COMPOUNDER | 4 pillars: profitability, financial strength, cash gen, stability |
+| `buffett_classic` | QUALITY_COMPOUNDER | 20 weighted rules: moat, financial strength, earnings quality, capital allocation, valuation, management |
 | `fisher_quantitative_subset` | QUALITY_COMPOUNDER | R&D intensity, margin quality, cost control, dilution |
 | `greenblatt` | GARP | Magic Formula rank (ROC + EY) |
 | `lynch_garp` | GARP | PEG, growth consistency, debt, inventory, dividend-adjusted PEG |

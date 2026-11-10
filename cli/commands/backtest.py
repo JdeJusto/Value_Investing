@@ -7,6 +7,7 @@ from pathlib import Path
 from backend.app.cli import build_financial_repository, build_universe
 from backend.backtesting import get_strategy, run_backtest, sort_snapshots
 from backend.intelligence.scoring_model import assess_investment
+from backend.methodologies.base import is_positive
 from cli.formatters import (
     bold,
     dim,
@@ -322,6 +323,13 @@ def _render_methodology(result) -> None:
 
     _render_year_verdicts(result)
     _render_performance(result)
+    reit_signals = sum(
+        1
+        for record in result.records
+        if "reit" in record.flags and is_positive(record.verdict)
+    )
+    if reit_signals:
+        print(dim(f"  [REIT] signals included: {reit_signals}"))
     if not result.buy_signals:
         _render_no_buy(result)
 
