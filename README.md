@@ -65,7 +65,7 @@ current/non-current liabilities, shareholders' equity) with per-section
 subtotals. `vi refresh` syncs SEC facts and fetches the current Yahoo price
 on demand; prices are not persisted to FDB.
 
-See the [full CLI reference](docs/cli_reference.md) for all 43 commands, flags, and examples.
+See the [full CLI reference](docs/cli_reference.md) for all 43 commands, flags, and examples. Don't remember one? `vi help --search <query>`.
 
 ## Streamlit
 

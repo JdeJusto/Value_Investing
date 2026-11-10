@@ -65,7 +65,7 @@ pasivo corriente/no corriente, patrimonio neto) con subtotales por sección.
 `vi refresh` sincroniza los facts de SEC y obtiene el precio actual de Yahoo
 on-demand; los precios no se persisten en FDB.
 
-Ver la [referencia completa del CLI](docs/cli_reference.md) para los 43 comandos, flags y ejemplos.
+Ver la [referencia completa del CLI](docs/cli_reference.md) para los 43 comandos, flags y ejemplos. ¿No recuerdas uno? `vi help --search <query>`.
 
 ## Streamlit
 

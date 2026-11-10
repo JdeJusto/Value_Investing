@@ -15,6 +15,37 @@ here from its real `--help`; the README keeps a short quick-start list.
 Installation and database setup: see [README](../README.md#install).
 Prices are fetched on demand from Yahoo and are never persisted to FDB.
 
+## Common tasks — "What do you want to do?"
+
+| I want to... | Command |
+|---|---|
+| See the top 20 by methodology | `vi rank --by graham --top 20` |
+| Combine Graham + Lynch (AND) | `vi rank --combine graham,lynch_garp --strategy and --universe sp500 --top 20` |
+| Analyze one company | `vi scorecard AAPL` |
+| See the balance sheet (T-view) | `vi financials AAPL` |
+| Compare the eight methodologies | `vi compare-methodologies AAPL` |
+| Inspect one methodology's rules | `vi methodologies show graham` |
+| Value a company with a DCF | `vi dcf AAPL` |
+| Refresh facts + price for one ticker | `vi refresh AAPL` |
+| Backtest a methodology | `vi backtest --methodology graham --years 5` |
+| See the consensus (all methodologies) | `vi consensus AAPL --universe all` |
+| Rank the consensus file | `vi consensus-ranking --universe sp500 --top 10` |
+| Filter the screener by verdict | `vi screener --methodology graham:BUY --top 20` |
+| See my portfolio | `vi portfolio view` |
+| Check data freshness | `vi data-status AAPL` |
+| List SEC filings | `vi filings AAPL --form 10-K` |
+
+If you do not remember a command:
+
+```bash
+vi help --search methodology     # top matches with examples
+vi help rank                     # same as vi rank --help
+vi                               # interactive menu with categories
+```
+
+The Evolution (10-year charts) and Peers (peer radar) views live in the
+Streamlit **Analysis** page, not in the CLI.
+
 ## Contents
 
 - [Analysis](#analysis) — scorecard, financials, dcf, methodologies,
