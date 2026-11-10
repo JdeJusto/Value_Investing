@@ -6,6 +6,7 @@ ordering stay in the service.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -46,8 +47,9 @@ def register(subparsers) -> None:
             "AND/OR/weighted combination (--combine). Defaults to the demo "
             "universe for a quick smoke test."
         ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--by", metavar="METHOD", help="Single methodology")
     group.add_argument(
         "--combine",
@@ -82,6 +84,13 @@ def register(subparsers) -> None:
         help="Print the ranked payload as JSON",
     )
     parser.set_defaults(func=_run)
+    parser.epilog = (
+        "Examples:\n"
+        "  vi rank --by graham --top 20\n"
+        "  vi rank --by buffett_classic --top 20 --positive-only\n"
+        "  vi rank --combine graham,lynch --strategy and --universe sp500\n"
+        "  vi rank --by graham --universe demo --top 5 --json"
+    )
 
 
 def _resolve_universe(name: str) -> list[str]:
@@ -122,6 +131,10 @@ def _combined_dict(item: CombinedRankedTicker) -> dict:
 
 
 def _run(args) -> None:
+    if not args.by and not args.combine:
+        print(f"  {red('ERROR:')} choose --by METHOD or --combine A,B.")
+        print(f"  {theme.dim('Example:')} vi rank --by graham --top 20")
+        raise SystemExit(2)
     try:
         universe = _resolve_universe(args.universe)
     except ValueError as exc:

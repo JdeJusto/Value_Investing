@@ -3,6 +3,8 @@ import logging
 import sys
 
 from backend.services import cli_output
+from cli.command_catalog import CATALOG, format_catalog, format_common_tasks
+from cli.help_utils import render_search_results, suggest_command
 
 logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 
@@ -46,32 +48,10 @@ def main():
         description="Value Investing Platform — fundamental analysis from the terminal",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Examples:\n"
-            "  main.py screener --per-max 15 --roe-min 12 --top 10\n"
-            '  main.py screener --search "apple"\n'
-            "  main.py company AAPL\n"
-            "  main.py consensus AAPL\n"
-            "  main.py consensus-ranking --universe sp500 --top 10\n"
-            "  main.py consensus-by-category --universe sp500\n"
-            "  main.py analyze AAPL MSFT GOOGL\n"
-            "  main.py buffett-analysis AAPL\n"
-            "  main.py load-data AAPL\n"
-            "  main.py load-data AAPL --years 15 --force\n"
-            "  main.py data-status AAPL\n"
-            "  main.py screener --tickers AAPL,MSFT --pb-min 1 --pb-max 5\n"
-            "  main.py screener --filter moat=STRONG min_score=80\n"
-            "  main.py opportunities\n"
-            "  main.py anomalies AAPL\n"
-            "  main.py momentum\n"
-            '  main.py portfolio add AAPL 10 180 --thesis "strong moat"\n'
-            "  main.py portfolio view\n"
-            "  main.py portfolio performance\n"
-            "  main.py backtest --strategy momentum --top 3\n"
-            "  main.py backtest --strategy buffett --prices prices.csv\n"
-            "  main.py alerts\n"
-            '  main.py watchlist add AAPL --note "pending entry"\n'
-            "  main.py watchlist list\n"
-            "  main.py debug\n"
+            format_common_tasks()
+            + "\n\n"
+            + format_catalog()
+            + "\n\nSearch: vi help --search <query>"
         ),
     )
     sub = parser.add_subparsers(dest="command", title="Commands")
@@ -153,6 +133,41 @@ def main():
         # help text. ``vi --help`` still prints the full usage.
         interactive.run_menu()
         return
+
+    if len(sys.argv) > 1:
+        command = sys.argv[1]
+        if command == "help":
+            if len(sys.argv) == 2:
+                parser.print_help()
+                return
+            if sys.argv[2] == "--search":
+                query = " ".join(sys.argv[3:]).strip()
+                results = render_search_results(query)
+                if results:
+                    print(results)
+                else:
+                    print(f"No commands match '{query}'. Try 'vi --help'.")
+                return
+            target = sys.argv[2]
+            if target not in CATALOG:
+                suggestion = suggest_command(target)
+                message = f"Unknown command '{target}'."
+                if suggestion:
+                    message += f" Did you mean 'vi {suggestion}'?"
+                else:
+                    message += " Run 'vi --help' for the full list."
+                print(message, file=sys.stderr)
+                raise SystemExit(2)
+            sys.argv = [sys.argv[0], target, "--help"]
+        elif not command.startswith("-") and command not in CATALOG:
+            suggestion = suggest_command(command)
+            message = f"Unknown command '{command}'."
+            if suggestion:
+                message += f" Did you mean 'vi {suggestion}'?"
+            else:
+                message += " Run 'vi --help' for the full list."
+            print(message, file=sys.stderr)
+            raise SystemExit(2)
 
     args = parser.parse_args()
     cli_output.set_no_color(getattr(args, "no_color", False))
