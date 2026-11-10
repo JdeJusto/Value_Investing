@@ -208,7 +208,8 @@ def _render_year_verdicts(result) -> None:
     )
     print(
         dim(
-            "  N/A: banks/REITs (not applicable). INSUFF: missing fundamentals "
+            "  N/A: banks/insurers (not applicable). REITs are scored and "
+            "flagged [REIT]. INSUFF: missing fundamentals "
             "for that year."
         )
     )

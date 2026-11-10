@@ -8,6 +8,7 @@ from cli.formatters import (
     confidence_color,
     dim,
     green,
+    header_with_flags,
     print_header,
     print_key_value,
     print_section,
@@ -74,7 +75,7 @@ def _run(args):
     result = methodology.evaluate(ticker, rows, _Prices(price, market_cap))
     result.flags = company_flags(rows[0] if rows else None)
 
-    print_header(f"Lynch GARP analysis — {ticker}")
+    print_header(header_with_flags(f"Lynch GARP analysis — {ticker}", result.flags))
     print_key_value("Verdict", verdict_color(result.verdict.value))
     score = "—" if result.score is None else f"{result.score:.2f}"
     print_key_value("Score", score)

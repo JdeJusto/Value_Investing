@@ -7,6 +7,7 @@ from backend.methodologies.common.company_type import company_flags
 from cli.formatters import (
     dim,
     green,
+    header_with_flags,
     print_header,
     print_key_value,
     print_section,
@@ -70,7 +71,9 @@ def _run(args):
     result = methodology.evaluate(args.ticker, rows, prices)
     result.flags = company_flags(rows[0] if rows else None)
 
-    print_header(f"Fisher quantitative subset — {args.ticker}")
+    print_header(
+        header_with_flags(f"Fisher quantitative subset — {args.ticker}", result.flags)
+    )
     print_key_value("Ticker", args.ticker.upper())
     print_key_value("Methodology", result.methodology)
     print_key_value("Verdict", verdict_color(result.verdict.value))

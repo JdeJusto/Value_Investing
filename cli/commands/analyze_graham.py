@@ -8,6 +8,7 @@ from backend.services import cli_output
 from cli.formatters import (
     confidence_color,
     dim,
+    header_with_flags,
     print_header,
     print_key_value,
     print_section,
@@ -66,7 +67,7 @@ def _run(args):
     result = methodology.evaluate(ticker, rows, _Prices(price))
     result.flags = company_flags(rows[0] if rows else None)
 
-    print_header(f"Graham analysis — {ticker}")
+    print_header(header_with_flags(f"Graham analysis — {ticker}", result.flags))
     print_key_value("Verdict", verdict_color(result.verdict.value))
     score = "—" if result.score is None else f"{result.score:.2f}"
     print_key_value("Score", score)

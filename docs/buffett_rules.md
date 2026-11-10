@@ -89,6 +89,25 @@ batch price adapter does not expose `get_beta`; the rule is excluded from the
 denominator and the confidence drops to MEDIUM. Single-company
 `vi analyze-buffett-classic` runs the full DCF.
 
+### Backtest (10 years, 400-ticker sample)
+
+`vi backtest --methodology buffett_classic --years 10 --limit 400`
+(2015–2024, 392 evaluated, 3,338 evaluable signal-years):
+
+| Metric | v0.27.0 | v0.24.0 baseline |
+|---|---:|---:|
+| Portfolio CAGR | 13.8% | 14.1% |
+| Portfolio Sharpe | 1.09 | 1.22 |
+| Opportunity set CAGR | 15.2% | — |
+| SPY CAGR | 14.7% | — |
+| Alpha vs opportunity set | -1.4% | — |
+
+Positive signals per complete year stay in the 15–19 range (9 STRONG + 4–11
+BUY), with no WEAK tier because the demote-only split assigns the top base
+BUYs to STRONG/BUY. The strategy is slightly behind the equal-weighted
+opportunity set and SPY over the decade, consistent with a quality screen
+that sits in cash when no name clears 0.85.
+
 ## Known limitations and deferred rules
 
 Implemented with the columns in `NormalizedFinancials` / `core_financials`.

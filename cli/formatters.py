@@ -1,5 +1,7 @@
 import math
 
+from rich.text import Text
+
 from backend.services import cli_output
 from backend.services.historical_valuation_service import format_pe_for_display
 
@@ -120,6 +122,17 @@ def print_header(text, char: str = "=", width: int = 72):
     signature compatibility.
     """
     cli_output.print_banner(text)
+
+
+def header_with_flags(text: str, flags) -> Text:
+    """Panel title with ``[REIT]`` / ``[BANK]`` chips before the text."""
+    title = Text()
+    styles = {"reit": "bold gold", "bank": "bold medium_purple"}
+    for flag in flags or ():
+        label = str(flag).upper()
+        title.append(f"[{label}] ", style=styles.get(str(flag), "bold"))
+    title.append(text, style=cli_output.HEADER)
+    return title
 
 
 def print_section(title: str):

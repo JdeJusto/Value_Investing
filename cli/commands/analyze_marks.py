@@ -7,6 +7,7 @@ from backend.methodologies.common.company_type import company_flags
 from cli.formatters import (
     confidence_color,
     dim,
+    header_with_flags,
     print_header,
     print_key_value,
     print_section,
@@ -63,7 +64,9 @@ def _run(args):
     result = methodology.evaluate(ticker, rows, get_price_service())
     result.flags = company_flags(rows[0] if rows else None)
 
-    print_header(f"Marks (quantitative subset) — {ticker}")
+    print_header(
+        header_with_flags(f"Marks (quantitative subset) — {ticker}", result.flags)
+    )
     print_key_value("Verdict", verdict_color(result.verdict.value))
     print_key_value("Score", f"{result.score:.2f}" if result.score is not None else "—")
     print_key_value("Confidence", confidence_color(result.confidence.value))
