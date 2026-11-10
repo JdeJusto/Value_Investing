@@ -1,20 +1,21 @@
-"""`interactive` — categorized menu over the regular commands.
+"""`interactive` — synthwave terminal menu over the regular commands.
+
+A trading-terminal look (neon cyan/pink/gold, heavy box drawing, a compact
+home screen) with three category submenus. Number-based navigation only: no
+new dependency, works over SSH and pipes. ``NO_COLOR``, ``--no-color`` and a
+non-TTY stdout fall back to plain ASCII borders and no ANSI.
 
 The menu never re-implements a command: it parses the typed arguments with the
-command's own parser (so flags, help and validation stay identical) and then
-dispatches in-process. ``q``/Ctrl+C leaves; ``?`` prints the grouped help and
-``s`` searches the command catalog.
+command's own parser and dispatches in-process.
 """
 
 from __future__ import annotations
 
 import argparse
+import re
 import shlex
+import shutil
 from typing import NamedTuple
-
-from rich.console import Group
-from rich.prompt import Prompt
-from rich.text import Text
 
 from backend.services import cli_output
 from cli.commands import (
@@ -38,24 +39,32 @@ from cli.commands import (
 )
 from cli.help_utils import render_help_footer, render_search_results
 
-_QUIT_KEY = "q"
-_HELP_KEY = "?"
-_SEARCH_KEY = "s"
+_ANSI = {
+    "cyan": "\033[38;5;51m",
+    "pink": "\033[38;5;205m",
+    "gold": "\033[38;5;220m",
+    "dim": "\033[2m",
+    "bold": "\033[1m",
+    "reset": "\033[0m",
+}
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+_QUIT = "q"
+_HOME = "h"
+_HELP = "?"
+_SEARCH = "s"
 
 
-class Entry(NamedTuple):
-    """One menu row: the label, the command module and how to ask for its
-    arguments (``prompt`` empty means the fixed ``argv`` is enough)."""
+class Action(NamedTuple):
+    """One executable menu option."""
 
     label: str
-    module: object  # a cli.commands module exposing register(subparsers)
-    group: str = "Analysis"
+    description: str
+    module: object
     argv: tuple[str, ...] = ()
     prompt: str = ""
     default: str = ""
 
     def build(self, extra: list[str]):
-        """Parse ``extra`` with the command's own parser and return args."""
         parser = argparse.ArgumentParser(prog="main.py")
         sub = parser.add_subparsers(dest="command")
         self.module.register(sub)
@@ -63,237 +72,346 @@ class Entry(NamedTuple):
         return parser.parse_args([name, *self.argv, *extra])
 
 
-_ENTRIES: tuple[Entry, ...] = (
-    # --- Analysis ---------------------------------------------------------
-    Entry(
-        "Scorecard (six dimensions)",
-        scorecard,
-        "Analysis",
-        prompt="Ticker and flags",
-        default="AAPL",
-    ),
-    Entry(
-        "Balance sheet (T-view)",
-        financials,
-        "Analysis",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    Entry(
-        "Methodology details",
-        methodologies,
-        "Analysis",
-        argv=("show",),
-        prompt="Methodology name",
-        default="graham",
-    ),
-    Entry(
-        "DCF valuation",
-        dcf,
-        "Analysis",
-        prompt="Ticker and flags",
-        default="AAPL",
-    ),
-    Entry(
-        "Compare all methodologies",
-        compare_methodologies,
-        "Analysis",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    Entry(
-        "Full analysis report",
-        analyze_full,
-        "Analysis",
-        prompt="Ticker(s) and flags",
-        default="AAPL --no-prices",
-    ),
-    # --- Ranking & screening ---------------------------------------------
-    Entry(
-        "Top N by methodology",
-        rank,
-        "Ranking & screening",
-        prompt="Methodology and flags",
-        default="--by graham --universe sp500 --top 20",
-    ),
-    Entry(
-        "Combine methodologies (AND/OR)",
-        rank,
-        "Ranking & screening",
-        prompt="Methodologies and flags",
-        default="--combine graham,lynch_garp --strategy and --top 20",
-    ),
-    Entry(
-        "Consensus for a ticker",
-        consensus,
-        "Ranking & screening",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    Entry(
-        "Consensus ranking",
-        consensus_ranking,
-        "Ranking & screening",
-        prompt="Flags",
-        default="--universe sp500 --top 10",
-    ),
-    Entry(
-        "Screener with filters",
-        screener,
-        "Ranking & screening",
-        prompt="Filters and flags",
-        default="--tickers AAPL,MSFT,GOOGL --top 5 --no-refresh",
-    ),
-    # --- Portfolio --------------------------------------------------------
-    Entry("Portfolio view", portfolio, "Portfolio", argv=("view",)),
-    Entry("Portfolio performance", portfolio, "Portfolio", argv=("performance",)),
-    # --- Data & refresh ---------------------------------------------------
-    Entry(
-        "Refresh a ticker (facts + prices)",
-        refresh,
-        "Data & refresh",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    Entry(
-        "Data status",
-        data_status,
-        "Data & refresh",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    Entry(
-        "Load data (download + store)",
-        load_data,
-        "Data & refresh",
-        prompt="Ticker and flags",
-        default="AAPL",
-    ),
-    Entry(
-        "SEC filings",
-        filings,
-        "Data & refresh",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    Entry(
-        "Financial alerts",
-        financial_alerts,
-        "Data & refresh",
-        prompt="Ticker",
-        default="AAPL",
-    ),
-    # --- Backtesting ------------------------------------------------------
-    Entry(
-        "Backtest a methodology (PoC)",
-        backtest,
-        "Backtesting",
-        prompt="Methodology and flags",
-        default="--methodology graham --years 5",
+class Category(NamedTuple):
+    key: str
+    title: str
+    description: str
+    actions: tuple[Action, ...]
+
+
+_ANALYSIS = Category(
+    "analysis",
+    "Analysis",
+    "Scorecard · balance · DCF",
+    (
+        Action(
+            "Scorecard",
+            "6 dimensions · verdicts",
+            scorecard,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Balance",
+            "T-view assets | liabilities",
+            financials,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Methodologies",
+            "8 methods · rules",
+            methodologies,
+            argv=("show",),
+            prompt="Methodology",
+            default="graham",
+        ),
+        Action("DCF", "Two-stage valuation", dcf, prompt="Ticker", default="AAPL"),
+        Action(
+            "Compare",
+            "All methods side-by-side",
+            compare_methodologies,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Full analysis",
+            "Consolidated report",
+            analyze_full,
+            prompt="Ticker(s) and flags",
+            default="AAPL --no-prices",
+        ),
     ),
 )
 
+_RANKING = Category(
+    "ranking",
+    "Ranking & screening",
+    "Top N · combine · consensus",
+    (
+        Action(
+            "Rank top N",
+            "e.g. graham --top 20",
+            rank,
+            prompt="Methodology and flags",
+            default="--by graham --universe sp500 --top 20",
+        ),
+        Action(
+            "Combine methods",
+            "AND / OR / weighted",
+            rank,
+            prompt="Methods and flags",
+            default="--combine graham,lynch_garp --strategy and --top 20",
+        ),
+        Action(
+            "Consensus",
+            "All 8 for one ticker",
+            consensus,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Consensus ranking",
+            "Rank the consensus file",
+            consensus_ranking,
+            prompt="Flags",
+            default="--universe sp500 --top 10",
+        ),
+        Action(
+            "Screener",
+            "Filters + verdicts",
+            screener,
+            prompt="Filters and flags",
+            default="--tickers AAPL,MSFT,GOOGL --top 5 --no-refresh",
+        ),
+    ),
+)
 
-def _keys() -> dict[str, Entry | None]:
-    """Menu keys: ``1..n`` for the entries, ``q`` to quit."""
-    mapping: dict[str, Entry | None] = {
-        str(index): entry for index, entry in enumerate(_ENTRIES, 1)
+_DATA = Category(
+    "data",
+    "Portfolio · Data · Backtesting",
+    "Portfolio · refresh · filings",
+    (
+        Action("Portfolio view", "Positions and scores", portfolio, argv=("view",)),
+        Action("Performance", "PnL and allocation", portfolio, argv=("performance",)),
+        Action(
+            "Refresh",
+            "Facts + prices for a ticker",
+            refresh,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Data status",
+            "Coverage and freshness",
+            data_status,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Load data",
+            "Download + store",
+            load_data,
+            prompt="Ticker and flags",
+            default="AAPL",
+        ),
+        Action("Filings", "SEC documents", filings, prompt="Ticker", default="AAPL"),
+        Action(
+            "Financial alerts",
+            "Cash, margins, debt",
+            financial_alerts,
+            prompt="Ticker",
+            default="AAPL",
+        ),
+        Action(
+            "Backtest",
+            "Methodology history (PoC)",
+            backtest,
+            prompt="Methodology and flags",
+            default="--methodology graham --years 5",
+        ),
+    ),
+)
+
+_CATEGORIES: dict[str, Category] = {
+    "analysis": _ANALYSIS,
+    "ranking": _RANKING,
+    "data": _DATA,
+}
+
+
+# ---------------------------------------------------------------------------
+# rendering
+# ---------------------------------------------------------------------------
+def _colors() -> bool:
+    return cli_output.color_enabled()
+
+
+def _c(text: str, *keys: str) -> str:
+    if not _colors():
+        return text
+    return "".join(_ANSI[key] for key in keys) + text + _ANSI["reset"]
+
+
+def _visible_len(text: str) -> int:
+    return len(_ANSI_RE.sub("", text))
+
+
+def _width() -> int:
+    columns = shutil.get_terminal_size((80, 24)).columns
+    return max(44, min(66, columns - 2))
+
+
+def _truncate_visible(text: str, limit: int) -> str:
+    """Trim a (possibly coloured) line to ``limit`` visible characters."""
+    if _visible_len(text) <= limit:
+        return text
+    return _ANSI_RE.sub("", text)[: max(0, limit - 1)] + "…"
+
+
+def _box(title: str, lines: list[str], width: int) -> list[str]:
+    """A heavy-border box; ASCII fallback when colours are disabled."""
+    content_width = max(8, width - 2)
+    lines = [_truncate_visible(line, content_width) for line in lines]
+    if _colors():
+        fill = max(1, width - len(title) - 3)
+        top = (
+            _c("┏━ ", "gold", "bold")
+            + _c(title.upper(), "pink", "bold")
+            + _c(" " + "━" * fill + "┓", "gold", "bold")
+        )
+        body = []
+        for line in lines:
+            pad = max(0, content_width - _visible_len(line))
+            body.append(_c("┃", "gold") + " " + line + " " * pad + _c(" ┃", "gold"))
+        bottom = _c("┗" + "━" * width + "┛", "gold", "bold")
+    else:
+        top = "+- " + title.upper() + " " + "-" * max(1, width - len(title) - 3) + "+"
+        body = [
+            "| " + line + " " * max(0, content_width - _visible_len(line)) + " |"
+            for line in lines
+        ]
+        bottom = "+" + "-" * width + "+"
+    return [top, *body, bottom]
+
+
+def _header(width: int) -> list[str]:
+    title = "V A L U E   I N V E S T I N G"
+    subtitle = "Terminal analysis · synthwave edition"
+    if _colors():
+        return [
+            _c("╔" + "═" * width + "╗", "cyan", "bold"),
+            _c("║", "cyan", "bold")
+            + " "
+            + _c(title, "pink", "bold")
+            + " " * max(0, width - len(title) - 1)
+            + _c("║", "cyan", "bold"),
+            _c("║", "cyan", "bold")
+            + " "
+            + _c(subtitle, "cyan")
+            + " " * max(0, width - len(subtitle) - 1)
+            + _c("║", "cyan", "bold"),
+            _c("╚" + "═" * width + "╝", "cyan", "bold"),
+        ]
+    return [
+        "+" + "-" * width + "+",
+        "| " + title + " " * max(0, width - len(title) - 1) + "|",
+        "| " + subtitle + " " * max(0, width - len(subtitle) - 1) + "|",
+        "+" + "-" * width + "+",
+    ]
+
+
+def _option(number: str, label: str, description: str) -> str:
+    number_text = _c(f"[{number}]", "gold", "bold")
+    label_text = _c(label.ljust(20), "cyan")
+    return f"{number_text} {label_text} {_c(description, 'dim')}"
+
+
+def _footer(*entries: tuple[str, str]) -> str:
+    return "   ".join(
+        _c(f"[{key}]", "pink", "bold") + f" {label}" for key, label in entries
+    )
+
+
+def render_home() -> str:
+    width = _width()
+    lines = _header(width)
+    lines.append("")
+    for index, category in enumerate(_CATEGORIES.values(), 1):
+        label = category.title.split(" · ")[0]
+        lines.extend(
+            _box(
+                category.title,
+                [_option(str(index), label, category.description)],
+                width,
+            )
+        )
+    lines.append("")
+    lines.append(_footer(("s", "Search"), ("?", "Help"), ("q", "Quit")))
+    return "\n".join(lines)
+
+
+def render_category(category: Category) -> str:
+    width = _width()
+    lines = _header(width)
+    lines.append("")
+    lines.extend(
+        _box(
+            category.title,
+            [
+                _option(str(index), action.label, action.description)
+                for index, action in enumerate(category.actions, 1)
+            ],
+            width,
+        )
+    )
+    lines.append("")
+    lines.append(_footer(("h", "Home"), ("s", "Search"), ("?", "Help"), ("q", "Quit")))
+    return "\n".join(lines)
+
+
+def _render(screen: str) -> tuple[str, dict[str, str]]:
+    if screen == "home":
+        return render_home(), {
+            str(index): key for index, key in enumerate(_CATEGORIES, 1)
+        }
+    category = _CATEGORIES[screen]
+    return render_category(category), {
+        str(index): str(index) for index in range(1, len(category.actions) + 1)
     }
-    mapping[_QUIT_KEY] = None
-    return mapping
 
 
-def _menu_body(mapping: dict[str, Entry | None]) -> Group:
-    lines: list[Text] = []
-    current_group = None
-    for key, entry in mapping.items():
-        if entry is None:
-            continue
-        if entry.group != current_group:
-            if current_group is not None:
-                lines.append(Text(""))
-            current_group = entry.group
-            lines.append(Text(f"  {current_group.upper()}", style=cli_output.HEADER))
-        line = Text("  ")
-        line.append(f"{key:>2}", style=cli_output.ACCENT)
-        line.append(f"   {entry.label}")
-        lines.append(line)
-    lines.append(Text(""))
-    lines.append(Text("  HELP", style=cli_output.HEADER))
-    help_line = Text("  ")
-    help_line.append(f"{_HELP_KEY:>2}", style=cli_output.ACCENT)
-    help_line.append("   Full command list")
-    lines.append(help_line)
-    search_line = Text("  ")
-    search_line.append(f"{_SEARCH_KEY:>2}", style=cli_output.ACCENT)
-    search_line.append("   Search commands")
-    lines.append(search_line)
-    quit_line = Text("  ")
-    quit_line.append(f"{_QUIT_KEY:>2}", style=cli_output.ACCENT)
-    quit_line.append("   Quit")
-    lines.append(quit_line)
-    return Group(*lines)
-
-
-def _say_goodbye(console) -> None:
-    console.print(Text("  Goodbye.", style=cli_output.MUTED))
-
-
-def _ask_choice(console, mapping: dict[str, Entry | None]) -> str:
-    console.print()
-    cli_output.print_panel(
-        cli_output.section_panel("Value Investing", _menu_body(mapping)),
-        console=console,
-        width=64,
-    )
-    return Prompt.ask(
-        "  Choice",
-        choices=[*mapping, _HELP_KEY, _SEARCH_KEY],
-        default=_QUIT_KEY,
-        console=console,
-    )
-
-
-def _run_entry(console, entry: Entry) -> bool:
-    """Prompt for the arguments, parse them and run the command.
-
-    Returns ``False`` when the arguments were rejected (argparse already
-    printed the reason) so the menu is shown again.
-    """
+# ---------------------------------------------------------------------------
+# interaction
+# ---------------------------------------------------------------------------
+def _run_action(action: Action) -> None:
     extra: list[str] = []
-    if entry.prompt:
-        raw = Prompt.ask(f"  {entry.prompt}", default=entry.default, console=console)
+    if action.prompt:
+        raw = input(f"  {action.prompt} [{action.default}]: ").strip() or action.default
         extra = shlex.split(raw)
     try:
-        parsed = entry.build(extra)
+        parsed = action.build(extra)
     except SystemExit:
-        console.print(Text("  (back to the menu)", style=cli_output.MUTED))
-        return False
+        print(_c("  (back to the menu)", "dim"))
+        return
     parsed.func(parsed)
-    return True
 
 
-def _run(args) -> None:
-    console = cli_output.get_console()
-    mapping = _keys()
-    try:
-        while True:
-            choice = _ask_choice(console, mapping)
-            if choice == _HELP_KEY:
-                console.print(render_help_footer())
-                continue
-            if choice == _SEARCH_KEY:
-                query = Prompt.ask("  Search commands", console=console)
-                results = render_search_results(query)
-                console.print(results or f"No commands match '{query}'.")
-                continue
-            if choice == _QUIT_KEY or mapping.get(choice) is None:
-                _say_goodbye(console)
-                return
-            _run_entry(console, mapping[choice])
-    except (KeyboardInterrupt, EOFError):
-        console.print()
-        _say_goodbye(console)
+def _run(_args=None) -> None:
+    screen = "home"
+    print()
+    while True:
+        text, choices = _render(screen)
+        print(text)
+        try:
+            choice = input("  Choice: ").strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            print()
+            print("  Goodbye.")
+            return
+        if choice in ("", _QUIT):
+            print("  Goodbye.")
+            return
+        if choice == _HOME:
+            screen = "home"
+            continue
+        if choice == _HELP:
+            print(render_help_footer())
+            continue
+        if choice == _SEARCH:
+            query = input("  Search commands: ").strip()
+            print(render_search_results(query) or f"No commands match '{query}'.")
+            continue
+        if choice not in choices:
+            print(_c(f"  Choose {', '.join(sorted(choices))}, h, s, ?, q.", "dim"))
+            continue
+        if screen == "home":
+            screen = choices[choice]
+            continue
+        action = _CATEGORIES[screen].actions[int(choice) - 1]
+        print()
+        _run_action(action)
+        print()
 
 
 def run_menu() -> None:
@@ -306,9 +424,9 @@ def register(subparsers):
         "interactive",
         help="Menu mode: pick a command, type its arguments, run it",
         description=(
-            "Shows a categorized menu of the regular commands, asks for their "
-            "arguments and runs them in-process. Press ? for help, s to search "
-            "and q or Ctrl+C to leave."
+            "Shows a synthwave categorized menu of the regular commands, asks "
+            "for their arguments and runs them in-process. h=home, s=search, "
+            "?=help, q=quit."
         ),
     )
     p.set_defaults(func=_run)
