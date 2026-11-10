@@ -74,8 +74,18 @@ def _n_a_reason(verdict: Verdict, reasons: list[str] | None) -> str:
 
 def _get_universe_data(
     tickers: list[str],
-) -> tuple[dict[str, list[Any]], dict[str, float | None], dict[str, float | None]]:
-    """Load fundamentals and prices for tickers (minimal batch)."""
+) -> tuple[
+    dict[str, list[Any]],
+    dict[str, float | None],
+    dict[str, float | None],
+    dict[str, float | None],
+]:
+    """Load fundamentals, prices, market caps and betas for the batch.
+
+    ``get_beta`` reuses the quote summary cached by ``get_market_cap`` (one
+    ``.info`` request per ticker), so it adds no network cost. A missing beta
+    is forwarded as ``None`` and the DCF keeps its documented 1.0 fallback.
+    """
     from backend.app.cli import build_financial_repository
     from backend.services.price_service import get_price_service
 
@@ -85,6 +95,7 @@ def _get_universe_data(
     fundamentals: dict[str, list[Any]] = {}
     prices: dict[str, float | None] = {}
     market_caps: dict[str, float | None] = {}
+    betas: dict[str, float | None] = {}
 
     for ticker in tickers:
         try:
@@ -109,7 +120,13 @@ def _get_universe_data(
             logger.debug("Failed to get market cap for %s", ticker, exc_info=True)
             market_caps[ticker] = None
 
-    return fundamentals, prices, market_caps
+        try:
+            betas[ticker] = price_service.get_beta(ticker)
+        except Exception:
+            logger.debug("Failed to get beta for %s", ticker, exc_info=True)
+            betas[ticker] = None
+
+    return fundamentals, prices, market_caps, betas
 
 
 def _rank_key_single(item: RankedTicker) -> tuple:
@@ -148,7 +165,7 @@ def rank_by_methodology(
         raise ValueError(f"Unknown methodology: {methodology}")
 
     top_n = max(1, int(top_n))
-    fundamentals, prices, market_caps = _get_universe_data(universe)
+    fundamentals, prices, market_caps, betas = _get_universe_data(universe)
     details_by_ticker: dict[str, dict[str, Any]] = {}
 
     def _eval_one(ticker: str) -> dict[str, Any] | None:
@@ -156,7 +173,14 @@ def rank_by_methodology(
             rows = fundamentals.get(ticker, [])
             price = prices.get(ticker)
             market_cap = market_caps.get(ticker)
-            view = run_methodologies(ticker, rows, price, market_cap, tier_mode="none")
+            view = run_methodologies(
+                ticker,
+                rows,
+                price,
+                market_cap,
+                tier_mode="none",
+                beta=betas.get(ticker),
+            )
             for detail in view.details:
                 if detail.get("methodology") == methodology:
                     return detail

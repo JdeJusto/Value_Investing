@@ -50,33 +50,34 @@ weighted.
 
 ## Measured distribution (SP500, 2026-11-10)
 
-| Verdict | Count | Share |
+`v0.27.0` shipped with the DCF rule silently `N/A` in batch; `v0.27.1` fixes
+the adapter and evaluates it. The corrected distribution is stricter:
+
+| Verdict | v0.27.0 (DCF N/A) | v0.27.1 (DCF active) |
 |---|---:|---:|
-| STRONG_BUY | 12 | 2.4% |
-| BUY | 9 | 1.8% |
-| WEAK_BUY | 0 | 0.0% |
-| WATCH | 73 | 14.6% |
-| HOLD | 150 | 30.0% |
-| AVOID | 148 | 29.6% |
-| N/A (banks/insurers) | 71 | 14.2% |
-| INSUFFICIENT_DATA | 37 | 7.4% |
+| STRONG_BUY | 12 | 8 |
+| BUY | 9 | 0 |
+| WEAK_BUY | 0 | 0 |
+| WATCH | 73 | 63 |
+| HOLD | 150 | 177 |
+| AVOID | 148 | 153 |
+| N/A (banks/insurers) | 71 | 71 |
+| INSUFFICIENT_DATA | 37 | 28 |
 
-**21 positive signals (4.2%)** — 12 STRONG_BUY and 9 BUY, no WEAK_BUY. The
-top of the list is ZTS (95.45), LULU (95.24), NVR (94.44), AMAT (90.91), DPZ
-(90.91), LII (90.91), DECK (90.48), FFIV (90.48) and CTSH (90.0).
+**8 positive signals (1.6%)**, all STRONG_BUY: ZTS (95.83), LULU (95.65), NVR
+(95.0), DECK (91.3), CTSH (90.91), ADBE (87.5), JKHY (86.96) and DHI
+(86.36). The demote-only tier split puts all eight in the top percentile of
+the universe, so no base BUY is left for the BUY tier.
 
-The old 4-pillar engine produced roughly 1 STRONG / 13 BUY / 30 WEAK / 150+
-WATCH on the same universe. The new rules are stricter: fewer positives, more
-HOLD, and no promoted WATCH. That is the intended "no forced BUY" behaviour —
-the market is expensive on the three valuation rules (DCF margin, earnings
-yield, P/E ≤ 20), which fail for most quality names.
+The fix changed **84 verdicts** (75 downgrades, mostly BUY→WATCH and
+WATCH→HOLD) and moved **9 unique tickers out of INSUFFICIENT_DATA**; across
+the backtest's 2016–2024 signal-years it removed ~142 INSUFFICIENT rows. The
+DCF is a critical rule (weight 2), and most quality names fail it in this
+market, which is why the corrected score is tighter. There is no forced BUY.
 
-REITs (28) are now scored instead of N/A: **0 positive, 2 HOLD, 12 AVOID and
-14 INSUFFICIENT_DATA**. The high INSUFFICIENT count is a data-shape signal,
-not a policy reversal: REITs file unclassified balance sheets, so several
-industrial rules (current ratio, working capital, ROIC inputs) lack data and
-push the missing-weight share above 30%. FFO/AFFO rules are the v0.28+ fix.
-Banks (71) still return N/A before any rule runs.
+REITs (28) with the DCF active: **0 positive, 6 HOLD, 17 AVOID and 5
+INSUFFICIENT_DATA** (was 2/12/14). Banks (71) still return N/A before any
+rule runs.
 
 AAPL lands in WATCH (73.91, single-company analysis): the moat, FCF and
 capital-allocation blocks pass; the valuation block fails at ~52× earnings.
@@ -84,29 +85,32 @@ KO lands in HOLD (58.33): 1.27× debt/equity, 8.3× interest coverage, 40% FCF
 conversion and ~36× earnings fail, so calling it WATCH would require forcing
 the verdict, which the policy forbids.
 
-Batch rankings (and the backtest) evaluate the DCF rule as `N/A` because the
-batch price adapter does not expose `get_beta`; the rule is excluded from the
-denominator and the confidence drops to MEDIUM. Single-company
-`vi analyze-buffett-classic` runs the full DCF.
+Batch rankings, the screener and the backtest now expose `get_beta` on their
+price adapters, so the DCF rule is **evaluated** in every context instead of
+degrading to `N/A` (v0.27.1). Rankings/screener pass the Yahoo market beta;
+the backtest passes `None` on purpose (no point-in-time beta exists, so the
+DCF applies its documented 1.0 fallback and the simulation stays free of
+look-ahead). Single-company `vi analyze-buffett-classic` uses the Yahoo beta.
 
 ### Backtest (10 years, 400-ticker sample)
 
 `vi backtest --methodology buffett_classic --years 10 --limit 400`
 (2015–2024, 392 evaluated, 3,338 evaluable signal-years):
 
-| Metric | v0.27.0 | v0.24.0 baseline |
+| Metric | v0.27.1 (DCF active) | v0.27.0 (DCF N/A) |
 |---|---:|---:|
-| Portfolio CAGR | 13.8% | 14.1% |
-| Portfolio Sharpe | 1.09 | 1.22 |
-| Opportunity set CAGR | 15.2% | — |
-| SPY CAGR | 14.7% | — |
-| Alpha vs opportunity set | -1.4% | — |
+| Portfolio CAGR | **23.8%** | 13.8% |
+| Portfolio Sharpe | **1.53** | 1.09 |
+| Opportunity set CAGR | 15.2% | 15.2% |
+| SPY CAGR | 14.7% | 14.7% |
+| Alpha vs opportunity set | +8.6% | -1.4% |
 
-Positive signals per complete year stay in the 15–19 range (9 STRONG + 4–11
-BUY), with no WEAK tier because the demote-only split assigns the top base
-BUYs to STRONG/BUY. The strategy is slightly behind the equal-weighted
-opportunity set and SPY over the decade, consistent with a quality screen
-that sits in cash when no name clears 0.85.
+Positive signals per complete year drop to 5–9 (all STRONG), with no WEAK
+tier because the demote-only split assigns the top base BUYs to STRONG/BUY.
+The activated DCF rule makes the basket smaller and more valuation-driven;
+over this decade that concentration beat the equal-weighted opportunity set
+by 8.6pp and SPY by 9.0pp. The result is a PoC (no dividends, costs or
+survivorship correction), so treat the magnitude as indicative.
 
 ## Known limitations and deferred rules
 
@@ -118,7 +122,9 @@ The following stay in `docs/backlog.md`:
 - **Qualitative moat** (brand, switching costs, regulation): needs a
   supplementary source.
 - **DCF with a policy-consistent discount rate**: the rule reuses the
-  not-from-canon two-stage DCF and is `N/A` when beta or inputs are missing.
+  not-from-canon two-stage DCF. A missing beta falls back to 1.0 (documented
+  in the DCF), so batch contexts evaluate the rule instead of skipping it;
+  the rule is `N/A` only when the DCF's own inputs are missing.
 - **REIT-specific lens**: REITs are scored with industrial rules and flagged
   `[REIT]`; FFO/AFFO analysis is a v0.28+ backlog item.
 

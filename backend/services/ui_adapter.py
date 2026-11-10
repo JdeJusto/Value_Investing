@@ -40,6 +40,7 @@ from backend.services.portfolio_adapter import (  # noqa: F401
     remove_position,
     validate_new_position,
 )
+from backend.services.price_adapter import BatchPriceContext
 from backend.services.screener_filters import is_investable_company
 from backend.services.ui_format import DASH, fmt_or_dash
 from backend.valuation.dcf import DCFValuation
@@ -75,20 +76,6 @@ def fmt_money_short(value: Any) -> str:
     if magnitude >= 1e6:
         return f"${value / 1e6:,.1f}M"
     return f"${value:,.0f}"
-
-
-class _Prices:
-    """Adapter so a methodology can ask for prices without knowing PriceService."""
-
-    def __init__(self, price, market_cap=None):
-        self._price = price
-        self._market_cap = market_cap
-
-    def get_current_price(self, ticker):
-        return self._price
-
-    def get_market_cap(self, ticker):
-        return self._market_cap
 
 
 @dataclass
@@ -347,11 +334,15 @@ def _sensitivity_rows(result: Any) -> list[dict[str, Any]]:
 
 
 def evaluate_all_methodologies(
-    ticker: str, rows: list[Any], price: float | None, market_cap: float | None = None
+    ticker: str,
+    rows: list[Any],
+    price: float | None,
+    market_cap: float | None = None,
+    beta: float | None = None,
 ) -> list[Any]:
     """Raw results for every registered methodology (no tier assignment)."""
     discover()
-    prices = _Prices(price, market_cap)
+    prices = BatchPriceContext(price, market_cap, beta)
     flags = company_flags(rows[0] if rows else None)
     results = []
     for name in registry.list():
@@ -371,14 +362,17 @@ def run_methodologies(
     market_cap: float | None = None,
     *,
     tier_mode: str = "absolute",
+    beta: float | None = None,
 ) -> MethodologiesView:
     """Evaluate every registered methodology on one ticker (thin orchestration).
 
     ``tier_mode="absolute"`` applies the small-universe buy-tier fallback
     (only to base BUYs). ``tier_mode="none"`` returns the raw rule verdicts so
     batch callers can rank them against the whole universe before tiering.
+    ``beta`` is forwarded to the valuation rules; ``None`` lets the DCF use
+    its documented 1.0 fallback.
     """
-    results = evaluate_all_methodologies(ticker, rows, price, market_cap)
+    results = evaluate_all_methodologies(ticker, rows, price, market_cap, beta)
     if tier_mode != "none":
         apply_absolute_tiers(results)
     return build_methodologies_view(ticker, results)

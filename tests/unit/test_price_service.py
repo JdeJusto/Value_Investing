@@ -290,6 +290,21 @@ class TestPriceService:
 
         assert price is None
 
+    def test_quote_summary_is_cached_across_market_cap_and_beta(self, service):
+        """One `.info` request serves market cap and beta (shared cache)."""
+        mock_ticker = Mock()
+        mock_ticker.info = {"marketCap": 3.0e12, "beta": 1.25}
+
+        with patch(
+            "backend.services.price_service.yf.Ticker", return_value=mock_ticker
+        ) as ticker_cls:
+            market_cap = service.get_market_cap("AAPL")
+            beta = service.get_beta("AAPL")
+
+        assert market_cap == 3.0e12
+        assert beta == 1.25
+        assert ticker_cls.call_count == 1
+
     def test_get_shares_outstanding(self, service):
         """Test shares outstanding from Yahoo info."""
         mock_ticker = Mock()

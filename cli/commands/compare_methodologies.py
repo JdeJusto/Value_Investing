@@ -119,3 +119,7 @@ class _Prices:
 
     def get_current_price(self, ticker):
         return self._price
+
+    def get_beta(self, _ticker):
+        """No market beta in this thin context; the DCF falls back to 1.0."""
+        return

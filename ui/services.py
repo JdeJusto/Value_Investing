@@ -54,7 +54,7 @@ def load_fundamentals(ticker: str):
 
 @st.cache_data(ttl=900)
 def load_quote(ticker: str) -> dict:
-    """Cached price/market-cap snapshot; in-memory only, never persisted."""
+    """Cached price/market-cap/beta snapshot; in-memory only, never persisted."""
     service = get_price_service()
     try:
         price = service.get_current_price(ticker)
@@ -64,7 +64,11 @@ def load_quote(ticker: str) -> dict:
         market_cap = service.get_market_cap(ticker)
     except Exception:  # noqa: BLE001 — a missing market cap is not an error
         market_cap = None
-    return {"price": price, "market_cap": market_cap}
+    try:
+        beta = service.get_beta(ticker)
+    except Exception:  # noqa: BLE001 — a missing beta falls back to 1.0 in DCF
+        beta = None
+    return {"price": price, "market_cap": market_cap, "beta": beta}
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

@@ -236,7 +236,13 @@ def _render_single(ticker: str) -> None:
     _price_header(ticker, rows, quote)
     _refresh_control(ticker)
     with st.spinner(f"Evaluating methodologies and DCF for {ticker}..."):
-        view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
+        view = run_methodologies(
+            ticker,
+            rows,
+            quote["price"],
+            quote["market_cap"],
+            beta=quote.get("beta"),
+        )
         dcf = run_dcf(ticker, rows, get_price_service())
     tabs = st.tabs(
         [
@@ -489,7 +495,13 @@ def _render_compact(ticker: str) -> None:
         _render_missing_fundamentals(ticker)
         return
     quote = load_quote(ticker)
-    view = run_methodologies(ticker, rows, quote["price"], quote["market_cap"])
+    view = run_methodologies(
+        ticker,
+        rows,
+        quote["price"],
+        quote["market_cap"],
+        beta=quote.get("beta"),
+    )
     st.markdown(f"**{ticker}** — Lynch category: {view.category or '—'}")
     st.dataframe(view.table, width="stretch", hide_index=True)
 

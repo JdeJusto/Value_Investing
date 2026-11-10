@@ -309,14 +309,29 @@ class PriceService:
         return self._last_error.get(str(ticker).upper())
 
     def _info(self, ticker: str, *, retries: bool = True) -> dict:
-        """``yf.Ticker(ticker).info``; retries unless the caller owns them.
+        """``yf.Ticker(ticker).info``, cached per ticker for the TTL.
+
+        The quote summary carries price, market cap, beta, enterprise value
+        and shares in one request. Caching the whole dict means
+        ``get_market_cap()``, ``get_beta()`` and ``get_enterprise_value()``
+        share one network call instead of issuing three.
 
         ``_fetch_market_snapshot`` keeps its own 3-attempt loop (and treats a
         429 as a stage-abort signal), so it opts out to avoid 3x3 calls.
         """
+        key = f"info:{str(ticker).upper()}"
+        cached = self._get_cached(key)
+        if cached is not None:
+            return cached
         if not retries:
-            return yf.Ticker(ticker).info
-        return _yf_call(lambda: yf.Ticker(ticker).info, description=f"info {ticker}")
+            info = yf.Ticker(ticker).info
+        else:
+            info = _yf_call(
+                lambda: yf.Ticker(ticker).info, description=f"info {ticker}"
+            )
+        if isinstance(info, dict) and info:
+            self._set_cached(key, info)
+        return info
 
     # ------------------------------------------------------------------
     # cache helpers

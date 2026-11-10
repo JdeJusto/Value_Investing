@@ -54,17 +54,32 @@ VERDICT_ORDER = (
 
 
 class _HistoricalPrices:
-    """Price context for one evaluation year (never leaks future prices)."""
+    """Price context for one evaluation year (never leaks future prices).
 
-    def __init__(self, price: float | None, market_cap: float | None) -> None:
+    ``beta`` is intentionally ``None`` in the historical simulation: a
+    point-in-time beta is not in FDB, and using today's beta would leak
+    future information. The DCF then applies its documented 1.0 fallback,
+    so the valuation rule is evaluated instead of degrading to ``N/A``.
+    """
+
+    def __init__(
+        self,
+        price: float | None,
+        market_cap: float | None,
+        beta: float | None = None,
+    ) -> None:
         self._price = price
         self._market_cap = market_cap
+        self._beta = beta
 
     def get_current_price(self, _ticker: str) -> float | None:
         return self._price
 
     def get_market_cap(self, _ticker: str) -> float | None:
         return self._market_cap
+
+    def get_beta(self, _ticker: str) -> float | None:
+        return self._beta
 
 
 @dataclass(frozen=True)

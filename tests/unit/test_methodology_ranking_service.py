@@ -40,6 +40,7 @@ def test_rank_by_methodology_returns_top_n(
         {},
         {"AAPL": 150.0, "MSFT": 300.0},
         {"AAPL": 2e12, "MSFT": 2.2e12},
+        {"AAPL": 1.2, "MSFT": 1.1},
     )
 
     from backend.services.ui_adapter import MethodologiesView
@@ -110,7 +111,7 @@ def test_rank_by_methodology_excludes_na(
     mock_method = MagicMock()
     mock_method.family = "DEEP_VALUE"
     mock_registry.get.return_value = mock_method
-    mock_get_data.return_value = ({}, {"JPM": 150.0}, {"JPM": 500e9})
+    mock_get_data.return_value = ({}, {"JPM": 150.0}, {"JPM": 500e9}, {"JPM": 1.1})
 
     from backend.services.ui_adapter import MethodologiesView
 
@@ -153,7 +154,7 @@ def test_rank_by_methodology_includes_na(
     mock_method = MagicMock()
     mock_method.family = "DEEP_VALUE"
     mock_registry.get.return_value = mock_method
-    mock_get_data.return_value = ({}, {"JPM": 150.0}, {"JPM": 500e9})
+    mock_get_data.return_value = ({}, {"JPM": 150.0}, {"JPM": 500e9}, {"JPM": 1.1})
 
     from backend.services.ui_adapter import MethodologiesView
 
@@ -197,7 +198,7 @@ def test_rank_combined_and_requires_buy_or_watch(
     mock_method = MagicMock()
     mock_method.family = "DEEP_VALUE"
     mock_registry.get.return_value = mock_method
-    mock_get_data.return_value = ({}, {"AAPL": 150.0}, {"AAPL": 2e12})
+    mock_get_data.return_value = ({}, {"AAPL": 150.0}, {"AAPL": 2e12}, {"AAPL": 1.2})
 
     from backend.services.ui_adapter import MethodologiesView
 
@@ -265,7 +266,7 @@ def test_rank_combined_or_includes_any(
     mock_method = MagicMock()
     mock_method.family = "DEEP_VALUE"
     mock_registry.get.return_value = mock_method
-    mock_get_data.return_value = ({}, {"AAPL": 150.0}, {"AAPL": 2e12})
+    mock_get_data.return_value = ({}, {"AAPL": 150.0}, {"AAPL": 2e12}, {"AAPL": 1.2})
 
     from backend.services.ui_adapter import MethodologiesView
 
@@ -323,7 +324,7 @@ def test_rank_combined_weighted_requires_numeric_scores(
     mock_method = MagicMock()
     mock_method.family = "DEEP_VALUE"
     mock_registry.get.return_value = mock_method
-    mock_get_data.return_value = ({}, {"AAPL": 150.0}, {"AAPL": 2e12})
+    mock_get_data.return_value = ({}, {"AAPL": 150.0}, {"AAPL": 2e12}, {"AAPL": 1.2})
 
     from backend.services.ui_adapter import MethodologiesView
 
@@ -386,6 +387,7 @@ def test_rank_combined_weighted_with_weights(
         {},
         {"AAPL": 150.0, "MSFT": 300.0},
         {"AAPL": 2e12, "MSFT": 2.2e12},
+        {"AAPL": 1.2, "MSFT": 1.1},
     )
 
     from backend.services.ui_adapter import MethodologiesView
@@ -518,14 +520,16 @@ def test_universe_data_reads_best_available_with_core_merge(
     price_service = mock_price_service.return_value
     price_service.get_current_price.return_value = 150.0
     price_service.get_market_cap.return_value = 2e12
+    price_service.get_beta.return_value = 1.2
 
-    fundamentals, prices, market_caps = _get_universe_data(["AAPL"])
+    fundamentals, prices, market_caps, betas = _get_universe_data(["AAPL"])
 
     # 11 rows: the ranking path needs the "10 years ago" row (C2).
     repository.get_best_available.assert_called_once_with("AAPL", max_years=11)
     assert fundamentals["AAPL"] == [row]
     assert prices["AAPL"] == 150.0
     assert market_caps["AAPL"] == 2e12
+    assert betas["AAPL"] == 1.2
 
 
 @patch("backend.services.methodology_ranking_service.run_methodologies")
@@ -545,6 +549,7 @@ def test_rank_by_methodology_applies_demote_only_tiers(
         {},
         {ticker: 150.0 for ticker in tickers},
         {ticker: 2e12 for ticker in tickers},
+        {ticker: 1.0 for ticker in tickers},
     )
 
     from backend.services.ui_adapter import MethodologiesView

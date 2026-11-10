@@ -129,14 +129,17 @@ class StockScreenerService:
             return False
         price = None
         market_cap = None
+        beta = None
         if not no_prices:
             try:
                 price = self._price_service.get_current_price(ticker)
                 market_cap = self._price_service.get_market_cap(ticker)
+                beta = self._price_service.get_beta(ticker)
             except Exception:  # noqa: BLE001 — price is optional for some screens
                 price = None
                 market_cap = None
-        prices = _ScreenerPrices(price, market_cap)
+                beta = None
+        prices = _ScreenerPrices(price, market_cap, beta)
         for name, expected in methodology_filters:
             method = registry.get(name)
             if method is None:
@@ -324,12 +327,21 @@ def _get_field(row: ScreenerRow, field: str):
 class _ScreenerPrices:
     """Minimal price context for one methodology evaluation."""
 
-    def __init__(self, price: float | None, market_cap: float | None) -> None:
+    def __init__(
+        self,
+        price: float | None,
+        market_cap: float | None,
+        beta: float | None = None,
+    ) -> None:
         self._price = price
         self._market_cap = market_cap
+        self._beta = beta
 
     def get_current_price(self, _ticker: str) -> float | None:
         return self._price
 
     def get_market_cap(self, _ticker: str) -> float | None:
         return self._market_cap
+
+    def get_beta(self, _ticker: str) -> float | None:
+        return self._beta
