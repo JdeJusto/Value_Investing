@@ -9,8 +9,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import Confidence, Verdict
 from backend.methodologies.buffett_clark.methodology import BuffettClarkMethodology
@@ -246,23 +244,30 @@ def test_rule_7_retained_earnings_insufficient():
 
 
 def test_verdict_buy_with_five_passes():
-    """KO passes 5+ rules — should be BUY."""
+    """KO passes five of the seven legacy rules, but the three-year fixture
+    cannot evaluate the 10-year deep checks, so missing weight exceeds 30%
+    and the weighted verdict is INSUFFICIENT_DATA (v2.0.0 semantics)."""
     result = _evaluate("buffett_clark_ko.json")
-    assert result.verdict == Verdict.BUY
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
     assert len(result.passed_rules) >= 5
 
 
 def test_verdict_avoid_with_few_passes():
-    """GM passes <3 rules — should be AVOID."""
+    """GM fails most rules; the weighted ratio is far below the 50% HOLD
+    floor, but the three-year fixture also lacks deep-check coverage, so the
+    verdict is INSUFFICIENT_DATA rather than AVOID."""
     result = _evaluate("buffett_clark_gm.json")
-    assert result.verdict == Verdict.AVOID
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
     assert len(result.passed_rules) < 3
 
 
 def test_verdict_insufficient_with_many_unknown():
-    """Incomplete fixture has many unknown rules — should be AVOID."""
+    """Incomplete fixture has many unknown rules — should be INSUFFICIENT_DATA."""
     result = _evaluate("buffett_clark_incomplete.json")
-    assert result.verdict == Verdict.AVOID
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
+    assert result.score is None
 
 
 # ----------------------------------------------------------------------
@@ -270,15 +275,16 @@ def test_verdict_insufficient_with_many_unknown():
 # ----------------------------------------------------------------------
 
 
-def test_score_is_passed_over_seven_times_hundred():
-    """Score = passed / 7 × 100."""
+def test_score_is_weighted_not_passed_over_seven():
+    """v2.0.0 scores the weighted pass ratio, and returns None when more than
+    30% of the weighted rules are missing (the three-year KO fixture)."""
     result = _evaluate("buffett_clark_ko.json")
-    expected = len(result.passed_rules) / 7 * 100
-    assert result.score == pytest.approx(expected, abs=0.01)
+    assert result.score is None
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
 
 
-def test_score_is_zero_when_no_rules_pass():
-    """Score is 0.0 when no rules pass (not None — None means insufficient data)."""
+def test_score_is_none_when_nothing_is_evaluable():
+    """None means insufficient data; it is no longer rendered as 0.0."""
     # Create a fixture with all None values
     rows = []
     for year in [2024, 2023, 2022]:
@@ -296,7 +302,8 @@ def test_score_is_zero_when_no_rules_pass():
         )
     methodology = BuffettClarkMethodology()
     result = methodology.evaluate("TEST", rows, _Prices(100.0))
-    assert result.score == 0.0
+    assert result.score is None
+    assert result.verdict == Verdict.INSUFFICIENT_DATA
 
 
 # ----------------------------------------------------------------------
@@ -304,10 +311,11 @@ def test_score_is_zero_when_no_rules_pass():
 # ----------------------------------------------------------------------
 
 
-def test_confidence_high_when_all_evaluated():
-    """KO has 6 of 7 rules evaluated (rule_3 needs 5 years) — should be MEDIUM."""
+def test_confidence_low_when_coverage_is_thin():
+    """KO has only three fiscal years, so the 10-year deep rules are missing
+    and confidence drops to LOW under the weighted coverage rule."""
     result = _evaluate("buffett_clark_ko.json")
-    assert result.confidence == Confidence.MEDIUM
+    assert result.confidence == Confidence.LOW
 
 
 def test_confidence_low_when_many_unknown():
@@ -380,10 +388,10 @@ def test_metadata_reports_book_and_limitations():
     assert len(metadata["known_limitations"]) >= 2
 
 
-def test_rules_expose_all_seven():
+def test_rules_expose_all_seven_plus_deep_checks():
     methodology = BuffettClarkMethodology()
     ids = {rule.id for rule in methodology.rules()}
-    assert ids == {
+    legacy = {
         "buffett_clark.rule_1_gross_margin",
         "buffett_clark.rule_2_interest_burden",
         "buffett_clark.rule_3_margin_durability",
@@ -392,6 +400,22 @@ def test_rules_expose_all_seven():
         "buffett_clark.rule_6_capex",
         "buffett_clark.rule_7_retained_earnings",
     }
+    assert legacy <= ids
+    assert len(ids) == 23
+    assert len(methodology.rules()) == 23
+
+
+def test_metadata_reports_weighted_framework():
+    metadata = BuffettClarkMethodology().metadata()
+    assert metadata["version"] == "2.0.0"
+    assert metadata["thresholds"]["buy"] == 0.85
+    assert metadata["categories"] == [
+        "durable_advantage",
+        "owner_earnings",
+        "valuation",
+        "growth",
+    ]
+    assert any("consumer-monopoly" in item for item in metadata["known_limitations"])
 
 
 # ---------------------------------------------------------------------------

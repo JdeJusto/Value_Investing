@@ -1,7 +1,25 @@
 """Buffett/Clark methodology implementation.
 
-Detects durable competitive advantage (DCA) from financial-statement
-signatures per Mary Buffett & David Clark (2001).
+Detects a durable competitive advantage (DCA) from financial-statement
+signatures per Mary Buffett & David Clark (2001). The original seven rules
+(gross margin, interest burden, margin durability, debt, cash, capex,
+retained earnings) are aggregated together with sixteen deep checks from
+:mod:`backend.methodologies.buffett_clark.deep_checks` — returns on capital,
+owner earnings, valuation and growth — through the shared weighted framework
+introduced for Graham in v0.26.0:
+
+    weighted_score = sum(passed weight) / sum(evaluable weight)
+
+Thresholds: BUY >= 0.85, WATCH >= 0.70, HOLD >= 0.50, else AVOID. More than
+30% of the weighted rules missing data returns INSUFFICIENT_DATA. A WATCH on a
+legacy rule is treated conservatively as not passed (``False``), never as a
+pass.
+
+Banks and insurers still abstain (N/A): the leverage and cash-flow rules read
+their business model as weakness. REITs are evaluated and carry a visible
+``[REIT]`` flag attached externally by the caller (v0.27.0 policy); their FFO
+accounting means the score is a rough quality check, not a REIT-specific
+valuation.
 """
 
 from __future__ import annotations
@@ -13,14 +31,63 @@ from backend.methodologies.base import (
     Confidence,
     Methodology,
     MethodologyResult,
+    Rule,
     Verdict,
 )
+from backend.methodologies.buffett_clark.deep_checks import (
+    CATEGORIES,
+    run_checks,
+)
+from backend.methodologies.buffett_clark.deep_checks import (
+    CHECKS as DEEP_CHECKS,
+)
+from backend.methodologies.buffett_clark.rules import ALL_RULES
 from backend.methodologies.common.company_type import (
     financial_na_reason,
     is_financial,
 )
+from backend.methodologies.common.weighted import (
+    WeightedResult,
+    weighted_verdict,
+)
 
-from .rules import ALL_RULES
+#: Weighted-score thresholds (shared with Graham v0.26.0).
+BUY_THRESHOLD = 0.85
+WATCH_THRESHOLD = 0.70
+HOLD_THRESHOLD = 0.50
+
+#: Share of missing weight above which the verdict is INSUFFICIENT_DATA.
+MAX_MISSING_WEIGHT = 0.30
+
+#: Name, category and weight of the seven original DCA rules. The gross-margin
+#: rule is critical (it is the book's central test); the rest are normal.
+#: ``rule_5_cash`` keeps a weight of 1 because the book lists cash as a DCA
+#: indicator, even though a high cash balance is a weak signal on its own.
+_LEGACY_META: dict[str, tuple[str, str, int]] = {
+    "buffett_clark.rule_1_gross_margin": (
+        "Gross margin >= 40%",
+        "durable_advantage",
+        2,
+    ),
+    "buffett_clark.rule_2_interest_burden": (
+        "Interest burden <= 10%",
+        "durable_advantage",
+        1,
+    ),
+    "buffett_clark.rule_3_margin_durability": (
+        "Gross margin durability",
+        "durable_advantage",
+        1,
+    ),
+    "buffett_clark.rule_4_debt": ("Low long-term debt", "durable_advantage", 1),
+    "buffett_clark.rule_5_cash": ("High cash", "durable_advantage", 1),
+    "buffett_clark.rule_6_capex": ("Low capex", "durable_advantage", 1),
+    "buffett_clark.rule_7_retained_earnings": (
+        "Rising retained earnings",
+        "owner_earnings",
+        1,
+    ),
+}
 
 
 @dataclass
@@ -36,7 +103,7 @@ class BuffettClarkMethodology(Methodology):
     """Evaluate a company against the Buffett/Clark DCA criteria."""
 
     name = "buffett_clark"
-    version = "1.0.0"
+    version = "2.0.0"
     family = "QUALITY_COMPOUNDER"
 
     # ------------------------------------------------------------------
@@ -84,12 +151,99 @@ class BuffettClarkMethodology(Methodology):
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,
-                sources=[rule.source for rule in ALL_RULES],
+                sources=self._sources(),
                 passed_rules=[],
                 failed_rules=[],
             )
 
-        results = [
+        price = self._current_price(ticker, prices)
+        dcf = self._dcf(ticker, rows, prices, price)
+        legacy = self._legacy_results(rows)
+        deep = run_checks(rows, price, dcf, prices, ticker)
+        results = legacy + deep
+
+        verdict, score, confidence = weighted_verdict(results)
+
+        passed = [result for result in results if result.passed is True]
+        failed = [result for result in results if result.passed is False]
+        red_flags = [f"{result.rule_id}: {result.detail}" for result in failed]
+        reasons = self._reasons(results, verdict)
+
+        metrics: dict[str, Any] = {
+            "current_price": price,
+            "fiscal_years_analyzed": len(rows),
+        }
+        for item in legacy:
+            key = item.rule_id.replace("buffett_clark.", "")
+            metrics[key] = item.value
+        for item in deep:
+            key = item.rule_id.replace("buffett_clark.deep_", "deep_")
+            metrics[key] = item.value
+        if dcf is not None:
+            metrics["dcf_intrinsic_value"] = getattr(
+                dcf, "intrinsic_value_per_share", None
+            )
+            metrics["dcf_margin_of_safety"] = getattr(dcf, "margin_of_safety", None)
+
+        return MethodologyResult(
+            methodology=self.name,
+            version=self.version,
+            family=self.family,
+            verdict=verdict,
+            score=score,
+            metrics=metrics,
+            reasons=reasons,
+            red_flags=red_flags,
+            confidence=confidence,
+            sources=self._sources(),
+            passed_rules=[result.rule_id for result in passed],
+            failed_rules=[result.rule_id for result in failed],
+        )
+
+    def rules(self) -> list[Rule]:
+        return list(ALL_RULES) + [check.rule() for check in DEEP_CHECKS]
+
+    def metadata(self) -> dict:
+        return {
+            "name": self.name,
+            "version": self.version,
+            "family": self.family,
+            "book": "Warren Buffett and the Interpretation of Financial Statements",
+            "edition": "1st ed. (Spanish translation)",
+            "year": "2001",
+            "description": (
+                "Buffett/Clark durable-competitive-advantage screen: 23 "
+                "explicit rules across durable advantage, owner earnings, "
+                "valuation and growth. The verdict is a weighted pass ratio "
+                "(critical rules x2, informational x0), not an all-pass gate."
+            ),
+            "categories": list(CATEGORIES),
+            "thresholds": {
+                "buy": BUY_THRESHOLD,
+                "watch": WATCH_THRESHOLD,
+                "hold": HOLD_THRESHOLD,
+                "max_missing_weight": MAX_MISSING_WEIGHT,
+            },
+            "known_limitations": [
+                "gross margin thresholds calibrated to US industrials; SaaS may structurally differ",
+                "interest burden examples are US airlines/tires from 2001",
+                "no valuation method in the book — the DCF and P/E rules are not-from-canon approximations",
+                "owner earnings use total capex as a proxy for maintenance capex",
+                "the historical-P/E rule needs fiscal-year-end prices and degrades to N/A without them",
+                "the 10-year rules need a long history; younger filers lose coverage and may read INSUFFICIENT_DATA",
+                "consumer-monopoly/brand qualitative rules are deferred: FDB has no brand/pricing-power evidence",
+                (
+                    "REITs are evaluated with industrial rules and flagged "
+                    "[REIT]; FFO-specific analysis is deferred"
+                ),
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # Weighted aggregation
+    # ------------------------------------------------------------------
+    def _legacy_results(self, rows) -> list[WeightedResult]:
+        raw = [
             self._rule_1_gross_margin(rows),
             self._rule_2_interest_burden(rows),
             self._rule_3_margin_durability(rows),
@@ -98,31 +252,49 @@ class BuffettClarkMethodology(Methodology):
             self._rule_6_capex(rows),
             self._rule_7_retained_earnings(rows),
         ]
+        converted: list[WeightedResult] = []
+        for item in raw:
+            name, category, weight = _LEGACY_META[item.rule_id]
+            converted.append(
+                WeightedResult(
+                    rule_id=item.rule_id,
+                    name=name,
+                    category=category,
+                    weight=weight,
+                    passed=item.passed,
+                    detail=item.detail,
+                    value=item.value,
+                    threshold=item.threshold,
+                )
+            )
+        return converted
 
-        passed = [r for r in results if r.passed is True]
-        failed = [r for r in results if r.passed is False]
-        unknown = [r for r in results if r.passed is None]
+    @staticmethod
+    def _reasons(results: list[WeightedResult], verdict: Verdict) -> list[str]:
+        parts: list[str] = []
+        for category in CATEGORIES:
+            group = [item for item in results if item.category == category]
+            if not group:
+                continue
+            parts.append(f"{category}:")
+            for item in group:
+                mark = (
+                    "PASS"
+                    if item.passed is True
+                    else "FAIL"
+                    if item.passed is False
+                    else "N/A"
+                )
+                weight = "" if item.weight == 0 else f" x{item.weight}"
+                parts.append(f"  [{mark}]{weight} {item.detail}")
+        parts.append(f"verdict: {verdict.value}")
+        return parts
 
-        verdict = self._verdict(passed, failed, unknown)
-        score = self._score(passed, failed, unknown)
-        confidence = self._confidence(results)
-        red_flags = self._red_flags(results)
-        reasons = self._reasons(results, verdict)
-
-        return MethodologyResult(
-            methodology=self.name,
-            version=self.version,
-            family=self.family,
-            verdict=verdict,
-            score=score,
-            metrics=self._metrics(results),
-            reasons=reasons,
-            red_flags=red_flags,
-            confidence=confidence,
-            sources=[rule.source for rule in ALL_RULES],
-            passed_rules=[r.rule_id for r in passed],
-            failed_rules=[r.rule_id for r in failed],
-        )
+    @staticmethod
+    def _sources():
+        return [rule.source for rule in ALL_RULES] + [
+            check.source for check in DEEP_CHECKS
+        ]
 
     # ------------------------------------------------------------------
     # Rules
@@ -413,58 +585,6 @@ class BuffettClarkMethodology(Methodology):
         )
 
     # ------------------------------------------------------------------
-    # Verdict / score / confidence
-    # ------------------------------------------------------------------
-    def _verdict(self, passed, failed, unknown) -> Verdict:
-        """BUY if ≥5 of 7 pass; WATCH if 4; HOLD if 3; AVOID if <3."""
-        n_passed = len(passed)
-        if n_passed >= 5:
-            return Verdict.BUY
-        if n_passed == 4:
-            return Verdict.WATCH
-        if n_passed == 3:
-            return Verdict.HOLD
-        return Verdict.AVOID
-
-    def _score(self, passed, failed, unknown) -> float | None:
-        """Score = passed / 7 × 100."""
-        return round(len(passed) / 7 * 100, 2)
-
-    def _confidence(self, results) -> Confidence:
-        """HIGH if all 7 evaluated; MEDIUM if 1-2 unknown; LOW otherwise."""
-        n_unknown = sum(1 for r in results if r.passed is None)
-        if n_unknown == 0:
-            return Confidence.HIGH
-        if n_unknown <= 2:
-            return Confidence.MEDIUM
-        return Confidence.LOW
-
-    def _red_flags(self, results) -> list[str]:
-        flags = []
-        for r in results:
-            if r.passed is False:
-                flags.append(f"{r.rule_id}: {r.detail}")
-        return flags
-
-    def _reasons(self, results, verdict) -> list[str]:
-        reasons = []
-        for r in results:
-            if r.passed is True:
-                reasons.append(f"✓ {r.rule_id}: {r.detail}")
-            elif r.passed is False:
-                reasons.append(f"✗ {r.rule_id}: {r.detail}")
-            else:
-                reasons.append(f"? {r.rule_id}: {r.detail}")
-        return reasons
-
-    def _metrics(self, results) -> dict[str, Any]:
-        metrics: dict[str, Any] = {}
-        for r in results:
-            key = r.rule_id.replace("buffett_clark.", "")
-            metrics[key] = r.value
-        return metrics
-
-    # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
     @staticmethod
@@ -480,23 +600,31 @@ class BuffettClarkMethodology(Methodology):
         """Return the most recent row."""
         return rows[0] if rows else None
 
-    # ------------------------------------------------------------------
-    # Methodology ABC
-    # ------------------------------------------------------------------
-    def rules(self):
-        return ALL_RULES
+    @staticmethod
+    def _current_price(ticker: str, prices: Any) -> float | None:
+        getter = getattr(prices, "get_current_price", None)
+        if not callable(getter):
+            return None
+        try:
+            value = getter(ticker)
+        except Exception:  # noqa: BLE001 — no price is not an error
+            return None
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
 
-    def metadata(self) -> dict:
-        return {
-            "name": self.name,
-            "version": self.version,
-            "family": self.family,
-            "book": "Warren Buffett and the Interpretation of Financial Statements",
-            "edition": "1st ed. (Spanish translation)",
-            "year": "2001",
-            "known_limitations": [
-                "gross margin thresholds calibrated to US industrials; SaaS may structurally differ",
-                "interest burden examples are US airlines/tires from 2001",
-                "no valuation method — the book explains how to find DCA companies but not how to value them",
-            ],
-        }
+    @staticmethod
+    def _dcf(ticker: str, rows: list, prices: Any, price):
+        """Best-effort DCF; missing beta/inputs degrade the rule to N/A."""
+        if price is None or not rows:
+            return None
+        try:
+            from backend.valuation.dcf import DCFValuation
+
+            result = DCFValuation().evaluate(ticker, rows, prices)
+        except Exception:  # noqa: BLE001 — DCF is an optional rule input
+            return None
+        if getattr(result, "margin_of_safety", None) is None:
+            return None
+        return result
