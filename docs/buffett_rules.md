@@ -90,6 +90,11 @@ the adapter and evaluates it. The corrected distribution is stricter:
 | N/A (banks/insurers) | 71 | 71 |
 | INSUFFICIENT_DATA | 37 | 28 |
 
+The table above is the tiered rank split (STRONG/BUY applied to the base
+BUYs). The one-pass base verdicts on 2026-11-11 are **9 BUY / 62 WATCH / 178
+HOLD / 152 AVOID / 71 N/A / 28 INSUFFICIENT**; tiering is a separate
+cross-sectional step and does not change the underlying rule outcomes.
+
 **8 positive signals (1.6%)**, all STRONG_BUY: ZTS (95.83), LULU (95.65), NVR
 (95.0), DECK (91.3), CTSH (90.91), ADBE (87.5), JKHY (86.96) and DHI
 (86.36). The demote-only tier split puts all eight in the top percentile of

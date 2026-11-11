@@ -363,24 +363,27 @@ SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
 | **BRUN** | Data limitation | 1-2 years of fundamentals; no 10-year history. See `docs/data_gaps_investigation.md`. |
 | **Circular "build your own circle" search** | Backlog | Similarity search by arbitrary dimension ranges (the Simply Wall St idea) builds on the Peers tab but is not implemented. |
 
-## Methodology deep expansion plan (v0.27+)
+## Methodology deep expansion plan (completed in v0.29.0–v0.32.0)
 
-**Graham** was expanded in v0.26.0 (8 → 22 rules) and **buffett_classic** in
-v0.27.0 (7 → 20 rules). The remaining six methodologies keep their current
-rules and are scheduled one per session, highest value first:
+All eight book methodologies now use the shared weighted-rule framework
+(weights 2/1/0, thresholds 0.85/0.70/0.50, >30% missing → INSUFFICIENT).
+The book-to-methodology map and citation policy live in
+`docs/books_notes/README.md`; the consolidated results live in
+`docs/methodology_expansion_summary.md`.
 
-1. ~~**buffett_classic**~~ — done in v0.27.0 (20 weighted rules).
-2. **buffett_clark** — durable competitive advantage framework. 10-15 rules.
-3. **lynch_garp** — category-specific criteria (slow/stable/fast/cyclical/
-   turnaround/asset play) and PEG < 1. 12-15 rules.
-4. **graham_dodd** — Security Analysis depth: balance-sheet quality and
-   hidden assets. 15-20 rules.
-5. **fisher_quantitative_subset** — expand from 4 to the full quantifiable
-   subset of the 15 points. 10-12 rules.
-6. **marks** — cycle positioning and credit-cycle proxies. 8-10 rules.
-7. **greenblatt** — already works through the external ranking; low priority.
+| Methodology | Rules | Book available? | Release |
+|---|---:|---|---|
+| `graham` | 22 | yes (*The Intelligent Investor*) | v0.26.0; aligned v0.29.0 |
+| `buffett_classic` | 20 | no (public knowledge) | v0.27.0; audited v0.29.0 |
+| `buffett_clark` | 23 | yes (Buffett/Clark 2001) | v0.30.0 |
+| `lynch_garp` | 24 | no (public knowledge) | v0.30.0 |
+| `graham_dodd` | 26 | yes (*Security Analysis*) | v0.31.0 |
+| `fisher_quantitative_subset` | 17 | yes (*Common Stocks*) | v0.31.0 |
+| `marks` | 17 | no (public knowledge) | v0.32.0 |
+| `greenblatt` | 15 | no (public knowledge) | v0.32.0 |
 
-Each session: 4-6 hours per methodology, one methodology per session.
+The per-methodology deferred rules are listed in
+`docs/methodology_expansion_summary.md` and in each `docs/<name>_rules.md`.
 
 ## Buffett rules deferred — requires data pipeline
 
