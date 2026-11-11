@@ -9,14 +9,21 @@ from backend.methodologies.marks.rules import ALL_RULES
 
 
 class _Prices:
-    def __init__(self, market_cap=2_000.0):
+    def __init__(self, market_cap=2_000.0, price=20.0):
         self._market_cap = market_cap
+        self._price = price
 
     def get_market_cap(self, ticker):
         return self._market_cap
 
+    def get_current_price(self, ticker):
+        return self._price
 
-class _Boom:
+
+class _Boom(_Prices):
+    def __init__(self):
+        super().__init__()
+
     def get_market_cap(self, ticker):
         raise RuntimeError("yahoo down")
 
@@ -46,6 +53,7 @@ def _row(
         cash_and_equivalents=100.0,
         operating_cash_flow=operating_cash_flow,
         capital_expenditure=capital_expenditure,
+        shares_outstanding=100,
         sector=sector,
     )
 
@@ -61,29 +69,34 @@ def _evaluate(rows, prices=None):
     return MarksMethodology().evaluate("TEST", rows, prices or _Prices())
 
 
-def test_buy_when_all_rules_pass():
+def test_healthy_fixture_is_watch():
+    # The flat five-year fixture fails the deep checks that demand positive
+    # growth, 10x coverage, P/B < 2 and own-history P/E improvement, so the
+    # weighted verdict is WATCH; a fully passing fixture is covered in
+    # tests/unit/test_marks_rules.py.
     result = _evaluate(_healthy_history())
-    assert result.verdict is Verdict.BUY
-    assert result.score == 100.0
+    assert result.verdict is Verdict.WATCH
+    assert result.score == 77.27
     assert result.metrics["cycle_position"] == "mid"
-    assert set(result.passed_rules) == {rule.id for rule in ALL_RULES}
-    assert result.failed_rules == []
+    assert set(result.passed_rules) & {rule.id for rule in ALL_RULES}
+    assert result.failed_rules
 
 
 def test_peak_cycle_blocks_buy():
     # Latest year far above its own trend: mean-reversion risk.
     result = _evaluate(_healthy_history(operating_income=300.0, ebit=300.0))
     assert result.metrics["cycle_position"] == "peak"
-    assert result.verdict is Verdict.WATCH
+    assert result.verdict is Verdict.HOLD
     assert any("mean reversion" in flag for flag in result.red_flags)
     assert "marks.rule_1_cycle_position" in result.failed_rules
 
 
-def test_trough_cycle_adds_points_and_still_buys():
+def test_trough_cycle_is_not_a_buy_bonus():
+    # The old +10-point trough adjustment is gone; below-trend returns help
+    # only through the rules they actually pass.
     result = _evaluate(_healthy_history(operating_income=90.0, ebit=90.0))
     assert result.metrics["cycle_position"] == "trough"
-    assert result.verdict is Verdict.BUY
-    assert result.score == 100.0  # 100 + 10, clamped
+    assert result.verdict is Verdict.HOLD
 
 
 def test_high_leverage_is_an_automatic_avoid():
@@ -103,13 +116,13 @@ def test_weak_roic_fails_quality():
     ]
     result = _evaluate(rows)
     assert "marks.rule_4_quality_persistence" in result.failed_rules
-    assert result.verdict is Verdict.WATCH
+    assert result.verdict is Verdict.HOLD
 
 
 def test_expensive_price_fails_margin_of_safety():
     result = _evaluate(_healthy_history(), prices=_Prices(market_cap=20_000.0))
     assert "marks.rule_3_margin_of_safety" in result.failed_rules
-    assert result.verdict is Verdict.WATCH
+    assert result.verdict is Verdict.HOLD
 
 
 def test_missing_market_cap_degrades_to_medium_confidence():
@@ -120,7 +133,7 @@ def test_missing_market_cap_degrades_to_medium_confidence():
 
 def test_price_service_failure_is_not_an_error():
     result = _evaluate(_healthy_history(), prices=_Boom())
-    assert result.verdict is Verdict.WATCH
+    assert result.verdict is Verdict.HOLD
     assert result.confidence.value == "MEDIUM"
 
 
@@ -160,7 +173,9 @@ def test_deterministic_and_sources_cite_the_book():
 
 def test_metadata_and_rules():
     methodology = MarksMethodology()
-    assert len(methodology.rules()) == 4
+    assert len(methodology.rules()) == 17  # 4 legacy + 13 deep
     metadata = methodology.metadata()
     assert metadata["family"] == "CYCLE_AWARE_VALUE"
     assert any("qualitative subset" in item for item in metadata["known_limitations"])
+    assert any("public-knowledge" in item for item in metadata["known_limitations"])
+    assert metadata["version"] == "2.0.0"

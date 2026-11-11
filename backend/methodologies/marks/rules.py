@@ -11,8 +11,14 @@ filings can measure:
 3. **Margin of safety** — buying below value, not chasing price.
 4. **Quality persistence** — durable high returns on capital.
 
-All are EXPLICIT rules from the book; none claims to capture market-wide
-cycle timing, which is a macro judgement this system does not make.
+**The book was not available on this machine**
+(``docs/books_notes/the-most-important-thing.md``). Every :class:`SourceRef`
+therefore carries ``page="public knowledge"`` and a ``us_caution`` saying that
+the rule is a public-knowledge reconstruction, not a quote or a page-level
+paraphrase. See ``docs/marks_rules.md``.
+
+In v2.0.0 these four rules are the legacy core of a weighted framework; the
+deep checks live in :mod:`backend.methodologies.marks.deep_checks`.
 """
 
 from __future__ import annotations
@@ -23,19 +29,21 @@ _BOOK = "The Most Important Thing: Uncommon Sense for the Thoughtful Investor"
 _EDITION = "1st edition"
 _YEAR = 2011
 _CAUTION = (
-    "Marks writes about market-wide cycles and investor psychology; this "
-    "subset measures only company-level proxies and never predicts the cycle"
+    "public-knowledge reconstruction, not from the book: the reference text "
+    "was not available on this machine, so no quote, page number or "
+    "page-level paraphrase is claimed; thresholds are public value and "
+    "risk-control heuristics in the spirit of Marks' published writing"
 )
 
 
-def _source(page: str) -> SourceRef:
+def _source(note: str) -> SourceRef:
     return SourceRef(
         book=_BOOK,
         edition=_EDITION,
         year=_YEAR,
-        page=page,
+        page="public knowledge",
         era="2011",
-        us_caution=_CAUTION,
+        us_caution=f"{_CAUTION}; {note}",
     )
 
 
@@ -49,7 +57,7 @@ RULE_1_CYCLE = Rule(
         "a trough reading (opportunity, if the balance sheet holds)."
     ),
     kind="EXPLICIT",
-    source=_source("ch. 14, 'The Most Important Thing Is… Being Attentive to Cycles'"),
+    source=_source("company-level cycle proxy, not market timing"),
 )
 
 RULE_2_RESILIENCE = Rule(
@@ -60,7 +68,7 @@ RULE_2_RESILIENCE = Rule(
         "cash flow: the balance sheet can survive the down part of the cycle."
     ),
     kind="EXPLICIT",
-    source=_source("ch. 5, 'The Most Important Thing Is… Controlling Risk'"),
+    source=_source("survival-first balance-sheet test"),
 )
 
 RULE_3_MARGIN_OF_SAFETY = Rule(
@@ -71,7 +79,7 @@ RULE_3_MARGIN_OF_SAFETY = Rule(
         "than above it. Buying well is the first line of defence."
     ),
     kind="EXPLICIT",
-    source=_source("ch. 4, 'The Most Important Thing Is… Value'"),
+    source=_source("price below value"),
 )
 
 RULE_4_QUALITY = Rule(
@@ -82,7 +90,7 @@ RULE_4_QUALITY = Rule(
         "the last five years: durable economics, not a lucky year."
     ),
     kind="EXPLICIT",
-    source=_source("ch. 7, 'The Most Important Thing Is… Knowing What You Don't Know'"),
+    source=_source("durable returns on capital"),
 )
 
 ALL_RULES = [

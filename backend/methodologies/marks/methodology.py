@@ -4,17 +4,25 @@ Marks is a qualitative investor: cycles, risk control, second-level
 thinking. This methodology implements only the **measurable subset** (like
 Fisher's quantitative subset) and says so in every result's sources:
 
-- cycle position (own-history margins and ROIC),
-- resilience (leverage, coverage, FCF),
-- margin of safety (FCF yield / EV-EBIT),
-- quality persistence (5-year ROIC).
+- valuation (DCF margin of safety, own-history P/E, P/B, earnings yield),
+- quality (ROIC, five-year FCF, margin stability, revenue growth),
+- risk control (leverage, coverage, dilution),
+- cycle position (company-level approximations only).
 
-Verdict: 25 points per passed rule, adjusted by the cycle reading
-(-15 at a peak, +10 at a trough, clamped to 0-100). BUY needs >= 75 with
-resilience, margin of safety and quality all passed and no peak reading;
-high leverage (net debt/EBITDA > 4) is an automatic AVOID red flag.
-Financials abstain (the shared company-type guard): leverage and EV/EBIT
-do not mean the same thing for banks.
+v2.0.0 turns the four original rules into a weighted framework: the existing
+rules keep their PASS/FAIL outcomes and are combined with 13 deep checks
+(:mod:`backend.methodologies.marks.deep_checks`) using the v0.26/v0.27
+aggregation (BUY >= 0.85, WATCH >= 0.70, HOLD >= 0.50, > 30% missing weight
+=> INSUFFICIENT_DATA). Extreme leverage (> 4x net debt/EBITDA) remains a hard
+AVOID gate: survival comes before the score.
+
+**Source caveat.** *The Most Important Thing* (2011) was **not available on
+this machine** (``docs/books_notes/the-most-important-thing.md``). Every rule
+is a public-knowledge reconstruction labelled ``page="public knowledge"``;
+no page-level fidelity is claimed.
+
+Financials abstain (the shared company-type guard): leverage and EV/EBIT do
+not mean the same thing for banks.
 """
 
 from __future__ import annotations
@@ -37,6 +45,16 @@ from backend.methodologies.common.ratio_guards import (
     is_meaningful_ev_ebit,
     is_meaningful_fcf_yield,
 )
+from backend.methodologies.common.weighted import (
+    WeightedResult,
+    weighted_verdict,
+)
+from backend.methodologies.marks.deep_checks import (
+    CHECKS as DEEP_CHECKS,
+)
+from backend.methodologies.marks.deep_checks import (
+    run_checks as run_deep_checks,
+)
 from backend.methodologies.marks.rules import (
     ALL_RULES,
     RULE_1_CYCLE,
@@ -47,8 +65,6 @@ from backend.methodologies.marks.rules import (
 
 #: Minimum years of history for a cycle reading.
 MIN_HISTORY_YEARS = 3
-#: Full confidence from this many years on.
-FULL_HISTORY_YEARS = 5
 
 #: Rule 2 thresholds.
 MAX_NET_DEBT_TO_EBITDA = 2.5
@@ -64,6 +80,16 @@ MIN_POSITIVE_ROIC_YEARS = 4
 #: Cycle reading thresholds (percentage points vs the company's own mean).
 PEAK_TREND_GAP_PP = 3.0
 TROUGH_TREND_GAP_PP = -3.0
+
+#: Weight of each original rule in the weighted verdict. Resilience, margin of
+#: safety and quality are critical; the cycle reading is a modifier.
+_LEGACY_WEIGHTS = {
+    RULE_1_CYCLE.id: 1,
+    RULE_2_RESILIENCE.id: 2,
+    RULE_3_MARGIN_OF_SAFETY.id: 2,
+    RULE_4_QUALITY.id: 2,
+}
+_RULE_NAMES = {rule.id: rule.name for rule in ALL_RULES}
 
 
 def _operating_margin(row: Any) -> float | None:
@@ -138,7 +164,7 @@ class MarksMethodology(Methodology):
     """Marks' measurable subset: cycles, resilience, value, quality."""
 
     name = "marks"
-    version = "1.0.0"
+    version = "2.0.0"
     family = "CYCLE_AWARE_VALUE"
 
     # ------------------------------------------------------------------
@@ -178,6 +204,8 @@ class MarksMethodology(Methodology):
                 market_cap = getter(ticker)
             except Exception:  # noqa: BLE001 — a missing quote is not an error
                 market_cap = None
+        price = self._current_price(ticker, prices)
+        dcf = self._dcf(ticker, rows, prices, price)
 
         # ---- metrics -------------------------------------------------
         margin, margin_mean = _cycle_reading(rows, _operating_margin)
@@ -243,35 +271,26 @@ class MarksMethodology(Methodology):
             RULE_4_QUALITY.id: quality_pass,
         }
 
-        score = 25.0 * sum(1 for ok in passed.values() if ok)
-        if cycle_position == "peak":
-            score -= 15.0
-        elif cycle_position == "trough":
-            score += 10.0
-        score = max(0.0, min(100.0, score))
-
+        deep = run_deep_checks(rows, price, market_cap, dcf)
+        weighted = [
+            WeightedResult(
+                rule_id=rule_id,
+                name=_RULE_NAMES.get(rule_id, rule_id),
+                category="legacy",
+                weight=_LEGACY_WEIGHTS[rule_id],
+                passed=ok,
+                detail="PASS" if ok else "FAIL",
+            )
+            for rule_id, ok in passed.items()
+        ]
+        weighted.extend(deep)
+        verdict, score, confidence = weighted_verdict(weighted)
+        # Marks' survival-first gate is not a score modifier: a balance sheet
+        # above 4x net debt/EBITDA is an AVOID even when the weighted ratio is
+        # comfortable. The score stays the weighted ratio (the red flag
+        # explains the override).
         if leverage_danger:
             verdict = Verdict.AVOID
-        elif (
-            score >= 75.0
-            and resilience_pass
-            and margin_of_safety_pass
-            and quality_pass
-            and cycle_position != "peak"
-        ):
-            verdict = Verdict.BUY
-        elif score >= 50.0:
-            verdict = Verdict.WATCH
-        elif score >= 25.0:
-            verdict = Verdict.HOLD
-        else:
-            verdict = Verdict.AVOID
-
-        confidence = (
-            Confidence.HIGH
-            if len(rows) >= FULL_HISTORY_YEARS and market_cap is not None
-            else Confidence.MEDIUM
-        )
 
         metrics = {
             "cycle_position": cycle_position,
@@ -291,9 +310,37 @@ class MarksMethodology(Methodology):
             "fcf_yield": round(fcf_yield, 4) if fcf_yield is not None else None,
             "ev_ebit": round(ev_ebit, 2) if ev_ebit is not None else None,
             "history_years": len(rows),
+            "current_price": price,
         }
+        metrics.update(
+            {check.rule_id.replace("marks.", ""): check.value for check in deep}
+        )
+        rule_outcomes = {
+            RULE_1_CYCLE.id: "PASS" if cycle_pass else "FAIL",
+            RULE_2_RESILIENCE.id: "PASS" if resilience_pass else "FAIL",
+            RULE_3_MARGIN_OF_SAFETY.id: "PASS" if margin_of_safety_pass else "FAIL",
+            RULE_4_QUALITY.id: "PASS" if quality_pass else "FAIL",
+        }
+        rule_outcomes.update(
+            {
+                check.rule_id: (
+                    "PASS"
+                    if check.passed is True
+                    else "FAIL"
+                    if check.passed is False
+                    else "N/A"
+                )
+                for check in deep
+            }
+        )
+        metrics["rule_outcomes"] = rule_outcomes
+        if dcf is not None:
+            metrics["dcf_intrinsic_value"] = getattr(
+                dcf, "intrinsic_value_per_share", None
+            )
+            metrics["dcf_margin_of_safety"] = getattr(dcf, "margin_of_safety", None)
 
-        reasons = self._reasons(metrics, passed, leverage_danger, market_cap)
+        reasons = self._reasons(metrics, passed, leverage_danger, market_cap, deep)
         red_flags = []
         if leverage_danger:
             red_flags.append(
@@ -305,6 +352,9 @@ class MarksMethodology(Methodology):
                 "returns above their own trend: mean reversion risk (Marks: "
                 "the riskiest thing is the belief that there is no risk)"
             )
+        red_flags.extend(
+            f"{check.name}: {check.detail}" for check in deep if check.passed is False
+        )
         reasons.append(f"verdict: {verdict.value}")
 
         return MethodologyResult(
@@ -312,20 +362,57 @@ class MarksMethodology(Methodology):
             version=self.version,
             family=self.family,
             verdict=verdict,
-            score=round(score, 2),
+            score=score,
             metrics=metrics,
             reasons=reasons,
             red_flags=red_flags,
             confidence=confidence,
-            sources=[rule.source for rule in ALL_RULES],
-            passed_rules=[rid for rid, ok in passed.items() if ok],
-            failed_rules=[rid for rid, ok in passed.items() if not ok],
+            sources=[rule.source for rule in ALL_RULES]
+            + [check.source for check in DEEP_CHECKS],
+            passed_rules=[rid for rid, ok in passed.items() if ok]
+            + [check.rule_id for check in deep if check.passed is True],
+            failed_rules=[rid for rid, ok in passed.items() if not ok]
+            + [check.rule_id for check in deep if check.passed is False],
         )
 
     # ------------------------------------------------------------------
     @staticmethod
+    def _current_price(ticker: str, prices: Any) -> float | None:
+        getter = getattr(prices, "get_current_price", None)
+        if not callable(getter):
+            return None
+        try:
+            value = getter(ticker)
+        except Exception:  # noqa: BLE001 — no price is not an error
+            return None
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _dcf(ticker: str, rows: list[Any], prices: Any, price: float | None):
+        """Best-effort DCF; missing beta/inputs degrade the rule to N/A."""
+        if price is None or not rows:
+            return None
+        try:
+            from backend.valuation.dcf import DCFValuation
+
+            result = DCFValuation().evaluate(ticker, rows, prices)
+        except Exception:  # noqa: BLE001 — DCF is an optional rule input
+            return None
+        if getattr(result, "margin_of_safety", None) is None:
+            return None
+        return result
+
+    # ------------------------------------------------------------------
+    @staticmethod
     def _reasons(
-        metrics: dict, passed: dict, leverage_danger: bool, market_cap: float | None
+        metrics: dict,
+        passed: dict,
+        leverage_danger: bool,
+        market_cap: float | None,
+        deep=None,
     ) -> list[str]:
         reasons = [
             (
@@ -353,10 +440,19 @@ class MarksMethodology(Methodology):
                 "No market cap (price unavailable): the margin-of-safety rule "
                 "could not use FCF yield / EV-EBIT."
             )
+        for check in deep or ():
+            mark = (
+                "PASS"
+                if check.passed is True
+                else "FAIL"
+                if check.passed is False
+                else "N/A"
+            )
+            reasons.append(f"[{mark}] {check.name}: {check.detail}")
         return reasons
 
     def rules(self) -> list:
-        return list(ALL_RULES)
+        return list(ALL_RULES) + [check.rule() for check in DEEP_CHECKS]
 
     def metadata(self) -> dict:
         return {
@@ -364,20 +460,39 @@ class MarksMethodology(Methodology):
             "label": self.name,
             "version": self.version,
             "family": self.family,
-            "source": "The Most Important Thing (2011)",
+            "source": (
+                "The Most Important Thing (2011) — public-knowledge "
+                "reconstruction (book not available)"
+            ),
             "known_limitations": [
                 (
                     "qualitative subset: market-wide cycle temperature, the "
-                    "pendulum of psychology and second-level thinking are not "
-                    "measurable from filings"
+                    "pendulum of psychology, second-level thinking and the "
+                    "credit cycle are not measurable from filings"
                 ),
                 (
                     "needs at least 3 fiscal years of history for a cycle "
-                    "reading; 5+ for HIGH confidence"
+                    "reading; the weighted confidence comes from rule coverage, "
+                    "not from the length of the history"
                 ),
                 (
                     "financials abstain (leverage, coverage and EV/EBIT are "
                     "not comparable for banks and insurers)"
+                ),
+                (
+                    "public-knowledge caveat: the Marks book was not available "
+                    "on this machine, so no rule claims a page or a verbatim "
+                    "quote; thresholds are published heuristics"
+                ),
+                (
+                    "the own-history P/E rules use a constant-price proxy: FDB "
+                    "has no period-end dates and the batch pipeline fetches no "
+                    "point-in-time price history"
+                ),
+                (
+                    "market-wide cycle temperature, the credit cycle and "
+                    "second-level thinking are deferred: they need data this "
+                    "system does not collect"
                 ),
             ],
         }
