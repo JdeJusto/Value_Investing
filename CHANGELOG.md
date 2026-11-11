@@ -1,3 +1,48 @@
+## [0.29.0] - 2026-11-11
+
+### Added
+- **`docs/books_notes/`**: curated notes and a book-to-methodology map for
+  the reference library. Four books were available and extracted: *The
+  Intelligent Investor* (Graham), *Security Analysis* (Graham & Dodd),
+  *Common Stocks and Uncommon Profits* (Fisher) and *Warren Buffett and the
+  Interpretation of Financial Statements* (Buffett/Clark). The full text
+  lives in the gitignored `_raw/`; only the notes are versioned.
+- Four methodologies whose books were **not found** (*The Warren Buffett
+  Way*, *One Up on Wall Street*, *The Most Important Thing*, *The Little
+  Book That Beats the Market*) have explicit "public knowledge only" stubs,
+  so no citation is invented.
+
+### Changed
+- **Graham aligned with *The Intelligent Investor*** (ch. 14, p. 112): the
+  debt criterion now follows the book's utility branch (utilities may carry
+  up to 2× book equity; industrials keep total debt ≤ working capital).
+  Total debt remains a stricter proxy for long-term debt.
+- Graham source audit: interest coverage (5×) and the EPS-dispersion test
+  are now labelled public-knowledge extensions rather than book criteria;
+  the NCAV/net-net rule now cites *Security Analysis* (p. 5) instead of
+  *The Intelligent Investor*.
+- **Buffett classic source audit**: five rules that claimed a specific
+  letter were re-labelled as public approximations (ROIC persistence,
+  interest coverage, five-year FCF, net margin, earnings yield). Thresholds,
+  weights and the measured distribution are unchanged.
+
+### Measured
+- Graham distribution (one-pass SP500, base verdicts): **0 BUY / 3 WATCH /
+  95 HOLD / 310 AVOID / 71 N/A / 21 INSUFFICIENT** — unchanged; no utility
+  crossed a verdict boundary.
+- Buffett classic base distribution: **9 BUY / 62 WATCH / 178 HOLD /
+  152 AVOID / 71 N/A / 28 INSUFFICIENT** (the tiered rank splits the BUYs
+  into STRONG/BUY).
+- Backtests are unchanged by the documentation-only Buffett audit; Graham's
+  last measured 5-year run was 4.2% CAGR / 0.50 Sharpe (v0.26.0), and the
+  utility branch is exercised in the final consolidation.
+
+### Notes
+- This release is the first of four checkpoints; the six remaining
+  methodologies are expanded in v0.30.0–v0.32.0.
+- Book pages are cited only where the notes support them; everything else is
+  explicitly a public-knowledge approximation.
+
 ## [0.28.0] - 2026-11-11
 
 ### Added
