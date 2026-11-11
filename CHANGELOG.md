@@ -1,3 +1,36 @@
+## [0.32.1] - 2026-11-11
+
+### Security
+- **Path injection in the price cache**: `PriceService` built cache
+  filenames from the raw, user-controlled ticker. A crafted ticker such as
+  `../../etc/passwd` could escape `data/price_cache/`. The cache key is now a
+  SHA-256 digest of the normalized ticker, so the tainted string never
+  reaches a filesystem path. CodeQL `py/path-injection` alerts: **4 high → 0
+  open**. Tests cover traversal payloads, determinism, per-ticker separation
+  and the empty-ticker case.
+
+### Documentation
+- `docs/backtesting_design.md`: added the 2026-11-11 audit (12 Q&A on price
+  sourcing, adjusted close, ADR currency, fiscal-year-end fallback, failure
+  behaviour, holdings, rebalancing and the opportunity set), and corrected
+  the portfolio formula to tier-weighted.
+- `docs/methodology_expansion_summary.md`: corrected the backtest table.
+  `buffett_clark` and `marks` were reported at 2021–2024 / 100 tickers;
+  the comparable 10y/400 numbers are **15.93% / 1.07** and **15.15% /
+  1.39** (not -2.6% / 23.4%).
+- `docs/security_review_2026-11-11.md`: CodeQL/Dependabot status.
+
+### Notes
+- **v0.32.0 does NOT include the security fix. Use v0.32.1 or later.**
+- **ADR currency bug**: SAN reports in EUR and BTI in GBP, while their NYSE
+  ADR prices are USD; VI's normalized `currency` is hardcoded to USD, so
+  their valuation ratios mix currencies. This is documented (not fixed here);
+  the FDB 0.3.0 currency normalization is a separate session.
+- Mobile Dependabot alerts (`zod`, `glob`, `deepmerge`) remain in
+  `mobile/package-lock.json`; they are transitive build/dev tooling, not the
+  Python backend or the app bundle. Follow-up in a dedicated mobile upgrade
+  session.
+
 ## [0.32.0] - 2026-11-11
 
 ### Added
