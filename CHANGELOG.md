@@ -1,3 +1,31 @@
+## [0.31.0] - 2026-11-11
+
+### Added
+- **`graham_dodd` deep expansion (5 → 26 rules)**: 21 checks from *Security
+  Analysis* (1934) across net-net/NCAV, balance-sheet quality, earnings
+  power (including EPV), asset value and margin of safety. Weight 0 for the
+  report-only qualitative rule; pages 5, 38/41, 101 and 230 are cited where
+  the curated notes support them.
+- **`fisher_quantitative_subset` deep expansion (4 → 17 rules)**: 13 new
+  checks across growth potential, profitability, cost efficiency and capital
+  discipline. The 11 qualitative/scuttlebutt points stay deferred and are
+  documented in `docs/fisher_rules.md`.
+- `docs/graham_dodd_rules.md` and `docs/fisher_rules.md` with full rule
+  tables, weights, sources and distributions.
+
+### Measured (SP500, one-pass base verdicts)
+- `graham_dodd`: **0 BUY / 0 WATCH / 22 HOLD / 363 AVOID / 71 N/A /
+  44 INSUFFICIENT**. The strictness is deliberate; the book's net-net and
+  2/3 NCAV tests rarely trigger on modern large caps.
+- `fisher_quantitative_subset`: **12 BUY / 77 WATCH / 142 HOLD / 160 AVOID /
+  71 N/A / 38 INSUFFICIENT**.
+
+### Notes
+- *Security Analysis* was available and is cited by page where supported;
+  Fisher's *Common Stocks and Uncommon Profits* was available and cited.
+- The Fisher framework remains a quantitative subset by design.
+- Backtests are consolidated in v0.32.0.
+
 ## [0.30.0] - 2026-11-11
 
 ### Added
