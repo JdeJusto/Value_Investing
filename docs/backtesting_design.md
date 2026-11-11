@@ -12,8 +12,10 @@ Buffett/Classic, Fisher, Lynch, Marks):
 
 1. Re-evaluate the methodology at every fiscal-year end in the window using
    **only the fundamentals available at that fiscal year**.
-2. Hold every selected verdict (BUY by default, or the `:VERDICT` filter) for
-   one year, equal-weighted.
+2. Hold every selected verdict (positive tiers by default, or the
+   `:VERDICT` filter) for one year. The default weighting is tier-based
+   (STRONG 60% / BUY 30% / WEAK 10%, equal within a tier and re-normalized to
+   the tiers present); `--equal-weight` restores the legacy equal weighting.
 3. Compare the compounded return with two benchmarks: the **opportunity set**
    (equal-weighted same-sample basket) and **SPY** (market context).
 
@@ -76,14 +78,69 @@ from the methodology result; N/A companies do not participate.
   sorted by fiscal year and truncated to `fiscal_year <= Y` before evaluation,
   so the methodology never sees a later year. At least 3 rows are required.
 - **Prices:** `PriceService.get_price_at_fiscal_year_end` (Yahoo, on demand,
-  never persisted). It uses the exact fiscal-year-end date from FDB, else
-  December 31, and picks the closest trading day within ±15 days.
+  never persisted). It uses the exact `period_end` from FDB, else December 31,
+  and picks the closest trading day within ±15 calendar days.
+- **Price adjustment:** the service calls `yf.Ticker(ticker).history()` with
+  no `auto_adjust` argument. With the installed yfinance (1.7.0) the default
+  is **`auto_adjust=True`**, so `Close` is already adjusted for splits **and
+  dividends**; the frame has no `Adj Close` column. Returns are therefore
+  close to total return (dividends reinvested at the ex-date), not raw price
+  return. No separate dividend cash flow is modelled.
+- **Cache:** `data/price_cache/<sha256(ticker)>_<start>_<end>.json`, a JSON
+  list of `[ISO date, close]` pairs. It stores only the adjusted close, not
+  OHLC/Adj Close. Historical ranges are permanent; a range ending within the
+  last 7 days expires after one day. Legacy `<TICKER>_...json` files written
+  before v0.32.1 remain on disk but are ignored by the hashed lookup.
 - **Market cap for the methodologies:** the evaluation row's
   `shares_outstanding × split_adjustment_factor × price(Y)`, so past share
   counts line up with split-adjusted Yahoo prices.
 - **Universe:** `config/universe.csv`, `--universe sp500` by default.
   `--limit N` takes an **evenly spaced deterministic sample** of the sorted
   tickers (not the first N alphabetically, which would bias towards A-tickers).
+
+
+## Audit 2026-11-11 — prices, holdings and rebalancing
+
+Read-only audit of the PoC semantics. The answers below refer to
+`backend/services/price_service.py` and
+`backend/services/methodology_backtest_service.py` at v0.32.0+.
+
+### Prices
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Is `auto_adjust` active? | **Yes, by default.** `history()` is called without the argument; yfinance 1.7.0 defaults to `auto_adjust=True`, so `Close` is split- and dividend-adjusted. A `history(auto_adjust=False)` call returns `Close` + `Adj Close`; the service never asks for that variant. |
+| 2 | Fiscal year end on a weekend/holiday | `get_price_on_date` collects prices within **±15 calendar days** of `period_end` and picks the row with the smallest absolute day distance. A Saturday/Sunday therefore resolves to the preceding Friday (1 day) rather than Monday (2). On a mid-week holiday, the earlier trading day wins a tie because the series is chronological and `min()` keeps the first. No row within 15 days → `None` and the fiscal year is skipped. |
+| 3 | ADR currency | Yahoo returns the **listing currency**: USD for SAN/TTE/BTI/AZN/SHEL on NYSE. FDB's normalized `currency` is **hardcoded "USD"** (`backend/repositories/fdb_mixins/normalization_mixin.py`, `TODO: Get from actual unit/currency data`), while raw facts for **SAN are EUR** and **BTI are GBP** (TTE/AZN/SHEL file USD). The return is a correct USD ADR price return, but valuation rules (P/E, P/B, FCF yield) mix EUR/GBP fundamentals with a USD price. This is a known bug for non-USD reporters. |
+| 4 | yfinance failure | `_yf_call` retries up to 3 times with throttling and exponential backoff. On final failure `_fetch_historical_prices` records `_last_error` and returns `[]`; `get_price_on_date` returns `None`; `_price_series` omits that fiscal year. If fewer than 2 fiscal-year prices exist, the ticker is added to `skipped_tickers` (`no usable prices (N fiscal years)`). An empty series is cached in memory but **not written to disk**. |
+| 5 | Exact date source | `FinancialDatabaseRepository.get_fiscal_year_end_date` derives `period_end` from the core FY facts (calendar-year match, annual span, latest `period_end`), then the price helper picks the closest trading day. If FDB has no date, the fallback is December 31 of the fiscal year. The return window is `FY_end(Y) → FY_end(Y+1)`, not calendar year-end. |
+
+### Portfolio composition and rebalancing
+
+| # | Question | Answer |
+|---|---|---|
+| 6 | STRONG_BUY in FY2022 → WATCH in FY2023 | The FY2022 signal is held for the FY2022→FY2023 forward window and earns that return. At the FY2023 boundary the portfolio is rebuilt from FY2023 verdicts; a WATCH is not selected (unless the filter is WATCH), so the position is effectively sold at that boundary. There is no explicit sell function and no carry-over. |
+| 7 | Annual full rebalance or weight adjustment? | **Annual full rebalance, implicit.** Each signal year's selected set is a fresh one-year portfolio; the next year's set replaces it entirely. Weights are recomputed from that year's tiers. |
+| 8 | Ticker leaves the universe/ranking or lacks a price | It is absent from the next year's evaluated set, so it is not held after the boundary (implicit sale). If `price(Y+1)` is missing, the signal year `Y` is skipped entirely (`if year + 1 not in prices: continue`), so no return is fabricated. |
+| 9 | Return formula | `forward = price(FY_end(Y+1)) / price(FY_end(Y)) - 1`. With `auto_adjust=True`, that close-to-close ratio includes splits and dividends (approximate total return). No separate dividend cash flow. |
+| 10 | Transaction costs / cash | **No** commissions, slippage, taxes or borrow. A year with no positive signal is **100% cash at 0%**. |
+| 11 | Tier weighting | Fixed tier shares: STRONG 60%, BUY 30%, WEAK 10%, **normalized to the tiers present** (e.g. BUY+WEAK → 75/25; one tier → 100%). Within each tier, names are **equal-weighted** (`tier_weight / n_names`). It is not proportional to the number of names across tiers. |
+| 12 | Opportunity set | **Recalculated every year** as the equal-weighted mean forward return of every evaluated ticker with both `price(Y)` and `price(Y+1)` that year; it is not a fixed basket from the initial sample. |
+
+### Output and known gaps
+
+- `--json` exposes `per_year` with `year`, `complete`, `buys`,
+  `portfolio_return`, `benchmark_return` and `verdicts` counts, plus
+  `tier_counts`/`signals`. It does **not** expose the holdings list per year.
+  Positions must be inferred from the verdicts and the code above.
+- `tier_counts` aggregates the **final, tiered** verdicts over all signal
+  years (not per year); `verdicts_by_year` has the per-year counts.
+- The cache had 501 hashed and 401 legacy ticker-named files on 2026-11-11;
+  the legacy files are no longer read after the path-injection fix.
+- The PoC notes still say "No dividends"; that is the historical wording. The
+  actual `auto_adjust=True` behaviour embeds dividend adjustments in `Close`.
+  The limitation is the *modelling* (no dividend cash flow), not the absence
+  of income from the return.
 
 ## Run
 
@@ -111,8 +168,10 @@ The script writes `data/backtest/backtest_<date>.json` (git-ignored).
 
 ## Limitations (explicit)
 
-1. **Price return only.** Dividends are excluded, so income strategies are
-   understated relative to a total-return benchmark.
+1. **Total return is approximated by Yahoo's adjusted close.** With
+   `auto_adjust=True`, `Close` includes splits and dividend adjustments, so
+   income is not missing; it is embedded in the price rather than modelled as
+   cash. The adjustment assumes dividends are reinvested at the ex-date.
 2. **Survivorship / selection bias.** The universe is today's index
    constituents; companies removed from the index or delisted are absent.
 3. **Restatements.** FDB stores the current normalized facts, not the figures
@@ -121,7 +180,9 @@ The script writes `data/backtest/backtest_<date>.json` (git-ignored).
 4. **Annual granularity.** One price per year; a BUY in March and a 30%
    drawdown in June are invisible.
 5. **No costs.** No commissions, slippage, taxes or borrow.
-6. **Equal weight, yearly rebalance.** No position sizing, no caps.
+6. **Tier weights, annual rebalance.** The default is STRONG 60 / BUY 30 /
+   WEAK 10 (equal within a tier, re-normalized when a tier is empty), not
+   equal weight. No position caps; `--equal-weight` is the legacy mode.
 7. **Sharpe without a risk-free rate** and on ≤10 observations: it is a
    dispersion indicator, not an investable Sharpe ratio.
 8. **Benchmark is equal-weight, not the S&P 500 index.**
