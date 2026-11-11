@@ -13,6 +13,9 @@ import pytest
 
 from backend.domain.value_objects.financials_normalized import NormalizedFinancials
 from backend.methodologies.base import Confidence, Verdict
+from backend.methodologies.fisher_quantitative_subset import (
+    methodology as fisher_module,
+)
 from backend.methodologies.fisher_quantitative_subset.methodology import (
     FisherQuantitativeSubsetMethodology,
 )
@@ -510,10 +513,11 @@ def test_rule_4_split_adjustment_updates_metric():
 
 
 def test_rule_4_split_adjustment_changes_verdict():
-    """The AAPL shape flips from AVOID (dilution FAIL) to BUY once the 4:1
-    split is restated and R&D/margins/cost-control all pass."""
+    """The AAPL shape flips from AVOID (dilution FAIL) to HOLD once the 4:1
+    split is restated; the deep growth checks (flat revenue in this fixture)
+    keep it below WATCH under the weighted v2.0.0 framework."""
     rows = _healthy_rows(5_750_000_000, 14_900_000_000, past_split_factor=4.0)
-    assert _evaluate(rows).verdict == Verdict.BUY
+    assert _evaluate(rows).verdict == Verdict.HOLD
 
 
 # ---------------------------------------------------------------------------
@@ -543,63 +547,77 @@ def test_incomplete_fixture_shape():
     assert _status(res, R4) == "INSUFFICIENT_DATA"
 
 
-def test_3of4_fixture_watch_75():
+def test_3of4_fixture_weighted_hold():
+    """The legacy four points fail only on missing R&D data, but the flat
+    revenue in the fixture fails the deep growth rules, so the weighted score
+    lands in HOLD rather than the old 75-point WATCH."""
     res = _evaluate(_fixture_rows("fisher_quant_3of4.json"))
     assert _status(res, R1) == "INSUFFICIENT_DATA"
     assert _status(res, R2) == "PASS"
     assert _status(res, R3) == "PASS"
     assert _status(res, R4) == "PASS"
-    assert res.verdict == Verdict.WATCH
-    assert res.score == pytest.approx(75.0)
-    assert res.confidence == Confidence.MEDIUM
+    assert res.verdict == Verdict.HOLD
+    assert res.score == pytest.approx(57.14, abs=0.01)
+    assert res.confidence == Confidence.LOW
 
 
-def test_perfect_fixture_buy_100():
+def test_perfect_fixture_weighted_hold():
+    """The 'perfect' fixture passes all four legacy points but has flat
+    revenue, so the deep growth/profitability rules drag the weighted score to
+    HOLD. The old BUY/100 ignored growth entirely."""
     res = _evaluate(_fixture_rows("fisher_quant_perfect.json"))
     assert _status(res, R1) == "PASS"
     assert _status(res, R2) == "PASS"
     assert _status(res, R3) == "PASS"
     assert _status(res, R4) == "PASS"
-    assert res.verdict == Verdict.BUY
-    assert res.score == pytest.approx(100.0)
-    assert res.confidence == Confidence.HIGH
+    assert res.verdict == Verdict.HOLD
+    assert res.score == pytest.approx(60.0)
+    assert res.confidence == Confidence.LOW
 
 
 # ---------------------------------------------------------------------------
 # Verdict logic
 # ---------------------------------------------------------------------------
 def test_verdict_buy_quality_fixture():
+    """Quality shape (legacy four pass) is HOLD under the weighted framework:
+    the fixture's 5.9% revenue CAGR does not clear the 15% growth rule."""
     res = _evaluate(_fixture_rows("fisher_quant_quality.json"))
-    assert res.verdict == Verdict.BUY
+    assert res.verdict == Verdict.HOLD
 
 
-def test_verdict_watch_three_pass_one_insufficient():
-    """KO shape: R&D not reported, the other three rules pass -> WATCH (75)."""
+def test_verdict_hold_three_pass_one_insufficient():
+    """KO shape: R&D not reported, the other three legacy rules pass, but the
+    flat revenue keeps the weighted score in HOLD (57.14)."""
     res = _evaluate(_ko_shape_rows())
     assert _status(res, R1) == "INSUFFICIENT_DATA"
     assert _status(res, R2) == "PASS"
     assert _status(res, R3) == "PASS"
     assert _status(res, R4) == "PASS"
-    assert res.verdict == Verdict.WATCH
-    assert res.score == pytest.approx(75.0)
+    assert res.verdict == Verdict.HOLD
+    assert res.score == pytest.approx(57.14, abs=0.01)
 
 
 def test_verdict_three_pass_one_watch_is_not_buy():
-    """BUY requires 4/4: three PASS plus one WATCH stays WATCH, not BUY."""
+    """BUY requires a weighted ratio >= 85%; one legacy WATCH plus the deep
+    growth misses keeps the verdict below WATCH."""
     res = _evaluate(_healthy_rows(10_000_000_000, 10_500_000_000))
     assert _status(res, R1) == "PASS"
     assert _status(res, R4) == "WATCH"
-    assert res.verdict == Verdict.WATCH
+    assert res.verdict != Verdict.BUY
+    assert res.verdict == Verdict.AVOID
 
 
 def test_verdict_hold_two_pass_no_fail():
-    """P&G shape: modest R&D, strong margins, missing 10y shares -> HOLD (50)."""
+    """P&G shape: modest R&D, strong margins, missing 10y shares — the missing
+    weight (SG&A, FCF, ROIC, shares) crosses 30%, so the verdict is
+    INSUFFICIENT_DATA rather than the old HOLD."""
     res = _evaluate(_full_margin_rows([0.42, 0.42, 0.425, 0.42, 0.42]))
     assert _status(res, R1) == "WATCH"
     assert _status(res, R2) == "PASS"
     assert _status(res, R3) == "PASS"
     assert _status(res, R4) == "INSUFFICIENT_DATA"
-    assert res.verdict == Verdict.HOLD
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
 
 
 def test_verdict_avoid_margin_fail():
@@ -615,19 +633,22 @@ def test_verdict_avoid_dilution_fail():
 
 
 def test_verdict_avoid_any_fail_even_with_three_passes():
-    """One FAIL vetoes the verdict even when the other three rules pass."""
+    """A net-margin failure plus the deep growth misses keeps the weighted
+    score in AVOID even though several legacy rules pass."""
     res = _evaluate(_healthy_rows(10_000_000_000, 10_500_000_000, net_ratio=0.04))
     assert _status(res, R2) == "FAIL"
     assert res.verdict == Verdict.AVOID
 
 
-def test_verdict_avoids_fewer_than_two_passes():
-    """Fewer than 2 PASS (no FAIL, not enough INSUFFICIENT) -> AVOID."""
+def test_verdict_insufficient_when_too_much_weight_is_missing():
+    """Two legacy WATCHes plus missing shares/SG&A/FCF/ROIC cross the 30%
+    missing-weight bar, so the weighted verdict is INSUFFICIENT_DATA."""
     res = _evaluate(_full_margin_rows([0.55, 0.48, 0.57, 0.45, 0.50]))
     assert _status(res, R1) == "WATCH"
     assert _status(res, R3) == "WATCH"
     assert _status(res, R4) == "INSUFFICIENT_DATA"
-    assert res.verdict == Verdict.AVOID
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
 
 
 def test_verdict_insufficient_data_fixture():
@@ -645,20 +666,20 @@ def test_verdict_empty_fundamentals():
 # ---------------------------------------------------------------------------
 # Score
 # ---------------------------------------------------------------------------
-def test_score_quality_is_100():
+def test_score_quality_is_weighted_ratio():
     res = _evaluate(_fixture_rows("fisher_quant_quality.json"))
-    assert res.score == pytest.approx(100.0)
+    assert res.score == pytest.approx(66.67, abs=0.01)
 
 
-def test_score_three_pass_one_insufficient_is_75():
+def test_score_three_pass_one_insufficient_is_weighted():
     res = _evaluate(_ko_shape_rows())
-    assert res.score == pytest.approx(75.0)
+    assert res.score == pytest.approx(57.14, abs=0.01)
 
 
-def test_score_hold_two_pass_is_50():
+def test_score_none_when_weighted_coverage_is_thin():
     res = _evaluate(_full_margin_rows([0.42, 0.42, 0.425, 0.42, 0.42]))
-    assert res.verdict == Verdict.HOLD
-    assert res.score == pytest.approx(50.0)
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
 
 
 def test_score_none_when_insufficient_data_even_with_passes():
@@ -681,14 +702,16 @@ def test_score_none_incomplete_fixture():
 # ---------------------------------------------------------------------------
 # Confidence
 # ---------------------------------------------------------------------------
-def test_confidence_high_all_evaluated():
+def test_confidence_low_when_deep_coverage_is_thin():
+    """The quality fixture has no SG&A, FCF or ROIC, so >10% of the weighted
+    rules are missing and confidence is LOW under the weighted rule."""
     res = _evaluate(_fixture_rows("fisher_quant_quality.json"))
-    assert res.confidence == Confidence.HIGH
+    assert res.confidence == Confidence.LOW
 
 
-def test_confidence_medium_one_insufficient():
+def test_confidence_low_when_many_deep_rules_are_missing():
     res = _evaluate(_full_margin_rows([0.42, 0.42, 0.42, 0.42, 0.42]))
-    assert res.confidence == Confidence.MEDIUM
+    assert res.confidence == Confidence.LOW
 
 
 def test_confidence_low_two_insufficient():
@@ -728,9 +751,14 @@ def test_red_flag_share_dilution():
     assert "Share count increased more than 10% over 10 years" in res.red_flags
 
 
-def test_red_flags_weak_fixture_has_all_four():
+def test_red_flags_weak_fixture_has_the_canonical_four():
     res = _evaluate(_fixture_rows("fisher_quant_weak.json"))
-    assert len(res.red_flags) == 4
+    assert len(res.red_flags) >= 4
+    joined = " | ".join(res.red_flags)
+    assert "R&D below" in joined
+    assert "Net margin below 5%" in joined
+    assert "Gross margin standard deviation" in joined
+    assert "Share count increased" in joined
 
 
 # ---------------------------------------------------------------------------
@@ -738,25 +766,30 @@ def test_red_flags_weak_fixture_has_all_four():
 # ---------------------------------------------------------------------------
 def test_sources_cite_fisher_1958():
     res = _evaluate(_fixture_rows("fisher_quant_quality.json"))
-    assert len(res.sources) == 4
+    assert len(res.sources) == 17
     for source in res.sources:
         assert source.book == "Common Stocks and Uncommon Profits"
         assert source.year == 1958
         assert source.era == "1958"
 
 
-def test_source_pages_map_to_points():
+def test_source_pages_map_to_legacy_points():
     m = FisherQuantitativeSubsetMethodology()
     pages = [rule.source.page for rule in m.rules()]
-    assert pages == ["54-55", "63-64", "69", "75"]
+    assert pages[:4] == ["54-55", "63-64", "69", "75"]
+    # Deep rules cite a page or the public-knowledge label, never a blank.
+    assert all(page for page in pages)
 
 
-def test_rules_four_explicit_unique():
+def test_rules_include_the_four_explicit_points_and_deep_checks():
     m = FisherQuantitativeSubsetMethodology()
     rules = m.rules()
-    assert len(rules) == 4
-    assert all(rule.kind == "EXPLICIT" for rule in rules)
-    assert len({rule.id for rule in rules}) == 4
+    assert len(rules) == 17
+    assert len({rule.id for rule in rules}) == 17
+    explicit = [rule for rule in rules if rule.kind == "EXPLICIT"]
+    inferred = [rule for rule in rules if rule.kind == "INFERRED"]
+    assert len(explicit) == 4
+    assert len(inferred) == 13
     assert all(rule.id.startswith("fisher_quantitative_subset.") for rule in rules)
 
 
@@ -884,55 +917,58 @@ def test_reason_counts_not_applicable_insufficient_and_scored():
     assert "0 scored" in summary[0]
 
 
-def test_verdict_not_applicable_below_half_coverage():
+def test_verdict_not_applicable_below_half_coverage(monkeypatch):
     methodology = FisherQuantitativeSubsetMethodology()
-    status = {
-        "rule_1_rnd_intensity": ("NOT_APPLICABLE", ""),
-        "rule_2_profit_margin_quality": ("NOT_APPLICABLE", ""),
-        "rule_3_cost_control_stability": ("NOT_APPLICABLE", ""),
-        "rule_4_share_dilution": ("PASS", ""),
-    }
-    assert methodology._verdict(status) == Verdict.NOT_APPLICABLE
+    monkeypatch.setattr(methodology, "_rule_1", lambda rows: ("NOT_APPLICABLE", ""))
+    monkeypatch.setattr(methodology, "_rule_2", lambda rows: ("NOT_APPLICABLE", ""))
+    monkeypatch.setattr(methodology, "_rule_3", lambda rows: ("NOT_APPLICABLE", ""))
+    monkeypatch.setattr(methodology, "_rule_4", lambda rows: ("PASS", ""))
+    res = methodology.evaluate("TEST", [_row(2024, 100_000_000_000)], _Prices())
+    assert res.verdict == Verdict.NOT_APPLICABLE
+    assert res.score is None
 
 
-def test_verdict_buy_when_all_applicable_rules_pass():
-    """Low-R&D sector: R&D is N/A, the other three points pass -> BUY."""
+def test_verdict_buy_when_all_applicable_rules_pass(monkeypatch):
+    """With no deep checks in the denominator, four PASSes score 100."""
     methodology = FisherQuantitativeSubsetMethodology()
-    status = {
-        "rule_1_rnd_intensity": ("NOT_APPLICABLE", ""),
-        "rule_2_profit_margin_quality": ("PASS", ""),
-        "rule_3_cost_control_stability": ("PASS", ""),
-        "rule_4_share_dilution": ("PASS", ""),
-    }
-    assert methodology._verdict(status) == Verdict.BUY
+    for name in ("_rule_1", "_rule_2", "_rule_3", "_rule_4"):
+        monkeypatch.setattr(methodology, name, lambda rows: ("PASS", ""))
+    monkeypatch.setattr(fisher_module, "run_checks", lambda *_a, **_k: [])
+    res = methodology.evaluate("TEST", [_row(2024, 100_000_000_000)], _Prices())
+    assert res.verdict == Verdict.BUY
+    assert res.score == pytest.approx(100.0)
 
 
-def test_verdict_avoid_when_the_only_scored_rule_fails():
-    """TTE shape: R&D fails, the other three points have no data -> AVOID."""
+def test_verdict_insufficient_when_the_only_scored_rule_fails(monkeypatch):
+    """One FAIL plus three INSUFFICIENT leaves >30% of the weight missing."""
     methodology = FisherQuantitativeSubsetMethodology()
-    status = {
-        "rule_1_rnd_intensity": ("FAIL", ""),
-        "rule_2_profit_margin_quality": ("INSUFFICIENT_DATA", ""),
-        "rule_3_cost_control_stability": ("INSUFFICIENT_DATA", ""),
-        "rule_4_share_dilution": ("INSUFFICIENT_DATA", ""),
-    }
-    assert methodology._verdict(status) == Verdict.AVOID
+    monkeypatch.setattr(methodology, "_rule_1", lambda rows: ("FAIL", ""))
+    monkeypatch.setattr(methodology, "_rule_2", lambda rows: ("INSUFFICIENT_DATA", ""))
+    monkeypatch.setattr(methodology, "_rule_3", lambda rows: ("INSUFFICIENT_DATA", ""))
+    monkeypatch.setattr(methodology, "_rule_4", lambda rows: ("INSUFFICIENT_DATA", ""))
+    monkeypatch.setattr(fisher_module, "run_checks", lambda *_a, **_k: [])
+    res = methodology.evaluate("TEST", [_row(2024, 100_000_000_000)], _Prices())
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
 
 
-def test_verdict_insufficient_when_only_one_rule_is_scored():
-    """One PASS is not enough evidence for HOLD/AVOID."""
+def test_verdict_insufficient_when_only_one_rule_is_scored(monkeypatch):
+    """One PASS is not enough evidence once the missing weight exceeds 30%."""
     methodology = FisherQuantitativeSubsetMethodology()
-    status = {
-        "rule_1_rnd_intensity": ("INSUFFICIENT_DATA", ""),
-        "rule_2_profit_margin_quality": ("PASS", ""),
-        "rule_3_cost_control_stability": ("INSUFFICIENT_DATA", ""),
-        "rule_4_share_dilution": ("INSUFFICIENT_DATA", ""),
-    }
-    assert methodology._verdict(status) == Verdict.INSUFFICIENT_DATA
+    monkeypatch.setattr(methodology, "_rule_1", lambda rows: ("INSUFFICIENT_DATA", ""))
+    monkeypatch.setattr(methodology, "_rule_2", lambda rows: ("PASS", ""))
+    monkeypatch.setattr(methodology, "_rule_3", lambda rows: ("INSUFFICIENT_DATA", ""))
+    monkeypatch.setattr(methodology, "_rule_4", lambda rows: ("INSUFFICIENT_DATA", ""))
+    monkeypatch.setattr(fisher_module, "run_checks", lambda *_a, **_k: [])
+    res = methodology.evaluate("TEST", [_row(2024, 100_000_000_000)], _Prices())
+    assert res.verdict == Verdict.INSUFFICIENT_DATA
+    assert res.score is None
 
 
 def test_rule_1_not_applicable_does_not_penalize_the_score():
-    """R&D N/A in an E&P: three passes score 100 (denominator = applicable)."""
+    """R&D N/A in an E&P: the legacy rule is excluded from the denominator, so
+    the three passable legacy points still score, but the deep growth misses
+    keep the weighted verdict at HOLD (50.0)."""
     methodology = FisherQuantitativeSubsetMethodology()
     rows = _healthy_rows(10_000_000_000, 10_000_000_000, rnd_ratio=0.0)
     for row in rows:
@@ -940,5 +976,5 @@ def test_rule_1_not_applicable_does_not_penalize_the_score():
         row.research_development = None
     res = methodology.evaluate("TEST", rows, _Prices())
     assert _status(res, R1) == "NOT_APPLICABLE"
-    assert res.verdict == Verdict.BUY
-    assert res.score == pytest.approx(100.0)
+    assert res.verdict == Verdict.HOLD
+    assert res.score == pytest.approx(50.0)

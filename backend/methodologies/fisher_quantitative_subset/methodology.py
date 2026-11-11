@@ -1,11 +1,22 @@
-"""``fisher_quantitative_subset`` — 4 quantifiable points of Fisher's 15.
+"""``fisher_quantitative_subset`` — the quantifiable edge of Fisher's 15 points.
 
 Decision 1 in docs/methodology_decisions.md: Fisher is only implemented as a
-*quantitative subset* (points 3, 5, 10 and 13). The other 11 points rest on
-the scuttlebutt method (interviews with competitors, suppliers, customers and
-ex-employees) which this system does not have. Building a 15-point checklist
-without that data would be a fake Fisher. This module is therefore named
-``fisher_quantitative_subset`` — never ``fisher``.
+*quantitative subset*. The original four points (3, 5, 10, 13) are now
+aggregated with thirteen deep checks in
+:mod:`backend.methodologies.fisher_quantitative_subset.deep_checks` through the
+shared weighted framework:
+
+    weighted_score = sum(passed weight) / sum(evaluable weight)
+
+Thresholds: BUY >= 0.85, WATCH >= 0.70, HOLD >= 0.50, else AVOID. More than
+30% of the weighted rules missing data returns INSUFFICIENT_DATA. The legacy
+rule statuses are converted conservatively: PASS -> passed, WATCH and FAIL ->
+not passed, INSUFFICIENT_DATA -> not evaluable, NOT_APPLICABLE -> excluded.
+
+The other eleven points still rest on the scuttlebutt method (interviews with
+competitors, suppliers, customers and ex-employees) which this system does not
+have. Building a 15-point checklist without that data would be a fake Fisher,
+so this module stays named ``fisher_quantitative_subset`` — never ``fisher``.
 """
 
 from __future__ import annotations
@@ -17,104 +28,34 @@ from backend.methodologies.base import (
     Confidence,
     Methodology,
     MethodologyResult,
+    Rule,
     Verdict,
 )
 from backend.methodologies.common.company_type import (
     financial_na_reason,
     is_financial,
 )
+from backend.methodologies.common.weighted import (
+    WeightedResult,
+    weighted_verdict,
+)
+from backend.methodologies.fisher_quantitative_subset.deep_checks import (
+    CATEGORIES,
+    run_checks,
+)
+from backend.methodologies.fisher_quantitative_subset.deep_checks import (
+    CHECKS as DEEP_CHECKS,
+)
+from backend.methodologies.fisher_quantitative_subset.deep_checks import (
+    rnd_not_applicable as _rnd_not_applicable,
+)
+from backend.methodologies.fisher_quantitative_subset.deep_checks import (
+    rnd_thresholds_for as _rnd_thresholds_for,
+)
 from backend.methodologies.fisher_quantitative_subset.rules import (
     RULES,
     RULES_SOURCES,
 )
-
-# Point 3 — R&D intensity relative to size, with a sector-aware bar. R&D
-# intensity is a *sector* property — 2% of revenue is generous for a consumer
-# staples firm but a warning for software — so one bar for everyone would
-# over-pass capital-goods firms and over-fail innovation-led ones. Tiers key
-# on the sector label (Yahoo/GICS vocabulary) matched case-insensitively as
-# substrings; an unrecognized or missing sector keeps the calibrated 2026-09
-# large-cap bar (PASS 8%, FAIL < 2%). The subset has no scuttlebutt to soften
-# a quantitative near-miss, so the top tier stays strict; the low tier's
-# 0.5% FAIL floor is deliberately low so a staples flyer with a token spend
-# reads WATCH, not AVOID.
-_RND_THRESHOLDS: tuple[tuple[tuple[str, ...], tuple[float, float]], ...] = (
-    # Innovation-led sectors: R&D is the moat, demand ~8% of revenue.
-    (("technology", "healthcare", "communication services"), (0.08, 0.04)),
-    # Capital-goods sectors: steady, moderate development spending.
-    (
-        (
-            "industrials",
-            "consumer cyclical",
-            "consumer discretionary",
-            "materials",
-            "basic materials",
-        ),
-        (0.04, 0.02),
-    ),
-    # Low-R&D sectors: a 2% spend already earns PASS; below 0.5% is "no R&D".
-    (
-        (
-            "consumer defensive",
-            "consumer staples",
-            "staples",
-            "utilities",
-            "utility",
-            "energy",
-            "real estate",
-            "financial",
-        ),
-        (0.02, 0.005),
-    ),
-)
-_RND_THRESHOLDS_UNKNOWN: tuple[float, float] = (0.08, 0.02)
-
-#: Rule status for a metric that does not exist in the company's business
-#: model (R&D in an E&P, gross margin in a REIT). Distinct from
-#: ``INSUFFICIENT_DATA``: the data is not missing, the line item is not part of
-#: how this company operates. N/A rules are excluded from the verdict
-#: denominator and from ``score``.
-_NOT_APPLICABLE = "NOT_APPLICABLE"
-
-
-def _rnd_thresholds_for(sector: str | None) -> tuple[float, float]:
-    """(PASS, WATCH) R&D bars for a sector label, first match wins.
-
-    The tier whose keyword is a case-insensitive substring of the label
-    (Yahoo/GICS vocabulary) applies. An unknown or missing sector keeps the
-    calibrated large-cap bar, so missing metadata never silently relaxes the
-    screen; ``is_financial`` returns INSUFFICIENT_DATA before the R&D rule
-    runs, so the financial keyword here is purely documentary.
-    """
-    if sector:
-        label = sector.lower()
-        for keywords, thresholds in _RND_THRESHOLDS:
-            if any(keyword in label for keyword in keywords):
-                return thresholds
-    return _RND_THRESHOLDS_UNKNOWN
-
-
-def _pct(ratio: float) -> str:
-    """Compact percent text: ``0.08 -> '8%'``, ``0.005 -> '0.5%'``."""
-    text = f"{ratio:.1%}"
-    return text[:-3] + "%" if text.endswith(".0%") else text
-
-
-def _rnd_not_applicable(sector: str | None) -> bool:
-    """True when the sector sits in the low-R&D tier (no R&D line expected).
-
-    A missing R&D tag in an E&P, a utility or a consumer-staples filer is a
-    business-model fact, not a data gap. Innovation-led, capital-goods and
-    unknown sectors keep ``INSUFFICIENT_DATA`` so a genuinely missing line is
-    not silently excused.
-    """
-    return bool(sector) and _rnd_thresholds_for(sector) == _RND_THRESHOLDS[2][1]
-
-
-#: Sectors whose business model does not expose a gross-margin line (REITs
-#: and other real-estate filers report rental income and property costs).
-_GROSS_MARGIN_NA_KEYWORDS = ("real estate", "reit", "financial")
-
 
 # Point 5 — worthwhile profit margin.
 _MARGIN_NET_PASS = 0.10
@@ -146,19 +87,73 @@ _RULE_IDS = {
     "rule_4_share_dilution": "fisher_quantitative_subset.rule_4_share_dilution",
 }
 
+#: Name, category and weight of the four original points. Point 5 (margins)
+#: and point 13 (no dilutive financing) are critical for Fisher; R&D intensity
+#: and cost control are normal.
+_LEGACY_META: dict[str, tuple[str, str, int]] = {
+    "rule_1_rnd_intensity": (
+        "R&D intensity relative to size (point 3)",
+        "growth_potential",
+        1,
+    ),
+    "rule_2_profit_margin_quality": (
+        "Worthwhile profit margin (point 5)",
+        "profitability",
+        2,
+    ),
+    "rule_3_cost_control_stability": (
+        "Cost analysis and accounting controls (point 10)",
+        "cost_efficiency",
+        1,
+    ),
+    "rule_4_share_dilution": (
+        "Growth without equity financing (point 13)",
+        "capital_discipline",
+        2,
+    ),
+}
+
+#: Rule status for a metric that does not exist in the company's business
+#: model (R&D in an E&P, gross margin in a REIT). Distinct from
+#: ``INSUFFICIENT_DATA``: the data is not missing, the line item is not part of
+#: how this company operates. N/A rules are excluded from the verdict
+#: denominator and from ``score``.
+_NOT_APPLICABLE = "NOT_APPLICABLE"
+
+_STATUS_PASSED: dict[str, bool | None] = {
+    "PASS": True,
+    # WATCH is treated conservatively as not passed: the quantitative subset
+    # has no scuttlebutt to justify a near-miss.
+    "WATCH": False,
+    "FAIL": False,
+    "INSUFFICIENT_DATA": None,
+    _NOT_APPLICABLE: None,
+}
+
+#: Sectors whose business model does not expose a gross-margin line (REITs
+#: and other real-estate filers report rental income and property costs).
+_GROSS_MARGIN_NA_KEYWORDS = ("real estate", "reit", "financial")
+
 _DESCRIPTION = (
     "Quantitative subset of Fisher's 15 points: R&D intensity (3), "
     "worthwhile margin (5), cost control (10) and financing without "
-    "dilution (13). The 11 scuttlebutt points are out of scope "
+    "dilution (13), expanded with growth, profitability, SG&A and "
+    "capital-discipline checks. The 11 scuttlebutt points are out of scope "
     "(docs/methodology_decisions.md, decision 1)."
 )
 
 
+def _pct(ratio: float) -> str:
+    """Compact percent text: ``0.08 -> '8%'``, ``0.005 -> '0.5%'``."""
+    text = f"{ratio:.1%}"
+    return text[:-3] + "%" if text.endswith(".0%") else text
+
+
 class FisherQuantitativeSubsetMethodology(Methodology):
-    """Philip Fisher's quantifiable points (3, 5, 10, 13) as a screen."""
+    """Philip Fisher's quantifiable points as a weighted screen."""
 
     name = "fisher_quantitative_subset"
-    version = "1.0.0"
+    version = "2.0.0"
     family = "QUALITY_COMPOUNDER"
 
     # ------------------------------------------------------------------
@@ -183,7 +178,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 reasons=["No fundamentals available for " + str(ticker)],
                 red_flags=[],
                 confidence=Confidence.LOW,
-                sources=RULES_SOURCES,
+                sources=self._sources(),
             )
 
         latest = rows[0]
@@ -208,7 +203,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 ],
                 red_flags=[],
                 confidence=Confidence.HIGH,
-                sources=RULES_SOURCES,
+                sources=self._sources(),
                 passed_rules=[],
                 failed_rules=[],
             )
@@ -220,32 +215,57 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             "rule_4_share_dilution": self._rule_4(rows),
         }
 
-        passed = sum(1 for s, _ in status.values() if s == "PASS")
-        insufficient = sum(1 for s, _ in status.values() if s == "INSUFFICIENT_DATA")
-        not_applicable = sum(1 for s, _ in status.values() if s == _NOT_APPLICABLE)
-        applicable = len(status) - not_applicable
-        scored = applicable - insufficient
+        # Preserve the original company-type guard: fewer than half of the four
+        # Fisher points applicable means the screen does not apply.
+        applicable = sum(1 for word, _ in status.values() if word != _NOT_APPLICABLE)
+        if applicable / len(status) < 0.5:
+            return MethodologyResult(
+                methodology=self.name,
+                version=self.version,
+                family=self.family,
+                verdict=Verdict.NOT_APPLICABLE,
+                score=None,
+                metrics=self._metrics(status, rows),
+                reasons=[
+                    (
+                        "Fewer than half of Fisher's four quantifiable points "
+                        "apply to this business model."
+                    ),
+                    f"verdict: {Verdict.NOT_APPLICABLE.value}",
+                ],
+                red_flags=[],
+                confidence=Confidence.HIGH,
+                sources=self._sources(),
+                passed_rules=[],
+                failed_rules=[],
+            )
+
+        legacy = self._legacy_results(status)
+        deep = run_checks(rows, None, getattr(latest, "sector", None))
+        results = legacy + deep
+        verdict, score, confidence = weighted_verdict(results)
 
         reasons = [
             f"{status_word} {_RULE_IDS[rid]}: {detail}"
             for rid, (status_word, detail) in status.items()
         ]
+        for item in deep:
+            mark = (
+                "PASS"
+                if item.passed is True
+                else "FAIL"
+                if item.passed is False
+                else "N/A"
+            )
+            reasons.append(f"{mark} {item.rule_id}: {item.detail}")
+        passed = sum(1 for s, _ in status.values() if s == "PASS")
+        insufficient = sum(1 for s, _ in status.values() if s == "INSUFFICIENT_DATA")
+        not_applicable = sum(1 for s, _ in status.values() if s == _NOT_APPLICABLE)
+        scored = applicable - insufficient
         reasons.append(
             f"{passed} of {applicable} applicable rules passed "
             f"({not_applicable} not applicable, {insufficient} insufficient, "
             f"{scored} scored; score based on all applicable rules)"
-        )
-
-        verdict = self._verdict(status)
-        score = (
-            (passed / applicable * 100.0)
-            if applicable
-            and verdict
-            not in (
-                Verdict.INSUFFICIENT_DATA,
-                Verdict.NOT_APPLICABLE,
-            )
-            else None
         )
 
         return MethodologyResult(
@@ -254,21 +274,23 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             family=self.family,
             verdict=verdict,
             score=score,
-            metrics=self._metrics(status, rows),
+            metrics=self._metrics(status, rows, deep),
             reasons=reasons,
-            red_flags=self._red_flags(status, rows),
-            confidence=self._confidence(insufficient),
-            sources=RULES_SOURCES,
+            red_flags=self._red_flags(status, rows, deep),
+            confidence=confidence,
+            sources=self._sources(),
             failed_rules=[
                 _RULE_IDS[rid] for rid, (s, _) in status.items() if s == "FAIL"
-            ],
+            ]
+            + [item.rule_id for item in deep if item.passed is False],
             passed_rules=[
                 _RULE_IDS[rid] for rid, (s, _) in status.items() if s == "PASS"
-            ],
+            ]
+            + [item.rule_id for item in deep if item.passed is True],
         )
 
-    def rules(self) -> list:
-        return list(RULES)
+    def rules(self) -> list[Rule]:
+        return list(RULES) + [check.rule() for check in DEEP_CHECKS]
 
     def metadata(self) -> dict:
         return {
@@ -276,19 +298,33 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             "version": self.version,
             "family": self.family,
             "description": _DESCRIPTION,
+            "categories": list(CATEGORIES),
             "source": {
                 "book": "Common Stocks and Uncommon Profits",
                 "edition": "Wiley Investment Classics (reprint of 1996 revised ed.)",
                 "year": 1958,
                 "pages": {
+                    "point1": "47-48",
                     "point3": "54-55",
                     "point5": "63-64",
+                    "point6": "63",
                     "point10": "69",
                     "point13": "75",
                 },
             },
+            "thresholds": {
+                "buy": 0.85,
+                "watch": 0.70,
+                "hold": 0.50,
+                "max_missing_weight": 0.30,
+            },
             "known_limitations": [
                 "Subset only: the 11 scuttlebutt points are not implemented.",
+                (
+                    "WATCH is treated conservatively as not passed; the "
+                    "quantitative subset has no scuttlebutt to justify a "
+                    "near-miss."
+                ),
                 (
                     "R&D PASS/WATCH is sector-aware (Yahoo/GICS tier: "
                     "innovation-led 8/4%, industrials 4/2%, low-R&D 2/0.5%) "
@@ -304,13 +340,44 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                     "A rule whose line item does not exist in the business "
                     "model (R&D in low-R&D sectors, gross margin in REITs) is "
                     "NOT_APPLICABLE and excluded from the verdict; fewer than "
-                    "half of the four points applicable returns N/A."
+                    "half of the four original points applicable returns N/A."
                 ),
                 "Cost control is proxied by gross-margin stability, not an audit.",
                 "Dilution measured on split-restated share counts (XBRL ratio facts).",
                 "Price is never consulted — a quality screen, not a valuation.",
+                (
+                    "Deferred qualitative points: sales organization (4), "
+                    "labor relations (7), executive relations (8), management "
+                    "depth (9), industry-specific factors (11), long-range "
+                    "outlook (12), candor (14) and integrity (15). They need "
+                    "scuttlebutt or governance data that FDB does not carry."
+                ),
             ],
         }
+
+    # ------------------------------------------------------------------
+    # Weighted aggregation
+    # ------------------------------------------------------------------
+    def _legacy_results(self, status) -> list[WeightedResult]:
+        converted: list[WeightedResult] = []
+        for key, (status_word, detail) in status.items():
+            name, category, weight = _LEGACY_META[key]
+            passed = _STATUS_PASSED[status_word]
+            converted.append(
+                WeightedResult(
+                    rule_id=_RULE_IDS[key],
+                    name=name,
+                    category=category,
+                    weight=0 if status_word == _NOT_APPLICABLE else weight,
+                    passed=passed,
+                    detail=detail,
+                )
+            )
+        return converted
+
+    @staticmethod
+    def _sources():
+        return list(RULES_SOURCES) + [check.source for check in DEEP_CHECKS]
 
     # ------------------------------------------------------------------
     # Rules (return (status, detail))
@@ -462,53 +529,9 @@ class FisherQuantitativeSubsetMethodology(Methodology):
         )
 
     # ------------------------------------------------------------------
-    # Verdict / score / confidence / flags / metrics
+    # Flags / metrics
     # ------------------------------------------------------------------
-    def _verdict(self, status) -> Verdict:
-        """Aggregate on applicable rules (N/A excluded, missing data counted).
-
-        - fewer than half of the four points applicable -> N/A;
-        - nothing scorable left -> INSUFFICIENT_DATA;
-        - any FAIL vetoes the verdict (Fisher's points are non-negotiable);
-        - BUY only when every applicable rule passed and none is missing;
-        - fewer than two scored rules -> INSUFFICIENT_DATA (one rule is not
-          enough evidence);
-        - otherwise 75% of applicable PASS -> WATCH, 50% -> HOLD, else AVOID.
-        """
-        rules = [verdict for verdict, _detail in status.values()]
-        applicable = [verdict for verdict in rules if verdict != _NOT_APPLICABLE]
-        if len(applicable) / len(rules) < 0.5:
-            return Verdict.NOT_APPLICABLE
-        scored = [
-            verdict
-            for verdict in applicable
-            if verdict not in (_NOT_APPLICABLE, "INSUFFICIENT_DATA")
-        ]
-        if not scored:
-            return Verdict.INSUFFICIENT_DATA
-        passed = scored.count("PASS")
-        failed = scored.count("FAIL")
-        if failed:
-            return Verdict.AVOID
-        if passed == len(applicable) and len(scored) == len(applicable):
-            return Verdict.BUY
-        # A verdict from a single rule is not a verdict: too little evidence.
-        if len(scored) < 2:
-            return Verdict.INSUFFICIENT_DATA
-        if passed >= 0.75 * len(applicable):
-            return Verdict.WATCH
-        if passed >= 0.5 * len(applicable):
-            return Verdict.HOLD
-        return Verdict.AVOID
-
-    def _confidence(self, insufficient) -> Confidence:
-        if insufficient == 0:
-            return Confidence.HIGH
-        if insufficient == 1:
-            return Confidence.MEDIUM
-        return Confidence.LOW
-
-    def _red_flags(self, status, rows) -> list:
+    def _red_flags(self, status, rows, deep) -> list:
         flags = []
         if status["rule_1_rnd_intensity"][0] == "FAIL":
             _, rnd_watch = _rnd_thresholds_for(rows[0].sector)
@@ -519,9 +542,12 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             flags.append("Gross margin standard deviation above 5% over 5 years")
         if status["rule_4_share_dilution"][0] == "FAIL":
             flags.append("Share count increased more than 10% over 10 years")
+        flags.extend(
+            f"{item.rule_id}: {item.detail}" for item in deep if item.passed is False
+        )
         return flags
 
-    def _metrics(self, status, rows) -> dict:
+    def _metrics(self, status, rows, deep=None) -> dict:
         latest = rows[0]
         revenue = latest.revenue
         net_margin = (
@@ -562,7 +588,7 @@ class FisherQuantitativeSubsetMethodology(Methodology):
             factor = 1.0 if not factor or factor <= 0 else float(factor)
             past_adjusted = float(past_row.shares_outstanding) * factor
             share_change = (float(current) - past_adjusted) / past_adjusted
-        return {
+        metrics = {
             "rnd_ratio": rnd_ratio,
             "rnd_thresholds": {
                 "pass": rnd_thresholds[0],
@@ -585,6 +611,10 @@ class FisherQuantitativeSubsetMethodology(Methodology):
                 if s not in (_NOT_APPLICABLE, "INSUFFICIENT_DATA")
             ),
         }
+        for item in deep or []:
+            key = item.rule_id.replace("fisher_quantitative_subset.deep_", "deep_")
+            metrics[key] = item.value
+        return metrics
 
 
 DISCLAIMER = _SUBSET_DISCLAIMER
