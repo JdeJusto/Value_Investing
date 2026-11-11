@@ -191,3 +191,6 @@ data/consensus/*
 
 # AI agent guidelines (kept locally, not published)
 AGENTS.md
+
+# Extracted book text (large; only the curated notes are versioned)
+docs/books_notes/_raw/
