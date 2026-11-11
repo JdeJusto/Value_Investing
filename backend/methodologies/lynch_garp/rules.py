@@ -1,16 +1,20 @@
 """The five rules of the Lynch GARP (Growth At a Reasonable Price) screen.
 
-Thresholds are from Peter Lynch's *One Up on Wall Street* (1989, Fireside
-edition, with John Rothchild) and *Beating the Street* (1993). Rule 1 is the
-central Lynch metric (the PEG ratio); rules 2-3 keep the growth story and the
-balance sheet honest; rule 4 is Lynch's inventory watch; rule 5 is the
-dividend-adjusted PEG from *Beating the Street*. Each rule carries a
-:class:`SourceRef` with the era it was written for and the US-specific
-caution that applies to it, per ``docs/methodology_decisions.md`` (Decision
-6).
+The thresholds follow Peter Lynch's *One Up on Wall Street* (1989, with John
+Rothchild) and *Beating the Street* (1993) as they are commonly published.
+Rule 1 is the central Lynch metric (the PEG ratio); rules 2-3 keep the growth
+story and the balance sheet honest; rule 4 is Lynch's inventory watch; rule 5
+is the dividend-adjusted PEG.
 
-Only the first three rules count towards the verdict; rules 4 and 5 are
-evaluated for confidence, score and red flags but never change the verdict.
+**These books were not available on this machine**
+(``docs/books_notes/one-up-on-wall-street.md``). Every :class:`SourceRef`
+therefore carries ``page="public knowledge"`` and a ``us_caution`` saying that
+the rule is a public-knowledge reconstruction, not a quote or a page-level
+paraphrase. See ``docs/lynch_garp_rules.md``.
+
+Only the first three rules are core; rules 4 and 5 are supporting checks. In
+v2.0.0 every rule feeds the weighted verdict (``PASS`` counts as passed,
+``WATCH``/``FAIL`` as not passed, ``INSUFFICIENT_DATA`` as missing).
 """
 
 from __future__ import annotations
@@ -26,6 +30,12 @@ _YEAR_BEATING = 1993
 _ERA = "1989"
 _ERA_BEATING = "1993"
 
+_PUBLIC_CAUTION = (
+    "public-knowledge reconstruction, not from the book: the reference text "
+    "was not available on this machine, so no quote, page number or "
+    "page-level paraphrase is claimed; thresholds are the published Lynch "
+    "heuristics written for US markets in 1989-1993"
+)
 _GROWTH_CAUTION = (
     "earnings-growth estimates vary by source and trailing window; PEG is "
     "only as good as the growth number fed into it"
@@ -36,26 +46,23 @@ _DEBT_CAUTION = (
 )
 
 
-def _one_up(page: str, caution: str | None = None) -> SourceRef:
+def _source(book: str, edition: str, year: int, era: str, note: str) -> SourceRef:
     return SourceRef(
-        book=_BOOK_ONE_UP,
-        edition=_EDITION_ONE_UP,
-        year=_YEAR_ONE_UP,
-        page=page,
-        era=_ERA,
-        us_caution=caution or _GROWTH_CAUTION,
+        book=book,
+        edition=edition,
+        year=year,
+        page="public knowledge",
+        era=era,
+        us_caution=f"{_PUBLIC_CAUTION}; {note}",
     )
 
 
-def _beating(page: str, caution: str | None = None) -> SourceRef:
-    return SourceRef(
-        book=_BOOK_BEATING,
-        edition=_EDITION_BEATING,
-        year=_YEAR_BEATING,
-        page=page,
-        era=_ERA_BEATING,
-        us_caution=caution or _GROWTH_CAUTION,
-    )
+def _one_up(note: str) -> SourceRef:
+    return _source(_BOOK_ONE_UP, _EDITION_ONE_UP, _YEAR_ONE_UP, _ERA, note)
+
+
+def _beating(note: str) -> SourceRef:
+    return _source(_BOOK_BEATING, _EDITION_BEATING, _YEAR_BEATING, _ERA_BEATING, note)
 
 
 RULE_1_PEG = Rule(
@@ -67,7 +74,7 @@ RULE_1_PEG = Rule(
         "for growth)."
     ),
     kind="EXPLICIT",
-    source=_one_up("ch. on the perfect stock"),
+    source=_one_up(_GROWTH_CAUTION),
 )
 
 RULE_2_GROWTH_CONSISTENCY = Rule(
@@ -75,10 +82,10 @@ RULE_2_GROWTH_CONSISTENCY = Rule(
     name="Consistent Earnings Growth",
     description=(
         "EPS should have grown in at least 7 of the last 10 years (5-6 is a "
-        "watch, fewer than 5 fails) — Lynch's stable-stalwart test."
+        "watch, fewer than 5 fails) — the stable-stalwart consistency test."
     ),
     kind="EXPLICIT",
-    source=_one_up("ch. on the stable stalwarts"),
+    source=_one_up("consistency of the earnings record"),
 )
 
 RULE_3_DEBT_CONSERVATISM = Rule(
@@ -89,7 +96,7 @@ RULE_3_DEBT_CONSERVATISM = Rule(
         "above 4x fails)."
     ),
     kind="EXPLICIT",
-    source=_one_up("ch. on the balance sheet", _DEBT_CAUTION),
+    source=_one_up(_DEBT_CAUTION),
 )
 
 RULE_4_INVENTORY_VS_SALES = Rule(
@@ -101,7 +108,7 @@ RULE_4_INVENTORY_VS_SALES = Rule(
         "(service, asset-light) are a watch with a note."
     ),
     kind="EXPLICIT",
-    source=_one_up("ch. on checking the story"),
+    source=_one_up("inventory build as an early warning sign"),
 )
 
 RULE_5_DIVIDEND_ADJUSTED_PEG = Rule(
@@ -112,7 +119,7 @@ RULE_5_DIVIDEND_ADJUSTED_PEG = Rule(
         "payers; PASS when PEGY <= 1.0, WATCH to 1.5, FAIL above."
     ),
     kind="EXPLICIT",
-    source=_beating("ch. on dividend-adjusted valuations"),
+    source=_beating("dividend-adjusted valuation"),
 )
 
 VERDICT_RULES = [

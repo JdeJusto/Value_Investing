@@ -68,7 +68,8 @@ def test_list_shows_graham(monkeypatch, capsys):
     _run(["methodologies", "list"], monkeypatch)
     out = capsys.readouterr().out
     assert "graham" in out
-    assert "1.0.0" in out
+    # The deep-expansion releases moved every methodology to 2.0.0.
+    assert "2.0.0" in out
     assert "DEEP_VALUE" in out
 
 
@@ -267,8 +268,13 @@ def test_methodology_commands_accept_no_refresh(command, monkeypatch, capsys):
     assert out  # parsed and produced output instead of an argparse exit
 
 
-def test_analyze_lynch_garp_slow_grower_hides_score(monkeypatch, capsys):
-    """A slow grower shows the category and no numeric score, plus the note."""
+def test_analyze_lynch_garp_slow_grower_shows_weighted_rules(monkeypatch, capsys):
+    """v2.0.0: the slow grower is scored by the weighted framework.
+
+    The CLI fixture carries no balance sheet, so the 30% coverage guard returns
+    INSUFFICIENT_DATA and the score stays an em-dash; the deep category rules
+    are still listed.
+    """
     _run(
         ["analyze-lynch-garp", "KO"],
         monkeypatch,
@@ -278,4 +284,4 @@ def test_analyze_lynch_garp_slow_grower_hides_score(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Slow Grower" in out
     assert "Score : —" in out
-    assert "Score not applicable for Slow Grower" in out
+    assert "lynch.deep_slow_grower_income" in out

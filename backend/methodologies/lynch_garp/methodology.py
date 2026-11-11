@@ -7,6 +7,17 @@ earnings growth rate); the supporting rules keep the growth story honest
 (consistency), the balance sheet conservative (debt), the operating story
 coherent (inventory watching sales) and the valuation dividend-aware.
 
+v2.0.0 turns the five rules into a weighted framework: the existing rules keep
+their PASS/WATCH/FAIL outcomes and are combined with 19 deep checks
+(:mod:`backend.methodologies.lynch_garp.deep_checks`) using the v0.26/v0.27
+aggregation (BUY >= 0.85, WATCH >= 0.70, HOLD >= 0.50, > 30% missing weight
+=> INSUFFICIENT_DATA).
+
+**Source caveat.** The two Lynch books were **not available on this machine**
+(``docs/books_notes/one-up-on-wall-street.md``). Every rule is a
+public-knowledge reconstruction and is labelled ``page="public knowledge"``;
+no page-level fidelity is claimed.
+
 The methodology receives already-fetched fundamentals and prices and never
 touches the network or the database, so it is deterministic and testable.
 
@@ -18,7 +29,7 @@ Known limitations (see ``README.md``):
 - companies are categorized into Lynch's six types (fast grower, stalwart,
   slow grower, cyclical, turnaround, asset play) from growth, dividends,
   sector and market cap; when those inputs are missing the category falls
-  back to UNKNOWN and the generic PEG screen applies.
+  back to UNKNOWN and only the generic rules apply.
 """
 
 from __future__ import annotations
@@ -43,14 +54,30 @@ from backend.methodologies.common.ratio_guards import (
     is_meaningful_pbv,
     is_meaningful_pe,
 )
+from backend.methodologies.common.weighted import (
+    WeightedResult,
+    weighted_verdict,
+)
+from backend.methodologies.lynch_garp.deep_checks import (
+    CHECKS as DEEP_CHECKS,
+)
+from backend.methodologies.lynch_garp.deep_checks import (
+    run_checks as run_deep_checks,
+)
+from backend.methodologies.lynch_garp.deep_checks import (
+    scored_results as deep_scored_results,
+)
 from backend.methodologies.lynch_garp.rules import (
     ALL_RULES,
     RULE_1_PEG,
+    RULE_2_GROWTH_CONSISTENCY,
+    RULE_3_DEBT_CONSERVATISM,
+    RULE_4_INVENTORY_VS_SALES,
     RULE_5_DIVIDEND_ADJUSTED_PEG,
-    VERDICT_RULES,
 )
 
-# Verbatim thresholds from the books.
+# Public-knowledge thresholds (the Lynch books were not available on this
+# machine; see deep_checks.py and docs/lynch_garp_rules.md).
 _PEG_PASS = 1.0
 _PEG_WATCH = 1.5
 _MIN_GROWTH_YEARS = 7
@@ -61,9 +88,9 @@ _INVENTORY_WATCH_FACTOR = 1.5
 #: Fast growers get a stricter inventory watch (any faster growth flags sooner).
 _FAST_GROWER_INVENTORY_FACTOR = 1.25
 
-# Lynch category thresholds (One Up on Wall Street, ch. 6, "The Six
-# Categories"). A company is typed by the first rule that matches, in the
-# precedence order documented in the README.
+# Lynch category thresholds (public-knowledge reconstruction; the reference
+# book was not available). A company is typed by the first rule that matches,
+# in the precedence order documented in the README.
 _STALWART_MARKET_CAP = 10_000_000_000.0
 _FAST_GROWER_CAGR = 0.20
 _HYPER_GROWTH_CAGR = 0.30
@@ -137,7 +164,7 @@ class RuleOutcome:
 
 
 class LynchCategory(str, Enum):
-    """Lynch's six company types (One Up on Wall Street, ch. 6)."""
+    """Lynch's six company types (public-knowledge reconstruction)."""
 
     SLOW_GROWER = "SLOW_GROWER"
     STALWART = "STALWART"
@@ -170,26 +197,24 @@ CATEGORY_SHORT = {
     LynchCategory.UNKNOWN: "Unknown",
 }
 
-#: Categories whose Rule 1 is not the PEG: the generic passed/evaluable score
-#: is not comparable across categories, so it is hidden (never invented).
-_SCORELESS_CATEGORIES = frozenset({LynchCategory.SLOW_GROWER, LynchCategory.ASSET_PLAY})
-_SCORE_NOTES = {
-    LynchCategory.SLOW_GROWER: (
-        "Score not applicable for Slow Grower; the verdict is based on "
-        "dividend stability and margin stability."
-    ),
-    LynchCategory.ASSET_PLAY: (
-        "Score not applicable for Asset Play; the verdict is based on the "
-        "price-to-book discount."
-    ),
+#: Weight of each legacy rule in the weighted verdict: the three core rules
+#: count double, the inventory watch and the dividend-adjusted PEG count once.
+_LEGACY_WEIGHTS = {
+    RULE_1_PEG.id: 2,
+    RULE_2_GROWTH_CONSISTENCY.id: 2,
+    RULE_3_DEBT_CONSERVATISM.id: 2,
+    RULE_4_INVENTORY_VS_SALES.id: 1,
+    RULE_5_DIVIDEND_ADJUSTED_PEG.id: 1,
 }
+
+_RULE_NAMES = {rule.id: rule.name for rule in ALL_RULES}
 
 
 class LynchGARPMethodology(Methodology):
     """The GARP screen, as a self-contained book methodology."""
 
     name = "lynch_garp"
-    version = "1.2.0"
+    version = "2.0.0"
     family = "GARP"
 
     # ------------------------------------------------------------------
@@ -272,14 +297,16 @@ class LynchGARPMethodology(Methodology):
             self._rule_5_dividend_adjusted_peg(rows, price),
         ]
 
-        verdict, score, confidence = self._verdict(category, outcomes, rows)
-        if category in _SCORELESS_CATEGORIES:
-            # Rule 1 is not the PEG for these categories; the generic
-            # passed/evaluable score is not comparable and is hidden rather
-            # than invented (the verdict + category carry the judgment).
-            score = None
+        deep = run_deep_checks(rows, price, market_cap, category.value)
+        weighted = [self._legacy_result(outcome) for outcome in outcomes]
+        weighted.extend(deep_scored_results(deep, category.value))
+        verdict, score, confidence = weighted_verdict(weighted)
+
         red_flags = self._red_flags(outcomes)
-        reasons = self._reasons(outcomes, verdict, category)
+        red_flags.extend(
+            f"{check.name}: {check.detail}" for check in deep if check.passed is False
+        )
+        reasons = self._reasons(outcomes, verdict, category, deep)
 
         return MethodologyResult(
             methodology=self.name,
@@ -287,17 +314,20 @@ class LynchGARPMethodology(Methodology):
             family=self.family,
             verdict=verdict,
             score=score,
-            metrics=self._metrics(outcomes, price, rows, category, criterion),
+            metrics=self._metrics(outcomes, price, rows, category, criterion, deep),
             reasons=reasons,
             red_flags=red_flags,
             confidence=confidence,
-            sources=[rule.source for rule in ALL_RULES],
-            passed_rules=[o.rule_id for o in outcomes if o.outcome == _PASS],
-            failed_rules=[o.rule_id for o in outcomes if o.outcome == _FAIL],
+            sources=[rule.source for rule in ALL_RULES]
+            + [check.source for check in DEEP_CHECKS],
+            passed_rules=[o.rule_id for o in outcomes if o.outcome == _PASS]
+            + [check.rule_id for check in deep if check.passed is True],
+            failed_rules=[o.rule_id for o in outcomes if o.outcome == _FAIL]
+            + [check.rule_id for check in deep if check.passed is False],
         )
 
     def rules(self) -> list:
-        return list(ALL_RULES)
+        return list(ALL_RULES) + [check.rule() for check in DEEP_CHECKS]
 
     def metadata(self) -> dict:
         return {
@@ -305,7 +335,10 @@ class LynchGARPMethodology(Methodology):
             "label": self.name,
             "version": self.version,
             "family": self.family,
-            "source": ("One Up on Wall Street (1989); Beating the Street (1993)"),
+            "source": (
+                "One Up on Wall Street (1989); Beating the Street (1993) — "
+                "public-knowledge reconstruction (books not available)"
+            ),
             "known_limitations": [
                 (
                     "does not apply to financials (no inventory line; different "
@@ -319,7 +352,7 @@ class LynchGARPMethodology(Methodology):
                     "companies are categorized (fast grower, stalwart, slow "
                     "grower, cyclical, turnaround, asset play) from growth, "
                     "dividends, sector and market cap; missing inputs fall back "
-                    "to UNKNOWN and the generic PEG screen"
+                    "to UNKNOWN and only the generic rules apply"
                 ),
                 (
                     "rule 3 prefers long_term_debt, falling back to total_debt "
@@ -328,6 +361,20 @@ class LynchGARPMethodology(Methodology):
                 (
                     "rule 4 reads the optional inventory field; companies that "
                     "report no inventory get a WATCH with a note"
+                ),
+                (
+                    "public-knowledge caveat: the Lynch books were not available "
+                    "on this machine, so no rule claims a page or a verbatim "
+                    "quote; thresholds are published heuristics"
+                ),
+                (
+                    "the P/E- versus-own-history rules use a constant-price "
+                    "proxy: FDB has no period-end dates and the batch pipeline "
+                    "fetches no point-in-time price history"
+                ),
+                (
+                    "category-specific rules are only scored for the ticker's "
+                    "own Lynch category; the other five stay N/A"
                 ),
             ],
         }
@@ -950,71 +997,29 @@ class LynchGARPMethodology(Methodology):
     # verdict, score, confidence, flags
     # ------------------------------------------------------------------
     @staticmethod
-    def _verdict(category, outcomes, rows) -> tuple[Verdict, float | None, Confidence]:
-        if category is LynchCategory.SLOW_GROWER:
-            return LynchGARPMethodology._slow_grower_verdict(outcomes, rows)
-        core_ids = {r.id for r in VERDICT_RULES}
-        core = [o for o in outcomes if o.rule_id in core_ids]
-        insufficient = [o for o in core if o.outcome == _INSUFFICIENT]
-        if len(insufficient) > 2:
-            return Verdict.INSUFFICIENT_DATA, None, Confidence.LOW
-        passed = [o for o in core if o.outcome == _PASS]
-        failed = [o for o in core if o.outcome == _FAIL]
-        score = LynchGARPMethodology._score(outcomes)
-        confidence = LynchGARPMethodology._confidence(outcomes)
-        if failed:
-            return Verdict.AVOID, score, confidence
-        if len(passed) == 3:
-            return Verdict.BUY, score, confidence
-        if len(passed) == 2:
-            return Verdict.WATCH, score, confidence
-        if len(passed) == 1:
-            return Verdict.HOLD, score, confidence
-        return Verdict.AVOID, score, confidence
+    def _legacy_result(outcome: RuleOutcome) -> WeightedResult:
+        """Convert a PASS/WATCH/FAIL/INSUFFICIENT rule to a weighted result.
 
-    @staticmethod
-    def _slow_grower_verdict(
-        outcomes, rows
-    ) -> tuple[Verdict, float | None, Confidence]:
-        """Slow growers are judged on dividend stability, not PEG.
-
-        BUY when the dividend did not decline in >= 4 of the last 5 years and
-        the net margin is stable; WATCH when the dividend was paid every year;
-        HOLD otherwise. A core-rule FAIL (earnings decline, debt) caps the
-        verdict at WATCH — stable dividends do not excuse a broken balance
-        sheet.
+        WATCH counts as not passed (conservative: only an explicit PASS adds
+        weight to the numerator); INSUFFICIENT_DATA becomes ``passed=None`` so
+        the weighted aggregation can apply the 30% coverage guard.
         """
-        score = LynchGARPMethodology._score(outcomes)
-        confidence = LynchGARPMethodology._confidence(outcomes)
-        if (
-            LynchGARPMethodology._dividend_years(rows, _CATEGORY_YEARS)
-            < _CATEGORY_YEARS
-        ):
-            return Verdict.HOLD, score, confidence
-        core_ids = {r.id for r in VERDICT_RULES}
-        core_failed = any(o.outcome == _FAIL for o in outcomes if o.rule_id in core_ids)
-        grew = LynchGARPMethodology._non_declining_dividends(rows)
-        margin_stable = LynchGARPMethodology._net_margin_stable(rows)
-        if grew >= 4 and margin_stable and not core_failed:
-            return Verdict.BUY, score, confidence
-        return Verdict.WATCH, score, confidence
-
-    @staticmethod
-    def _score(outcomes) -> float | None:
-        evaluable = [o for o in outcomes if o.outcome != _INSUFFICIENT]
-        if len(evaluable) < 2:
-            return None
-        passed = sum(1 for o in evaluable if o.outcome == _PASS)
-        return round(passed / len(evaluable) * 100.0, 2)
-
-    @staticmethod
-    def _confidence(outcomes) -> Confidence:
-        insufficient = sum(1 for o in outcomes if o.outcome == _INSUFFICIENT)
-        if insufficient == 0:
-            return Confidence.HIGH
-        if insufficient <= 2:
-            return Confidence.MEDIUM
-        return Confidence.LOW
+        if outcome.outcome == _PASS:
+            passed: bool | None = True
+        elif outcome.outcome == _INSUFFICIENT:
+            passed = None
+        else:  # WATCH or FAIL
+            passed = False
+        return WeightedResult(
+            rule_id=outcome.rule_id,
+            name=_RULE_NAMES.get(outcome.rule_id, outcome.rule_id),
+            category="legacy",
+            weight=_LEGACY_WEIGHTS[outcome.rule_id],
+            passed=passed,
+            value=outcome.value,
+            threshold=outcome.threshold,
+            detail=outcome.detail,
+        )
 
     @staticmethod
     def _red_flags(outcomes) -> list[str]:
@@ -1025,7 +1030,7 @@ class LynchGARPMethodology(Methodology):
         return flags
 
     @staticmethod
-    def _reasons(outcomes, verdict, category=None) -> list[str]:
+    def _reasons(outcomes, verdict, category=None, deep=None) -> list[str]:
         parts = []
         for o in outcomes:
             mark = {
@@ -1035,6 +1040,15 @@ class LynchGARPMethodology(Methodology):
                 _INSUFFICIENT: "N/A",
             }[o.outcome]
             parts.append(f"[{mark}] {o.detail}")
+        for check in deep or ():
+            mark = (
+                "PASS"
+                if check.passed is True
+                else "FAIL"
+                if check.passed is False
+                else "N/A"
+            )
+            parts.append(f"[{mark}] {check.detail}")
         if category is LynchCategory.CYCLICAL:
             parts.append("cyclical: check position in the cycle")
         parts.append(f"verdict: {verdict.value}")
@@ -1047,17 +1061,35 @@ class LynchGARPMethodology(Methodology):
         rows,
         category: LynchCategory | None = None,
         criterion: str | None = None,
+        deep=None,
     ) -> dict[str, Any]:
         metrics: dict[str, Any] = {
             o.rule_id.replace("lynch_garp.", ""): o.value for o in outcomes
         }
-        metrics["rule_outcomes"] = {o.rule_id: o.outcome for o in outcomes}
+        metrics.update(
+            {
+                check.rule_id.replace("lynch_garp.", ""): check.value
+                for check in (deep or ())
+            }
+        )
+        rule_outcomes = {o.rule_id: o.outcome for o in outcomes}
+        rule_outcomes.update(
+            {
+                check.rule_id: (
+                    "PASS"
+                    if check.passed is True
+                    else "FAIL"
+                    if check.passed is False
+                    else "N/A"
+                )
+                for check in (deep or ())
+            }
+        )
+        metrics["rule_outcomes"] = rule_outcomes
         metrics["current_price"] = price
         metrics["fiscal_years_analyzed"] = len(rows)
         if category is not None:
             metrics["lynch_category"] = category.value
             metrics["lynch_category_label"] = CATEGORY_LABELS[category]
             metrics["rule_1_criterion"] = criterion
-        if category in _SCORELESS_CATEGORIES:
-            metrics["score_note"] = _SCORE_NOTES[category]
         return metrics

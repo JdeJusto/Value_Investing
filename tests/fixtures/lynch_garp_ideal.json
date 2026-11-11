@@ -8,7 +8,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -19,7 +25,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -30,7 +42,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -41,7 +59,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -52,7 +76,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -63,7 +93,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -74,7 +110,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -85,7 +127,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -96,7 +144,13 @@
     "shares_outstanding": 100000000,
     "total_debt": null,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   },
   {
     "ticker": "T",
@@ -107,6 +161,12 @@
     "shares_outstanding": 100000000,
     "total_debt": 400000000.0,
     "dividends_paid": 20000000.0,
-    "currency": "USD"
+    "currency": "USD",
+    "stockholders_equity": 2000000000.0,
+    "cash_and_equivalents": 500000000.0,
+    "current_assets": 1000000000.0,
+    "current_liabilities": 400000000.0,
+    "operating_cash_flow": 500000000.0,
+    "capital_expenditure": 100000000.0
   }
 ]

@@ -99,19 +99,7 @@ def _outcome(rows, price, rule_id):
 
 def _load(name):
     data = json.loads((FIXTURES / f"{name}.json").read_text())
-    return [
-        NormalizedFinancials(
-            ticker=d.get("ticker", "T"),
-            fiscal_year=d["fiscal_year"],
-            period=d.get("period", "FY"),
-            revenue=d.get("revenue"),
-            net_income=d.get("net_income"),
-            shares_outstanding=d.get("shares_outstanding", SHARES),
-            total_debt=d.get("total_debt"),
-            dividends_paid=d.get("dividends_paid"),
-        )
-        for d in data
-    ]
+    return [NormalizedFinancials.from_dict(d) for d in data]
 
 
 def _bank_like(
@@ -165,7 +153,11 @@ def test_no_inventory_low_debt_not_financial():
     ] + ordered[1:]
     assert is_financial(rows[0]) is False
     res = LynchGARPMethodology().evaluate("T", rows, _Price(None))
-    assert res.verdict not in (Verdict.INSUFFICIENT_DATA, Verdict.NOT_APPLICABLE)
+    # The financial detector must not short-circuit the evaluation. With no
+    # live price the weighted coverage is legitimately insufficient, but the
+    # result is not the financial-company N/A.
+    assert res.verdict is not Verdict.NOT_APPLICABLE
+    assert res.metrics.get("financial_company") is None
 
 
 # ---------------------------------------------------------------------------
@@ -358,9 +350,9 @@ def test_verdict_buy_all_core_pass():
     assert res.verdict == Verdict.BUY
 
 
-def test_verdict_watch_two_pass():
+def test_verdict_hold_for_borderline_valuation():
     res = _evaluate(_load("lynch_garp_borderline"), 223.515)
-    assert res.verdict == Verdict.WATCH
+    assert res.verdict == Verdict.HOLD
 
 
 def test_verdict_hold_one_pass():
@@ -373,9 +365,12 @@ def test_verdict_hold_one_pass():
     assert res.verdict == Verdict.HOLD
 
 
-def test_verdict_avoid_any_fail():
+def test_verdict_hold_for_expensive_valuation():
+    # The old "any FAIL -> AVOID" gate is gone: the verdict is now the
+    # weighted pass ratio, so a profitable 25% grower at 62x earnings is a
+    # HOLD (not a buy, not a sell).
     res = _evaluate(_load("lynch_garp_expensive"), 465.65625)
-    assert res.verdict == Verdict.AVOID
+    assert res.verdict == Verdict.HOLD
 
 
 def test_verdict_insufficient_more_than_two_core_rules():
@@ -387,9 +382,10 @@ def test_verdict_insufficient_more_than_two_core_rules():
 # Score
 # ---------------------------------------------------------------------------
 def test_score_formula():
-    # ideal: 4 PASS / 5 evaluable (rule 4 is a WATCH note) -> 80.0
+    # ideal: 22 of 25 weighted units pass (legacy 7/8, deep core 8/8,
+    # health 6/6, valuation 1/2, fast-grower profile 0/1) -> 88.0.
     res = _evaluate(_load("lynch_garp_ideal"), 149.01)
-    assert res.score == pytest.approx(80.0)
+    assert res.score == pytest.approx(88.0)
 
 
 def test_score_none_when_less_than_two_evaluable():
@@ -406,8 +402,10 @@ def test_confidence_high_all_five_evaluated():
 
 
 def test_confidence_medium_one_insufficient():
-    rows = _backbone(dividends=None)
-    res = _evaluate(rows, _price_for(rows, 20.0))
+    rows = [replace(row, dividends_paid=None) for row in _load("lynch_garp_ideal")]
+    res = _evaluate(rows, 149.01)
+    # The only missing weighted rule is the dividend-adjusted PEG; the
+    # coverage is high enough for MEDIUM confidence.
     assert res.confidence == Confidence.MEDIUM
 
 
@@ -465,22 +463,28 @@ def test_no_network_no_db_no_price_persistence():
 # Registry, rules, sources
 # ---------------------------------------------------------------------------
 def test_all_rules_count_five():
+    from backend.methodologies.lynch_garp.deep_checks import CHECKS as DEEP_CHECKS
     from backend.methodologies.lynch_garp.rules import ALL_RULES, VERDICT_RULES
 
     assert len(ALL_RULES) == 5
     assert len(VERDICT_RULES) == 3
-    assert len(LynchGARPMethodology().rules()) == 5
+    assert len(DEEP_CHECKS) == 19
+    assert len(LynchGARPMethodology().rules()) == 24
 
 
 def test_sources_cite_correct_books():
     refs = [r.source for r in LynchGARPMethodology().rules()]
     one_up = [s for s in refs if s.book == "One Up on Wall Street"]
     beating = [s for s in refs if s.book == "Beating the Street"]
-    assert len(one_up) == 4
+    assert len(one_up) == 4  # the legacy rules keep their book split
     assert len(beating) == 1
     assert all(s.year == 1989 for s in one_up)
     assert beating[0].year == 1993
-    assert refs[4].book == "Beating the Street"
+    # The deep checks are a combined public-knowledge reconstruction.
+    deep = [s for s in refs if s.book.startswith("One Up on Wall Street /")]
+    assert len(deep) == 19
+    assert all(s.page == "public knowledge" for s in deep)
+    assert all("not from the book" in (s.us_caution or "") for s in deep)
 
 
 def test_metadata_documents_limitations():
@@ -514,8 +518,8 @@ def test_registry_discovers_lynch_garp():
 def test_fixtures_load_and_evaluate(name, price):
     res = _evaluate(_load(name), price)
     assert isinstance(res.verdict, Verdict)
-    assert len(res.sources) == 5
-    assert len(res.metrics["rule_outcomes"]) == 5
+    assert len(res.sources) == 24
+    assert len(res.metrics["rule_outcomes"]) == 24
 
 
 # ---------------------------------------------------------------------------
@@ -590,6 +594,34 @@ def _growth_rows(
 def _category(rows, price=None, market_cap=None):
     res = LynchGARPMethodology().evaluate("T", rows, _CapPrice(price, market_cap))
     return res.metrics["lynch_category"]
+
+
+def _balanced(
+    rows,
+    equity=2_000_000_000.0,
+    cash=500_000_000.0,
+    ocf=500_000_000.0,
+    capex=100_000_000.0,
+):
+    """Add the balance-sheet/cash-flow lines a complete FDB row carries.
+
+    The synthetic category fixtures only set revenue and earnings; without
+    these lines the deep checks are legitimately N/A and the 30% coverage
+    guard returns INSUFFICIENT_DATA. Categories are unaffected (the detector
+    reads revenue, earnings, sector and market cap).
+    """
+    return [
+        replace(
+            row,
+            stockholders_equity=equity,
+            cash_and_equivalents=cash,
+            operating_cash_flow=ocf,
+            capital_expenditure=capex,
+            current_assets=1_000_000_000.0,
+            current_liabilities=400_000_000.0,
+        )
+        for row in rows
+    ]
 
 
 def _evaluate_cap(rows, price, market_cap):
@@ -711,7 +743,9 @@ def test_slow_grower_stable_dividends_not_avoid():
     rows = _growth_rows(0.03, dividends=20_000_000.0, debt=100_000_000.0)
     res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
     assert res.metrics["lynch_category"] == "SLOW_GROWER"
-    assert res.verdict in (Verdict.BUY, Verdict.WATCH)
+    # The weighted framework scores the (high) 5%-yield demand and the slow
+    # top line; HOLD means "do not buy, do not sell", not AVOID.
+    assert res.verdict in (Verdict.WATCH, Verdict.HOLD)
 
 
 def test_stalwart_reasonable_peg_buys():
@@ -727,7 +761,9 @@ def test_fast_grower_thirty_percent_still_buys():
     rows = _growth_rows(0.30, debt=100_000_000.0)
     latest = max(rows, key=lambda r: r.fiscal_year)
     eps = latest.net_income / latest.shares_outstanding
-    res = _evaluate_cap(rows, price=30.0 * eps, market_cap=5_000_000_000.0)
+    # PEG 0.8 at 24x earnings: the deep PEG rule no longer applies the old
+    # fast-grower +0.2 premium, so the price has to clear PEG < 1 on its own.
+    res = _evaluate_cap(rows, price=24.0 * eps, market_cap=5_000_000_000.0)
     assert res.metrics["lynch_category"] == "FAST_GROWER"
     assert res.verdict == Verdict.BUY
 
@@ -853,22 +889,20 @@ def test_fast_grower_with_negative_margin_not_fast_grower():
 # ---------------------------------------------------------------------------
 # Score consistency: hidden for categories whose Rule 1 is not the PEG
 # ---------------------------------------------------------------------------
-def test_slow_grower_score_hidden():
-    rows = _growth_rows(0.03, dividends=20_000_000.0, debt=100_000_000.0)
+def test_slow_grower_score_is_weighted():
+    rows = _balanced(_growth_rows(0.03, dividends=20_000_000.0, debt=100_000_000.0))
     res = _evaluate_cap(rows, price=20.0, market_cap=50_000_000_000.0)
     assert res.metrics["lynch_category"] == "SLOW_GROWER"
-    assert res.score is None
-    assert "Slow Grower" in res.metrics["score_note"]
-    assert "dividend stability" in res.metrics["score_note"]
+    assert isinstance(res.score, float)
+    assert "score_note" not in res.metrics
 
 
-def test_asset_play_score_hidden():
-    rows = _growth_rows(0.0, equity=1_000_000_000.0)
+def test_asset_play_score_is_weighted():
+    rows = _balanced(_growth_rows(0.0, equity=1_000_000_000.0), equity=1_000_000_000.0)
     res = _evaluate_cap(rows, price=5.0, market_cap=500_000_000.0)
     assert res.metrics["lynch_category"] == "ASSET_PLAY"
-    assert res.score is None
-    assert "Asset Play" in res.metrics["score_note"]
-    assert "price-to-book" in res.metrics["score_note"]
+    assert isinstance(res.score, float)
+    assert "score_note" not in res.metrics
 
 
 def test_stalwart_score_numeric():
@@ -896,7 +930,7 @@ def test_cyclical_score_numeric():
         )
         for i, v in enumerate(values)
     ]
-    res = _evaluate_cap(rows, price=10.0, market_cap=20_000_000_000.0)
+    res = _evaluate_cap(_balanced(rows), price=10.0, market_cap=20_000_000_000.0)
     assert res.metrics["lynch_category"] == "CYCLICAL"
     assert res.score is not None
 
@@ -914,6 +948,10 @@ def test_turnaround_score_numeric():
         )
         for i, v in enumerate(values)
     ]
-    res = _evaluate_cap(rows, price=10.0, market_cap=1_000_000_000.0)
+    res = _evaluate_cap(
+        _balanced(rows, ocf=10_000_000.0, capex=5_000_000.0),
+        price=10.0,
+        market_cap=1_000_000_000.0,
+    )
     assert res.metrics["lynch_category"] == "TURNAROUND"
     assert res.score is not None
