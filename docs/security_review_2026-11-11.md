@@ -8,7 +8,7 @@ correction (`ad2ad58`). This review covers the GitHub Security tab
 
 | # | Source | Severity | Finding | Status |
 |---|---|---|---|---|
-| 1 | CodeQL `py/path-injection` | high | The price disk-cache path embedded the raw, user-controlled ticker (`DISK_CACHE_DIR / f"{ticker.upper()}_..."`). A ticker such as `../../etc/passwd` could escape `data/price_cache/`. 4 alerts (lines 150, 156, 159, 176). | **Fixed** in `backend/services/price_service.py` |
+| 1 | CodeQL `py/path-injection` | high | The price disk-cache path embedded the raw, user-controlled ticker (`DISK_CACHE_DIR / f"{ticker.upper()}_..."`). A ticker such as `../../etc/passwd` could escape `data/price_cache/`. 4 alerts (lines 150, 156, 159, 176). | **Fixed**; CodeQL alerts closed |
 | 2 | Dependabot (mobile) | high | `zod < 4.6.6` — memory exhaustion validating oversized constrained collections. `zod@3.25.76` is a transitive **build/dev** dependency of `@expo/cli` / `eslint-config-expo`. | Open; follow-up |
 | 3 | Dependabot (mobile) | medium | `glob 9.0.0–14.0.1` — AbortSignal cancellation bypass. `glob@13.0.6` is a transitive **build** dependency of Expo CLI. Patched in 14.0.2 (major). | Open; follow-up |
 | 4 | Dependabot (mobile) | low | `deepmerge 4.2.0–4.3.1` — prototype poisoning of returned objects. `deepmerge@4.3.1` is a transitive build-time config merge (`@expo/config`, `jest-config`). **No patched version exists.** | Accepted risk |
@@ -69,7 +69,7 @@ export` run. Do not force `zod@4` in the backend verification session.
 
 ## Follow-up (not this session)
 
-1. Re-run CodeQL on the fix; the four path-injection alerts should close.
+1. ~~Re-run CodeQL on the fix~~ — **done**: CodeQL run `43069384701` completed with **0 open alerts** (the four `py/path-injection` findings closed).
 2. Mobile dependency upgrade session (zod/glob/Expo/Jest; re-evaluate
    deepmerge).
 3. Add `mobile` to the CI dependency-audit job once upgraded.
