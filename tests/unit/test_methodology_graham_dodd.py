@@ -158,10 +158,10 @@ def test_rule_4_balance_sheet_insufficient():
 
 
 def test_verdict_buy_with_all_pass():
-    """Deep value fixture with low price should be WATCH (rule_3 needs 10 years)."""
-    result = _evaluate("graham_dodd_deep_value.json", price=10.0)
-    # rule_3 is INSUFFICIENT_DATA (only 6 years), so verdict is WATCH
-    assert result.verdict == Verdict.WATCH
+    """Deep value fixture at 2.0 clears every evaluable weighted rule."""
+    result = _evaluate("graham_dodd_deep_value.json", price=2.0)
+    assert result.verdict == Verdict.BUY
+    assert result.score == pytest.approx(100.0)
 
 
 def test_verdict_avoid_with_multiple_failures():
@@ -181,11 +181,16 @@ def test_verdict_insufficient_with_many_unknown():
 # ----------------------------------------------------------------------
 
 
-def test_score_is_passed_over_four_times_hundred():
-    """Score = passed / 4 × 100."""
+def test_score_is_the_weighted_pass_ratio():
+    """Score = passed weight / evaluable weight, not passed / 4."""
+    from backend.methodologies.graham_dodd.deep_checks import CHECKS
+    from backend.methodologies.graham_dodd.methodology import OLD_WEIGHTS
+
     result = _evaluate("graham_dodd_deep_value.json", price=10.0)
-    expected = len(result.passed_rules) / 4 * 100
-    assert result.score == pytest.approx(expected, abs=0.01)
+    weights = {check.rule_id: check.weight for check in CHECKS} | OLD_WEIGHTS
+    passed = sum(weights.get(rule_id, 0) for rule_id in result.passed_rules)
+    evaluated = passed + sum(weights.get(rule_id, 0) for rule_id in result.failed_rules)
+    assert result.score == pytest.approx(passed / evaluated * 100, abs=0.01)
 
 
 def test_score_is_none_when_insufficient():
@@ -199,16 +204,47 @@ def test_score_is_none_when_insufficient():
 # ----------------------------------------------------------------------
 
 
-def test_confidence_high_when_all_evaluated():
-    """Deep value fixture has 3 of 4 rules evaluated (rule_3 needs 10 years)."""
-    result = _evaluate("graham_dodd_deep_value.json")
-    assert result.confidence == Confidence.MEDIUM
-
-
 def test_confidence_low_when_many_unknown():
     """Incomplete fixture has many unknown."""
     result = _evaluate("graham_dodd_incomplete.json")
     assert result.confidence == Confidence.LOW
+
+
+def test_confidence_low_when_decade_rules_are_unevaluable():
+    """Six years of history cannot evaluate the decade rules, so LOW."""
+    result = _evaluate("graham_dodd_deep_value.json", price=2.0)
+    assert result.confidence == Confidence.LOW
+
+
+def test_confidence_high_with_a_complete_decade():
+    """A ten-year, debt-complete history evaluates every weighted rule."""
+    rows = []
+    for index in range(10):
+        year = 2024 - index
+        net_income = 100_000_000.0 * (1.10 ** (9 - index))
+        rows.append(
+            NormalizedFinancials.from_dict(
+                {
+                    "ticker": "COMPLETE",
+                    "fiscal_year": year,
+                    "period": "FY",
+                    "net_income": net_income,
+                    "operating_income": 150_000_000.0,
+                    "interest_expense": 40_000_000.0,
+                    "total_assets": 2_000_000_000.0,
+                    "total_liabilities": 800_000_000.0,
+                    "current_assets": 1_200_000_000.0,
+                    "current_liabilities": 400_000_000.0,
+                    "total_debt": 300_000_000.0,
+                    "stockholders_equity": 1_200_000_000.0,
+                    "shares_outstanding": 100_000_000,
+                    "dividends_paid": 30_000_000.0,
+                }
+            )
+        )
+    result = GrahamDoddMethodology().evaluate("COMPLETE", rows, _Prices(100.0))
+    assert result.confidence == Confidence.HIGH
+    assert result.score is not None
 
 
 # ----------------------------------------------------------------------
@@ -223,9 +259,8 @@ def test_red_flags_listed_for_failures():
 
 
 def test_no_red_flags_when_all_pass():
-    """Deep value fixture with very low price should have no red flags."""
-    result = _evaluate("graham_dodd_deep_value.json", price=5.0)
-    # rule_1 PASS (price < 2/3 NWC/share = 5.33), rule_2 PASS, rule_3 N/A, rule_4 PASS
+    """Deep value fixture at 2.0 passes every evaluable rule."""
+    result = _evaluate("graham_dodd_deep_value.json", price=2.0)
     assert len(result.red_flags) == 0
 
 
@@ -269,16 +304,22 @@ def test_metadata_reports_book_and_limitations():
     assert len(metadata["known_limitations"]) >= 2
 
 
-def test_rules_expose_all_five():
+def test_rules_expose_legacy_and_deep():
+    from backend.methodologies.graham_dodd.deep_checks import CHECKS
+
     methodology = GrahamDoddMethodology()
-    ids = {rule.id for rule in methodology.rules()}
-    assert ids == {
+    rules = methodology.rules()
+    ids = {rule.id for rule in rules}
+    legacy_ids = {
         "graham_dodd.rule_1_nwc",
         "graham_dodd.rule_2_fixed_charge_coverage",
         "graham_dodd.rule_3_earnings_stability",
         "graham_dodd.rule_4_balance_sheet_strength",
         "graham_dodd.rule_5_margin_of_safety",
     }
+    assert legacy_ids <= ids
+    assert len(rules) == 5 + len(CHECKS)
+    assert {check.rule_id for check in CHECKS} <= ids
 
 
 # ---------------------------------------------------------------------------

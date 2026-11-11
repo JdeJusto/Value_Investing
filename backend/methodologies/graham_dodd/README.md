@@ -6,6 +6,11 @@ Detects deep value from balance-sheet signatures.
 
 ## Rules
 
+The original five rules below are kept (now weighted); v2.0.0 adds 21 deep
+checks (net-net/NCAV, balance-sheet ladder, earnings power/EPV, asset value
+and margin of safety). See `docs/graham_dodd_rules.md` for the full 26-rule
+table.
+
 | # | Rule | Threshold | Source |
 |---|------|-----------|--------|
 | 1 | NWC test | Price < 2/3 of NWC per share | p. 5 |
@@ -14,25 +19,22 @@ Detects deep value from balance-sheet signatures.
 | 4 | Balance sheet strength | Liabilities/assets ≤ 0.5 | p. 38, 41 |
 | 5 | Margin of safety | Qualitative (see below) | p. 5, 101 |
 
-## Verdict Logic
+## Verdict Logic (weighted, v2.0.0)
 
-- **BUY**: rule 1 PASS AND rule 2 PASS AND rule 3 PASS
-- **WATCH**: rule 1 PASS AND rule 2 FAIL, OR rule 1 FAIL AND rule 2 PASS
-- **HOLD**: 2 of 4 quantitative rules pass
-- **AVOID**: < 2 quantitative rules pass OR rule 4 FAIL
-- **INSUFFICIENT_DATA**: > 2 rules INSUFFICIENT_DATA
+Every rule has a weight (2 critical, 1 normal, 0 informational) and the
+verdict is the weighted pass ratio:
 
-## Score
+`weighted_score = Σ weight(passed) / Σ weight(evaluable)`
 
-`score = (quantitative_passed / 4) × 100`
+- **BUY**: score ≥ 0.85
+- **WATCH**: 0.70–0.85
+- **HOLD**: 0.50–0.70
+- **AVOID**: < 0.50
+- **INSUFFICIENT_DATA**: > 30% of the weighted rules missing data
 
-Rule 5 (qualitative) does NOT contribute to the score.
-
-## Confidence
-
-- **HIGH**: all 4 quantitative rules evaluated
-- **MEDIUM**: 1–2 rules unknown
-- **LOW**: > 2 rules unknown
+Rule 5 (qualitative) and two deep checks are informational (weight 0) and do
+not contribute to the score. See `docs/graham_dodd_rules.md` for the full
+26-rule table, sources and data limits.
 
 ## Distinction vs Graham (Intelligent Investor)
 

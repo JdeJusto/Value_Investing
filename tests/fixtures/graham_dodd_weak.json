@@ -20,7 +20,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "total_debt": 1800000000.0
   },
   {
     "ticker": "WEAK",
@@ -43,7 +44,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "total_debt": 1800000000.0
   },
   {
     "ticker": "WEAK",
@@ -66,7 +68,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "total_debt": 1800000000.0
   },
   {
     "ticker": "WEAK",
@@ -89,7 +92,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "total_debt": 1800000000.0
   },
   {
     "ticker": "WEAK",
@@ -112,7 +116,8 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "total_debt": 1800000000.0
   },
   {
     "ticker": "WEAK",
@@ -135,6 +140,7 @@
     "data_quality_score": 0.85,
     "is_complete": true,
     "data_source_priority": 1,
-    "derived_metrics": []
+    "derived_metrics": [],
+    "total_debt": 1800000000.0
   }
 ]
