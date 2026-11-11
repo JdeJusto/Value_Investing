@@ -11,6 +11,7 @@ prices live here, in real time.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -135,9 +136,20 @@ def _yf_call(fetcher: Callable[[], object], *, description: str = "yfinance"):
 def _disk_cache_path(
     ticker: str, start_date: date | None, end_date: date | None
 ) -> Path:
+    """Deterministic cache path that never embeds the raw ticker.
+
+    The ticker is user-controlled (CLI/API), so it must not reach a filesystem
+    path: a value like ``../../etc/passwd`` would escape the cache directory.
+    Hashing it keeps the name deterministic and collision-resistant without
+    carrying the tainted string into the path (CodeQL py/path-injection).
+    """
+    normalized = str(ticker).strip().upper()
+    if not normalized:
+        raise ValueError("empty ticker")
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:24]
     start = start_date.isoformat() if start_date else "full"
     end = end_date.isoformat() if end_date else "now"
-    return DISK_CACHE_DIR / f"{ticker.upper()}_{start}_{end}.json"
+    return DISK_CACHE_DIR / f"{digest}_{start}_{end}.json"
 
 
 def _disk_cache_get(
@@ -145,8 +157,8 @@ def _disk_cache_get(
 ) -> list[tuple[date, float]] | None:
     if not DISK_CACHE_ENABLED:
         return None
-    path = _disk_cache_path(ticker, start_date, end_date)
     try:
+        path = _disk_cache_path(ticker, start_date, end_date)
         if not path.exists():
             return None
         recent = end_date is None or end_date >= datetime.now(UTC).date() - timedelta(
@@ -177,7 +189,7 @@ def _disk_cache_set(
             json.dumps([[day.isoformat(), close] for day, close in prices]),
             encoding="utf-8",
         )
-    except OSError:
+    except (OSError, ValueError):
         logger.debug("Could not write the price cache for %s", ticker, exc_info=True)
 
 

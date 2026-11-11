@@ -118,7 +118,7 @@ def test_recent_disk_cache_expires_after_one_day(tmp_path, monkeypatch):
     monkeypatch.setattr(PriceService, "_fetch_historical_prices", fake_fetch)
     end = datetime.now(UTC).date()
     PriceService().get_historical_prices("AAPL", end - timedelta(days=5), end)
-    cache_file = next(tmp_path.glob("AAPL_*.json"))
+    cache_file = next(tmp_path.glob("*.json"))
     old = ps.time.time() - ps.DISK_CACHE_RECENT_TTL_SECONDS - 60
     os.utime(cache_file, (old, old))
 
@@ -147,3 +147,36 @@ def test_refresh_surfaces_the_rate_limit_reason():
 
     assert result.prices_synced is False
     assert result.prices_error == ps.RATE_LIMIT_REASON
+
+
+def test_disk_cache_path_never_embeds_the_raw_ticker(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "DISK_CACHE_DIR", tmp_path)
+
+    path = ps._disk_cache_path("../../etc/passwd", None, None)
+
+    assert path.parent == tmp_path
+    assert ".." not in path.name
+    assert "PASSWD" not in path.name
+
+
+def test_disk_cache_path_is_deterministic_and_ticker_specific(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "DISK_CACHE_DIR", tmp_path)
+
+    first = ps._disk_cache_path("AAPL", date(2020, 1, 1), date(2020, 12, 31))
+    same = ps._disk_cache_path("aapl", date(2020, 1, 1), date(2020, 12, 31))
+    other = ps._disk_cache_path("MSFT", date(2020, 1, 1), date(2020, 12, 31))
+
+    assert first == same
+    assert first != other
+    assert first.parent == tmp_path
+
+
+def test_disk_cache_rejects_an_empty_ticker(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.setattr(ps, "DISK_CACHE_ENABLED", True)
+    monkeypatch.setattr(ps, "DISK_CACHE_DIR", tmp_path)
+
+    with pytest.raises(ValueError):
+        ps._disk_cache_path("", None, None)
+    assert ps._disk_cache_get("", None, None) is None
