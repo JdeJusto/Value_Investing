@@ -28,10 +28,11 @@ Using today's ranking to label a 2021 company would be pure look-ahead.
 Per signal year `Y`:
 
 ```text
-selected_set(Y)  = tickers whose verdict matches the filter (BUY by default)
-                   with rows up to fiscal year Y
+selected_set(Y)  = tickers whose verdict matches the filter
+                   (positive tiers by default) with rows up to fiscal year Y
 forward(Y, t)    = price(t, FY_end(Y+1)) / price(t, FY_end(Y)) - 1
-portfolio(Y)     = mean(forward(Y, t) for t in selected_set(Y))  # 0 = cash
+portfolio(Y)     = tier-weighted mean of forward(Y, t) over selected_set(Y)
+                   (60/30/10 by STRONG/BUY/WEAK, equal within tier; 0 = cash)
 opportunity(Y)   = mean(forward(Y, t) for every priced ticker)
 spy(Y)           = SPY price(FY_end(Y+1)) / SPY price(FY_end(Y)) - 1
 ```
