@@ -29,17 +29,17 @@ the book's formulation needs data the pipeline does not hold.
 |---|---|---|---:|---|---|
 | 1 | `criterion_1_size` | financial_strength | 1 | revenue ≥ $100M (or utilities assets ≥ $50M; era adjustment ×5.6) | Ch. 14 |
 | 2 | `criterion_2_current_ratio` | financial_strength | 2 | current ratio ≥ 2.0 | Ch. 14 |
-| 3 | `criterion_3_debt_vs_working_capital` | financial_strength | 1 | total debt ≤ working capital | Ch. 14 |
+| 3 | `criterion_3_debt_vs_working_capital` | financial_strength | 1 | total debt ≤ working capital (industrials) or ≤ 2× book equity (utilities) | Ch. 14, p. 112 |
 | 4 | `criterion_4_dividend_history` | dividends | 1 | ≥ 20 years with a dividend (capped by available history) | Ch. 14 |
 | 5 | `criterion_5_earnings_growth` | growth | 2 | EPS +33% over the decade (3-year averages) | Ch. 14 |
 | 6 | `criterion_6_pe` | valuation | 2 | P/E ≤ 15 on 3-year average earnings | Ch. 14 |
 | 7 | `criterion_7_pbv` | valuation | 2 | P/BV ≤ 1.5 | Ch. 14 |
 | 8 | `criterion_8_pe_pbv_product` | valuation | 2 | P/E × P/BV ≤ 22.5 | Ch. 14 |
 | 9 | `deep_debt_to_equity` | financial_strength | 1 | total debt / equity < 1 | public (conservative) |
-| 10 | `deep_interest_coverage` | financial_strength | 1 | EBIT / interest ≥ 5x (debt-free passes) | Ch. 14 criterion 2 |
+| 10 | `deep_interest_coverage` | financial_strength | 1 | EBIT / interest ≥ 5x (debt-free passes) | public knowledge (extension) |
 | 11 | `deep_positive_working_capital` | financial_strength | 1 | current assets > current liabilities | Ch. 14 criterion 2 |
 | 12 | `deep_positive_earnings_10y` | earnings_quality | 2 | every available year of the last 10 profitable | Ch. 14 criterion 5 |
-| 13 | `deep_earnings_stability` | earnings_quality | 1 | stdev of yearly EPS growth < 15% | Ch. 14 criterion 5 |
+| 13 | `deep_earnings_stability` | earnings_quality | 1 | stdev of yearly EPS growth < 15% | public knowledge (the book’s criterion is “no deficit in 10 years”) |
 | 14 | `deep_net_income_growing_3y` | earnings_quality | 1 | latest net income > previous two years | public (short-term growth) |
 | 15 | `deep_positive_eps` | earnings_quality | 1 | latest EPS > 0 | Ch. 14 criterion 5 |
 | 16 | `deep_graham_number` | valuation | 2 | price ≤ √(22.5 × EPS × BVPS) | public (Graham Number) |
@@ -48,7 +48,29 @@ the book's formulation needs data the pipeline does not hold.
 | 19 | `deep_payout_ratio` | dividends | 1 | payout < 80% | public (dividend safety) |
 | 20 | `deep_no_dividend_suspension` | dividends | 1 | no zero-dividend year in the available history | Ch. 14 criterion 4 |
 | 21 | `deep_epv_margin` | margin_of_safety | 1 | price ≤ 2/3 × EPV (EBIT × (1−tax) / 9%) | public (EPV, 9% fixed discount) |
-| 22 | `deep_ncav_margin` | margin_of_safety | 1 | NCAV/share > 1.5 × price | Ch. 14 / net-net |
+| 22 | `deep_ncav_margin` | margin_of_safety | 1 | NCAV/share > 1.5 × price | Security Analysis, p. 5 (net-net) |
+
+## Book alignment (v0.29.0)
+
+Source: `docs/books_notes/the-intelligent-investor.md` (4th revised ed., 1973)
+and `docs/books_notes/security-analysis.md` (1934).
+
+- **Criterion 3 now follows the book's utility branch**: industrials must keep
+  total debt ≤ net working capital; public utilities may carry up to **2×
+  book equity** (ch. 14, p. 112). `total_debt` is used on the debt side, which
+  is >= long-term debt, so both branches stay stricter than the printed rule.
+- **Interest coverage (5×) is not one of Graham's seven defensive criteria**;
+  it is now labelled a public-knowledge extension instead of “Ch. 14
+  criterion 2”.
+- **The 15% EPS-dispersion test is an extension**: the book's earnings-
+  stability criterion is “no deficit in the last 10 years” (implemented as
+  `deep_positive_earnings_10y`). The dispersion threshold stays as a
+  supporting check and is labelled as such.
+- **NCAV/net-net is from *Security Analysis*** (p. 5), not from *The
+  Intelligent Investor*; its source now cites the correct book.
+- The seven original criteria and the 20-year dividend record match the book
+  verbatim (ch. 14, pp. 112–114); the 20-year record is still capped by the
+  available FDB history (~16 years) and documented as a data limitation.
 
 ## Measured distribution (SP500, 2026-11-10)
 

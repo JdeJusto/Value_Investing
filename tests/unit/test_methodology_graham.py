@@ -425,6 +425,12 @@ def test_sources_carry_book_page_and_era():
     result = _evaluate("graham_pass.json", price=100.0)
     assert result.sources, "every result must cite its sources"
     for ref in result.sources:
+        if ref.book == "Security Analysis":
+            # The net-net/NCAV rule comes from the 1934 Graham & Dodd book.
+            assert ref.year == 1934
+            assert ref.era == "1934"
+            assert ref.page.startswith("p. 5")
+            continue
         assert ref.book == "The Intelligent Investor"
         assert ref.year == 1973
         assert ref.era == "1973"

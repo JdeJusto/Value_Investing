@@ -48,6 +48,32 @@ weighted.
 | 19 | `insider_ownership` | management | 0 | informational; not in FDB | public: requires a supplementary source |
 | 20 | `rd_ratio_3` | management | 0 | R&D / revenue ≥ 3% (informational, N/A if unreported) | public: sector-dependent |
 
+## Book alignment (v0.29.0)
+
+Reference availability: *The Warren Buffett Way* (Hagstrom) and a standalone
+Berkshire letters collection were **not found** on this machine
+(`docs/books_notes/the-warren-buffett-way.md`). The available Buffett/Clark
+book is the reference for `buffett_clark`, not for this methodology. Every
+rule therefore keeps an explicit label: a specific letter only when the
+letter really states it, otherwise `public knowledge`.
+
+Reviewed and corrected source labels (no threshold or weight changed):
+
+- `roic_10y_persistence` — was “1987 letter (economic goodwill)”; the 10-year
+  persistence test is an interpretation, now labelled public.
+- `interest_coverage_10` — was “1990 letter”; the 10× bar is a conservative
+  public extension, not a letter threshold.
+- `fcf_positive_5y` — was “1986 letter (owner earnings)”; owner earnings is
+  in that letter, the five-year FCF persistence is an extension.
+- `net_margin_10` — was “1979/1987 letters”; the 10% bar is a public proxy.
+- `earnings_yield_5` — was “1977 letter (cheapness vs bonds)”; the 5% bar is
+  a public approximation, not a letter threshold.
+
+Rules that remain tied to a specific public source: `owner_earnings_positive`
+(1986 letter, capex proxy), `no_dilution_5y` and `buybacks_3_of_5y`
+(1984/1996/2011 letters, paraphrased). The measured distribution and the
+backtest are unchanged by this documentation-only review.
+
 ## Measured distribution (SP500, 2026-11-10)
 
 `v0.27.0` shipped with the DCF rule silently `N/A` in batch; `v0.27.1` fixes

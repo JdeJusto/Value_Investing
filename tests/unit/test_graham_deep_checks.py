@@ -181,3 +181,39 @@ def test_weighted_score_uses_weights():
     verdict, score, _confidence = GrahamMethodology._weighted_verdict(outcomes)
     assert score == pytest.approx(75.0)
     assert verdict.value == "WATCH"
+
+
+def test_utility_debt_limit_uses_two_times_equity():
+    """The Intelligent Investor ch. 14 p. 112: utilities may carry 2x equity."""
+    from backend.methodologies.graham.methodology import GrahamMethodology
+
+    method = GrahamMethodology()
+    passing = _row(
+        2025,
+        sector="Utilities",
+        total_debt=150,
+        stockholders_equity=100,
+        current_assets=10,
+        current_liabilities=200,
+    )
+    failing = _row(
+        2025,
+        sector="Utilities",
+        total_debt=250,
+        stockholders_equity=100,
+        current_assets=10,
+        current_liabilities=200,
+    )
+    industrial = _row(
+        2025,
+        sector="Industrials",
+        total_debt=150,
+        stockholders_equity=100,
+        current_assets=10,
+        current_liabilities=200,
+    )
+
+    assert method._criterion_3_debt_vs_working_capital([passing]).passed is True
+    assert method._criterion_3_debt_vs_working_capital([failing]).passed is False
+    # The industrial branch still uses working capital, which is negative here.
+    assert method._criterion_3_debt_vs_working_capital([industrial]).passed is False

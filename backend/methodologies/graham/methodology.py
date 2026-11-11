@@ -30,6 +30,7 @@ from backend.methodologies.base import (
 from backend.methodologies.common.company_type import (
     financial_na_reason,
     is_financial,
+    is_utility,
 )
 from backend.methodologies.common.ratio_guards import (
     is_meaningful_pbv,
@@ -298,12 +299,16 @@ class GrahamMethodology(Methodology):
         )
 
     def _criterion_3_debt_vs_working_capital(self, rows) -> CriterionResult:
-        """Long-term debt <= net working capital.
+        """Debt limit: long-term debt <= net working capital (industrials).
+
+        *The Intelligent Investor* ch. 14 sets a different limit for public
+        utilities: debt <= 2x book equity (p. 112). The ladder follows the
+        book; ``total_debt`` is used for the debt side (>= long-term debt), so
+        both branches stay stricter than the printed criterion.
 
         Working capital is derived from the balance-sheet split
         (``current_assets - current_liabilities``) so a missing statement never
-        reads as zero. ``total_debt`` is used for the debt side, which is >=
-        long-term debt, so the test stays stricter than the book's.
+        reads as zero.
         """
         latest = self._latest(rows)
         if latest is None or latest.total_debt is None:
@@ -313,6 +318,26 @@ class GrahamMethodology(Methodology):
                 None,
                 None,
                 "no debt or working-capital data",
+            )
+        if is_utility(latest, getattr(latest, "sector", None)):
+            equity = latest.stockholders_equity
+            if equity is None or equity <= 0:
+                return CriterionResult(
+                    "graham.criterion_3_debt_vs_working_capital",
+                    None,
+                    None,
+                    None,
+                    "utility debt test needs positive book equity",
+                )
+            limit = 2.0 * equity
+            passed = latest.total_debt <= limit
+            return CriterionResult(
+                "graham.criterion_3_debt_vs_working_capital",
+                passed,
+                latest.total_debt,
+                limit,
+                f"utility total debt ${latest.total_debt:,.0f} vs "
+                f"2x equity ${limit:,.0f}",
             )
         working_capital = (
             latest.current_assets - latest.current_liabilities

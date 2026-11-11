@@ -612,7 +612,7 @@ CHECKS: tuple[BuffettCheck, ...] = (
         "moat",
         2,
         "Every available year of the last decade must clear 15% ROIC.",
-        _letter("1987 letter (economic goodwill / high returns)", "public paraphrase"),
+        _public("10-year persistence of high ROIC (letter-derived)"),
         _roic_persistence,
     ),
     BuffettCheck(
@@ -657,7 +657,7 @@ CHECKS: tuple[BuffettCheck, ...] = (
         "financial_strength",
         1,
         "EBIT must cover interest ten times; debt-free companies pass.",
-        _letter("1990 letter (financial strength)", "public paraphrase"),
+        _public("conservative interest-coverage test"),
         _interest_coverage,
     ),
     BuffettCheck(
@@ -675,7 +675,7 @@ CHECKS: tuple[BuffettCheck, ...] = (
         "financial_strength",
         2,
         "Free cash flow positive in every available year of the last five.",
-        _letter("1986 letter (owner earnings)", "public paraphrase"),
+        _public("five-year FCF persistence (owner-earnings lens)"),
         _fcf_positive_5y,
     ),
     BuffettCheck(
@@ -684,7 +684,7 @@ CHECKS: tuple[BuffettCheck, ...] = (
         "earnings_quality",
         2,
         "Latest net income at least 10% of revenue.",
-        _letter("1979/1987 letters (high-margin franchises)", "public paraphrase"),
+        _public("high-margin franchise proxy"),
         _net_margin,
     ),
     BuffettCheck(
@@ -747,7 +747,7 @@ CHECKS: tuple[BuffettCheck, ...] = (
         "valuation",
         1,
         "Three-year average EPS divided by price at least 5%.",
-        _letter("1977 letter (cheapness vs bonds)", "public paraphrase"),
+        _public("earnings yield versus bond yields"),
         _earnings_yield,
     ),
     BuffettCheck(

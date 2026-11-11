@@ -57,6 +57,18 @@ def _public_rule(note: str) -> SourceRef:
     return _source("Ch. 14 (derived)", f"public-knowledge approximation — {note}")
 
 
+def _security_analysis_rule(page: str, caution: str) -> SourceRef:
+    """A rule taken from *Security Analysis*, not *The Intelligent Investor*."""
+    return SourceRef(
+        book="Security Analysis",
+        edition="1st ed. (1934)",
+        year=1934,
+        page=page,
+        era="1934",
+        us_caution=caution,
+    )
+
+
 @dataclass(frozen=True)
 class DeepResult:
     """Outcome of one deep check (``passed=None`` means insufficient data)."""
@@ -460,7 +472,10 @@ CHECKS: tuple[GrahamCheck, ...] = (
         "financial_strength",
         1,
         "EBIT must cover interest expense at least five times.",
-        _book_rule("Ch. 14, criterion 2 (financial condition)"),
+        _public_rule(
+            "interest coverage is a conservative extension, not one of the "
+            "seven defensive criteria"
+        ),
         _interest_coverage,
     ),
     GrahamCheck(
@@ -487,7 +502,10 @@ CHECKS: tuple[GrahamCheck, ...] = (
         "earnings_quality",
         1,
         "Standard deviation of yearly EPS growth below 15%.",
-        _book_rule("Ch. 14, criterion 5"),
+        _public_rule(
+            "the book's earnings-stability criterion is 'no deficit in 10 "
+            "years'; the dispersion threshold is an extension"
+        ),
         _earnings_stability,
     ),
     GrahamCheck(
@@ -568,7 +586,10 @@ CHECKS: tuple[GrahamCheck, ...] = (
         "margin_of_safety",
         1,
         "Net current asset value per share above 1.5x the price.",
-        _book_rule("Ch. 14 / net-net working capital"),
+        _security_analysis_rule(
+            "p. 5 (net-net working capital test)",
+            "price < 2/3 of net current asset value; rare in modern markets",
+        ),
         _ncav_margin_of_safety,
     ),
 )
