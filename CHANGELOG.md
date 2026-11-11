@@ -1,3 +1,61 @@
+## [0.32.0] - 2026-11-11
+
+### Added
+- **`marks` deep expansion (4 → 17 rules)**: 13 checks across valuation,
+  quality, risk control and company-level cycle position. The net-debt/EBITDA
+  > 4× survival override still forces AVOID after the weighted verdict.
+- **`greenblatt` weighted overlay (3 → 15 rules)**: the Magic Formula ranking
+  remains the primary input; the old percentile cut is replaced by a
+  transparent overlay (top 50/100 ranking, ROC/EY decomposition, quality).
+- `docs/methodology_expansion_summary.md`: consolidated view of all eight
+  methodologies, book availability, distributions, backtests and deferred
+  rules.
+- `docs/marks_rules.md`, `docs/greenblatt_rules.md`.
+
+### Measured (SP500, one-pass base verdicts, 2026-11-11)
+| Methodology | BUY | WATCH | HOLD | AVOID | N/A | INSUFFICIENT |
+|---|---:|---:|---:|---:|---:|---:|
+| `graham` | 0 | 3 | 95 | 310 | 71 | 21 |
+| `graham_dodd` | 0 | 0 | 22 | 363 | 71 | 44 |
+| `buffett_classic` | 9 | 62 | 178 | 152 | 71 | 28 |
+| `buffett_clark` | 4 | 48 | 109 | 173 | 71 | 95 |
+| `fisher_quantitative_subset` | 12 | 77 | 142 | 160 | 71 | 38 |
+| `lynch_garp` | 1 | 21 | 107 | 264 | 71 | 36 |
+| `marks` | 3 | 54 | 185 | 170 | 71 | 17 |
+| `greenblatt` | 3 | 4 | 187 | 63 | 99 | 144 |
+
+### Backtests (PoC, 2021–2024, 100-ticker sample)
+| Methodology | CAGR | Sharpe | Opportunity set |
+|---|---:|---:|---:|
+| `buffett_clark` | -2.6% | -0.58 | 8.7% |
+| `lynch_garp` | 0.9% | 0.20 | 8.7% |
+| `graham_dodd` | 0.0% (all cash) | — | 8.7% |
+| `fisher_quantitative_subset` | 16.1% | 0.78 | 8.7% |
+| `marks` | 23.4% | 0.89 | 8.7% |
+| `greenblatt` | — | — | excluded (look-ahead) |
+
+The long-run baselines remain Graham 4.2% CAGR / 0.50 Sharpe (5y/400, v0.26.0)
+and Buffett classic 23.8% CAGR / 1.53 Sharpe (10y/400, v0.27.1).
+
+### Tests
+- **2948 unit tests passed / 2 skipped** (2819 at v0.29.0; +129), 125 API
+  tests, ruff 0/0, theme 26/4.
+- 121 new rule tests across the six expanded methodologies; the existing
+  methodology tests were adapted to the weighted semantics.
+
+### Notes
+- Four releases complete the programme: v0.29.0 (books + Graham/Buffett
+  alignment), v0.30.0 (buffett_clark + lynch), v0.31.0 (graham_dodd +
+  fisher), v0.32.0 (marks + greenblatt).
+- Book availability: *The Intelligent Investor*, *Security Analysis*,
+  *Common Stocks and Uncommon Profits* and the Buffett/Clark financial-
+  statements book were available and cited by page where the notes support
+  it. *The Warren Buffett Way*, *One Up on Wall Street*/*Beating the Street*,
+  *The Most Important Thing* and *The Little Book That Beats the Market*
+  were not found; their rules are explicit public-knowledge approximations.
+- Deferred rules and the specialized bank/REIT analyzers are tracked in
+  `docs/methodology_expansion_summary.md` and `docs/backlog.md`.
+
 ## [0.31.0] - 2026-11-11
 
 ### Added
