@@ -1,3 +1,35 @@
+## [0.30.0] - 2026-11-11
+
+### Added
+- **`buffett_clark` deep expansion (7 → 23 rules)**: 16 new checks from
+  *Warren Buffett and the Interpretation of Financial Statements* (2001)
+  across durable advantage, owner earnings, valuation and growth. Critical
+  rules (×2): ROIC current/5y and the DCF margin of safety. The seven
+  original statement-signature rules are kept and weighted.
+- **`lynch_garp` deep expansion (5 → 24 rules)**: 19 new checks across core
+  GARP, financial health, valuation and the six Lynch categories. The
+  category-specific block only enters the score for the ticker's own
+  category; the slow-grower/stalwart/fast-grower/cyclical/turnaround/
+  asset-play classifier is unchanged.
+- `docs/buffett_clark_rules.md` and `docs/lynch_garp_rules.md` with the full
+  rule tables, weights, sources and measured distributions.
+
+### Measured (SP500, one-pass base verdicts)
+- `buffett_clark`: **4 BUY / 48 WATCH / 109 HOLD / 173 AVOID / 71 N/A /
+  95 INSUFFICIENT**. The high INSUFFICIENT count is data coverage (capex,
+  D&A and 10-year history), not an applicability guard.
+- `lynch_garp`: **1 BUY / 21 WATCH / 107 HOLD / 264 AVOID / 71 N/A /
+  36 INSUFFICIENT**.
+
+### Notes
+- The Buffett/Clark book was available and is cited by page where the notes
+  support it. *One Up on Wall Street* / *Beating the Street* were not
+  available; every Lynch rule is explicitly a public-knowledge
+  reconstruction.
+- Test count grows by 45 rule tests plus the adapted methodology tests.
+- Backtests for the two new frameworks are part of the final consolidation
+  (v0.32.0).
+
 ## [0.29.0] - 2026-11-11
 
 ### Added
