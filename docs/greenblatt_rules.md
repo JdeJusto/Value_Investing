@@ -101,9 +101,11 @@ this as the intended v2.0.0 behaviour, not an accident.
 - **Deferred**: sector-relative ROC (the book excludes financials/utilities),
   a payload field for market cap, and a book-backed review of the exact ROC/EY
   definitions once the reference text is available.
-- No full S&P 500 distribution was measured for this change; run
-  `scripts/compute_greenblatt_rankings.py` and the screener to calibrate before
-  treating the new bands as production thresholds.
+- The one-pass S&P 500 distribution below was measured on 2026-11-11 with
+  the current ranking file. Refresh the ranking with
+  `scripts/compute_greenblatt_rankings.py` before treating the bands as
+  production thresholds; the ranking is cross-sectional and stale files
+  return INSUFFICIENT_DATA.
 
 ## Measured distribution (SP500, 2026-11-11)
 
