@@ -27,19 +27,28 @@ The script writes `data/rankings/greenblatt_<YYYY-MM-DD>.json`
 `earnings_yield` per ticker; idempotent within a day). The methodology reads
 the newest file — it never touches the network or the database itself.
 
-## Verdicts (percentile, lower is better)
+## Verdicts (weighted rank + overlay)
 
-| Percentile | Verdict |
+The ranking remains the primary input. The verdict is the weighted pass ratio
+of the rank checks (in file, top 50, top 100), the ROC / earnings-yield
+decomposition and a quality overlay:
+
+| Weighted score | Verdict |
 | --- | --- |
-| ≤ 10% | BUY |
-| ≤ 30% | WATCH |
-| ≤ 50% | HOLD |
-| > 50% | AVOID |
+| ≥ 0.85 | BUY |
+| 0.70–0.85 | WATCH |
+| 0.50–0.70 | HOLD |
+| < 0.50 | AVOID |
 
-`score = (1 − percentile) × 100`. INSUFFICIENT_DATA when: the ticker is a
-financial (the ROC denominator assumes an industrial balance sheet), the
-ranking file is missing or older than 14 days, the ticker is not in the
-file, or the stored ROC/EY is not positive.
+More than 30% of the weighted rules missing data returns INSUFFICIENT_DATA;
+weight-0 rules (capital turnover, bank scope guard) never enter the score.
+The full table, sources (`page="public knowledge"` — the book was not
+available) and data limits are in `docs/greenblatt_rules.md`.
+
+INSUFFICIENT_DATA also when: the ranking file is missing, empty or older than
+14 days; the ticker is in the universe but not in the file; or the stored
+ROC/EY is not positive. Tickers outside the S&P 500 ranking universe and
+financials/REITs return N/A.
 
 ## Usage
 

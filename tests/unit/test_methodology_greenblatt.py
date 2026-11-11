@@ -51,7 +51,9 @@ def _write_ranking(
             ticker: {
                 "rank_roc": 5,
                 "rank_ey": 5,
-                "combined_rank": 10,
+                # Keep the combined rank consistent with the percentile so the
+                # top-50 / top-100 overlay rules see realistic inputs.
+                "combined_rank": round(percentile * 2 * 100),
                 "percentile": percentile,
                 "roc": roc,
                 "earnings_yield": ey,
@@ -107,13 +109,17 @@ def test_ey_not_positive_is_insufficient(tmp_path):
 @pytest.mark.parametrize(
     "percentile, expected",
     [
+        # The verdict is now the weighted rank + overlay blend. A top-50 rank
+        # keeps BUY; a rank outside the top 50 but inside the top 100 lands in
+        # WATCH; outside the top 100 lands in HOLD (not AVOID: the company is
+        # still ranked with positive ROC/EY).
         (0.05, Verdict.BUY),
-        (0.25, Verdict.WATCH),
-        (0.45, Verdict.HOLD),
-        (0.75, Verdict.AVOID),
+        (0.25, Verdict.BUY),
+        (0.45, Verdict.WATCH),
+        (0.75, Verdict.HOLD),
     ],
 )
-def test_verdict_by_percentile(tmp_path, percentile, expected):
+def test_verdict_blends_rank_and_overlay(tmp_path, percentile, expected):
     _write_ranking(tmp_path, percentile=percentile)
     assert _evaluate([_row()], tmp_path).verdict is expected
 
@@ -181,7 +187,9 @@ def test_no_network_calls_inside_methodology(tmp_path):
         "TEST", [_row()], _Boom()
     )
     assert result.verdict is Verdict.BUY
-    assert result.score == pytest.approx(95.0)
+    # Weighted overlay: 11 of 12 evaluable weight passes (revenue is N/A and
+    # the tiny fixture market cap fails the $100M floor).
+    assert result.score == pytest.approx(91.67)
 
 
 def test_reit_is_not_applicable(tmp_path):

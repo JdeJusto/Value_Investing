@@ -4,13 +4,30 @@ The Magic Formula ranks a whole universe by return on capital and earnings
 yield; a single-ticker evaluation can only look up a pre-computed ranking.
 ``scripts/compute_greenblatt_rankings.py`` writes
 ``data/rankings/greenblatt_<date>.json`` (recommended: weekly), and this
-methodology reads the newest file, looks the ticker up and maps its
-percentile to a verdict. It never touches the network or a database: the
-only input besides the injected row is the ranking file.
+methodology reads the newest file, looks the ticker up and evaluates a weighted
+overlay around that rank. It never touches the network or a database: the only
+inputs besides the injected rows are the ranking file and a price-free market-cap
+derivation.
 
-Verdict by percentile (lower is better): <= 0.10 BUY, <= 0.30 WATCH,
-<= 0.50 HOLD, otherwise AVOID. Financial companies abstain (the ROC
-denominator assumes an industrial balance sheet).
+**The ranking remains the primary input.** The overlay never recomputes the
+cross-sectional ranking; it decomposes the rank into explicit ROC, earnings-
+yield and quality checks so the verdict is transparent:
+
+    weighted_score = sum(passed weight) / sum(evaluable weight)
+
+Thresholds: BUY >= 0.85, WATCH >= 0.70, HOLD >= 0.50, else AVOID. More than
+30% of the weighted rules missing data returns INSUFFICIENT_DATA.
+
+This replaces the old percentile cut (top 10% BUY / top 30% WATCH / top 50%
+HOLD) as the *source* of the verdict. The ranking checks (in file, top 50,
+top 100) are the largest single block of weight and a top-50 rank is the
+normal path to BUY, but a top-10% company with failing quality checks is no
+longer automatically a BUY, and a bottom-half company with clean fundamentals
+lands in HOLD rather than AVOID.
+
+Financial companies and REITs abstain (the ROC denominator assumes an
+industrial balance sheet), and tickers outside the S&P 500 ranking universe
+return NOT_APPLICABLE.
 """
 
 from __future__ import annotations
@@ -36,6 +53,12 @@ from backend.methodologies.common.company_type import (
     is_financial,
     is_reit,
 )
+from backend.methodologies.common.weighted import weighted_verdict
+from backend.methodologies.greenblatt.deep_checks import (
+    CATEGORIES as DEEP_CATEGORIES,
+)
+from backend.methodologies.greenblatt.deep_checks import CHECKS as DEEP_CHECKS
+from backend.methodologies.greenblatt.deep_checks import run_checks
 from backend.methodologies.greenblatt.rules import ALL_RULES, RULE_3_RANK
 
 #: Where the weekly ranking files live (relative to the repo root).
@@ -44,13 +67,20 @@ RANKINGS_DIR = Path("data/rankings")
 #: (deploy/systemd/greenblatt-rankings.timer) refreshes the file weekly, so
 #: two missed runs (14 days) mean something is broken.
 STALE_DAYS = 14
-#: Percentile upper bounds per verdict (lower percentile = better).
-_BUY_PERCENTILE = 0.10
-_WATCH_PERCENTILE = 0.30
-_HOLD_PERCENTILE = 0.50
+#: Percentile below which the legacy combined-rank rule is reported as passed.
+#: Kept only for the reporting-only rule id; it no longer drives the verdict.
+_LEGACY_RANK_PERCENTILE = 0.50
 #: Master universe file, used to tell "not ranked because outside the ranking
 #: universe" (N/A) from "ranked universe but inputs missing" (INSUFFICIENT).
 _UNIVERSE_PATH = Path(__file__).resolve().parents[3] / "config" / "universe.csv"
+
+#: Weighted-score thresholds (shared with the other deep methodologies).
+BUY_THRESHOLD = 0.85
+WATCH_THRESHOLD = 0.70
+HOLD_THRESHOLD = 0.50
+
+#: Share of missing weight above which the verdict is INSUFFICIENT_DATA.
+MAX_MISSING_WEIGHT = 0.30
 
 
 @lru_cache(maxsize=1)
@@ -70,10 +100,10 @@ def _universe_source_index() -> dict[str, str]:
 
 
 class GreenblattMethodology(Methodology):
-    """Look up the pre-computed Magic Formula rank for one ticker."""
+    """Look up the pre-computed Magic Formula rank and weigh its overlay."""
 
     name = "greenblatt"
-    version = "1.0.0"
+    version = "2.0.0"
     family = "MAGIC_FORMULA"
 
     def __init__(self, rankings_dir: Path | str | None = None) -> None:
@@ -152,13 +182,17 @@ class GreenblattMethodology(Methodology):
             return self._insufficient(
                 ticker, "earnings yield is not positive in the ranking"
             )
+        if entry.get("combined_rank") is None:
+            return self._insufficient(
+                ticker, "combined rank missing from the ranking file"
+            )
+
+        results = run_checks(rows, entry)
+        verdict, score, confidence = weighted_verdict(results)
 
         percentile = entry.get("percentile")
-        verdict = self._verdict_for(percentile)
-        score = (
-            round((1.0 - float(percentile)) * 100.0, 2)
-            if percentile is not None
-            else None
+        percentile_text = (
+            f"{float(percentile):.1%}" if percentile is not None else "n/a"
         )
         metrics = {
             "roc": roc,
@@ -171,6 +205,9 @@ class GreenblattMethodology(Methodology):
             "universe_size": payload.get("universe_size"),
             "fiscal_year": entry.get("fiscal_year"),
         }
+        for result in results:
+            metrics[result.rule_id.replace("greenblatt.", "")] = result.value
+
         reasons = [
             (
                 f"ROC {roc:.1%}: EBIT / (net working capital + net PPE), "
@@ -183,17 +220,34 @@ class GreenblattMethodology(Methodology):
             ),
             (
                 f"Combined rank {entry.get('combined_rank')} "
-                f"(percentile {percentile:.1%}); ranking date "
+                f"(percentile {percentile_text}); ranking date "
                 f"{payload.get('date')}."
             ),
-            f"verdict: {verdict.value}",
         ]
-        passed = ["greenblatt.rule_1_roc", "greenblatt.rule_2_earnings_yield"]
-        failed: list[str] = []
-        if verdict is Verdict.AVOID:
-            failed.append(RULE_3_RANK.id)
+        for result in results:
+            mark = (
+                "PASS"
+                if result.passed is True
+                else "FAIL"
+                if result.passed is False
+                else "N/A"
+            )
+            weight = "" if result.weight == 0 else f" x{result.weight}"
+            reasons.append(f"[{mark}]{weight} {result.detail}")
+        reasons.append(f"verdict: {verdict.value}")
+
+        passed_rules = [result.rule_id for result in results if result.passed is True]
+        failed_rules = [result.rule_id for result in results if result.passed is False]
+        # The original explicit rules stay visible for compatibility; they are
+        # reporting-only and are not double-counted in the weighted score.
+        passed_rules.extend(
+            ["greenblatt.rule_1_roc", "greenblatt.rule_2_earnings_yield"]
+        )
+        if percentile is not None and float(percentile) <= _LEGACY_RANK_PERCENTILE:
+            passed_rules.append(RULE_3_RANK.id)
         else:
-            passed.append(RULE_3_RANK.id)
+            failed_rules.append(RULE_3_RANK.id)
+
         return MethodologyResult(
             methodology=self.name,
             version=self.version,
@@ -202,15 +256,19 @@ class GreenblattMethodology(Methodology):
             score=score,
             metrics=metrics,
             reasons=reasons,
-            red_flags=[],
-            confidence=Confidence.HIGH,
-            sources=[rule.source for rule in ALL_RULES],
-            passed_rules=passed,
-            failed_rules=failed,
+            red_flags=[
+                f"{result.name}: {result.detail}"
+                for result in results
+                if result.passed is False
+            ],
+            confidence=confidence,
+            sources=self._sources(),
+            passed_rules=passed_rules,
+            failed_rules=failed_rules,
         )
 
     def rules(self) -> list:
-        return list(ALL_RULES)
+        return list(ALL_RULES) + [check.rule() for check in DEEP_CHECKS]
 
     def metadata(self) -> dict:
         return {
@@ -219,6 +277,13 @@ class GreenblattMethodology(Methodology):
             "version": self.version,
             "family": self.family,
             "source": "The Little Book That Beats the Market (2005)",
+            "categories": list(DEEP_CATEGORIES),
+            "thresholds": {
+                "buy": BUY_THRESHOLD,
+                "watch": WATCH_THRESHOLD,
+                "hold": HOLD_THRESHOLD,
+                "max_missing_weight": MAX_MISSING_WEIGHT,
+            },
             "known_limitations": [
                 (
                     "cross-sectional: requires the weekly ranking file from "
@@ -226,8 +291,22 @@ class GreenblattMethodology(Methodology):
                     "files return INSUFFICIENT_DATA"
                 ),
                 (
+                    "the ranking remains the primary input; the weighted "
+                    "overlay only decomposes the rank and does not recompute "
+                    "the universe"
+                ),
+                (
+                    "the book was not available, so every rule is a public-"
+                    "knowledge approximation, not a page citation"
+                ),
+                (
+                    "market cap is derived from the ranking's earnings yield "
+                    "(EV = EBIT / EY) because the ranking payload has no "
+                    "market-cap field"
+                ),
+                (
                     "does not apply to financials (the ROC denominator assumes "
-                    "an industrial balance sheet)"
+                    "an industrial balance sheet) or REITs"
                 ),
                 (
                     "net fixed assets use the net PPE tag; filers without it "
@@ -240,16 +319,10 @@ class GreenblattMethodology(Methodology):
     # helpers
     # ------------------------------------------------------------------
     @staticmethod
-    def _verdict_for(percentile: float | None) -> Verdict:
-        if percentile is None:
-            return Verdict.INSUFFICIENT_DATA
-        if percentile <= _BUY_PERCENTILE:
-            return Verdict.BUY
-        if percentile <= _WATCH_PERCENTILE:
-            return Verdict.WATCH
-        if percentile <= _HOLD_PERCENTILE:
-            return Verdict.HOLD
-        return Verdict.AVOID
+    def _sources():
+        return [rule.source for rule in ALL_RULES] + [
+            check.source for check in DEEP_CHECKS
+        ]
 
     def _load_rankings(self) -> tuple[dict | None, str | None]:
         """Newest ranking payload, or (None, reason) when unusable."""
@@ -316,7 +389,7 @@ class GreenblattMethodology(Methodology):
             reasons=reasons,
             red_flags=[],
             confidence=Confidence.HIGH,
-            sources=[rule.source for rule in ALL_RULES],
+            sources=self._sources(),
             passed_rules=[],
             failed_rules=[],
         )

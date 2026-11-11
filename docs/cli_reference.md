@@ -253,8 +253,8 @@ Flags: `--refresh` / `--no-refresh`, `--freshness-hours N`, `--demo`.
 #### `vi analyze-greenblatt <ticker>`
 
 Greenblatt Magic Formula: looks the ticker up in the newest
-`data/rankings/greenblatt_*.json` and maps its combined-rank percentile to a
-verdict. Refresh the rankings with
+`data/rankings/greenblatt_*.json` and blends the combined rank with a
+weighted overlay (ROC/EY decomposition + quality). Refresh the rankings with
 `python -m scripts.compute_greenblatt_rankings --universe sp500`.
 
 Flags: `--refresh` / `--no-refresh`, `--freshness-hours N`, `--demo`.
