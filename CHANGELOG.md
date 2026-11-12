@@ -1,3 +1,42 @@
+## [0.33.0] - 2026-11-12
+
+### Changed
+- **VI consumes FDB 0.3.0 `*_usd` columns**: the scorecard, ranking, DCF and
+  backtest monetary fields now come from `revenue_usd`, `net_income_usd`,
+  `operating_income_usd`, `gross_profit_usd`, `total_assets_usd`,
+  `total_liabilities_usd`, `stockholders_equity_usd` and `cash_usd`, converted
+  at the fiscal-year-end FX rate. Previously VI read the original-currency
+  values, corrupting P/E, P/B and FCF yield for non-USD filers (SAN EUR,
+  BTI GBP).
+- **`[MIXED-CURRENCY]` badge**: tickers whose filing currency is not USD show
+  an orange badge in the CLI (scorecard/rank/backtest) and a chip in the UI;
+  the scorecard adds a caption. `currency = NULL` means "assumed USD" and
+  never triggers the badge. The backtest summary also reports how many
+  signals belong to mixed-currency filers.
+- `list_years` converts non-USD rows to their `*_usd` values; US rows keep the
+  raw normalized USD history so the long-run backtest stays comparable with
+  pre-v0.33 runs. `get_best_available` (scorecard/ranking/DCF) overlays the
+  core USD fields for every ticker.
+
+### Measured
+- SAN FY2024: net income **€13.744B → $14.279B** (1.0389 USD/EUR at
+  2024-12-31); total assets €1.837T → $1.909T.
+- BTI FY2024: net income **£3.181B → $3.986B** (1.2529 USD/GBP).
+- TTE, AZN, SHEL, AAPL: USD, `*_usd` identical to the original values.
+- Backtest Buffett classic 10y/400: **22.14% CAGR / 1.49 Sharpe** (v0.32.1
+  audit: 23.76% / 1.53). The 400-ticker sample contains **0 mixed-currency
+  filers**, so the difference is price/data drift, not the USD conversion.
+- Backtest Graham 5y/400: **4.24% / 0.50** (was 4.2% / 0.50).
+
+### Notes
+- **Breaking dependency: FDB 0.3.0+ required.** VI 0.33 with FDB 0.2.x will
+  fail because `core_financials.*_usd` does not exist.
+- 10,521 `core_financials` rows have a non-USD currency (1,919,437 facts).
+- A non-USD row with no FX rate is cleared to `None`, never mixed with the
+  original value.
+- `balance_effective` is not read by VI anymore; the repository derives the
+  USD liabilities from `core_financials` directly.
+
 ## [0.32.1] - 2026-11-11
 
 ### Security
