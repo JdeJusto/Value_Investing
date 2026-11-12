@@ -40,7 +40,10 @@ class NormalizedFinancials:
     (ratios, scoring, valuation) can rely on a stable contract while the
     underlying data sources evolve or new ones are added.
 
-    All magnitudes are expressed in the statement currency (USD by default).
+    All monetary magnitudes are USD for Financial-DataBase 0.3.0 rows
+    (converted at the fiscal-year-end FX rate); ``currency`` keeps the filing
+    currency when it is not USD, which is what the ``[MIXED-CURRENCY]`` badge
+    reads. Other providers may keep their own statement currency.
     ``capital_expenditure`` is normalized to a positive magnitude.
     """
 
@@ -122,6 +125,8 @@ class NormalizedFinancials:
     # no split occurred after the row's year) — the count stays as-reported.
     split_adjustment_factor: float = 1.0
     period: str = ANNUAL_PERIOD
+    #: Reporting currency of the filing; FDB 0.3.0 rows are already USD in
+    #: their monetary fields, so this is a provenance/badge field there.
     currency: str = "USD"
     source: ProviderName = ProviderName.YAHOO
     loaded_at: datetime | None = None

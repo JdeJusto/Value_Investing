@@ -304,6 +304,11 @@ def company_flags(row: Any = None, sector_hint: Any = None) -> set[str]:
         flags.add("reit")
     if is_financial(row, sector):
         flags.add("bank")
+    # FDB 0.3.0: NULL currency means "assumed USD"; only a real non-USD
+    # reporting currency is a mixed-currency warning.
+    currency = getattr(row, "currency", None)
+    if currency and str(currency).strip().upper() != "USD":
+        flags.add("mixed_currency")
     return flags
 
 

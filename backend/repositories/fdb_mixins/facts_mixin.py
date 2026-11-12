@@ -336,6 +336,24 @@ class FactsMixin:
                         results.append(financials)
                 except Exception:  # noqa: BLE001, S112 — one bad year must not drop the rest
                     continue
+            # FDB 0.3.0: convert non-USD rows to their core *_usd values
+            # (and carry the reporting currency). US rows keep the raw
+            # normalized history so the backtest stays comparable with
+            # pre-v0.33 runs; get_best_available still overlays the core
+            # fields for every ticker in the analytical path.
+            cores = getattr(self, "_core_rows_by_year", None)
+            if callable(cores):
+                by_year_core = cores(ticker.upper())
+                if by_year_core:
+                    merged = []
+                    for row in results:
+                        core = by_year_core.get(row.fiscal_year)
+                        currency = str((core or {}).get("currency") or "USD").upper()
+                        if core is not None and currency != "USD":
+                            merged.append(self._merge_core_row(row, core))
+                        else:
+                            merged.append(row)
+                    results = merged
             return results
 
         except Exception:  # noqa: BLE001 — a broken listing degrades to an empty history

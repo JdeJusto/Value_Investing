@@ -285,12 +285,25 @@ class FinancialDatabaseRepository(
         )
         if year is None:
             return None
-        sql = """SELECT cf.*, be.liabilities_effective, be.liabilities_derived
+        sql = """SELECT cf.company_id, cf.fiscal_year, cf.period_end,
+                        cf.revenue_usd AS revenue,
+                        cf.net_income_usd AS net_income,
+                        cf.operating_income_usd AS operating_income,
+                        cf.gross_profit_usd AS gross_profit,
+                        cf.total_assets_usd AS total_assets,
+                        cf.total_liabilities_usd AS total_liabilities,
+                        cf.stockholders_equity_usd AS stockholders_equity,
+                        cf.cash_usd AS cash,
+                        cf.currency,
+                        (cf.total_liabilities_usd IS NULL
+                         AND cf.total_assets_usd IS NOT NULL
+                         AND cf.stockholders_equity_usd IS NOT NULL)
+                          AS liabilities_derived,
+                        COALESCE(
+                          cf.total_liabilities_usd,
+                          cf.total_assets_usd - cf.stockholders_equity_usd
+                        ) AS liabilities_effective
                  FROM core_financials cf
-                 LEFT JOIN balance_effective be
-                   ON be.company_id = cf.company_id
-                  AND be.fiscal_year = cf.fiscal_year
-                  AND be.period_end = cf.period_end
                  WHERE cf.company_id = %s AND cf.fiscal_year = %s
                  ORDER BY cf.period_end DESC LIMIT 1"""
         try:
@@ -338,30 +351,56 @@ class FinancialDatabaseRepository(
                          ORDER BY cf.company_id, cf.fiscal_year DESC
                      )
                      SELECT DISTINCT ON (cl.ticker)
-                            cl.ticker, cf.*, be.liabilities_effective,
-                            be.liabilities_derived
+                            cl.ticker,
+                            cf.company_id, cf.fiscal_year, cf.period_end,
+                            cf.revenue_usd AS revenue,
+                            cf.net_income_usd AS net_income,
+                            cf.operating_income_usd AS operating_income,
+                            cf.gross_profit_usd AS gross_profit,
+                            cf.total_assets_usd AS total_assets,
+                            cf.total_liabilities_usd AS total_liabilities,
+                            cf.stockholders_equity_usd AS stockholders_equity,
+                            cf.cash_usd AS cash,
+                            cf.currency,
+                            (cf.total_liabilities_usd IS NULL
+                             AND cf.total_assets_usd IS NOT NULL
+                             AND cf.stockholders_equity_usd IS NOT NULL)
+                              AS liabilities_derived,
+                            COALESCE(
+                              cf.total_liabilities_usd,
+                              cf.total_assets_usd - cf.stockholders_equity_usd
+                            ) AS liabilities_effective
                      FROM effective e
                      JOIN selected cl ON cl.company_id = e.company_id
                      JOIN core_financials cf
                        ON cf.company_id = e.company_id
                       AND cf.fiscal_year = e.fiscal_year
-                     LEFT JOIN balance_effective be
-                       ON be.company_id = cf.company_id
-                      AND be.fiscal_year = cf.fiscal_year
-                      AND be.period_end = cf.period_end
                      ORDER BY cl.ticker, cf.period_end DESC"""
             params: tuple = (list(tickers),)
         else:
             sql = """SELECT DISTINCT ON (cl.ticker)
-                         cl.ticker, cf.*, be.liabilities_effective,
-                         be.liabilities_derived
+                         cl.ticker,
+                         cf.company_id, cf.fiscal_year, cf.period_end,
+                         cf.revenue_usd AS revenue,
+                         cf.net_income_usd AS net_income,
+                         cf.operating_income_usd AS operating_income,
+                         cf.gross_profit_usd AS gross_profit,
+                         cf.total_assets_usd AS total_assets,
+                         cf.total_liabilities_usd AS total_liabilities,
+                         cf.stockholders_equity_usd AS stockholders_equity,
+                         cf.cash_usd AS cash,
+                         cf.currency,
+                         (cf.total_liabilities_usd IS NULL
+                          AND cf.total_assets_usd IS NOT NULL
+                          AND cf.stockholders_equity_usd IS NOT NULL)
+                           AS liabilities_derived,
+                         COALESCE(
+                           cf.total_liabilities_usd,
+                           cf.total_assets_usd - cf.stockholders_equity_usd
+                         ) AS liabilities_effective
                      FROM core_financials cf
                      JOIN company_listings cl
                        ON cl.company_id = cf.company_id AND cl.is_active
-                     LEFT JOIN balance_effective be
-                       ON be.company_id = cf.company_id
-                      AND be.fiscal_year = cf.fiscal_year
-                      AND be.period_end = cf.period_end
                      WHERE cl.ticker = ANY(%s) AND cf.fiscal_year = %s
                      ORDER BY cl.ticker, cf.period_end DESC"""
             params = (list(tickers), int(fiscal_year))
@@ -393,9 +432,16 @@ class FinancialDatabaseRepository(
         if not company_id:
             company_id = str(ticker)
         empty = {field: [] for field in FIELDS_OF_INTEREST}
-        sql = """SELECT fiscal_year, period_end, revenue, net_income,
-                        operating_income, gross_profit, total_assets,
-                        total_liabilities, stockholders_equity, cash
+        sql = """SELECT fiscal_year, period_end,
+                        revenue_usd AS revenue,
+                        net_income_usd AS net_income,
+                        operating_income_usd AS operating_income,
+                        gross_profit_usd AS gross_profit,
+                        total_assets_usd AS total_assets,
+                        total_liabilities_usd AS total_liabilities,
+                        stockholders_equity_usd AS stockholders_equity,
+                        cash_usd AS cash,
+                        currency
                  FROM core_financials
                  WHERE company_id = %s
                  ORDER BY fiscal_year DESC, period_end DESC"""
@@ -471,7 +517,20 @@ class FinancialDatabaseRepository(
         try:
             with self._get_connection().cursor() as cur:
                 cur.execute(
-                    """SELECT * FROM balance_effective
+                    """SELECT company_id, fiscal_year, period_end,
+                              total_assets_usd AS total_assets,
+                              COALESCE(
+                                total_liabilities_usd,
+                                total_assets_usd - stockholders_equity_usd
+                              ) AS liabilities_effective,
+                              (total_liabilities_usd IS NULL
+                               AND total_assets_usd IS NOT NULL
+                               AND stockholders_equity_usd IS NOT NULL)
+                                AS liabilities_derived,
+                              stockholders_equity_usd AS stockholders_equity,
+                              cash_usd AS cash,
+                              currency
+                       FROM core_financials
                        WHERE company_id = %s AND fiscal_year = %s
                        ORDER BY period_end DESC LIMIT 1""",
                     (company_id, int(fiscal_year)),
@@ -512,6 +571,7 @@ class FinancialDatabaseRepository(
         if not core:
             return row
         updates = {}
+        currency = str(core.get("currency") or "USD").upper()
         for field in (
             "revenue",
             "net_income",
@@ -521,12 +581,20 @@ class FinancialDatabaseRepository(
             "total_liabilities",
             "stockholders_equity",
         ):
-            value = core.get(field)
+            # FDB 0.3.0: the USD column is the primary source. For a non-USD
+            # filing with no FX rate, clear the field instead of leaving the
+            # original-currency value; mixing currencies would be worse than
+            # an explicit None. USD rows can keep their original value.
+            value = core.get(f"{field}_usd")
             if value is not None:
                 updates[field] = float(value)
-        cash = core.get("cash")
+            elif currency != "USD":
+                updates[field] = None
+        cash = core.get("cash_usd")
         if cash is not None:
             updates["cash_and_equivalents"] = float(cash)
+        elif currency != "USD":
+            updates["cash_and_equivalents"] = None
         if (
             updates.get("total_liabilities") is None
             and updates.get("total_assets") is not None
@@ -535,7 +603,10 @@ class FinancialDatabaseRepository(
             updates["total_liabilities"] = (
                 updates["total_assets"] - updates["stockholders_equity"]
             )
-        return replace(row, **updates) if updates else row
+        # NULL currency in core_financials means "assumed USD"; a non-USD
+        # value is the mixed-currency signal consumed by company_flags().
+        updates["currency"] = currency
+        return replace(row, **updates)
 
     def __del__(self):
         """Cleanup connection on object destruction."""

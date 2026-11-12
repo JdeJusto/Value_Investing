@@ -90,7 +90,10 @@ def _rank_rows(companies: list[CompanyConsensus]) -> list[dict]:
         {
             "Rank": rank,
             "Ticker": company.ticker,
-            "Flags": " ".join(f"[{flag.upper()}]" for flag in company.flags),
+            "Flags": " ".join(
+                f"[{'MIXED-CURRENCY' if flag == 'mixed_currency' else flag.upper()}]"
+                for flag in company.flags
+            ),
             "Name": company.name,
             "Category": company.lynch_category,
             "BUYs": company.buy_count,
@@ -106,7 +109,10 @@ def _verdict_rows(companies: list[CompanyConsensus]) -> list[dict]:
     return [
         {
             "Ticker": company.ticker,
-            "Flags": " ".join(f"[{flag.upper()}]" for flag in company.flags),
+            "Flags": " ".join(
+                f"[{'MIXED-CURRENCY' if flag == 'mixed_currency' else flag.upper()}]"
+                for flag in company.flags
+            ),
             "Name": company.name,
             **company.verdicts,
         }

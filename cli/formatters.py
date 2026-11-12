@@ -127,9 +127,14 @@ def print_header(text, char: str = "=", width: int = 72):
 def header_with_flags(text: str, flags) -> Text:
     """Panel title with ``[REIT]`` / ``[BANK]`` chips before the text."""
     title = Text()
-    styles = {"reit": "bold gold", "bank": "bold medium_purple"}
+    styles = {
+        "reit": "bold gold",
+        "bank": "bold medium_purple",
+        "mixed_currency": "bold dark_orange",
+    }
+    labels = {"reit": "REIT", "bank": "BANK", "mixed_currency": "MIXED-CURRENCY"}
     for flag in flags or ():
-        label = str(flag).upper()
+        label = labels.get(str(flag), str(flag).upper())
         title.append(f"[{label}] ", style=styles.get(str(flag), "bold"))
     title.append(text, style=cli_output.HEADER)
     return title

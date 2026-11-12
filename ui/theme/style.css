@@ -196,6 +196,12 @@ body {
   color: var(--vi-neon-purple, #b48cff);
 }
 
+/* Mixed-currency badge: orange; the values are USD-converted (FDB 0.3.0). */
+.vi-chip-mixed {
+  border-color: var(--vi-orange, #ff9f1c);
+  color: var(--vi-orange, #ff9f1c);
+}
+
 /* Links: neon cyan. */
 a {
   color: var(--vi-neon-cyan);

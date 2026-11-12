@@ -120,10 +120,15 @@ def _badge_title(card) -> Text:
     styles = {
         "reit": ("gold", "bold"),
         "bank": ("medium_purple", "bold"),
+        "mixed_currency": ("dark_orange", "bold"),
     }
+    labels = {"reit": "REIT", "bank": "BANK", "mixed_currency": "MIXED-CURRENCY"}
     for flag in card.overall_flags:
         style, weight = styles.get(flag, (cli_output.HEADER, ""))
-        title.append(f"[{flag.upper()}] ", style=f"{weight} {style}".strip())
+        title.append(
+            f"[{labels.get(flag, flag.upper())}] ",
+            style=f"{weight} {style}".strip(),
+        )
     title.append(
         f"{card.ticker} · {card.company} · "
         f"{card.sector or 'Unknown sector'} · overall {card.overall}",
@@ -172,6 +177,12 @@ def _render(card):
         console.print(cli_output.rule())
         for line in card.disagreements:
             console.print(cli_output.bullet_line(line), soft_wrap=True)
+
+    mixed_notes = [note for note in card.notes if note.startswith("Mixed currency:")]
+    if mixed_notes:
+        console.print()
+        for note in mixed_notes:
+            console.print(Text(f"  {note}", style=cli_output.MUTED), soft_wrap=True)
 
     print()
     print(f"  Data: Financial-DataBase · {card.period} · Prices not persisted.")

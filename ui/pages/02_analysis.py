@@ -983,12 +983,25 @@ def _scorecard_header(card: dict) -> None:
     st.markdown(f"**{card['ticker']} · {card['company']}**")
     card_flags = card.get("overall_flags") or []
     if card_flags:
+        classes = {
+            "bank": " vi-chip-bank",
+            "mixed_currency": " vi-chip-mixed",
+        }
         chips = " ".join(
-            f'<span class="vi-chip{" vi-chip-bank" if flag == "bank" else ""}">'
-            f"[{flag.upper()}]</span>"
+            f'<span class="vi-chip{classes.get(flag, "")}">[{flag.upper()}]</span>'
             for flag in card_flags
         )
         render_html(chips)
+        mixed_note = next(
+            (
+                note
+                for note in (card.get("notes") or [])
+                if note.startswith("Mixed currency:")
+            ),
+            None,
+        )
+        if mixed_note:
+            st.caption(mixed_note)
     price = card.get("price")
     left, spot = st.columns([3, 1])
     with left:

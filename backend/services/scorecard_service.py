@@ -1312,6 +1312,12 @@ class ScorecardService:
             )
         elif "bank" in flags:
             notes.append("Bank — specialized analysis planned (see docs/backlog.md)")
+        if "mixed_currency" in flags:
+            currency = getattr(rows[0], "currency", None) if rows else None
+            notes.append(
+                f"Mixed currency: {symbol} reports in {currency}. Values "
+                "converted to USD at fiscal-year-end FX rate (FDB 0.3.0)."
+            )
 
         return Scorecard(
             ticker=symbol,

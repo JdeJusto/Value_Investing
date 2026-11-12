@@ -331,6 +331,11 @@ def _render_methodology(result) -> None:
     )
     if reit_signals:
         print(dim(f"  [REIT] signals included: {reit_signals}"))
+    mixed_signals = sum(
+        1 for record in result.records if "mixed_currency" in record.flags
+    )
+    if mixed_signals:
+        print(dim(f"  [MIXED-CURRENCY] signals included: {mixed_signals}"))
     if not result.buy_signals:
         _render_no_buy(result)
 

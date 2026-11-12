@@ -16,6 +16,7 @@ from backend.services import cli_output
 NEON_PINK = "\033[38;5;205m"
 NEON_CYAN = "\033[38;5;51m"
 NEON_PURPLE = "\033[38;5;141m"
+NEON_ORANGE = "\033[38;5;208m"
 GOLD = "\033[38;5;220m"
 CHROME = "\033[38;5;252m"
 BOLD = "\033[1m"
@@ -108,6 +109,7 @@ def company_badges(flags) -> str:
     for flag, color, label in (
         ("reit", GOLD, "[REIT]"),
         ("bank", NEON_PURPLE, "[BANK]"),
+        ("mixed_currency", NEON_ORANGE, "[MIXED-CURRENCY]"),
     ):
         if flag in (flags or ()):
             labels.append(_wrap(label, color, BOLD))

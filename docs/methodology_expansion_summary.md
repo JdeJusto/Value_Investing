@@ -82,7 +82,7 @@ baseline, so they are directly comparable (392 evaluated of 400).
 
 | Methodology | CAGR | Sharpe | Opportunity set | Alpha vs opp. |
 |---|---:|---:|---:|---:|
-| `buffett_classic` | **23.8%** | **1.53** | 15.2% | +8.6% |
+| `buffett_classic` | **22.1%** | **1.49** | 15.2% | +6.9% |
 | `buffett_clark` | **15.9%** | **1.07** | 15.2% | +0.7% |
 | `marks` | **15.2%** | **1.39** | 15.2% | -0.1% |
 
@@ -92,13 +92,14 @@ on the 2021–2024/100 sample but 15.2% over 2015–2024/400; `buffett_clark`
 scores -2.6% on the short sample but 15.9% on the long one. The long-run run
 is the one to compare with the Buffett baseline.
 
-The 23.8% Buffett result is a real, reproduced measurement (v0.27.1 and
-v0.32.0, same 10y/400 configuration), not a measurement bug. The jump from
-the v0.27.0 13.8% came from activating the DCF margin-of-safety rule
-(`get_beta` adapter fix), which narrowed the selected basket to 5–12 names
-per year. The 2019 +37.9% and 2024 +54.0% years drive most of the excess
-return; the 2021 year was -2.8%. It is a concentrated PoC, not a diversified
-strategy.
+The Buffett result is a real, reproduced measurement (10y/400), not a
+measurement bug. The jump from the v0.27.0 13.8% came from activating the DCF
+margin-of-safety rule (`get_beta` adapter fix), which narrowed the selected
+basket to 5–12 names per year. The 2019 +37.9% and 2024 +54.0% years drive
+most of the excess return; the 2021 year was -2.8%. The current run (v0.33.0)
+is 22.1% / 1.49; that 400-ticker sample contains **0 mixed-currency filers**,
+so the difference from the 23.8% / 1.53 audit is price/data drift, not the
+USD conversion.
 
 The PoC has no dividends, transaction costs or survivorship correction; treat
 the numbers as indicative.

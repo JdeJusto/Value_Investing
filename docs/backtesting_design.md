@@ -78,6 +78,14 @@ from the methodology result; N/A companies do not participate.
 - **Fundamentals:** `FinancialDatabaseRepository.list_all(ticker)`; rows are
   sorted by fiscal year and truncated to `fiscal_year <= Y` before evaluation,
   so the methodology never sees a later year. At least 3 rows are required.
+  Since VI v0.33.0 / FDB v0.3.0, non-USD rows come from
+  `core_financials.*_usd` (converted at the fiscal-year-end ECB rate) and
+  carry the filing `currency` that drives the `[MIXED-CURRENCY]` badge. US
+  rows keep the raw normalized USD history in the backtest (`list_years`) so
+  historical results remain comparable; the analytical paths
+  (`get_best_available`: scorecard, ranking, DCF) overlay the core USD fields
+  for every ticker. A non-USD row with no FX rate is cleared, not mixed with
+  the original value.
 - **Prices:** `PriceService.get_price_at_fiscal_year_end` (Yahoo, on demand,
   never persisted). It uses the exact `period_end` from FDB, else December 31,
   and picks the closest trading day within ±15 calendar days.
@@ -112,7 +120,7 @@ Read-only audit of the PoC semantics. The answers below refer to
 |---|---|---|
 | 1 | Is `auto_adjust` active? | **Yes, by default.** `history()` is called without the argument; yfinance 1.7.0 defaults to `auto_adjust=True`, so `Close` is split- and dividend-adjusted. A `history(auto_adjust=False)` call returns `Close` + `Adj Close`; the service never asks for that variant. |
 | 2 | Fiscal year end on a weekend/holiday | `get_price_on_date` collects prices within **±15 calendar days** of `period_end` and picks the row with the smallest absolute day distance. A Saturday/Sunday therefore resolves to the preceding Friday (1 day) rather than Monday (2). On a mid-week holiday, the earlier trading day wins a tie because the series is chronological and `min()` keeps the first. No row within 15 days → `None` and the fiscal year is skipped. |
-| 3 | ADR currency | Yahoo returns the **listing currency**: USD for SAN/TTE/BTI/AZN/SHEL on NYSE. FDB's normalized `currency` is **hardcoded "USD"** (`backend/repositories/fdb_mixins/normalization_mixin.py`, `TODO: Get from actual unit/currency data`), while raw facts for **SAN are EUR** and **BTI are GBP** (TTE/AZN/SHEL file USD). The return is a correct USD ADR price return, but valuation rules (P/E, P/B, FCF yield) mix EUR/GBP fundamentals with a USD price. This is a known bug for non-USD reporters. |
+| 3 | ADR currency | Yahoo returns the **listing currency**: USD for SAN/TTE/BTI/AZN/SHEL on NYSE. FDB's normalized `currency` is **hardcoded "USD"** (`backend/repositories/fdb_mixins/normalization_mixin.py`, `TODO: Get from actual unit/currency data`), while raw facts for **SAN are EUR** and **BTI are GBP** (TTE/AZN/SHEL file USD). The return is a correct USD ADR price return, but valuation rules (P/E, P/B, FCF yield) mix EUR/GBP fundamentals with a USD price. This was a known bug until VI v0.33.0 (FDB v0.3.0): the repository now reads `core_financials.*_usd` and shows `[MIXED-CURRENCY]`. |
 | 4 | yfinance failure | `_yf_call` retries up to 3 times with throttling and exponential backoff. On final failure `_fetch_historical_prices` records `_last_error` and returns `[]`; `get_price_on_date` returns `None`; `_price_series` omits that fiscal year. If fewer than 2 fiscal-year prices exist, the ticker is added to `skipped_tickers` (`no usable prices (N fiscal years)`). An empty series is cached in memory but **not written to disk**. |
 | 5 | Exact date source | `FinancialDatabaseRepository.get_fiscal_year_end_date` derives `period_end` from the core FY facts (calendar-year match, annual span, latest `period_end`), then the price helper picks the closest trading day. If FDB has no date, the fallback is December 31 of the fiscal year. The return window is `FY_end(Y) → FY_end(Y+1)`, not calendar year-end. |
 

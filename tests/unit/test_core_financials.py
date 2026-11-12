@@ -125,10 +125,12 @@ def test_get_core_financials_returns_the_derived_liability_flag(monkeypatch):
             "fiscal_year": 2024,
             "period_end": "2024-12-31",
             "revenue": 1_594_700_000,
+            "revenue_usd": 1_594_700_000,
             "total_assets": 24_312_500_000,
             "stockholders_equity": 976_900_000,
             "liabilities_effective": 23_335_600_000,
             "liabilities_derived": True,
+            "currency": "USD",
         }
     )
     repo = _repo(monkeypatch, cursor)
@@ -138,7 +140,10 @@ def test_get_core_financials_returns_the_derived_liability_flag(monkeypatch):
     assert row is not None
     assert row["stockholders_equity"] == 976_900_000
     assert row["liabilities_derived"] is True
-    assert "balance_effective" in cursor.sql
+    assert row["currency"] == "USD"
+    assert "core_financials" in cursor.sql
+    assert "revenue_usd" in cursor.sql
+    assert "balance_effective" not in cursor.sql
     assert cursor.params == ["cid-1", 2024]
 
 
@@ -224,7 +229,8 @@ def test_get_balance_effective_returns_the_latest_period(monkeypatch):
     row = repo.get_balance_effective("MRX", 2024)
 
     assert row is not None and row["liabilities_derived"] is True
-    assert "balance_effective" in cursor.sql
+    assert "core_financials" in cursor.sql
+    assert "balance_effective" not in cursor.sql
     assert cursor.params == ("cid-1", 2024)
 
 
@@ -252,12 +258,19 @@ def test_get_best_available_merges_the_eight_core_fields():
         rows=[_row(2024, revenue=1_594_700_000, liabilities=23_335_600_000)],
         cores={
             2024: {
+                "currency": "USD",
                 "revenue": 1_600_000_000,
+                "revenue_usd": 1_600_000_000,
                 "net_income": 218_000_000,
+                "net_income_usd": 218_000_000,
                 "total_assets": 24_312_500_000,
+                "total_assets_usd": 24_312_500_000,
                 "total_liabilities": None,
+                "total_liabilities_usd": None,
                 "stockholders_equity": 976_900_000,
+                "stockholders_equity_usd": 976_900_000,
                 "cash": 3_000_000_000,
+                "cash_usd": 3_000_000_000,
             }
         },
         year=2024,
@@ -276,7 +289,7 @@ def test_get_best_available_merges_the_eight_core_fields():
 def test_get_best_available_keeps_all_years_when_no_effective_year():
     repo = _MixinRepo(
         rows=[_row(2025, equity=None), _row(2024)],
-        cores={2025: {"revenue": 111.0}},
+        cores={2025: {"revenue": 111.0, "revenue_usd": 111.0, "currency": "USD"}},
         year=None,
     )
 
@@ -305,3 +318,25 @@ def test_get_best_available_still_drops_all_empty_buckets():
     rows = repo.get_best_available("TEST")
 
     assert [row.fiscal_year for row in rows] == [2024]
+
+
+def test_get_best_available_uses_usd_and_clears_missing_non_usd():
+    repo = _MixinRepo(
+        rows=[_row(2024, revenue=1_594_700_000)],
+        cores={
+            2024: {
+                "currency": "EUR",
+                "revenue": 1_594_700_000,
+                "revenue_usd": 1_656_000_000,
+                "net_income": 218_000_000,
+                "net_income_usd": None,
+            }
+        },
+        year=2024,
+    )
+
+    row = repo.get_best_available("MRX")[0]
+
+    assert row.revenue == 1_656_000_000  # USD value, not the EUR original
+    assert row.net_income is None  # missing FX must not leak the EUR value
+    assert row.currency == "EUR"

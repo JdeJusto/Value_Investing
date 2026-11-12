@@ -86,8 +86,9 @@ def test_capped_read_pushes_the_cap_into_sql(monkeypatch):
     rows = repo.list_years("X", max_years=3)
     assert len(rows) == 3
     assert [row.fiscal_year for row in rows] == [2025, 2024, 2023]
-    assert "fiscal_year >= %s" in cursor.queries[-1]
-    assert cursor.params[-1] == ("cid-1", 2023)
+    # The core merge adds a follow-up query, so assert on the full history.
+    assert any("fiscal_year >= %s" in query for query in cursor.queries)
+    assert ("cid-1", 2023) in cursor.params
 
 
 def test_get_best_available_forwards_max_years(monkeypatch):
