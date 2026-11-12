@@ -200,6 +200,38 @@ The script writes `data/backtest/backtest_<date>.json` (git-ignored).
 10. **Greenblatt excluded** (see above). Its ranking file is point-in-time.
 11. **Network dependence.** Without Yahoo the price series is empty and the
     run returns no years for that ticker (it degrades, never raises).
+12. **Not bit-reproducible with live prices.** Prices are Yahoo adjusted-close
+    snapshots cached under `data/price_cache/`. A cache-format change, an
+    expired recent range or a Yahoo dividend/split adjustment revision can
+    change one or two selected names' forward returns. The 2026-11-12 audit
+    below shows a 23.76% → 22.14% drift with identical code and sample.
+
+
+## Drift audit 2026-11-12 (v0.32.1 → v0.33.0)
+
+A reported Buffett classic 10y/400 drift (23.76% → 22.14%) was investigated
+read-only. Evidence:
+
+- Re-running **v0.32.1** today and **v0.33.0** today with the same hashed
+  price cache gives the **same result**: 22.1356% / 1.4888, identical
+  `tier_counts` (63 STRONG + 4 BUY) and identical per-year returns.
+- The 23.76% run predates the SHA-256 cache-key change and used the legacy
+  `<TICKER>_2000-01-01_now.json` files. Comparing 401 legacy/hashed pairs:
+  49 tickers have at least one day with >1% difference (max 3.8%), mostly
+  small dividend-adjustment revisions.
+- The difference is concentrated in selected-name years: 2019 37.94% →
+  23.68% and 2017 29.82% → 26.05%; 2016, 2018, 2020–2024 are unchanged.
+  The 400-ticker sample contains **0 non-USD filers**, so the currency fix is
+  not involved.
+- `financial_facts.max(updated_at)` is 2026-11-10, before both runs; P4
+  (FDB data changed) is ruled out. `balance_effective` is not read by the
+  backtest (P3 ruled out).
+
+**Conclusion: P1 (price cache/adjusted-close drift), not a code bug.** The
+v0.33.0 result is the reproducible one with the current cache; the old 23.76%
+is not reproducible without the legacy price files. To make backtests
+bit-reproducible, freeze the price series alongside the run artifact
+(`docs/backlog.md`).
 
 ## Why this is enough for now
 

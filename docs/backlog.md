@@ -444,3 +444,15 @@ The per-methodology deferred rules are listed in
 - Scorecard dispatch: `is_financial()` -> `BankAnalyzer`;
   `is_reit()` -> `REITAnalyzer`; else standard.
 - Badges `[BANK]`/`[REIT]` (v0.27.0) are prerequisites.
+
+
+## Backtest price snapshot (reproducibility)
+
+Backtests are not bit-reproducible while they read live Yahoo adjusted closes:
+a cache-format change or a dividend adjustment revision can move a selected
+name's forward return (observed 23.76% → 22.14% for Buffett 10y/400 with
+identical code in the 2026-11-12 audit). Proposed fix: persist the per-ticker,
+per-fiscal-year price series used by a run next to the JSON artifact (or allow
+`--price-snapshot FILE`), so a backtest can be replayed exactly. Cost ~2-4h;
+priority low-medium (the current result is stable with a fixed cache, but the
+artifact is not self-contained).
