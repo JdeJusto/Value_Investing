@@ -155,6 +155,25 @@ class PitMixin:
                         results.append(financials)
                 except Exception:  # noqa: BLE001, S112 — one bad year must not drop the rest
                     continue
+
+            # Mirror list_years: non-USD filers take the USD-converted core
+            # fields so per-share metrics never mix EUR/GBP with USD prices.
+            # The core row is the current normalized view; for a non-USD
+            # restatement filed after as_of this is a documented, narrow
+            # approximation (see docs/backtesting_design.md).
+            cores = getattr(self, "_core_rows_by_year", None)
+            if callable(cores) and ticker:
+                by_year_core = cores(ticker.upper())
+                if by_year_core:
+                    merged = []
+                    for row in results:
+                        core = by_year_core.get(row.fiscal_year)
+                        currency = str((core or {}).get("currency") or "USD").upper()
+                        if core is not None and currency != "USD":
+                            merged.append(self._merge_core_row(row, core))
+                        else:
+                            merged.append(row)
+                    results = merged
             return results
         except Exception:  # a broken PIT read degrades to empty
             logger.debug("point-in-time read failed", exc_info=True)

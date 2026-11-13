@@ -413,6 +413,9 @@ class MethodologyBacktestService:
         self._registry = methodology_registry
         self._run_snapshot: dict[str, dict[str, float]] = {}
         self._snapshot_only = False
+        # PIT history is read once per (ticker, as_of) and reused across
+        # methodologies in the same process (the CLI runs several in a row).
+        self._pit_history_cache: dict[tuple[str, str], list] = {}
 
     # -- lazy collaborators -------------------------------------------------
     def _repo(self) -> Any:
@@ -801,7 +804,15 @@ class MethodologyBacktestService:
 
             raw: list[SignalRecord] = []
             for ticker in members:
-                history = repo.list_years_pit(ticker, as_of, max_years=window + 2)
+                cache_key = (ticker.upper(), as_of.isoformat())
+                history = self._pit_history_cache.get(cache_key)
+                if history is None:
+                    history = repo.list_years_pit(
+                        ticker, as_of, max_years=window + 2
+                    )
+                    if len(self._pit_history_cache) > 20_000:
+                        self._pit_history_cache.clear()
+                    self._pit_history_cache[cache_key] = history
                 rows = [row for row in history if row.fiscal_year <= year]
                 if len(rows) < MIN_ROWS:
                     continue
@@ -951,7 +962,16 @@ class MethodologyBacktestService:
         result.years = tuple(sorted(raw_by_year))
         result.signals = dict(Counter(record.verdict for record in result.records))
         result.per_year = year_rows
-        result.spy_returns = self._spy_series(sorted(raw_by_year))
+        # SPY uses the same as-of boundaries as the portfolio so the market
+        # benchmark covers the exact same holding windows.
+        spy_returns: dict[int, float] = {}
+        for spy_year in [*sorted(raw_by_year), max(raw_by_year) + 1]:
+            price = self._pit_price(
+                "SPY", date(spy_year, 12, 31) + timedelta(days=lag)
+            )
+            if price is not None:
+                spy_returns[spy_year] = float(price)
+        result.spy_returns = spy_returns
         result.sample_size = len(all_members) if all_members else len(custom)
         if universe_total is None:
             result.universe_total = result.sample_size
@@ -964,8 +984,8 @@ class MethodologyBacktestService:
         result.notes.extend(
             [
                 (
-                    f"PIT: filing_date <= fiscal_year_end+{lag}d for each "
-                    "fiscal year; prices at the same as-of date."
+                    f"PIT: as-of date = calendar year end + {lag}d; "
+                    "filing_date and price both capped at that date."
                 ),
                 (
                     f"Universe: historical S&P 500 membership per year "

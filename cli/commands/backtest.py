@@ -460,7 +460,7 @@ def _render_methodology(result) -> None:
         fixed = f" + ${result.tc_fixed:g}/trade" if result.tc_fixed else ""
         print(
             dim(
-                f"  PIT: filing_date <= FYE+{result.pit_lag_days}d · "
+                f"  PIT: as-of = Dec-31+{result.pit_lag_days}d · "
                 f"Sizing: {result.sizing} (cap {result.max_weight:.0%}) · "
                 f"Rebalance: {result.rebalance} · TC: {result.tc_bps:g} bps{fixed}"
             )
@@ -510,6 +510,13 @@ def _run_methodology_backtest(args) -> None:
     research = bool(getattr(args, "research_grade", False)) and not bool(
         getattr(args, "legacy", False)
     )
+    if research and str(getattr(args, "universe", "sp500")).lower() not in {
+        "sp500",
+        "all",
+    }:
+        raise SystemExit(
+            "error: --research-grade currently supports only --universe sp500"
+        )
     custom = bool(getattr(args, "tickers", None))
     if custom:
         tickers = [t.upper() for t in getattr(args, "tickers", None) or []]
@@ -530,6 +537,9 @@ def _run_methodology_backtest(args) -> None:
         print(f"  {yellow('No tickers to backtest.')}")
         return
 
+    sizing = getattr(args, "sizing", "tier")
+    if getattr(args, "equal_weight", False):
+        sizing = "equal"
     rebalance = str(getattr(args, "rebalance", "annual"))
     if research and (rebalance.isdigit() or rebalance == ""):
         rebalance = "annual"
@@ -555,7 +565,7 @@ def _run_methodology_backtest(args) -> None:
                 initial_capital=getattr(args, "initial_capital", 100_000.0),
                 rebalance=rebalance if research else "annual",
                 rebalance_threshold=getattr(args, "rebalance_threshold", 0.05),
-                sizing=getattr(args, "sizing", "tier"),
+                sizing=sizing,
                 max_weight=getattr(args, "max_weight", 0.20),
                 price_snapshot=snapshot,
                 use_historical_universe=not custom,

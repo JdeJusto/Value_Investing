@@ -54,6 +54,7 @@ virtualenv.
 ./vi screener --tickers AAPL,MSFT --no-prices --no-refresh  # Screen
 ./vi refresh AAPL                             # Re-fetch facts + prices for one ticker
 ./vi backtest --methodology graham --years 5   # Backtest methodology (PoC)
+./vi backtest --methodology graham --research-grade --years 10 --limit 400  # PIT + costs
 ./vi screener --methodology graham:BUY         # Screen with methodology filter
 ```
 

@@ -315,8 +315,10 @@ omit it for the full membership. `--legacy` forces the pre-0.34.0 behaviour.
 - Delisted prices (survivorship), as above.
 - Market impact, borrow costs and taxes: the model is fixed/bps only.
 - Index events inside the year (the membership is fixed at entry).
-- Non-USD ADRs: core USD values come from FDB's normalized layer, not a
-  point-in-time FX restatement of each fact.
+- Non-USD ADRs: the USD-converted core fields come from FDB's current
+  normalized view (the same overlay as `list_years`), not from a point-in-time
+  restatement of each fact. This only matters if such a filer restated after
+  the as-of date.
 
 ## Why this is enough for now
 
@@ -337,3 +339,10 @@ proper factor model. That is a separate project, recorded in
 - `test_greenblatt_is_rejected`: explicit look-ahead error.
 - `test_cli_backtest_methodology_prints_a_table`: the CLI dispatcher formats
   the result.
+- `tests/unit/test_backtest_research.py`: tier/equal sizing with the 20% cap
+  (including the cash remainder), turnover and bps/fixed costs, quarterly and
+  threshold rebalancing, PIT universe wiring, and a snapshot replay that must
+  not touch the network.
+- `tests/integration/test_fdb_pit.py`: AAPL FY2018 revenue as known on
+  2019-01-01, exclusion of later filings, and historical membership
+  (`AAPL` in 2015, `TWTR` removed in 2022).
