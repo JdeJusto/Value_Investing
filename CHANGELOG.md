@@ -1,3 +1,35 @@
+## [0.34.4] - 2026-11-13
+
+### Added
+- **`vi filing open <accession>`** and **`vi filing open <ticker> <N>`**:
+  open a filing's SEC EDGAR index in the system browser. With no graphical
+  session (SSH or headless) the URL is printed instead.
+- **`vi filing url <accession> | <ticker> <N>`**: print only the URL.
+- **`vi filings <TICKER> --open [N]`**: open the newest match (`--open`) or
+  the Nth row (`--open 3`) without a separate command.
+- **Interactive menu**: after listing filings, prompts
+  `Open a filing in browser? [1-N]` and opens the selected filing.
+
+### Changed
+- **Filings table**: the `Link` column (which rendered an OSC 8 `open` that
+  did nothing in many terminals) is replaced by a `#` index column.
+  `--urls` now adds a raw `URL` column. A caption shows
+  `vi filing open <TICKER> <N>` and `--open <N>`.
+- `vi filings --open` keeps its old meaning (newest match) and now also
+  accepts a 1-indexed row number.
+
+### Notes
+- `webbrowser` is stdlib; no new dependency.
+- SSH/headless detection uses `SSH_CLIENT`, `SSH_TTY`, `DISPLAY` and
+  `WAYLAND_DISPLAY`; macOS is treated as having a browser.
+- URLs use the SEC EDGAR index (`<accession>-index.htm`), built from CIK +
+  accession. The UI's existing clickable links are unchanged.
+
+### Measured
+- `vi filing url LULU 1` and `vi filings LULU --limit 3 --open 2` return the
+  expected `https://www.sec.gov/Archives/edgar/data/1397187/...-index.htm`.
+- 3,048 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.3] - 2026-11-13
 
 ### Fixed
