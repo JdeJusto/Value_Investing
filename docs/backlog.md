@@ -189,10 +189,11 @@ parent versions before being pinned:
   common source of silent stream/UI breakage. `streamlit 1.66.0` requires
   `>=12,<18`, and both `yfinance 1.7.0` and `uvicorn 0.54.0[standard]` require
   `>=13` — 16.1.1 satisfies all three.
-- `soupsieve` pinned to `2.10` (major `3.0.3` deferred): the CSS-selector
-  engine behind `beautifulsoup4`, i.e. the parsing path the EDGAR filing
-  reader uses. `beautifulsoup4 4.15.0` requires `soupsieve>=1.6.1` — 2.10
-  satisfies it.
+- `soupsieve` was pinned to `2.10` (major `3.0.3` deferred) as the CSS-selector
+  engine behind `beautifulsoup4`. It is now **4.0.0**: the 2026-11-13 sweep
+  found a high-severity polynomial-time DoS in `< 4.0.0`, and 4.0.0 passed the
+  narrative/statement parser tests with `beautifulsoup4 4.15.0`. See
+  `docs/security.md`.
 
 To lift a pin, delete that one entry from the lock and re-run `pipenv lock`
 once the major has a release or two of soak time. Nothing here is a
@@ -492,3 +493,14 @@ name's forward return (observed 23.76% → 22.14% for Buffett 10y/400 with
 identical code in the 2026-11-12 audit). Implemented in v0.34.0:
 `--save-snapshot` writes every `(ticker, date, price)` used by a research-grade
 run and `--price-snapshot FILE` replays it without touching Yahoo.
+
+## Security follow-ups
+
+- Mobile: `npm audit --audit-level=high` runs in CI (`Mobile` job, v0.34.0).
+- `deepmerge` (mobile, low): no upstream fix; build-time only. Revisit at the
+  next Expo SDK upgrade.
+- `soupsieve`: now 4.0.0 (high-severity DoS fix). `test_pipfile_lock_pins.py`
+  guards the major; update it together with the lock if a future bump is
+  intentional.
+- FMP/Tiingo keys live only in `.env`; secret scanning is 0/0. Rotate any key
+  that was ever shared outside the local environment.

@@ -21,7 +21,7 @@ LOCK = Path(__file__).resolve().parents[2] / "Pipfile.lock"
 # major_version = int(version.split(".")[0])
 PINNED_MAJOR = {
     "pyarrow": (25, "see docs/backlog.md § Pipenv lock exceptions"),
-    "soupsieve": (2, "see docs/backlog.md § Pipenv lock exceptions"),
+    "soupsieve": (4, "security upgrade to 4.0.0 (2026-11-13); see docs/backlog.md"),
     "websockets": (16, "see docs/backlog.md § Pipenv lock exceptions"),
     "fastapi": (0, "see docs/backlog.md § Pipenv lock exceptions"),  # 0.150.x
 }
