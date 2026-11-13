@@ -294,6 +294,13 @@ CATALOG: dict[str, CommandInfo] = {
         "vi filings AAPL --form 10-K",
         ("filings", "sec", "10-k", "edgar"),
     ),
+    "filing": CommandInfo(
+        "filing",
+        "Data & refresh",
+        "Open or print one SEC filing URL",
+        "vi filing open LULU 1",
+        ("filing", "open", "url", "sec", "edgar"),
+    ),
     "filing-balance-sheet": CommandInfo(
         "filing-balance-sheet",
         "Data & refresh",

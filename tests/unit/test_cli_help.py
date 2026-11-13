@@ -60,7 +60,7 @@ def test_unknown_command_suggests_rank(monkeypatch, capsys):
 
 
 def test_catalog_covers_every_top_level_command():
-    assert len(CATALOG) == 43
+    assert len(CATALOG) == 44
     assert {
         "rank",
         "scorecard",

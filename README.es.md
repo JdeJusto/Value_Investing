@@ -57,7 +57,7 @@ el virtualenv del proyecto.
 ./vi screener --methodology graham:BUY         # Screener con filtro de metodología
 ```
 
-`./vi --help` lista los 43 comandos. Ejecuta `vi` sin argumentos para abrir
+`./vi --help` lista los 44 comandos. Ejecuta `vi` sin argumentos para abrir
 el menú interactivo. Todos admiten `--no-color`; `vi financials`, `vi rank`,
 `vi refresh` y `vi dcf` también admiten `--json`.
 `vi financials` muestra una vista T jerárquica (activo corriente/no corriente,
@@ -68,7 +68,7 @@ on-demand; los precios no se persisten en FDB.
 Los precios vienen de yfinance por defecto. FMP y Tiingo se pueden usar
 como proveedores opcionales (ver [docs/price_providers.md](docs/price_providers.md)).
 
-Ver la [referencia completa del CLI](docs/cli_reference.md) para los 43 comandos, flags y ejemplos. ¿No recuerdas uno? `vi help --search <query>`.
+Ver la [referencia completa del CLI](docs/cli_reference.md) para los 44 comandos, flags y ejemplos. ¿No recuerdas uno? `vi help --search <query>`.
 
 ## Streamlit
 

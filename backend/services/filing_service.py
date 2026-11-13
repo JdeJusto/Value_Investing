@@ -51,6 +51,25 @@ def build_sec_urls(
     return base + "/", filing_url or None
 
 
+def filing_edgar_url(accession_number: str, cik: str) -> str:
+    """SEC EDGAR index URL for one filing.
+
+    ``accession_number`` may include dashes; ``cik`` may have leading zeros.
+    Returns an empty string when either value is missing or malformed.
+    """
+    if not accession_number or not cik:
+        return ""
+    accession_clean = str(accession_number).replace("-", "").strip()
+    if len(accession_clean) != 18 or not accession_clean.isdigit():
+        return ""
+    try:
+        cik_no_zeros = str(int(str(cik).strip()))
+    except (TypeError, ValueError):
+        return ""
+    dashed = f"{accession_clean[:10]}-{accession_clean[10:12]}-{accession_clean[12:]}"
+    return f"{_SEC_ARCHIVES}/{cik_no_zeros}/{accession_clean}/{dashed}-index.htm"
+
+
 def _as_date(value: Any) -> date | None:
     if value is None:
         return None

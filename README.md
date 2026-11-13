@@ -61,7 +61,7 @@ virtualenv.
 Prices come from yfinance by default. FMP and Tiingo are supported as
 optional providers (see [docs/price_providers.md](docs/price_providers.md)).
 
-`./vi --help` lists all 43 commands. Run `vi` without arguments for an
+`./vi --help` lists all 44 commands. Run `vi` without arguments for an
 interactive menu. All support `--no-color`; `vi financials`, `vi rank`,
 `vi refresh`, and `vi dcf` also support `--json`.
 `vi financials` shows a hierarchical T-view (current/non-current assets,
@@ -69,7 +69,7 @@ current/non-current liabilities, shareholders' equity) with per-section
 subtotals. `vi refresh` syncs SEC facts and fetches the current Yahoo price
 on demand; prices are not persisted to FDB.
 
-See the [full CLI reference](docs/cli_reference.md) for all 43 commands, flags, and examples. Don't remember one? `vi help --search <query>`.
+See the [full CLI reference](docs/cli_reference.md) for all 44 commands, flags, and examples. Don't remember one? `vi help --search <query>`.
 
 ## Streamlit
 

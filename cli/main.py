@@ -70,6 +70,7 @@ def main():
         data_status,
         dcf,
         debug,
+        filing,
         filing_balance_sheet,
         filing_section,
         filing_statement,
@@ -114,6 +115,7 @@ def main():
     debug.register(sub)
     sql_analysis.register(sub)
     filings.register(sub)
+    filing.register(sub)
     filing_balance_sheet.register(sub)
     filing_statement.register(sub)
     filing_section.register(sub)
