@@ -1,3 +1,69 @@
+## [0.34.0] - 2026-11-13
+
+### Added
+- **Research-grade backtest** (`vi backtest --research-grade`, requires
+  Financial-DataBase 0.4.0+): point-in-time fundamentals, historical S&P 500
+  membership, transaction costs, rebalancing, per-name sizing cap and
+  replayable price snapshots. `--legacy` keeps the pre-0.34.0 PoC behavior.
+  - Fundamentals: `financial_facts.filing_date <= as_of` and
+    `period_end <= as_of`; restatements filed later are invisible.
+  - Universe: `sp500_constituents` half-open intervals at the entry date.
+  - Costs: `--tc-bps` (default 10) and `--tc-fixed` (default 0).
+  - Rebalancing: `--rebalance annual|quarterly|threshold` (default annual).
+  - Sizing: `--sizing tier|equal` plus `--max-weight` (default 20%). With
+    fewer than five names the unfilled remainder stays in cash.
+  - Reproducibility: `--save-snapshot` / `--price-snapshot` store and replay
+    every `(ticker, date, price)` used by the run.
+- `PitMixin` in the FDB repository: `list_years_pit`,
+  `get_core_financials_pit`, `get_sp500_universe`.
+- FDB 0.4.0 requirement: `sp500_constituents` (1,262 intervals / 1,209
+  tickers), `companies.delisted_at` and the PIT index.
+
+### Changed
+- `analyze-*` commands are marked `[deprecated]` in `--help`; use
+  `vi scorecard <ticker>`.
+- Backtest output reports PIT coverage, survivorship status, sizing,
+  rebalancing, turnover and cost drag when `--research-grade` is active.
+- `docs/backlog.md` consolidated; `LEARNINGS.md` moved to `docs/learnings.md`.
+
+### Fixed
+- Removed 401 legacy (pre-SHA-256) price-cache files from local caches; the
+  hashed cache is the only format the service reads.
+- Mobile: zod 4.6.7 and glob 14.0.6 patched via npm overrides; a `Mobile
+  (audit, lint, test)` job now runs in CI.
+
+### Documentation
+- `docs/backtesting_design.md`: research-grade mode, PIT SQL, costs,
+  rebalancing, snapshots and what remains unsolved (delisted prices,
+  market impact, intra-year index events).
+- `docs/sprint_v034_decisions.md`: Q1–Q8 answers and the FDB diagnostics.
+
+### Measured
+Research-grade, 2015–2024, `--limit 400` per year (historical membership),
+10 bps costs, 20% cap, annual rebalancing:
+
+| Methodology | PoC CAGR | Research CAGR | PoC Sharpe | Research Sharpe |
+|---|---:|---:|---:|---:|
+| `buffett_classic` | 22.14% | **17.08%** | 1.489 | **1.299** |
+| `graham` | 9.85% | **4.41%** | 0.366 | **0.482** |
+
+- PIT coverage: 3,332 / 4,000 member-years (83.3%); 529 distinct Buffett
+  tickers evaluated.
+- Buffett: opportunity set 14.04%, SPY 15.73%, 64 signals (57 STRONG + 7 BUY).
+- Graham: 10 signals across 6 invested years; most of the book stays in cash.
+- Transaction costs alone are ~0.08%/year, so the PoC→research delta comes
+  mainly from the PIT lag (entry in February), the historical membership and
+  the 20% cap, not from costs.
+
+### Notes
+- Survivorship bias is **not** corrected: Yahoo no longer serves delisted
+  symbols, so removed constituents without a live price are skipped and the
+  run says so (`config.survivorship_bias: true`).
+- The fja05680 membership snapshot ends 2026-08-18; current-composition
+  overlap with Wikipedia is 496/503. Backtests ending in 2024 are unaffected.
+- The legacy PoC remains the default so previously published numbers stay
+  comparable; cite only `--research-grade` results.
+
 ## [0.33.0] - 2026-11-12
 
 ### Changed
