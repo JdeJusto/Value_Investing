@@ -55,3 +55,29 @@ The key is read from the environment at request time and sent as a query
 parameter (FMP) or an `Authorization` header (Tiingo). It is never written to
 logs, the disk cache, the repository or a test fixture. If a key is ever
 committed, rotate it immediately in the provider dashboard.
+
+## Rate limits and batch operations
+
+| Provider | Free tier | Batch-safe? |
+|---|---|---|
+| yfinance | rate-limited by Yahoo, but bulk-downloadable | ✅ `yf.download` |
+| FMP | 250 req/day | ❌ 500 tickers = 2 days |
+| Tiingo | 50 req/hour | ❌ 500 tickers = 10h |
+
+**Rule:** batch operations (`vi rank`, screener prefetch, consensus, portfolio
+bulk views) use Yahoo's **bulk download** (`yf.download`, one request per
+100-ticker chunk) and never one request per ticker to FMP/Tiingo. Single-ticker
+commands (`scorecard`, `financials`, `dcf`) still respect `PRICE_PROVIDER` and
+try FMP/Tiingo in the configured order.
+
+**Circuit breaker:** after 3 consecutive 429/403 responses, a provider is
+disabled for 60 seconds and skipped by the fallback chain. It logs **one**
+warning per outage; per-ticker failures stay at debug level. A 500 or a network
+timeout does not trip the breaker (only rate-limit/forbidden errors).
+
+If Yahoo's bulk request itself fails, batch operations return `None` for that
+chunk instead of cascading hundreds of per-ticker fallbacks. Individual missing
+names inside a successful batch still fall back once.
+
+For batches with Tiingo/FMP you need a paid plan (FMP Starter, Tiingo Power);
+the free tiers are documented here only for single-ticker use.
