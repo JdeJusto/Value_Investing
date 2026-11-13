@@ -23,11 +23,13 @@ from backend.portfolio.allocation import (
 from backend.portfolio.models import Portfolio, Position
 from backend.portfolio.performance import portfolio_performance
 from backend.portfolio.portfolio_repository import PortfolioRepository
+from backend.portfolio.sectors import canonical_sector
 from backend.screener.opportunity_engine import best_opportunity
 from backend.screener.ranking_engine import rank_score
 from backend.screener.signals import generate_signal
 
 Analyzer = Callable[[str], dict | None]
+SectorLookup = Callable[[str], str | None]
 
 
 class PortfolioService:
@@ -35,9 +37,13 @@ class PortfolioService:
         self,
         repository: PortfolioRepository,
         analyzer: Analyzer | None = None,
+        sector_lookup: SectorLookup | None = None,
     ):
         self._repository = repository
         self._analyzer = analyzer
+        self._sector_lookup = sector_lookup
+        self._sector_cache: dict[str, str] = {}
+        self._sector_repository = None
 
     # ------------------------------------------------------------------
     # write lock
@@ -109,6 +115,21 @@ class PortfolioService:
             removed = portfolio.remove(ticker)
         return removed
 
+    def get(self, ticker: str) -> Position | None:
+        """One open position without refreshing prices."""
+        with self._locked_portfolio() as portfolio:
+            return portfolio.position(ticker)
+
+    def set_thesis(self, ticker: str, thesis: str | None) -> Position | None:
+        """Set (or clear, with ``None``/empty) a position's investment thesis."""
+        with self._locked_portfolio() as portfolio:
+            position = portfolio.position(ticker)
+            if position is None:
+                return None
+            cleaned = (thesis or "").strip()
+            position.thesis = cleaned or None
+        return position
+
     def save_prices(self, prices: dict[str, float]) -> int:
         """Persist refreshed prices (ticker -> price); returns how many.
 
@@ -139,6 +160,9 @@ class PortfolioService:
         """Every open position enriched with scores, moat and signal."""
         with self._locked_portfolio() as portfolio:
             self._refresh_prices(portfolio)
+            self._prefetch_sectors(
+                [position.ticker for position in portfolio.positions if position.is_open]
+            )
             enriched: list[dict] = []
             for position in portfolio.positions:
                 if not position.is_open:
@@ -148,6 +172,7 @@ class PortfolioService:
                 enriched.append(
                     {
                         "ticker": position.ticker,
+                        "sector": self._sector_for(position.ticker),
                         "quantity": position.quantity,
                         "avg_price": position.avg_price,
                         "current_price": position.current_price,
@@ -224,6 +249,46 @@ class PortfolioService:
             "opportunity_type": opportunity["type"] if opportunity else None,
         }
 
-    @staticmethod
-    def _sector_map(portfolio: Portfolio) -> dict[str, str | None]:
-        return {p.ticker: None for p in portfolio.positions}
+    def _sector_map(self, portfolio: Portfolio) -> dict[str, str | None]:
+        self._prefetch_sectors(
+            [position.ticker for position in portfolio.positions if position.is_open]
+        )
+        return {
+            position.ticker: self._sector_for(position.ticker)
+            for position in portfolio.positions
+            if position.is_open
+        }
+
+    def _prefetch_sectors(self, tickers: list[str]) -> None:
+        """Resolve sectors in one metadata query (FDB ``get_sector_map``)."""
+        missing = sorted(
+            {str(ticker).upper() for ticker in tickers}
+            - set(self._sector_cache)
+        )
+        if not missing:
+            return
+        raw: dict[str, str | None] = {}
+        if self._sector_lookup is not None:
+            raw = {ticker: self._sector_lookup(ticker) for ticker in missing}
+        else:
+            if self._sector_repository is None:
+                from backend.app.cli import build_financial_repository
+
+                self._sector_repository = build_financial_repository()
+            bulk = getattr(self._sector_repository, "get_sector_map", None)
+            if callable(bulk):
+                raw = bulk(missing)
+            else:
+                getter = getattr(
+                    self._sector_repository, "get_company_sector", None
+                )
+                if callable(getter):
+                    raw = {ticker: getter(ticker) for ticker in missing}
+        for ticker in missing:
+            self._sector_cache[ticker] = canonical_sector(raw.get(ticker)) or "Unknown"
+
+    def _sector_for(self, ticker: str) -> str:
+        """Canonical GICS sector for a ticker (``Unknown`` when unavailable)."""
+        key = str(ticker).upper()
+        self._prefetch_sectors([key])
+        return self._sector_cache[key]

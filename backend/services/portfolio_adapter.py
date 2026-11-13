@@ -76,7 +76,7 @@ def build_portfolio_view(portfolio: Any, sectors: dict | None = None) -> Portfol
         f"Sector {row['sector']} weighs {row['weight']:.1%} of the portfolio "
         "(threshold 40%)"
         for row in exposure
-        if row["sector"] != "N/A" and row["weight"] > SECTOR_CONCENTRATION_THRESHOLD
+        if row["sector"] != "Unknown" and row["weight"] > SECTOR_CONCENTRATION_THRESHOLD
     ]
     return PortfolioView(
         name=portfolio.name,

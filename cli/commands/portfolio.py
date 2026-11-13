@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 from rich.text import Text
 
@@ -68,6 +69,29 @@ def register(subparsers):
     add_demo_argument(remove)
     remove.set_defaults(func=_remove)
 
+    thesis = sub.add_parser(
+        "thesis", help="Show, set or clear a position's investment thesis"
+    )
+    thesis.add_argument("ticker", type=str)
+    thesis_action = thesis.add_mutually_exclusive_group()
+    thesis_action.add_argument(
+        "--set", dest="set_text", metavar="TEXT", help="Set or replace the thesis"
+    )
+    thesis_action.add_argument(
+        "--set-from-file",
+        dest="set_from_file",
+        metavar="FILE",
+        help="Read the thesis from a UTF-8 text file",
+    )
+    thesis_action.add_argument(
+        "--clear", action="store_true", help="Clear the thesis"
+    )
+    thesis_action.add_argument(
+        "--show", action="store_true", help="Show the current thesis (default)"
+    )
+    add_demo_argument(thesis)
+    thesis.set_defaults(func=_thesis)
+
     view = sub.add_parser("view", help="Positions enriched with scores")
     add_demo_argument(view)
     view.set_defaults(func=_view)
@@ -117,12 +141,64 @@ def _remove(args):
     print(f"  {yellow('Position removed:')} {args.ticker}")
 
 
+def _thesis(args):
+    service = build_portfolio_service()
+    ticker = args.ticker.upper()
+    if args.clear:
+        position = service.set_thesis(ticker, None)
+        if position is None:
+            print(f"  {red('No open position for')} {ticker}")
+            return
+        print(green(f"Thesis cleared for {ticker}"))
+        return
+    if args.set_from_file:
+        try:
+            text = Path(args.set_from_file).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            print(f"  {red('Could not read')} {args.set_from_file}: {exc}")
+            return
+        if not text:
+            print(f"  {red('The file is empty')}: {args.set_from_file}")
+            return
+        position = service.set_thesis(ticker, text)
+        if position is None:
+            print(f"  {red('No open position for')} {ticker}")
+            return
+        print(green(f"Thesis saved for {ticker}") + dim(f" ({len(text)} chars)"))
+        return
+    if args.set_text is not None:
+        position = service.set_thesis(ticker, args.set_text)
+        if position is None:
+            print(f"  {red('No open position for')} {ticker}")
+            return
+        print(green(f"Thesis saved for {ticker}"))
+        return
+
+    position = service.get(ticker)
+    if position is None:
+        print(f"  {red('No open position for')} {ticker}")
+        return
+    if position.thesis:
+        print(f"{ticker}:")
+        print()
+        print(position.thesis)
+    else:
+        print(f"{ticker}: (no thesis)")
+
+
 def _thesis_line(ticker: str, thesis: str | None) -> Text:
-    """``  TICKER: thesis`` — ticker in the primary color, empty muted."""
+    """``  TICKER: thesis`` — ticker in the primary color, empty muted.
+
+    The table/section view keeps a short preview; ``portfolio thesis TICKER``
+    prints the full text.
+    """
+    text = thesis or "(no thesis)"
+    if len(text) > 48:
+        text = text[:48].rstrip() + "..."
     line = Text("  ")
     line.append(ticker, style=cli_output.PRIMARY)
     line.append(": ")
-    line.append(thesis or "(no thesis)", style="" if thesis else cli_output.MUTED)
+    line.append(text, style="" if thesis else cli_output.MUTED)
     return line
 
 
@@ -138,13 +214,14 @@ def _view(args):
 
     headers = [
         ("Ticker", 0),
+        ("Sector", 0),
         ("Qty", 1),
         ("Price", 1),
         ("Value", 1),
         ("Return", 1),
-        ("Buffett", 1),
+        ("Buffett score", 1),
         ("Moat", 0),
-        ("Signal", 0),
+        ("Signal (screener)", 0),
         ("Opp.", 0),
     ]
     rows = []
@@ -159,6 +236,7 @@ def _view(args):
         rows.append(
             [
                 p["ticker"],
+                p.get("sector") or "Unknown",
                 f"{p['quantity']:,.0f}",
                 fmt_dollar(p["current_price"]),
                 fmt_dollar(p["quantity"] * p["current_price"]),

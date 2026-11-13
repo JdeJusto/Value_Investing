@@ -35,14 +35,14 @@ def overconcentration(
 def sector_exposure(
     portfolio: Portfolio, sectors: dict[str, str | None], top: int = 3
 ) -> list[dict]:
-    """Weight per sector; unknown sectors are grouped as 'N/A'."""
+    """Weight per sector; unknown sectors are grouped as 'Unknown'."""
     value = sum(p.market_value for p in portfolio.positions if p.is_open)
     exposure: Counter[str] = Counter()
     for p in portfolio.positions:
         if not p.is_open:
             continue
         weight = position_weight(p, value) or 0.0
-        exposure[sectors.get(p.ticker) or "N/A"] += weight
+        exposure[sectors.get(p.ticker) or "Unknown"] += weight
     return [
         {"sector": sector, "weight": round(weight, 4)}
         for sector, weight in exposure.most_common(top)
