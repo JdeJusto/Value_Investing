@@ -114,26 +114,84 @@ def test_invalid_since_does_not_query(monkeypatch, capsys):
 
 def test_open_flag_uses_the_browser(monkeypatch, capsys):
     opened: list[str] = []
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("SSH_CLIENT", raising=False)
+    monkeypatch.delenv("SSH_TTY", raising=False)
     monkeypatch.setattr(
-        "cli.commands.filings.webbrowser.open", lambda url: opened.append(url)
+        "cli.commands.filing.webbrowser.open", lambda url: opened.append(url)
     )
     _run("AAPL", "--open")
     assert opened == [_record().sec_url]
-    assert "Opening 10-K 2024-11-01" in capsys.readouterr().out
+    assert "Opening:" in capsys.readouterr().out
 
 
 def test_open_passes_the_document_url_when_available(monkeypatch, capsys):
     _Recorder.records = [_record_doc()]
     opened: list[str] = []
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("SSH_CLIENT", raising=False)
+    monkeypatch.delenv("SSH_TTY", raising=False)
     monkeypatch.setattr(
-        "cli.commands.filings.webbrowser.open", lambda url: opened.append(url)
+        "cli.commands.filing.webbrowser.open", lambda url: opened.append(url)
     )
     _run("AAPL", "--open")
     assert opened == [_record_doc().sec_url]
     assert opened[0].endswith(".htm")  # the primary document, not the index
 
     out = capsys.readouterr().out
-    assert "Opening 10-K 2024-11-01" in out
+    assert "Opening:" in out
+
+
+def test_open_nth_row_opens_that_filing(monkeypatch, capsys):
+    second = _record("10-Q")
+    second.sec_url = (
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019324000456/"
+    )
+    _Recorder.records = [_record(), second]
+    opened: list[str] = []
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("SSH_CLIENT", raising=False)
+    monkeypatch.delenv("SSH_TTY", raising=False)
+    monkeypatch.setattr(
+        "cli.commands.filing.webbrowser.open", lambda url: opened.append(url)
+    )
+
+    _run("AAPL", "--open", "2")
+
+    assert opened == [second.sec_url]
+
+
+def test_open_out_of_range_reports_and_does_not_open(monkeypatch, capsys):
+    opened: list[str] = []
+    monkeypatch.setattr(
+        "cli.commands.filing.webbrowser.open", lambda url: opened.append(url)
+    )
+    _run("AAPL", "--open", "9")
+
+    assert opened == []
+    assert "out of range" in capsys.readouterr().out
+
+
+def test_prompt_open_asks_for_a_row(monkeypatch, capsys):
+    opened: list[str] = []
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("SSH_CLIENT", raising=False)
+    monkeypatch.delenv("SSH_TTY", raising=False)
+    prompts: list[str] = []
+
+    def _input(prompt=""):
+        prompts.append(prompt)
+        return "1"
+
+    monkeypatch.setattr("builtins.input", _input)
+    monkeypatch.setattr(
+        "cli.commands.filing.webbrowser.open", lambda url: opened.append(url)
+    )
+
+    _run("AAPL", "--prompt-open")
+
+    assert opened == [_record().sec_url]
+    assert "Open a filing in browser?" in prompts[0]
 
 
 def test_empty_state_is_clear(monkeypatch, capsys):
@@ -165,8 +223,9 @@ def test_rows_are_rendered_as_a_table_without_ansi(monkeypatch, capsys):
     out = capsys.readouterr().out
 
     assert "┏" in out and "┃" in out and "└" in out  # rich table frame
-    for header in ("Form", "Filed", "Period", "FY", "Accession", "Link"):
+    for header in ("#", "Form", "Filed", "Period", "FY", "Accession"):
         assert header in out
     assert "0000320193-24-000123" in out
     assert "10-Q" in out
+    assert "vi filing open AAPL <N>" in out
     assert "\x1b" not in out

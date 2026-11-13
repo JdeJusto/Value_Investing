@@ -568,6 +568,7 @@ _DATA = Category(
             "Filings",
             "SEC documents",
             filings,
+            argv=("--prompt-open",),
             prompt="Ticker",
             default="AAPL",
             guide=_guide_filings,

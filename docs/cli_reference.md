@@ -1,6 +1,6 @@
 # CLI reference
 
-`vi` is the terminal interface to Value Investing: 43 commands across
+`vi` is the terminal interface to Value Investing: 44 commands across
 analysis, ranking, portfolio and data management. Every command is documented
 here from its real `--help`; the README keeps a short quick-start list.
 
@@ -8,7 +8,7 @@ here from its real `--help`; the README keeps a short quick-start list.
 
 ```bash
 ./vi scorecard AAPL      # First command: six-dimension scorecard
-./vi --help              # List all 43 commands
+./vi --help              # List all 44 commands
 ./vi                     # Interactive menu (no arguments)
 ```
 
@@ -34,6 +34,7 @@ Prices are fetched on demand from Yahoo and are never persisted to FDB.
 | See my portfolio | `vi portfolio view` |
 | Check data freshness | `vi data-status AAPL` |
 | List SEC filings | `vi filings AAPL --form 10-K` |
+| Open a filing | `vi filing open LULU 1` |
 
 If you do not remember a command:
 
@@ -661,12 +662,28 @@ Reads the filings table and builds SEC EDGAR URLs. Nothing is downloaded; the
 links open the official documents on sec.gov.
 
 Flags: `--form 10-K,10-Q`, `--year YEAR` (repeatable), `--since YYYY-MM-DD`,
-`--all`, `--urls`, `--limit N` (default `40`), `--open` (newest match in the
-browser), `--demo`.
+`--all`, `--urls` (adds a URL column), `--limit N` (default `40`), `--open [N]`
+(open the newest match, or the Nth row), `--demo`.
+
+The table's first column is the 1-indexed row number used by
+`vi filing open <ticker> <N>` and `--open N`.
 
 ```bash
 ./vi filings AAPL
 ./vi filings AAPL --form 10-K --year 2025 --urls
+./vi filings LULU --limit 10 --open 3
+```
+
+#### `vi filing open <accession> | <ticker> <N>`
+
+Opens one filing's SEC EDGAR index in the system browser. With no graphical
+session (`SSH_CLIENT`/`SSH_TTY` set, or no `DISPLAY`/`WAYLAND_DISPLAY`) it
+prints the URL instead. `vi filing url ...` prints only the URL.
+
+```bash
+./vi filing open LULU 1
+./vi filing open 0001397187-26-000127
+./vi filing url LULU 1
 ```
 
 #### `vi filing-balance-sheet <ticker>`
