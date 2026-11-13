@@ -1,3 +1,41 @@
+## [0.34.3] - 2026-11-13
+
+### Fixed
+- **Portfolio sector exposure**: `vi portfolio view` and `vi portfolio
+  performance` now read `companies.sector` from FDB and map the Yahoo labels
+  to GICS (`Consumer Defensive` → `Consumer Staples`, `Consumer Cyclical` →
+  `Consumer Discretionary`, `Technology` → `Information Technology`). Sector
+  exposure no longer shows `N/A: 100%`; missing metadata is `Unknown`.
+- **Portfolio signal clarity**: the columns are now `Buffett score` and
+  `Signal (screener)`. `Signal` comes from
+  `backend/screener/signals.py::generate_signal` (rank + composite +
+  confidence + a `Buffett < 40` floor), **not** from the Buffett verdict.
+  PDD with Buffett 47 + HOLD is therefore expected: 47 clears the screener
+  floor but not the methodology's 50-point AVOID band.
+
+### Added
+- **`vi portfolio thesis <ticker> --set/--show/--clear`** and
+  **`--set-from-file FILE`**: attach an investment thesis to a position.
+  The interactive menu adds **[6] Thesis** (select position → set/clear →
+  text), renumbering Refresh through Backtest by one.
+- `Sector` column in `vi portfolio view`; `vi portfolio performance` groups
+  by the canonical sector.
+
+### Notes
+- `data/portfolio.json`: `thesis` is optional and nullable. Existing
+  portfolios load unchanged; no migration is needed.
+- `vi portfolio view` prints a 48-character thesis preview; `--show` prints
+  the full text.
+- `vi rank --universe sp500` takes ~2 min by design (fundamentals-bound, not
+  prices); use `--universe demo` for quick checks.
+- `docs/portfolio_methodology.md` documents each column and the
+  score-vs-signal distinction.
+
+### Measured
+- HSY → Consumer Staples, PDD → Consumer Discretionary, CMCSA →
+  Communication Services; sector exposure 56% / 33% / 11%, no `N/A`.
+- 3,033 unit tests + 125 API, ruff 0/0, theme 26/4 unchanged.
+
 ## [0.34.2] - 2026-11-13
 
 ### Fixed
