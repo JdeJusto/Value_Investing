@@ -128,6 +128,33 @@ def ask_int(
         return value
 
 
+def ask_float(
+    title: str,
+    default: float | None = None,
+    min_val: float | None = None,
+    max_val: float | None = None,
+) -> float:
+    """Prompt for a float with an optional range and visible default."""
+    _title(title)
+    _hint()
+    while True:
+        raw = _value(_read(f"  Value {_default_suffix(default)}: "))
+        if not raw and default is not None:
+            return default
+        try:
+            value = float(raw)
+        except ValueError:
+            _error(f"'{raw}' is not a number.")
+            continue
+        if min_val is not None and value < min_val:
+            _error(f"Must be >= {min_val:g}.")
+            continue
+        if max_val is not None and value > max_val:
+            _error(f"Must be <= {max_val:g}.")
+            continue
+        return value
+
+
 def ask_text(
     title: str,
     default: str | None = None,

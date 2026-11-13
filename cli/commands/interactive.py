@@ -12,10 +12,12 @@ command's own parser and dispatches in-process.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shlex
 import shutil
 from collections.abc import Callable
+from datetime import date
 from typing import NamedTuple
 
 from backend.services import cli_output
@@ -42,6 +44,7 @@ from cli.help_utils import render_help_footer, render_search_results
 from cli.menu_prompts import (
     PromptCancelled,
     ask_choice,
+    ask_float,
     ask_int,
     ask_methodology,
     ask_text,
@@ -101,6 +104,97 @@ class Category(NamedTuple):
 def _guide_none() -> list[str]:
     """Options that need no input (portfolio view/performance)."""
     return []
+
+
+# ---------------------------------------------------------------------------
+# portfolio mutations
+# ---------------------------------------------------------------------------
+def _portfolio_path() -> str:
+    """The JSON path used by the CLI (demo bundle when demo mode is on)."""
+    from backend.services.demo_mode import DEMO_PORTFOLIO, is_demo
+
+    if is_demo():
+        return str(DEMO_PORTFOLIO)
+    return os.getenv("PORTFOLIO_PATH", "data/portfolio.json")
+
+
+def _open_positions() -> list:
+    """Read open positions without refreshing prices (no network)."""
+    from backend.portfolio.portfolio_repository import JsonPortfolioRepository
+
+    portfolio = JsonPortfolioRepository(_portfolio_path()).load()
+    return sorted(
+        (position for position in portfolio.positions if position.is_open),
+        key=lambda position: position.ticker,
+    )
+
+
+def _is_iso_date(value: str) -> bool:
+    try:
+        date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _guide_portfolio_add() -> list[str] | None:
+    ticker = ask_ticker("Ticker", default=None)
+    if any(
+        position.ticker.upper() == ticker for position in _open_positions()
+    ) and not ask_yes_no(
+        f"{ticker} already exists. Average into the position?", default=True
+    ):
+        return None
+    shares = ask_int("Shares", min_val=1)
+    cost = ask_float("Cost basis per share", min_val=0.01)
+    extra = [ticker, str(shares), str(cost)]
+    if ask_yes_no("Specify purchase date?", default=False):
+        purchase_date = ask_text(
+            "Date (YYYY-MM-DD)",
+            validator=_is_iso_date,
+            validator_error="Use YYYY-MM-DD.",
+        )
+        extra.extend(["--date", purchase_date])
+    return extra
+
+
+def _guide_portfolio_remove() -> list[str] | None:
+    positions = _open_positions()
+    if not positions:
+        print(_c("  Portfolio is empty.", "dim"))
+        return None
+    ticker = ask_choice(
+        "Remove which position?",
+        [
+            (f"{position.ticker} · {position.quantity:g} shares", position.ticker)
+            for position in positions
+        ],
+    )
+    if not ask_yes_no(f"Remove {ticker} without recording a sale?", default=False):
+        print(_c("  Cancelled.", "dim"))
+        return None
+    return [ticker]
+
+
+def _guide_portfolio_exit() -> list[str] | None:
+    positions = _open_positions()
+    if not positions:
+        print(_c("  Portfolio is empty.", "dim"))
+        return None
+    ticker = ask_choice(
+        "Exit which position?",
+        [
+            (f"{position.ticker} · {position.quantity:g} shares", position.ticker)
+            for position in positions
+        ],
+    )
+    price = ask_float("Exit price per share", min_val=0.01)
+    if not ask_yes_no(
+        f"Close the full {ticker} position at {price:,.2f}?", default=False
+    ):
+        print(_c("  Cancelled.", "dim"))
+        return None
+    return [ticker, str(price)]
 
 
 def _guide_scorecard() -> list[str]:
@@ -386,6 +480,27 @@ _DATA = Category(
             portfolio,
             argv=("performance",),
             guide=_guide_none,
+        ),
+        Action(
+            "Add position",
+            "Open or average in",
+            portfolio,
+            argv=("add",),
+            guide=_guide_portfolio_add,
+        ),
+        Action(
+            "Remove position",
+            "Delete without a sale",
+            portfolio,
+            argv=("remove",),
+            guide=_guide_portfolio_remove,
+        ),
+        Action(
+            "Exit position",
+            "Close and record PnL",
+            portfolio,
+            argv=("exit",),
+            guide=_guide_portfolio_exit,
         ),
         Action(
             "Refresh",
