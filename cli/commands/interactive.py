@@ -167,9 +167,7 @@ def _guide_portfolio_thesis() -> list[str] | None:
         "Which position?",
         [(position.ticker, position.ticker) for position in positions],
     )
-    position = next(
-        (item for item in positions if item.ticker == ticker), None
-    )
+    position = next((item for item in positions if item.ticker == ticker), None)
     if position is not None and position.thesis:
         print()
         print(_c(f"Current thesis ({ticker}):", "gold"))

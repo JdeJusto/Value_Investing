@@ -161,7 +161,11 @@ class PortfolioService:
         with self._locked_portfolio() as portfolio:
             self._refresh_prices(portfolio)
             self._prefetch_sectors(
-                [position.ticker for position in portfolio.positions if position.is_open]
+                [
+                    position.ticker
+                    for position in portfolio.positions
+                    if position.is_open
+                ]
             )
             enriched: list[dict] = []
             for position in portfolio.positions:
@@ -262,8 +266,7 @@ class PortfolioService:
     def _prefetch_sectors(self, tickers: list[str]) -> None:
         """Resolve sectors in one metadata query (FDB ``get_sector_map``)."""
         missing = sorted(
-            {str(ticker).upper() for ticker in tickers}
-            - set(self._sector_cache)
+            {str(ticker).upper() for ticker in tickers} - set(self._sector_cache)
         )
         if not missing:
             return
@@ -279,9 +282,7 @@ class PortfolioService:
             if callable(bulk):
                 raw = bulk(missing)
             else:
-                getter = getattr(
-                    self._sector_repository, "get_company_sector", None
-                )
+                getter = getattr(self._sector_repository, "get_company_sector", None)
                 if callable(getter):
                     raw = {ticker: getter(ticker) for ticker in missing}
         for ticker in missing:

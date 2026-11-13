@@ -83,9 +83,7 @@ def register(subparsers):
         metavar="FILE",
         help="Read the thesis from a UTF-8 text file",
     )
-    thesis_action.add_argument(
-        "--clear", action="store_true", help="Clear the thesis"
-    )
+    thesis_action.add_argument("--clear", action="store_true", help="Clear the thesis")
     thesis_action.add_argument(
         "--show", action="store_true", help="Show the current thesis (default)"
     )
