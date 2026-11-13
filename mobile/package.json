@@ -53,9 +53,15 @@
   "private": true,
   "overrides": {
     "decode-uri-component": "^0.5.1",
-    "node-forge": "^1.4.1",
+    "node-forge": "^1.4.3",
     "uuid": "^11.1.1",
     "zod": "^4.6.7",
-    "glob": "^14.0.6"
+    "glob": "^14.0.6",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    },
+    "@expo/fingerprint": {
+      "minimatch": "^11.0.8"
+    }
   }
 }

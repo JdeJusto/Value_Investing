@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Latest release"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="CI status"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2979%20passed-10A77A?style=for-the-badge" alt="2,979 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2987%20passed-10A77A?style=for-the-badge" alt="2,987 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 or newer">
   <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
@@ -57,6 +57,9 @@ virtualenv.
 ./vi backtest --methodology graham --research-grade --years 10 --limit 400  # PIT + costs
 ./vi screener --methodology graham:BUY         # Screen with methodology filter
 ```
+
+Prices come from yfinance by default. FMP and Tiingo are supported as
+optional providers (see [docs/price_providers.md](docs/price_providers.md)).
 
 `./vi --help` lists all 43 commands. Run `vi` without arguments for an
 interactive menu. All support `--no-color`; `vi financials`, `vi rank`,

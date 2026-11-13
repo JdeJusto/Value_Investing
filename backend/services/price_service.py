@@ -1124,6 +1124,21 @@ class PriceService:
         transient 429 no longer drops the quote. The failure reason is stored
         for ``refresh`` to report after the retries are exhausted.
         """
+        from backend.services.price_providers import providers_for_fetch
+
+        for provider in providers_for_fetch():
+            try:
+                bar = provider.fetch_current(ticker)
+                if bar is not None and bar.get("close") is not None:
+                    return float(bar["close"])
+            except Exception as exc:  # noqa: BLE001 — try the next provider
+                logger.warning(
+                    "Price provider %s failed for %s: %s; trying the next one",
+                    provider.name,
+                    ticker,
+                    exc,
+                )
+
         if self._yahoo_is_known_down():
             return None
         started = time.time()
@@ -1157,6 +1172,36 @@ class PriceService:
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[tuple[date, float]]:
+        # Optional providers (FMP / Tiingo) when configured. They are tried in
+        # order; any failure is logged and the next one runs. Yahoo remains the
+        # final fallback below and the default when no key is configured.
+        from backend.services.price_providers import providers_for_fetch
+
+        for provider in providers_for_fetch():
+            try:
+                bars = provider.fetch_historical(
+                    ticker,
+                    (start_date or date(2000, 1, 1)).isoformat(),
+                    (end_date or datetime.now(tz=UTC).date()).isoformat(),
+                )
+                if bars:
+                    prices = [
+                        (bar["date"], float(bar["close"]))
+                        for bar in bars
+                        if isinstance(bar.get("date"), date)
+                        and bar.get("close") is not None
+                    ]
+                    if prices:
+                        self._last_error.pop(str(ticker).upper(), None)
+                        return prices
+            except Exception as exc:  # noqa: BLE001 — try the next provider
+                logger.warning(
+                    "Price provider %s failed for %s: %s; trying the next one",
+                    provider.name,
+                    ticker,
+                    exc,
+                )
+
         try:
             kwargs: dict[str, object] = {}
             if start_date is not None:

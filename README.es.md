@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/JdeJusto/Value_Investing/releases"><img src="https://img.shields.io/github/v/release/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Última versión"></a>
   <a href="https://github.com/JdeJusto/Value_Investing/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/JdeJusto/Value_Investing/ci.yml?branch=main&style=for-the-badge&label=CI&color=10A77A" alt="Estado de CI"></a>
-  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2979%20passed-10A77A?style=for-the-badge" alt="2.655 tests passed"></a>
+  <a href="tests/unit"><img src="https://img.shields.io/badge/tests-2987%20passed-10A77A?style=for-the-badge" alt="2.655 tests passed"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JdeJusto/Value_Investing?style=for-the-badge&color=0B1B3A" alt="Licencia MIT"></a>
   <img src="https://img.shields.io/badge/python-3.13%2B-0B1B3A?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13 o superior">
   <img src="https://img.shields.io/badge/streamlit-1.66.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit 1.66.0">
@@ -64,6 +64,9 @@ el menú interactivo. Todos admiten `--no-color`; `vi financials`, `vi rank`,
 pasivo corriente/no corriente, patrimonio neto) con subtotales por sección.
 `vi refresh` sincroniza los facts de SEC y obtiene el precio actual de Yahoo
 on-demand; los precios no se persisten en FDB.
+
+Los precios vienen de yfinance por defecto. FMP y Tiingo se pueden usar
+como proveedores opcionales (ver [docs/price_providers.md](docs/price_providers.md)).
 
 Ver la [referencia completa del CLI](docs/cli_reference.md) para los 43 comandos, flags y ejemplos. ¿No recuerdas uno? `vi help --search <query>`.
 
