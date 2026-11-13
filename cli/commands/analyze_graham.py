@@ -20,7 +20,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-graham",
-        help="Run the Graham defensive-investor screen on one company",
+        help="[deprecated] Run the Graham defensive-investor screen on one company — use 'vi scorecard <ticker>'",
         description=(
             "Evaluates the seven Graham criteria plus the combined P/E x P/BV "
             "test and renders the verdict, score, confidence, criteria, red "

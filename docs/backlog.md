@@ -1,7 +1,45 @@
-# Backlog (updated 2026-09-30, after v0.1.0)
+# Backlog (updated 2026-11-13, after v0.34.0)
 
 All P0/P1, the QA-session P2 items and the v0.1.0 hardening items are
 closed. This file now tracks what remains.
+
+## Status after v0.34.0
+
+### Done in v0.34.0
+
+- **Research-grade backtest**: point-in-time fundamentals, historical S&P 500
+  membership, transaction costs, annual/quarterly/threshold rebalancing,
+  tier/equal sizing with a per-name cap, and replayable price snapshots.
+  `--legacy` keeps the pre-0.34.0 PoC behaviour.
+- **FDB 0.4.0**: `sp500_constituents`, `companies.delisted_at`, the PIT index
+  and the documented `filing_date` semantics.
+- **Cleanup**: 401 legacy price-cache files removed, `analyze-*` commands
+  marked deprecated in `--help`, `LEARNINGS.md` moved to
+  `docs/learnings.md`, mobile Dependabot patches (zod/glob/deepmerge) and a
+  mobile audit step in CI.
+
+### Next (v0.35+)
+
+1. **Bank and REIT analyzers** — the two specialized models below; both need
+   sector-specific FDB tags first.
+2. **Book-reference gap** — the missing book for Buffett/Clark is tracked in
+   `docs/books_notes/README.md`; requires acquiring the reference.
+3. **Screener UX redesign** — needs a human-approved mockup; see the v0.23.0
+   note below.
+4. **Delisted price coverage** — only solvable with a paid source
+   (Sharadar/Norgate). Until then every research-grade run reports
+   survivorship bias.
+
+### Icebox
+
+- **Simplification / Big-O work without profiling** — batch operations are
+  ~100 ms and 2,976 unit tests are green; no measured bottleneck justifies
+  the churn. Revisit only with a profile.
+- **Mobile Phase 6 / Expo SDK upgrade** — needs a physical device to validate;
+  patch-level Dependabot updates only for now.
+- **Deferred methodology rules** (maintenance capex, insider ownership,
+  qualitative moat, full 20-year dividends) — blocked on data sources, listed
+  in the per-methodology sections below.
 
 ## Quality debt
 
@@ -356,7 +394,7 @@ SHAs en la tabla. AUDIT-003/006/007/008 siguen pendientes.
 | Item | Status | Reason |
 |---|---|---|
 | **Screener UX redesign** | **Needs mockup approval** | Functional gaps ("lento", "poco útil") were addressed in v0.23.0. The visual/interaction redesign (single-page form vs wizard vs filter chips) needs a human-approved mockup before implementation. Target: v0.24+ after 2 weeks of real use. |
-| **Research-grade backtest** | Deferred to v0.24+ | Requires historical universe, transaction costs, rebalancing and survivorship-bias handling. The v0.22 PoC stays as the reference. See `docs/backtesting_design.md`. |
+| **Research-grade backtest** | **Shipped in v0.34.0** | PIT fundamentals (`financial_facts.filing_date`), historical S&P 500 membership (`sp500_constituents`), transaction costs, rebalancing, sizing cap and price snapshots. See `docs/backtesting_design.md`. |
 | **`methodologies show <ticker>`** | Documented, not fixed | The command takes a methodology name, not a ticker; accepting a ticker requires choosing which methodology/verdict to evaluate and is a UX redesign. |
 | **PostgreSQL unavailable in the systemd Greenblatt job** | Environment issue, documented | `EnvironmentFile=` how-to in `docs/greenblatt_pipeline.md`; no unit-file change from the repo. |
 | **PCAR** | Data limitation | Unclassified balance sheet (finance subsidiary); no net working capital. See `docs/data_gaps_investigation.md` and `docs/fdb_tickets.md`. |
@@ -446,13 +484,11 @@ The per-methodology deferred rules are listed in
 - Badges `[BANK]`/`[REIT]` (v0.27.0) are prerequisites.
 
 
-## Backtest price snapshot (reproducibility)
+## Backtest price snapshot (reproducibility) — shipped in v0.34.0
 
 Backtests are not bit-reproducible while they read live Yahoo adjusted closes:
 a cache-format change or a dividend adjustment revision can move a selected
 name's forward return (observed 23.76% → 22.14% for Buffett 10y/400 with
-identical code in the 2026-11-12 audit). Proposed fix: persist the per-ticker,
-per-fiscal-year price series used by a run next to the JSON artifact (or allow
-`--price-snapshot FILE`), so a backtest can be replayed exactly. Cost ~2-4h;
-priority low-medium (the current result is stable with a fixed cache, but the
-artifact is not self-contained).
+identical code in the 2026-11-12 audit). Implemented in v0.34.0:
+`--save-snapshot` writes every `(ticker, date, price)` used by a research-grade
+run and `--price-snapshot FILE` replays it without touching Yahoo.

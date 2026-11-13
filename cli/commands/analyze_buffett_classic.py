@@ -18,7 +18,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-buffett-classic",
-        help="Run the 20-rule Buffett/Munger quality compounder",
+        help="[deprecated] Run the 20-rule Buffett/Munger quality compounder — use 'vi scorecard <ticker>'",
         description=(
             "Evaluates 20 explicit rules across moat, financial strength, "
             "earnings quality, capital allocation, valuation and management, "

@@ -19,7 +19,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-greenblatt",
-        help="Run the Greenblatt Magic Formula (weekly rankings) on one company",
+        help="[deprecated] Run the Greenblatt Magic Formula (weekly rankings) on one company — use 'vi scorecard <ticker>'",
         description=(
             "Looks the ticker up in the newest data/rankings/greenblatt_*.json "
             "and maps its combined-rank percentile to a verdict. Refresh the "

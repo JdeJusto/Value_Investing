@@ -1,4 +1,4 @@
-# LEARNINGS.md (working notes — not committed)
+# Learnings — working notes
 
 Session 2026-10-20, Fase C.2 radar filter.
 
@@ -49,7 +49,7 @@ Session 2026-10-20, Fase C.2 radar filter.
   is already on main and delete with `-D` after confirming
   `git branch --contains <sha>` lists only main. Not a force-rewrite.
 - Final Fase C.2 state: `main` = `64eda3e`, working tree clean, only
-  `LEARNINGS.md` untracked (kept out of commits on purpose).
+  `docs/learnings.md` (these notes).
 
 ## Final Fase C.2 numbers
 - unit 2376 passed / 2 skipped / 0 failed (2370 baseline + 6 new).

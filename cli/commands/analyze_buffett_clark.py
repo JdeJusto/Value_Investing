@@ -19,7 +19,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-buffett-clark",
-        help="Run the Buffett/Clark DCA screen on one company",
+        help="[deprecated] Run the Buffett/Clark DCA screen on one company — use 'vi scorecard <ticker>'",
         description=(
             "Evaluates the seven Buffett/Clark rules for durable competitive "
             "advantage and renders the verdict, score, confidence, metrics, "

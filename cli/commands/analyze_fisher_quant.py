@@ -25,7 +25,7 @@ _DISCLAIMER = (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-fisher-quant",
-        help="Run Fisher's 4 quantifiable points (R&D, margins, costs, dilution)",
+        help="[deprecated] Run Fisher's 4 quantifiable points (R&D, margins, costs, dilution) — use 'vi scorecard <ticker>'",
         description=(
             "Evaluates the quantitative subset of Philip Fisher's 15 points "
             "(3: R&D intensity, 5: profit margin, 10: cost control, "

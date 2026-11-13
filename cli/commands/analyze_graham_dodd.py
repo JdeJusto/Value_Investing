@@ -19,7 +19,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-graham-dodd",
-        help="Run the Graham & Dodd deep-value screen on one company",
+        help="[deprecated] Run the Graham & Dodd deep-value screen on one company — use 'vi scorecard <ticker>'",
         description=(
             "Evaluates the Graham & Dodd rules for deep value: NWC test, "
             "fixed-charge coverage, earnings stability, balance sheet strength, "

@@ -40,7 +40,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-full",
-        help="Consolidated 6-section report per ticker",
+        help="[deprecated] Consolidated 6-section report per ticker — use 'vi scorecard <ticker>'",
         description=(
             "Full analysis: overview, real-time price, metrics, "
             "Buffett quality, historical valuation and risks."

@@ -19,7 +19,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-marks",
-        help="Run Howard Marks' measurable rules on one company",
+        help="[deprecated] Run Howard Marks' measurable rules on one company — use 'vi scorecard <ticker>'",
         description=(
             "Quantitative subset of *The Most Important Thing*: cycle "
             "position, resilience, margin of safety and quality persistence."

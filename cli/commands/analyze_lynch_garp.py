@@ -21,7 +21,7 @@ from cli.formatters import (
 def register(subparsers):
     p = subparsers.add_parser(
         "analyze-lynch-garp",
-        help="Run the Lynch GARP (growth at a reasonable price) screen on one company",
+        help="[deprecated] Run the Lynch GARP (growth at a reasonable price) screen on one company — use 'vi scorecard <ticker>'",
         description=(
             "Evaluates the five Lynch rules (PEG, earnings growth consistency, "
             "debt conservatism, inventory watch, dividend-adjusted PEG) and "
