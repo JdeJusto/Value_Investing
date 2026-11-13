@@ -34,6 +34,7 @@ from backend.repositories.fdb_mixins.helpers import (  # noqa: F401
 )
 from backend.repositories.fdb_mixins.lookups_mixin import LookupsMixin
 from backend.repositories.fdb_mixins.normalization_mixin import NormalizationMixin
+from backend.repositories.fdb_mixins.pit_mixin import PitMixin
 from backend.repositories.fdb_mixins.shares_mixin import SharesMixin
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ class FinancialDatabaseRepository(
     FiscalYearMixin,
     FilingsMixin,
     LookupsMixin,
+    PitMixin,
     FinancialRepository,
 ):
     """Repository that reads from Financial-DataBase PostgreSQL database.

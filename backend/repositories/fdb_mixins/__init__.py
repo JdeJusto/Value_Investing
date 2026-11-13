@@ -5,6 +5,7 @@ from backend.repositories.fdb_mixins.filings_mixin import FilingsMixin
 from backend.repositories.fdb_mixins.fiscal_year_mixin import FiscalYearMixin
 from backend.repositories.fdb_mixins.lookups_mixin import LookupsMixin
 from backend.repositories.fdb_mixins.normalization_mixin import NormalizationMixin
+from backend.repositories.fdb_mixins.pit_mixin import PitMixin
 from backend.repositories.fdb_mixins.shares_mixin import SharesMixin
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "FiscalYearMixin",
     "LookupsMixin",
     "NormalizationMixin",
+    "PitMixin",
     "SharesMixin",
 ]
