@@ -813,7 +813,12 @@ class MethodologyBacktestService:
                     if len(self._pit_history_cache) > 20_000:
                         self._pit_history_cache.clear()
                     self._pit_history_cache[cache_key] = history
-                rows = [row for row in history if row.fiscal_year <= year]
+                # list_years_pit returns most-recent-first; the evaluator
+                # expects ascending rows (latest == rows[-1]).
+                rows = sorted(
+                    (row for row in history if row.fiscal_year <= year),
+                    key=lambda row: row.fiscal_year,
+                )
                 if len(rows) < MIN_ROWS:
                     continue
                 price = self._pit_price(ticker, as_of)

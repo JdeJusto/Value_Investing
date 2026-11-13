@@ -275,6 +275,45 @@ def test_research_snapshot_replay_never_calls_the_network():
     )
 
 
+def test_research_sorts_pit_rows_so_latest_drives_market_cap():
+    """list_years_pit is newest-first; the evaluator must still see the latest row."""
+
+    class _DescendingRepo(_PitRepo):
+        def __init__(self):
+            super().__init__(years=(2020, 2021, 2022, 2023))
+            for row in self.rows:
+                row.shares_outstanding = float(row.fiscal_year)
+            self.rows = list(reversed(self.rows))
+
+    class _CapMethod(_BuyMethod):
+        def __init__(self):
+            self.seen_years = []
+            self.market_cap = None
+
+        def evaluate(self, ticker, rows, prices):
+            self.seen_years = [row.fiscal_year for row in rows]
+            self.market_cap = prices.get_market_cap(ticker)
+            return super().evaluate(ticker, rows, prices)
+
+    method = _CapMethod()
+
+    class _CapRegistry(_Registry):
+        def get(self, name):
+            return method
+
+    result = MethodologyBacktestService(
+        repository=_DescendingRepo(),
+        price_service=_PitPrices(_pit_prices()),
+        methodology_registry=_CapRegistry(),
+    ).run([], "fake", years=2, research_grade=True, today=date(2026, 11, 13))
+
+    assert result.years == (2023, 2024)
+    # The last evaluation is FY2024 for ticker B at the 2025-02-14 price
+    # (130); the latest row is FY2023, so market cap = 130 * 2023 shares.
+    assert method.seen_years[0] == 2023
+    assert method.market_cap == pytest.approx(130.0 * 2023)
+
+
 def test_research_rejects_repositories_without_pit_support():
     class _LegacyRepo:
         pass
