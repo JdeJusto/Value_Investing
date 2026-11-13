@@ -37,9 +37,10 @@ explicit exception for the tracked `.env.example`).
   fresh clone without `.env` keeps working.
 - Adjusted closes are used when the provider exposes them (`adjClose`), keeping
   the backtest series consistent with Yahoo.
-- FMP is called through its legacy v3 endpoints. Some free accounts only have
-  access to the newer *stable* API and get HTTP 403 on v3; that is logged and
-  the service falls back to Yahoo (or Tiingo if its key is also present).
+- FMP uses the **stable** endpoints (`historical-price-eod/dividend-adjusted`
+  and `quote`), which work on the free tier. Legacy paid accounts that only
+  expose v3 are tried as a fallback. Adjusted closes are used, so the series
+  matches Yahoo/Tiingo.
 
 ## Where it lives
 

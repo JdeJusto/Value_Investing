@@ -77,28 +77,24 @@ def test_fmp_parses_ascending_bars_and_uses_the_env_key(monkeypatch):
     def fake_get(url, params=None, timeout=None):
         captured.update({"url": url, "params": params})
         return _Response(
-            {
-                "historical": [
-                    {
-                        "date": "2024-01-03",
-                        "open": 101.0,
-                        "high": 103.0,
-                        "low": 100.0,
-                        "close": 102.0,
-                        "adjClose": 101.5,
-                        "volume": 1000,
-                    },
-                    {
-                        "date": "2024-01-02",
-                        "open": 100.0,
-                        "high": 102.0,
-                        "low": 99.0,
-                        "close": 101.0,
-                        "adjClose": 100.5,
-                        "volume": 900,
-                    },
-                ]
-            }
+            [
+                {
+                    "date": "2024-01-03",
+                    "adjOpen": 101.0,
+                    "adjHigh": 103.0,
+                    "adjLow": 100.0,
+                    "adjClose": 101.5,
+                    "volume": 1000,
+                },
+                {
+                    "date": "2024-01-02",
+                    "adjOpen": 100.0,
+                    "adjHigh": 102.0,
+                    "adjLow": 99.0,
+                    "adjClose": 100.5,
+                    "volume": 900,
+                },
+            ]
         )
 
     monkeypatch.setattr(
@@ -109,7 +105,8 @@ def test_fmp_parses_ascending_bars_and_uses_the_env_key(monkeypatch):
     assert [bar["date"] for bar in bars] == [date(2024, 1, 2), date(2024, 1, 3)]
     assert [bar["close"] for bar in bars] == [100.5, 101.5]
     assert captured["params"]["apikey"] == "dummy-key"
-    assert "AAPL" in captured["url"]
+    assert "dividend-adjusted" in captured["url"]
+    assert captured["params"]["symbol"] == "AAPL"
 
 
 def test_tiingo_sends_the_key_in_the_authorization_header(monkeypatch):
