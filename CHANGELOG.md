@@ -1,3 +1,48 @@
+## [0.34.2] - 2026-11-13
+
+### Fixed
+- **Batch operations no longer cascade through FMP/Tiingo.** `vi rank
+  --universe sp500` (and the screener/consensus prefetch) used one price
+  request per ticker; with free tiers (FMP 250/day, Tiingo 50/hour) that
+  could never finish and produced hundreds of 429/403 lines. Batch paths now
+  use Yahoo's bulk downloader (`yf.download`, one request per 100-ticker
+  chunk) and only fall back per ticker for names the batch answered without
+  a price.
+- **FMP quote uses the stable API.** `stable/quote` replaces the deprecated
+  `api/v3/quote` (403 on free accounts); `historical-price-eod/dividend-
+  adjusted` was already stable.
+- **Circuit breaker.** After 3 consecutive 429/403 responses a provider is
+  disabled for 60 s and skipped by the fallback chain. It logs one warning
+  per outage instead of one per ticker; 500/timeouts do not trip it.
+- **Graceful batch degradation.** If Yahoo's bulk request fails (429/401),
+  the rank does not launch 500 per-ticker `.info` calls for market caps and
+  betas: they degrade to `None` and the run still completes.
+
+### Added
+- `PriceService.get_batch_prices()`: cached bulk current prices for many
+  tickers (Yahoo batch, chunks of 100).
+- `CircuitBreaker` in `backend/services/price_providers` with injectable
+  clock, rate-limit-only counting and a single log line per outage.
+- Tests for bulk parsing, cache reuse, batch failure without cascade, partial
+  fallback, the circuit breaker and the FMP stable quote.
+
+### Documentation
+- `docs/price_providers.md`: rate-limit table, batch-vs-single rule and
+  circuit-breaker behavior.
+
+### Measured
+- `vi rank --by buffett_clark --top 20 --universe sp500` under a Yahoo 429:
+  **143 s and rc=0**, with **0 provider error lines** (only delisted-ticker
+  warnings). Before the fix it did not finish (killed at 219 s with hundreds
+  of fallback requests). The <30 s target needs a healthy Yahoo; that was not
+  reproducible while testing because the IP was rate-limited.
+
+### Notes
+- `PRICE_PROVIDER` semantics are unchanged: single-ticker commands still use
+  the configured order (Tiingo → FMP → Yahoo in the local `.env`).
+- Free tiers are not batch-safe; a paid FMP/Tiingo plan is required for bulk
+  use. Yahoo bulk remains the default for batches.
+
 ## [0.34.0] - 2026-11-13
 
 ### Added
