@@ -29,9 +29,15 @@ from __future__ import annotations
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field, replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from backend.backtesting.research import (
+    quarter_ends,
+    rebalance_cost,
+    simulate_holding_period,
+    target_weights,
+)
 from backend.methodologies.base import Verdict, is_positive
 from backend.methodologies.common.company_type import company_flags
 from backend.methodologies.tiers import compute_tiers_from_pairs, compute_year_return
@@ -121,6 +127,9 @@ class YearResult:
     benchmark_return: float | None
     verdicts: dict[str, int] = field(default_factory=dict)
     complete: bool = True
+    turnover: float | None = None
+    cost: float | None = None
+    rebalances: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -131,6 +140,12 @@ class YearResult:
             "benchmark_return": self.benchmark_return,
             "verdicts": dict(self.verdicts),
         }
+        if self.turnover is not None:
+            payload["turnover"] = self.turnover
+        if self.cost is not None:
+            payload["cost"] = self.cost
+        if self.rebalances:
+            payload["rebalances"] = self.rebalances
         if not self.complete:
             payload["label"] = "YTD"
         return payload
@@ -154,6 +169,19 @@ class MethodologyBacktest:
     spy_returns: dict[int, float] = field(default_factory=dict)
     rules: list[dict[str, str]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+
+    # --- research-grade configuration (v0.34.0) ----------------------------
+    research_grade: bool = False
+    pit_lag_days: int = 45
+    sizing: str = "tier"
+    max_weight: float = 0.20
+    tc_bps: float = 10.0
+    tc_fixed: float = 0.0
+    rebalance: str = "annual"
+    survivorship_bias: bool = True
+    pit_coverage: float | None = None
+    universe_by_year: dict[int, dict[str, int]] = field(default_factory=dict)
+    snapshot_out: dict[str, dict[str, float]] = field(default_factory=dict)
 
     # --- derived metrics ---------------------------------------------------
     @property
@@ -353,6 +381,21 @@ class MethodologyBacktest:
             "skipped_tickers": list(self.skipped),
             "notes": list(self.notes),
             "per_year": [item.to_dict() for item in self.per_year],
+            "config": {
+                "research_grade": self.research_grade,
+                "pit_lag_days": self.pit_lag_days if self.research_grade else None,
+                "sizing": self.sizing,
+                "max_weight": self.max_weight,
+                "tc_bps": self.tc_bps,
+                "tc_fixed": self.tc_fixed,
+                "rebalance": self.rebalance,
+                "survivorship_bias": self.survivorship_bias,
+                "pit_coverage": self.pit_coverage,
+                "universe_by_year": {
+                    str(year): counts
+                    for year, counts in sorted(self.universe_by_year.items())
+                },
+            },
         }
 
 
@@ -368,6 +411,8 @@ class MethodologyBacktestService:
         self._repository = repository
         self._prices = price_service
         self._registry = methodology_registry
+        self._run_snapshot: dict[str, dict[str, float]] = {}
+        self._snapshot_only = False
 
     # -- lazy collaborators -------------------------------------------------
     def _repo(self) -> Any:
@@ -410,6 +455,18 @@ class MethodologyBacktestService:
         universe_name: str = "sp500",
         universe_total: int | None = None,
         today: date | None = None,
+        research_grade: bool = False,
+        pit_lag_days: int = 45,
+        tc_bps: float = 10.0,
+        tc_fixed: float = 0.0,
+        initial_capital: float = 100_000.0,
+        rebalance: str = "annual",
+        rebalance_threshold: float = 0.05,
+        sizing: str = "tier",
+        max_weight: float = 0.20,
+        price_snapshot: dict[str, dict[int, float]] | None = None,
+        use_historical_universe: bool = True,
+        universe_limit: int | None = None,
     ) -> MethodologyBacktest:
         """Backtest one methodology over ``years`` fiscal years.
 
@@ -438,7 +495,41 @@ class MethodologyBacktestService:
         if weighting not in ("tier", "equal"):
             raise ValueError(f"unknown weighting: {weighting}")
 
+        research_grade = bool(research_grade)
+        rebalance = str(rebalance).lower()
+        if rebalance not in ("annual", "quarterly", "threshold"):
+            raise ValueError(f"unknown rebalance policy: {rebalance}")
+        sizing = str(sizing).lower()
+        if sizing not in ("tier", "equal"):
+            raise ValueError(f"unknown sizing: {sizing}")
+        if not 0 < float(max_weight) <= 1:
+            raise ValueError("max_weight must be in (0, 1]")
+
         reference = today or datetime.now(UTC).date()
+        if research_grade:
+            return self._run_research(
+                method=method,
+                name=name,
+                tickers=tickers,
+                years=years,
+                selected=selected,
+                weighting=weighting,
+                universe_name=universe_name,
+                universe_total=universe_total,
+                reference=reference,
+                pit_lag_days=pit_lag_days,
+                tc_bps=tc_bps,
+                tc_fixed=tc_fixed,
+                initial_capital=initial_capital,
+                rebalance=rebalance,
+                rebalance_threshold=rebalance_threshold,
+                sizing=sizing,
+                max_weight=max_weight,
+                price_snapshot=price_snapshot,
+                use_historical_universe=use_historical_universe,
+                universe_limit=universe_limit,
+            )
+
         result = MethodologyBacktest(
             methodology=name,
             years=(),
@@ -579,6 +670,346 @@ class MethodologyBacktestService:
             self.run(tickers, name, years=years)
             for name in self.available_methodologies()
         ]
+
+    # -- research-grade path (v0.34.0) --------------------------------------
+    def _run_research(
+        self,
+        *,
+        method: Any,
+        name: str,
+        tickers: list[str],
+        years: int,
+        selected: str,
+        weighting: str,
+        universe_name: str,
+        universe_total: int | None,
+        reference: date,
+        pit_lag_days: int,
+        tc_bps: float,
+        tc_fixed: float,
+        initial_capital: float,
+        rebalance: str,
+        rebalance_threshold: float,
+        sizing: str,
+        max_weight: float,
+        price_snapshot: dict[str, dict[str, float]] | None,
+        use_historical_universe: bool,
+        universe_limit: int | None,
+    ) -> MethodologyBacktest:
+        """Point-in-time backtest over the historical S&P 500 universe.
+
+        Every signal year ``Y`` is evaluated at ``Y-12-31 + pit_lag_days``:
+        fundamentals are read with ``filing_date <= as_of`` and prices at the
+        same date, so the return window starts only after the facts were
+        public. The universe is the membership at that same as-of date. A
+        delisted constituent without fundamentals or prices is skipped and
+        reported as survivorship bias, never silently replaced.
+        """
+        repo = self._repo()
+        self._snapshot_only = price_snapshot is not None
+        self._run_snapshot = {
+            ticker.upper(): {str(key): float(value) for key, value in series.items()}
+            for ticker, series in (price_snapshot or {}).items()
+        }
+
+        if not all(
+            hasattr(repo, attr) for attr in ("list_years_pit", "get_sp500_universe")
+        ):
+            raise ValueError(
+                "research-grade backtests require Financial-DataBase 0.4.0+ "
+                "(point-in-time history and sp500_constituents)"
+            )
+        custom = [ticker.upper() for ticker in tickers]
+        lag = max(0, int(pit_lag_days))
+        window = max(1, int(years))
+        # Last fiscal year whose forward window has already closed. The
+        # common boundary is Dec-31 + lag; a year that still has not closed is
+        # not measurable and is not reported as YTD (there is no price yet).
+        end_year = reference.year
+        while date(end_year + 1, 12, 31) + timedelta(days=lag) > reference:
+            end_year -= 1
+        year_list = list(range(end_year - window + 1, end_year + 1))
+
+        result = MethodologyBacktest(
+            methodology=name,
+            years=(),
+            selected_verdict=selected,
+            weighting=weighting,
+            universe_name=universe_name,
+            universe_total=universe_total,
+            sample_size=len(custom),
+            rules=[
+                {"id": rule.id, "name": rule.name}
+                for rule in getattr(method, "rules", list)()
+            ],
+            research_grade=True,
+            pit_lag_days=lag,
+            sizing=sizing,
+            max_weight=float(max_weight),
+            tc_bps=float(tc_bps),
+            tc_fixed=float(tc_fixed),
+            rebalance=rebalance,
+        )
+
+        can_use_history = (
+            use_historical_universe
+            and hasattr(repo, "historical_universe_available")
+            and hasattr(repo, "get_sp500_universe")
+        )
+        if can_use_history and repo.historical_universe_available():
+            result.notes.append(
+                "Historical S&P 500 membership loaded from FDB "
+                "sp500_constituents (fja05680)."
+            )
+        elif use_historical_universe and not custom:
+            result.notes.append(
+                "Historical universe unavailable; falling back to the current "
+                "universe (survivorship bias is larger)."
+            )
+            can_use_history = False
+
+        all_members: set[str] = set()
+        member_years = 0
+        evaluated_years = 0
+        previous_weights: dict[str, float] = {}
+        raw_by_year: dict[int, list[SignalRecord]] = {}
+        year_rows: list[YearResult] = []
+
+        for year in year_list:
+            as_of = date(year, 12, 31) + timedelta(days=lag)
+            next_as_of = date(year + 1, 12, 31) + timedelta(days=lag)
+            if next_as_of > reference:
+                # The forward window has not ended: no return is measurable,
+                # so the year is not a signal year in research mode.
+                continue
+
+            if custom:
+                members = custom
+            elif can_use_history:
+                members = repo.get_sp500_universe(as_of)
+            else:
+                members = custom
+            if universe_limit and 0 < int(universe_limit) < len(members):
+                step = len(members) / int(universe_limit)
+                members = [
+                    members[int(index * step)] for index in range(int(universe_limit))
+                ]
+            if not members:
+                continue
+            all_members.update(members)
+            member_years += len(members)
+
+            raw: list[SignalRecord] = []
+            for ticker in members:
+                history = repo.list_years_pit(ticker, as_of, max_years=window + 2)
+                rows = [row for row in history if row.fiscal_year <= year]
+                if len(rows) < MIN_ROWS:
+                    continue
+                price = self._pit_price(ticker, as_of)
+                next_price = (
+                    None
+                    if next_as_of > reference
+                    else self._pit_price(ticker, next_as_of)
+                )
+                if price is None or next_price is None:
+                    continue
+                forward = next_price / price - 1.0
+                verdict, failed, score, flags = self._evaluate(
+                    method,
+                    ticker,
+                    rows,
+                    price,
+                    {row.fiscal_year: row for row in rows},
+                )
+                raw.append(
+                    SignalRecord(
+                        ticker=ticker,
+                        year=year,
+                        verdict=verdict,
+                        base_verdict=verdict,
+                        score=score,
+                        forward=forward,
+                        failed_rules=failed,
+                        flags=flags,
+                    )
+                )
+
+            if not raw:
+                continue
+            evaluated_years += len(raw)
+            raw_by_year[year] = raw
+            result.universe_by_year[year] = {
+                "members": len(members),
+                "evaluated": len(raw),
+            }
+
+            pairs = {
+                record.ticker: (Verdict(record.base_verdict), record.score)
+                for record in raw
+            }
+            tier_map = compute_tiers_from_pairs(pairs)
+            final_records = []
+            for record in raw:
+                if record.ticker in tier_map:
+                    verdict, tier = tier_map[record.ticker]
+                    final_records.append(
+                        replace(record, verdict=verdict.value, tier=tier)
+                    )
+                else:
+                    final_records.append(replace(record, tier=None))
+            result.records.extend(final_records)
+
+            verdicts = {record.ticker: record.verdict for record in final_records}
+            if selected == "POSITIVE":
+                eligible = {
+                    ticker: verdict
+                    for ticker, verdict in verdicts.items()
+                    if is_positive(verdict)
+                }
+            else:
+                eligible = {
+                    ticker: verdict
+                    for ticker, verdict in verdicts.items()
+                    if verdict == selected
+                }
+            weights = target_weights(
+                eligible,
+                sizing="equal" if selected != "POSITIVE" else sizing,
+                max_weight=float(max_weight),
+            )
+            positive = {
+                record.ticker: record.forward
+                for record in final_records
+                if record.ticker in eligible
+            }
+            selected_count = len(positive)
+
+            start_cost = rebalance_cost(
+                previous_weights,
+                weights,
+                tc_bps=tc_bps,
+                tc_fixed=tc_fixed,
+                capital=initial_capital,
+            )
+            intra = (
+                simulate_holding_period(
+                    weights,
+                    self._pit_price,
+                    [as_of] + quarter_ends(as_of, next_as_of),
+                    rebalance=rebalance,
+                    threshold=rebalance_threshold,
+                    tc_bps=tc_bps,
+                    tc_fixed=tc_fixed,
+                    capital=initial_capital,
+                )
+                if weights and rebalance != "annual"
+                else None
+            )
+
+            if intra is not None:
+                gross = intra.gross_return
+                net = (1.0 + intra.net_return) * (1.0 - start_cost.total) - 1.0
+                cost = start_cost.total + intra.cost
+                turnover = start_cost.turnover + intra.turnover
+                rebalances = intra.rebalances
+            else:
+                gross = sum(
+                    weight * positive.get(ticker, 0.0)
+                    for ticker, weight in weights.items()
+                )
+                net = (1.0 + gross) * (1.0 - start_cost.total) - 1.0
+                cost = start_cost.total
+                turnover = start_cost.turnover
+                rebalances = 0
+            previous_weights = weights
+
+            year_rows.append(
+                YearResult(
+                    year=year,
+                    buys=selected_count,
+                    portfolio_return=net,
+                    benchmark_return=(
+                        statistics.fmean(record.forward for record in final_records)
+                        if final_records
+                        else None
+                    ),
+                    verdicts={
+                        label: int(
+                            sum(
+                                1 for record in final_records if record.verdict == label
+                            )
+                        )
+                        for label in VERDICT_ORDER
+                    },
+                    complete=date(year + 1, 12, 31) + timedelta(days=lag) <= reference,
+                    turnover=turnover,
+                    cost=cost,
+                    rebalances=rebalances,
+                )
+            )
+
+        result.years = tuple(sorted(raw_by_year))
+        result.signals = dict(Counter(record.verdict for record in result.records))
+        result.per_year = year_rows
+        result.spy_returns = self._spy_series(sorted(raw_by_year))
+        result.sample_size = len(all_members) if all_members else len(custom)
+        if universe_total is None:
+            result.universe_total = result.sample_size
+        result.pit_coverage = evaluated_years / member_years if member_years else None
+        result.survivorship_bias = True
+        result.snapshot_out = {
+            ticker: dict(sorted(series.items()))
+            for ticker, series in self._run_snapshot.items()
+        }
+        result.notes.extend(
+            [
+                (
+                    f"PIT: filing_date <= fiscal_year_end+{lag}d for each "
+                    "fiscal year; prices at the same as-of date."
+                ),
+                (
+                    f"Universe: historical S&P 500 membership per year "
+                    f"({member_years} member-years, {len(all_members)} distinct "
+                    f"tickers; {evaluated_years} evaluable, "
+                    f"{result.pit_coverage:.0%} coverage)."
+                    if result.pit_coverage is not None
+                    else "Universe: custom ticker list."
+                ),
+                (
+                    f"Costs: {tc_bps:g} bps turnover"
+                    + (f" + ${tc_fixed:g}/trade" if tc_fixed else "")
+                    + f"; sizing {sizing} (cap {max_weight:.0%}); "
+                    f"rebalance {rebalance}."
+                ),
+                (
+                    "Survivorship bias: NOT corrected. Yahoo no longer serves "
+                    "delisted symbols, so removed constituents without a live "
+                    "price are skipped."
+                ),
+            ]
+        )
+        if any(not item.complete for item in result.per_year):
+            result.notes.append(
+                "YTD year(s) are shown for context but excluded from every CAGR/Sharpe."
+            )
+        return result
+
+    def _pit_price(self, ticker: str, when: date) -> float | None:
+        """Price at ``when``, memoised; snapshot-only mode never hits Yahoo."""
+        key = when.isoformat()
+        series = self._run_snapshot.setdefault(ticker.upper(), {})
+        if key in series:
+            return float(series[key])
+        if self._snapshot_only:
+            return None
+        try:
+            price = self._price_service().get_price_on_date(ticker, when)
+        except Exception:  # noqa: BLE001 — one missing price is a gap
+            price = None
+        if price is not None:
+            series[key] = float(price)
+            return float(price)
+        return None
 
     # -- helpers ------------------------------------------------------------
     @staticmethod

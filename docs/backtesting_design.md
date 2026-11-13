@@ -1,9 +1,9 @@
 # Methodology backtesting — design (PoC)
 
-Status: PoC shipped in v0.22.0. **Not research-grade.** It exists to answer
-"do the BUY sets of these book methodologies beat an equal-weight basket over
-the last N years?" with a deterministic, reproducible number, not to publish
-performance claims.
+Status: PoC shipped in v0.22.0. **Research-grade mode added in v0.34.0**
+(`--research-grade`, requires Financial-DataBase 0.4.0+). The default path is
+still the PoC so historical numbers remain comparable; the research path is
+the one to cite. See "Research-grade mode (v0.34.0)" below.
 
 ## Question and scope
 
@@ -232,6 +232,91 @@ v0.33.0 result is the reproducible one with the current cache; the old 23.76%
 is not reproducible without the legacy price files. To make backtests
 bit-reproducible, freeze the price series alongside the run artifact
 (`docs/backlog.md`).
+
+## Research-grade mode (v0.34.0)
+
+The PoC labels a year with the fundamentals of that fiscal year but reads them
+from today's normalized tables, so a 10-K filed after the fiscal-year end (and
+any later restatement) leaks into the signal. It also uses the current S&P 500
+membership and ignores trading costs. `--research-grade` replaces all three.
+
+### Point-in-time fundamentals
+
+Financial-DataBase 0.4.0 stores `financial_facts.filing_date` (the date the
+fact became public; 100% populated). A fact is known at `as_of` iff
+`filing_date <= as_of`, and a period is usable iff `period_end <= as_of`.
+When several filings report the same (concept, period), the latest filing
+known at `as_of` wins; a restatement filed later stays invisible:
+
+```sql
+SELECT DISTINCT ON (concept) concept, value, filing_date
+FROM financial_facts
+WHERE company_id = $1 AND fiscal_year = $2
+  AND filing_date <= $as_of AND period_end <= $as_of
+ORDER BY concept, filing_date DESC;
+```
+
+The backtest evaluates signal year `Y` at `Y-12-31 + --pit-lag-days` (default
+45). Fundamentals and the entry price use that same date, and the position is
+sold at the same date one year later, so the whole holding period starts after
+the facts were public. The lag is configurable because a 10-K filed in
+mid/late February needs `--pit-lag-days 60` to be fully visible.
+
+### Historical universe
+
+`sp500_constituents` (loaded by FDB from fja05680/sp500) stores half-open
+intervals `[start_date, end_date)`. Each year uses the membership at the
+as-of entry date, not today's list. Coverage is reported per run
+(`config.universe_by_year`) and as `config.pit_coverage`.
+
+### Delisted constituents
+
+Yahoo no longer serves delisted symbols (verified: LEHMQ, ENRNQ, WCOM, TWTR,
+ATVI, FRC, SIVB all return no data), so a removed constituent without a live
+price is skipped. The output says `Survivorship: not corrected` and the JSON
+sets `config.survivorship_bias: true`. Do not describe a run as unbiased.
+
+### Costs, rebalancing and sizing
+
+- `--tc-bps` (default 10) charges basis points on one-way turnover; `--tc-fixed`
+  (default 0) charges a dollar commission per changed name against
+  `--initial-capital`.
+- `--rebalance annual|quarterly|threshold` (default annual). `quarterly` resets
+  to target weights at quarter ends; `threshold` resets when any name drifts
+  more than `--rebalance-threshold` (default 5%). Intra-year resets use the
+  price path and charge their own costs.
+- `--sizing tier|equal` (default tier) splits 60/30/10 by tier, re-scaled to
+  the tiers present; `--max-weight` (default 0.20) caps every name. If there
+  are fewer than five names the unfilled remainder stays in cash, never
+  leveraged. Kelly is deliberately not offered: with noisy estimates it can
+  concentrate the book.
+
+### Price snapshot
+
+`--save-snapshot [PATH]` writes every `(ticker, date, price)` used by the run to
+`data/backtest_snapshots/<methodology>_<timestamp>.json`. `--price-snapshot
+FILE` replays those exact prices and never calls Yahoo, so a run is
+bit-reproducible even if the live adjusted-close cache changes (the drift
+explained above).
+
+### Invocation
+
+```bash
+./vi backtest --methodology buffett_classic --research-grade \
+  --years 10 --limit 400 --tc-bps 10 --max-weight 0.20 \
+  --save-snapshot data/backtest_snapshots/buffett_2026-11.json
+```
+
+Use `--limit` to sample the historical universe evenly for a quicker run;
+omit it for the full membership. `--legacy` forces the pre-0.34.0 behaviour.
+
+### What research-grade still does not solve
+
+- Delisted prices (survivorship), as above.
+- Market impact, borrow costs and taxes: the model is fixed/bps only.
+- Index events inside the year (the membership is fixed at entry).
+- Non-USD ADRs: core USD values come from FDB's normalized layer, not a
+  point-in-time FX restatement of each fact.
 
 ## Why this is enough for now
 

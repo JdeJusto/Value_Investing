@@ -2,6 +2,8 @@
 
 import csv
 import json
+import statistics
+from datetime import UTC, datetime
 from pathlib import Path
 
 from backend.app.cli import build_financial_repository, build_universe
@@ -57,14 +59,24 @@ def register(subparsers):
     p.add_argument(
         "--limit",
         type=int,
-        default=25,
-        help="Max tickers for --methodology (default 25, PoC)",
+        default=None,
+        help=(
+            "Max tickers for --methodology (PoC default 25; research mode "
+            "uses the full historical universe unless set)"
+        ),
     )
     p.add_argument("--years", type=int, default=10, help="Use the last N fiscal years")
     p.add_argument(
         "--top", type=int, default=5, help="Number of holdings per portfolio"
     )
-    p.add_argument("--rebalance", type=int, default=1, help="Rebalance every N years")
+    p.add_argument(
+        "--rebalance",
+        default="1",
+        help=(
+            "Strategy mode: rebalance every N years (default 1). Research "
+            "mode: annual|quarterly|threshold (default annual)."
+        ),
+    )
     p.add_argument(
         "--prices",
         default=None,
@@ -74,6 +86,77 @@ def register(subparsers):
         "--json",
         action="store_true",
         help="Print the result payload as JSON (methodology or strategy mode)",
+    )
+    p.add_argument(
+        "--research-grade",
+        action="store_true",
+        help=(
+            "Point-in-time fundamentals (FDB filing_date), historical S&P 500 "
+            "membership, transaction costs, sizing cap and price snapshot. "
+            "Requires Financial-DataBase 0.4.0+."
+        ),
+    )
+    p.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Force the pre-0.34.0 PoC behaviour even if --research-grade is set.",
+    )
+    p.add_argument(
+        "--pit-lag-days",
+        type=int,
+        default=45,
+        help="Reporting lag after the fiscal year end (default 45 days).",
+    )
+    p.add_argument(
+        "--tc-bps",
+        type=float,
+        default=10.0,
+        help="Transaction cost in basis points of one-way turnover (default 10).",
+    )
+    p.add_argument(
+        "--tc-fixed",
+        type=float,
+        default=0.0,
+        help="Fixed commission per changed name, in dollars (default 0).",
+    )
+    p.add_argument(
+        "--initial-capital",
+        type=float,
+        default=100_000.0,
+        help="Capital used to express fixed commissions as a return (default 100000).",
+    )
+    p.add_argument(
+        "--rebalance-threshold",
+        type=float,
+        default=0.05,
+        help="Drift threshold for --rebalance threshold (default 0.05).",
+    )
+    p.add_argument(
+        "--sizing",
+        choices=("tier", "equal"),
+        default="tier",
+        help="Research mode position sizing (default tier, capped by --max-weight).",
+    )
+    p.add_argument(
+        "--max-weight",
+        type=float,
+        default=0.20,
+        help="Per-name weight cap in research mode (default 0.20).",
+    )
+    p.add_argument(
+        "--price-snapshot",
+        default=None,
+        help="Replay a saved research-grade price snapshot (JSON).",
+    )
+    p.add_argument(
+        "--save-snapshot",
+        nargs="?",
+        const="",
+        default=None,
+        help=(
+            "Save the prices used by a research-grade run. Optional path; "
+            "default data/backtest_snapshots/<methodology>_<timestamp>.json."
+        ),
     )
     p.add_argument(
         "--equal-weight",
@@ -215,6 +298,36 @@ def _render_year_verdicts(result) -> None:
     )
 
 
+def _load_price_snapshot(path: str) -> dict[str, dict[str, float]]:
+    """Load a research-grade snapshot: ``{ticker: {iso_date: price}}``."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    prices = payload.get("prices", payload) if isinstance(payload, dict) else {}
+    return {
+        str(ticker).upper(): {
+            str(when): float(price) for when, price in (series or {}).items()
+        }
+        for ticker, series in prices.items()
+    }
+
+
+def _save_price_snapshot(result, path: str) -> Path:
+    """Persist the prices used by a research-grade run for exact replay."""
+    if not path:
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        path = f"data/backtest_snapshots/{result.methodology}_{stamp}.json"
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "created_at": datetime.now(UTC).isoformat(),
+        "methodology": result.methodology,
+        "config": result.to_dict()["config"],
+        "prices": result.snapshot_out,
+    }
+    target.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return target
+
+
 def _render_performance(result) -> None:
     complete = result.complete_years
     if complete:
@@ -247,7 +360,28 @@ def _render_performance(result) -> None:
         ["Opportunity set Sharpe", _ratio_or_dash(result.opportunity_set_sharpe)],
         ["SPY Sharpe", _ratio_or_dash(result.spy_sharpe)],
     ]
-    print_section("Performance (equal-weighted, cash if no signals)")
+    if result.research_grade:
+        complete = [item for item in result.per_year if item.complete]
+        turnovers = [item.turnover for item in complete if item.turnover is not None]
+        costs = [item.cost for item in complete if item.cost is not None]
+        rows.append(
+            [
+                "Avg turnover",
+                f"{statistics.fmean(turnovers):.1%}" if turnovers else dim("—"),
+            ]
+        )
+        rows.append(
+            [
+                "Cost drag (sum)",
+                f"{sum(costs):.2%}" if costs else dim("—"),
+            ]
+        )
+    title = (
+        "Performance (research-grade, costs applied)"
+        if result.research_grade
+        else "Performance (equal-weighted, cash if no signals)"
+    )
+    print_section(title)
     print_table([("Metric", 0), ("Value", 0)], rows)
     print(
         dim(
@@ -322,6 +456,25 @@ def _render_methodology(result) -> None:
         )
         print()
 
+    if result.research_grade:
+        fixed = f" + ${result.tc_fixed:g}/trade" if result.tc_fixed else ""
+        print(
+            dim(
+                f"  PIT: filing_date <= FYE+{result.pit_lag_days}d · "
+                f"Sizing: {result.sizing} (cap {result.max_weight:.0%}) · "
+                f"Rebalance: {result.rebalance} · TC: {result.tc_bps:g} bps{fixed}"
+            )
+        )
+        coverage = (
+            f"{result.pit_coverage:.0%}" if result.pit_coverage is not None else "n/a"
+        )
+        print(
+            dim(
+                f"  Universe: historical S&P 500 · PIT coverage {coverage} · "
+                "Survivorship: not corrected"
+            )
+        )
+
     _render_year_verdicts(result)
     _render_performance(result)
     reit_signals = sum(
@@ -354,37 +507,66 @@ def _run_methodology_backtest(args) -> None:
         MethodologyBacktestService,
     )
 
-    custom = bool(args.tickers)
+    research = bool(getattr(args, "research_grade", False)) and not bool(
+        getattr(args, "legacy", False)
+    )
+    custom = bool(getattr(args, "tickers", None))
     if custom:
-        tickers = [t.upper() for t in args.tickers]
+        tickers = [t.upper() for t in getattr(args, "tickers", None) or []]
         universe_name = "custom"
         universe_total = len(tickers)
+    elif research:
+        # The service reads the historical membership per year.
+        tickers = []
+        universe_name = args.universe
+        universe_total = None
     else:
-        tickers = _load_universe_subset(args.universe, args.limit)
+        limit = getattr(args, "limit", None)
+        limit = limit if limit is not None else 25
+        tickers = _load_universe_subset(args.universe, limit)
         universe_name = args.universe
         universe_total = len(_universe_members(args.universe))
-    if not tickers:
+    if not tickers and not research:
         print(f"  {yellow('No tickers to backtest.')}")
         return
 
+    rebalance = str(getattr(args, "rebalance", "annual"))
+    if research and (rebalance.isdigit() or rebalance == ""):
+        rebalance = "annual"
+    snapshot_path = getattr(args, "price_snapshot", None)
+    snapshot = _load_price_snapshot(snapshot_path) if snapshot_path else None
     service = MethodologyBacktestService()
     results = []
     for raw in args.methodology:
         name, verdict_filter = parse_methodology_arg(raw)
         try:
-            results.append(
-                service.run(
-                    tickers,
-                    name,
-                    years=args.years,
-                    verdict_filter=verdict_filter,
-                    weighting="equal"
-                    if getattr(args, "equal_weight", False)
-                    else "tier",
-                    universe_name=universe_name,
-                    universe_total=universe_total,
-                )
+            result = service.run(
+                tickers,
+                name,
+                years=getattr(args, "years", 10),
+                verdict_filter=verdict_filter,
+                weighting="equal" if getattr(args, "equal_weight", False) else "tier",
+                universe_name=universe_name,
+                universe_total=universe_total,
+                research_grade=research,
+                pit_lag_days=getattr(args, "pit_lag_days", 45),
+                tc_bps=getattr(args, "tc_bps", 10.0),
+                tc_fixed=getattr(args, "tc_fixed", 0.0),
+                initial_capital=getattr(args, "initial_capital", 100_000.0),
+                rebalance=rebalance if research else "annual",
+                rebalance_threshold=getattr(args, "rebalance_threshold", 0.05),
+                sizing=getattr(args, "sizing", "tier"),
+                max_weight=getattr(args, "max_weight", 0.20),
+                price_snapshot=snapshot,
+                use_historical_universe=not custom,
+                universe_limit=(getattr(args, "limit", None) if not custom else None),
             )
+            results.append(result)
+            save_snapshot = getattr(args, "save_snapshot", None)
+            if research and save_snapshot is not None:
+                saved = _save_price_snapshot(result, save_snapshot)
+                if not getattr(args, "json", False):
+                    print(dim(f"  Price snapshot saved: {saved}"))
         except ValueError as exc:
             print(f"  {red('SKIPPED')} {raw}: {exc}")
     if not results:
@@ -448,6 +630,14 @@ def _run(args):
     if args.top < 1:
         parser_error = "top must be >= 1"
         raise SystemExit(f"error: {parser_error}")
+    try:
+        rebalance_every = int(args.rebalance)
+    except (TypeError, ValueError):
+        raise SystemExit(
+            "error: --rebalance must be an integer in strategy mode"
+        ) from None
+    if rebalance_every < 1:
+        raise SystemExit("error: --rebalance must be >= 1 in strategy mode")
     universe = build_universe(args.tickers)
     prices = _load_prices(args.prices) if args.prices else {}
     snapshots_by_year = _build_snapshots(universe, args.years)
@@ -480,7 +670,7 @@ def _run(args):
         snapshots,
         get_strategy(args.strategy),
         top_n=args.top,
-        rebalance_every=args.rebalance,
+        rebalance_every=rebalance_every,
     )
 
     if getattr(args, "json", False):
