@@ -25,6 +25,70 @@ def _make_result(methodology="graham", verdict=Verdict.BUY, score=85.0, reasons=
     )
 
 
+@patch("backend.services.price_service.get_price_service")
+@patch("backend.app.cli.build_financial_repository")
+def test_universe_data_uses_parallel_snapshot_for_caps_and_beta(
+    mock_build_repo, mock_price_service
+):
+    """One snapshot pass replaces 500 sequential .info calls."""
+    repository = mock_build_repo.return_value
+    repository.get_best_available.return_value = [MagicMock()]
+    price_service = mock_price_service.return_value
+    price_service.get_batch_prices.return_value = {"AAPL": 150.0}
+    price_service.get_market_snapshots.return_value = {
+        "AAPL": {"marketCap": 2e12, "beta": 1.2}
+    }
+
+    _fundamentals, prices, market_caps, betas = _get_universe_data(["AAPL"])
+
+    assert prices["AAPL"] == 150.0
+    assert market_caps["AAPL"] == 2e12
+    assert betas["AAPL"] == 1.2
+    price_service.get_market_cap.assert_not_called()
+    price_service.get_beta.assert_not_called()
+
+
+@patch("backend.services.price_service.get_price_service")
+@patch("backend.app.cli.build_financial_repository")
+def test_universe_data_degrades_caps_when_snapshot_aborts(
+    mock_build_repo, mock_price_service
+):
+    """A failed .info pass must not trigger 500 per-ticker retries."""
+    repository = mock_build_repo.return_value
+    repository.get_best_available.return_value = [MagicMock()]
+    price_service = mock_price_service.return_value
+    price_service.get_batch_prices.return_value = {"AAPL": 150.0}
+    price_service.get_market_snapshots.return_value = {}
+
+    _fundamentals, prices, market_caps, betas = _get_universe_data(["AAPL"])
+
+    assert prices["AAPL"] == 150.0
+    assert market_caps["AAPL"] is None
+    assert betas["AAPL"] is None
+    price_service.get_market_cap.assert_not_called()
+    price_service.get_beta.assert_not_called()
+
+
+@patch("backend.services.price_service.get_price_service")
+@patch("backend.app.cli.build_financial_repository")
+def test_universe_data_skips_snapshots_when_batch_is_mostly_empty(
+    mock_build_repo, mock_price_service
+):
+    """A 429 batch must not launch 500 .info requests."""
+    repository = mock_build_repo.return_value
+    repository.get_best_available.return_value = [MagicMock()]
+    price_service = mock_price_service.return_value
+    price_service.get_batch_prices.return_value = {"AAPL": None, "MSFT": None}
+
+    _fundamentals, prices, market_caps, betas = _get_universe_data(["AAPL", "MSFT"])
+
+    assert prices == {"AAPL": None, "MSFT": None}
+    assert market_caps == {"AAPL": None, "MSFT": None}
+    assert betas == {"AAPL": None, "MSFT": None}
+    price_service.get_market_snapshots.assert_not_called()
+    price_service.get_market_cap.assert_not_called()
+
+
 @patch("backend.services.methodology_ranking_service.run_methodologies")
 @patch("backend.services.methodology_ranking_service._get_universe_data")
 @patch("backend.services.methodology_ranking_service.registry")
@@ -518,6 +582,10 @@ def test_universe_data_reads_best_available_with_core_merge(
     repository = mock_build_repo.return_value
     repository.get_best_available.return_value = [row]
     price_service = mock_price_service.return_value
+    price_service.get_batch_prices.return_value = {"AAPL": 150.0}
+    price_service.get_market_snapshots.return_value = {
+        "AAPL": {"marketCap": 2e12, "beta": 1.2}
+    }
     price_service.get_current_price.return_value = 150.0
     price_service.get_market_cap.return_value = 2e12
     price_service.get_beta.return_value = 1.2
@@ -527,6 +595,8 @@ def test_universe_data_reads_best_available_with_core_merge(
     # 11 rows: the ranking path needs the "10 years ago" row (C2).
     repository.get_best_available.assert_called_once_with("AAPL", max_years=11)
     assert fundamentals["AAPL"] == [row]
+    price_service.get_batch_prices.assert_called_once_with(["AAPL"])
+    price_service.get_current_price.assert_not_called()
     assert prices["AAPL"] == 150.0
     assert market_caps["AAPL"] == 2e12
     assert betas["AAPL"] == 1.2

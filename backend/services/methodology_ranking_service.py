@@ -56,6 +56,13 @@ class CombinedRankedTicker:
     rationale: str  # human-readable explanation
 
 
+def _as_float(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _is_na(verdict: Verdict) -> bool:
     return verdict in (Verdict.NOT_APPLICABLE, Verdict.INSUFFICIENT_DATA)
 
@@ -91,6 +98,38 @@ def _get_universe_data(
 
     repository = build_financial_repository()
     price_service = get_price_service()
+    # One Yahoo bulk download for the whole universe. Never route a 500-ticker
+    # batch through the FMP/Tiingo free tiers (250/day and 50/hour).
+    fetch_batch = getattr(price_service, "get_batch_prices", None)
+    batch_prices = fetch_batch(tickers) if callable(fetch_batch) else None
+
+    # Market cap and beta only exist in Yahoo's .info summary. Prefetch it in a
+    # bounded parallel pass (the screener already does this) instead of 500
+    # sequential requests; the per-ticker getters below then hit the cache.
+    snapshots: dict = {}
+    snapshot_attempted = False
+    fetch_snapshots = getattr(price_service, "get_market_snapshots", None)
+    priced = (
+        sum(1 for price in batch_prices.values() if price is not None)
+        if isinstance(batch_prices, dict)
+        else 0
+    )
+    requested = len(batch_prices) if isinstance(batch_prices, dict) else 0
+    # Yahoo's bulk request partially failing (e.g. 2 of 5 chunks hit 429) still
+    # means .info will fail too: skip the 500-request snapshot pass.
+    batch_unavailable = bool(requested) and priced < max(1, requested // 2)
+    if callable(fetch_snapshots) and not batch_unavailable:
+        snapshot_attempted = True
+        try:
+            candidate = fetch_snapshots(tickers, batch_size=25, delay=0.02, workers=6)
+            if isinstance(candidate, dict):
+                snapshots = candidate
+        except Exception:  # noqa: BLE001 — degrade caps/betas to None
+            snapshots = {}
+    elif batch_unavailable:
+        # Yahoo's bulk request already failed (429/401): do not launch 500
+        # per-ticker .info calls that will fail the same way.
+        snapshot_attempted = True
 
     fundamentals: dict[str, list[Any]] = {}
     prices: dict[str, float | None] = {}
@@ -106,25 +145,38 @@ def _get_universe_data(
             logger.debug("Failed to load fundamentals for %s", ticker, exc_info=True)
             fundamentals[ticker] = []
 
-        try:
-            price = price_service.get_current_price(ticker)
-            prices[ticker] = price
-        except Exception:
-            logger.debug("Failed to get price for %s", ticker, exc_info=True)
-            prices[ticker] = None
+        if isinstance(batch_prices, dict) and ticker in batch_prices:
+            prices[ticker] = batch_prices[ticker]
+        else:
+            try:
+                price = price_service.get_current_price(ticker)
+                prices[ticker] = price
+            except Exception:
+                logger.debug("Failed to get price for %s", ticker, exc_info=True)
+                prices[ticker] = None
 
-        try:
-            market_cap = price_service.get_market_cap(ticker)
-            market_caps[ticker] = market_cap
-        except Exception:
-            logger.debug("Failed to get market cap for %s", ticker, exc_info=True)
+        snapshot = snapshots.get(ticker)
+        if isinstance(snapshot, dict):
+            market_caps[ticker] = _as_float(snapshot.get("marketCap"))
+            betas[ticker] = _as_float(snapshot.get("beta"))
+        elif snapshot_attempted:
+            # The bulk .info pass failed or aborted (e.g. 401/429). Do not
+            # retry 500 times per ticker: degrade caps/betas to None.
             market_caps[ticker] = None
-
-        try:
-            betas[ticker] = price_service.get_beta(ticker)
-        except Exception:
-            logger.debug("Failed to get beta for %s", ticker, exc_info=True)
             betas[ticker] = None
+        else:
+            try:
+                market_cap = price_service.get_market_cap(ticker)
+                market_caps[ticker] = market_cap
+            except Exception:
+                logger.debug("Failed to get market cap for %s", ticker, exc_info=True)
+                market_caps[ticker] = None
+
+            try:
+                betas[ticker] = price_service.get_beta(ticker)
+            except Exception:
+                logger.debug("Failed to get beta for %s", ticker, exc_info=True)
+                betas[ticker] = None
 
     return fundamentals, prices, market_caps, betas
 

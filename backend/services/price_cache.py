@@ -66,7 +66,11 @@ class PriceCache:
 
         service = self._price_service()
         try:
-            prices = service.get_current_prices(missing)
+            fetch_batch = getattr(service, "get_batch_prices", None)
+            if callable(fetch_batch):
+                prices = fetch_batch(missing)
+            else:
+                prices = service.get_current_prices(missing)
         except Exception:  # noqa: BLE001 — fall back to per-ticker below
             prices = None
         if not isinstance(prices, dict) or not prices:

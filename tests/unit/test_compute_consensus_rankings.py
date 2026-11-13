@@ -57,6 +57,24 @@ def _view(category: str = "STALWART") -> SimpleNamespace:
     return SimpleNamespace(details=details)
 
 
+def test_prefetch_prefers_the_bulk_price_fetch_over_per_ticker():
+    class BatchPriceService(FakePriceService):
+        def __init__(self):
+            super().__init__(snapshots={}, health=_healthy())
+            self.batch_calls = 0
+
+        def get_batch_prices(self, tickers):
+            self.batch_calls += 1
+            return {"AAPL": 111.0, "MSFT": None}
+
+    service = BatchPriceService()
+    prices, _caps, _available = consensus.prefetch_prices(service, ["AAPL", "MSFT"])
+
+    assert prices == {"AAPL": 111.0}
+    assert service.batch_calls == 1
+    assert service.current_calls == 0
+
+
 def test_prefetch_uses_one_batch_snapshot_for_the_universe():
     service = FakePriceService(
         snapshots={

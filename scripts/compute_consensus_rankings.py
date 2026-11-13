@@ -153,17 +153,25 @@ def prefetch_prices(
                 pass
 
     if not prices:
+        fetch_batch = getattr(service, "get_batch_prices", None)
         fetch_current = getattr(service, "get_current_prices", None)
-        if callable(fetch_current):
-            try:
-                raw = fetch_current(tickers, batch_size=25, delay=0.5) or {}
-            except Exception:  # noqa: BLE001 — no prices is a valid outcome
-                raw = {}
-            prices = {
-                str(ticker).upper(): float(price)
-                for ticker, price in raw.items()
-                if price is not None
-            }
+        raw: dict = {}
+        try:
+            if callable(fetch_batch):
+                candidate = fetch_batch(tickers)
+                if isinstance(candidate, dict):
+                    raw = candidate
+            if not raw and callable(fetch_current):
+                candidate = fetch_current(tickers, batch_size=25, delay=0.5)
+                if isinstance(candidate, dict):
+                    raw = candidate
+        except Exception:  # noqa: BLE001 — no prices is a valid outcome
+            raw = {}
+        prices = {
+            str(ticker).upper(): float(price)
+            for ticker, price in raw.items()
+            if price is not None
+        }
 
     logger.info(
         "price prefetch: %d/%d prices, %d market caps",

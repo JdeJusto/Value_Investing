@@ -376,6 +376,95 @@ class PriceService:
             self._set_cached(key, price)
         return price
 
+    def get_batch_prices(
+        self,
+        tickers: list[str],
+        chunk_size: int = 100,
+    ) -> dict[str, float | None]:
+        """Current prices for many tickers in one Yahoo bulk download.
+
+        Batch operations (rank, screener prefetch, consensus) must never send
+        one request per ticker to FMP/Tiingo: their free tiers are 250/day and
+        50/hour. This method uses ``yf.download`` (one request per chunk),
+        reuses the in-memory cache, and only falls back to the per-ticker
+        provider chain for names the batch *did* answer without a price.
+        A global batch failure returns ``None`` for that chunk instead of
+        triggering hundreds of fallback calls.
+        """
+        wanted = [str(ticker).upper() for ticker in tickers if ticker]
+        result: dict[str, float | None] = {}
+        missing: list[str] = []
+        for ticker in wanted:
+            cached = self._get_cached(f"current:{ticker}")
+            if cached is not None:
+                result[ticker] = float(cached)
+            else:
+                missing.append(ticker)
+
+        fallback: list[str] = []
+        size = max(1, int(chunk_size))
+        for start in range(0, len(missing), size):
+            chunk = missing[start : start + size]
+            try:
+                frame = _yf_call(
+                    lambda chunk=chunk: yf.download(
+                        chunk,
+                        period="5d",
+                        interval="1d",
+                        progress=False,
+                        threads=True,
+                        auto_adjust=True,
+                    ),
+                    description=f"batch download ({len(chunk)} tickers)",
+                )
+            except Exception as exc:  # noqa: BLE001 — fail the chunk, not 500 calls
+                logger.warning(
+                    "Yahoo batch download failed for %d tickers: %s; "
+                    "leaving prices empty instead of cascading per-ticker",
+                    len(chunk),
+                    exc,
+                )
+                for ticker in chunk:
+                    result[ticker] = None
+                continue
+
+            parsed = self._parse_batch_closes(frame, chunk)
+            for ticker, price in parsed.items():
+                result[ticker] = price
+                self._set_cached(f"current:{ticker}", price)
+            fallback.extend(ticker for ticker in chunk if ticker not in parsed)
+
+        for ticker in fallback:
+            result[ticker] = self.get_current_price(ticker)
+        return result
+
+    @staticmethod
+    def _parse_batch_closes(frame, tickers: list[str]) -> dict[str, float]:
+        """Extract the last close per ticker from a ``yf.download`` frame."""
+        if frame is None or getattr(frame, "empty", True):
+            return {}
+        close = None
+        columns = getattr(frame, "columns", None)
+        if columns is not None and "Close" in columns:
+            close = frame["Close"]
+        else:
+            try:
+                close = frame.xs("Close", axis=1, level=0)
+            except Exception:  # noqa: BLE001 — unexpected batch shape
+                return {}
+        result: dict[str, float] = {}
+        if hasattr(close, "columns"):
+            for ticker in tickers:
+                if ticker in close.columns:
+                    series = close[ticker].dropna()
+                    if not series.empty:
+                        result[ticker] = float(series.iloc[-1])
+        else:
+            series = close.dropna()
+            if len(tickers) == 1 and not series.empty:
+                result[tickers[0]] = float(series.iloc[-1])
+        return result
+
     def get_current_prices(
         self,
         tickers: list[str],
@@ -1124,15 +1213,18 @@ class PriceService:
         transient 429 no longer drops the quote. The failure reason is stored
         for ``refresh`` to report after the retries are exhausted.
         """
-        from backend.services.price_providers import providers_for_fetch
+        from backend.services.price_providers import get_breaker, providers_for_fetch
 
+        breaker = get_breaker()
         for provider in providers_for_fetch():
             try:
                 bar = provider.fetch_current(ticker)
                 if bar is not None and bar.get("close") is not None:
+                    breaker.record_success(provider.name)
                     return float(bar["close"])
             except Exception as exc:  # noqa: BLE001 — try the next provider
-                logger.warning(
+                breaker.record_failure(provider.name, exc)
+                logger.debug(
                     "Price provider %s failed for %s: %s; trying the next one",
                     provider.name,
                     ticker,
@@ -1175,8 +1267,9 @@ class PriceService:
         # Optional providers (FMP / Tiingo) when configured. They are tried in
         # order; any failure is logged and the next one runs. Yahoo remains the
         # final fallback below and the default when no key is configured.
-        from backend.services.price_providers import providers_for_fetch
+        from backend.services.price_providers import get_breaker, providers_for_fetch
 
+        breaker = get_breaker()
         for provider in providers_for_fetch():
             try:
                 bars = provider.fetch_historical(
@@ -1192,10 +1285,12 @@ class PriceService:
                         and bar.get("close") is not None
                     ]
                     if prices:
+                        breaker.record_success(provider.name)
                         self._last_error.pop(str(ticker).upper(), None)
                         return prices
             except Exception as exc:  # noqa: BLE001 — try the next provider
-                logger.warning(
+                breaker.record_failure(provider.name, exc)
+                logger.debug(
                     "Price provider %s failed for %s: %s; trying the next one",
                     provider.name,
                     ticker,

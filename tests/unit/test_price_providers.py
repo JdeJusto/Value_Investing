@@ -109,6 +109,42 @@ def test_fmp_parses_ascending_bars_and_uses_the_env_key(monkeypatch):
     assert captured["params"]["symbol"] == "AAPL"
 
 
+def test_fmp_current_uses_the_stable_quote_endpoint(monkeypatch):
+    monkeypatch.setenv("FMP_API_KEY", "dummy-key")
+    captured: dict = {}
+
+    def fake_get(url, params=None, timeout=None):
+        captured.update({"url": url, "params": params})
+        return _Response(
+            [{"symbol": "AAPL", "price": 185.0, "open": 184.0, "dayHigh": 186.0}]
+        )
+
+    monkeypatch.setattr(
+        "backend.services.price_providers.fmp_provider.httpx.get", fake_get
+    )
+    bar = FMPProvider().fetch_current("AAPL")
+
+    assert bar["close"] == 185.0
+    assert "stable/quote" in captured["url"]
+    assert captured["params"]["symbol"] == "AAPL"
+
+
+def test_open_breaker_removes_the_provider_from_the_chain(monkeypatch):
+    from backend.services.price_providers import get_breaker
+
+    monkeypatch.setenv("PRICE_PROVIDER", "tiingo")
+    monkeypatch.setenv("TIINGO_API_KEY", "dummy-tiingo")
+    monkeypatch.setenv("FMP_API_KEY", "dummy-fmp")
+    breaker = get_breaker()
+    breaker.reset()
+    try:
+        for _ in range(3):
+            breaker.record_failure("tiingo", RuntimeError("429 Too Many Requests"))
+        assert [provider.name for provider in providers_for_fetch()] == ["fmp"]
+    finally:
+        breaker.reset()
+
+
 def test_tiingo_sends_the_key_in_the_authorization_header(monkeypatch):
     monkeypatch.setenv("TIINGO_API_KEY", "dummy-tiingo")
     captured: dict = {}
