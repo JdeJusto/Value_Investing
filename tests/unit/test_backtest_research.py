@@ -242,6 +242,7 @@ def test_research_run_uses_pit_universe_cost_and_cap():
         (1.0 + gross) * (1.0 - 0.4 * 10.0 / 10_000.0) - 1.0
     )
     assert result.per_year[1].portfolio_return == pytest.approx(0.2 * 0.20 + 0.2 * 0.10)
+    assert result.survivorship_bias is True
     assert result.snapshot_out["A"][date(2024, 2, 14).isoformat()] == 120.0
 
 
@@ -273,6 +274,47 @@ def test_research_snapshot_replay_never_calls_the_network():
     assert replay.per_year[0].portfolio_return == pytest.approx(
         first.per_year[0].portfolio_return
     )
+
+
+def test_higher_transaction_costs_lower_the_cagr():
+    def run_with(tc_bps):
+        return (
+            MethodologyBacktestService(
+                repository=_PitRepo(),
+                price_service=_PitPrices(_pit_prices()),
+                methodology_registry=_Registry(),
+            )
+            .run(
+                [],
+                "fake",
+                years=2,
+                research_grade=True,
+                today=date(2026, 11, 13),
+                tc_bps=tc_bps,
+            )
+            .annualized_return
+        )
+
+    assert run_with(0.0) > run_with(100.0)
+
+
+def test_quarterly_rebalancing_has_positive_turnover():
+    prices = {}
+    for ticker in ("A", "B"):
+        prices[(ticker, date(2024, 1, 1))] = 100.0
+    prices[("A", date(2024, 3, 31))] = 130.0
+    prices[("B", date(2024, 3, 31))] = 100.0
+    prices[("A", date(2024, 6, 30))] = 120.0
+    prices[("B", date(2024, 6, 30))] = 110.0
+    result = simulate_holding_period(
+        {"A": 0.5, "B": 0.5},
+        lambda ticker, when: prices.get((ticker, when)),
+        [date(2024, 1, 1), date(2024, 3, 31), date(2024, 6, 30)],
+        rebalance="quarterly",
+        tc_bps=10.0,
+    )
+    assert result.rebalances == 1
+    assert result.turnover > 0
 
 
 def test_research_sorts_pit_rows_so_latest_drives_market_cap():

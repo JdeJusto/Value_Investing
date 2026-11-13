@@ -765,11 +765,11 @@ class MethodologyBacktestService:
                 "sp500_constituents (fja05680)."
             )
         elif use_historical_universe and not custom:
-            result.notes.append(
-                "Historical universe unavailable; falling back to the current "
-                "universe (survivorship bias is larger)."
+            raise ValueError(
+                "research-grade backtest requires Financial-DataBase 0.4.0+ "
+                "with sp500_constituents loaded (scripts/load_sp500_historical.py); "
+                "use --legacy for the PoC universe"
             )
-            can_use_history = False
 
         all_members: set[str] = set()
         member_years = 0
@@ -807,9 +807,7 @@ class MethodologyBacktestService:
                 cache_key = (ticker.upper(), as_of.isoformat())
                 history = self._pit_history_cache.get(cache_key)
                 if history is None:
-                    history = repo.list_years_pit(
-                        ticker, as_of, max_years=window + 2
-                    )
+                    history = repo.list_years_pit(ticker, as_of, max_years=window + 2)
                     if len(self._pit_history_cache) > 20_000:
                         self._pit_history_cache.clear()
                     self._pit_history_cache[cache_key] = history
@@ -971,9 +969,7 @@ class MethodologyBacktestService:
         # benchmark covers the exact same holding windows.
         spy_returns: dict[int, float] = {}
         for spy_year in [*sorted(raw_by_year), max(raw_by_year) + 1]:
-            price = self._pit_price(
-                "SPY", date(spy_year, 12, 31) + timedelta(days=lag)
-            )
+            price = self._pit_price("SPY", date(spy_year, 12, 31) + timedelta(days=lag))
             if price is not None:
                 spy_returns[spy_year] = float(price)
         result.spy_returns = spy_returns

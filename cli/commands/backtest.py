@@ -30,9 +30,10 @@ def register(subparsers):
         "backtest",
         help="Backtesting over yearly snapshots (deterministic)",
         description=(
-            "Rebuilds historical analyses from the repo and simulates an "
-            "equal-weighted portfolio with rebalancing every N years. "
-            "Use --prices TICKER,YEAR,PRICE per line for real returns."
+            "Rebuilds historical analyses from the repo and simulates a "
+            "portfolio with rebalancing every N years. Use --prices "
+            "TICKER,YEAR,PRICE per line for real returns, or --research-grade "
+            "for point-in-time fundamentals, historical membership and costs."
         ),
     )
     p.add_argument(
@@ -105,7 +106,7 @@ def register(subparsers):
         "--pit-lag-days",
         type=int,
         default=45,
-        help="Reporting lag after the fiscal year end (default 45 days).",
+        help="Reporting lag after the calendar year end (default 45 days).",
     )
     p.add_argument(
         "--tc-bps",
