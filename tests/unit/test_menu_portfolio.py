@@ -37,7 +37,7 @@ def portfolio_path(tmp_path, monkeypatch):
     return path
 
 
-def _write_positions(path, tickers):
+def _write_positions(path, tickers, thesis=None):
     positions = [
         Position(
             ticker=ticker,
@@ -45,6 +45,7 @@ def _write_positions(path, tickers):
             avg_price=100.0,
             current_price=110.0,
             entry_date=datetime.now(UTC),
+            thesis=thesis,
         )
         for ticker in tickers
     ]
@@ -172,24 +173,64 @@ def test_exit_position_can_be_cancelled(monkeypatch, capsys, portfolio_path):
 
 
 # ---------------------------------------------------------------------------
+# thesis
+# ---------------------------------------------------------------------------
+def test_thesis_menu_set_flow(monkeypatch, capsys, portfolio_path):
+    _write_positions(portfolio_path, ["AAPL"])
+
+    calls, out = _drive(
+        monkeypatch, capsys, "3", "6", "1", "1", "Strong brand and pricing power", "q"
+    )
+
+    assert calls[0].command == "portfolio"
+    assert calls[0].action == "thesis"
+    assert calls[0].ticker == "AAPL"
+    assert calls[0].set_text == "Strong brand and pricing power"
+    assert calls[0].clear is False
+    assert "Which position?" in out
+    assert "Running: vi portfolio thesis AAPL --set" in out
+
+
+def test_thesis_menu_clear_flow(monkeypatch, capsys, portfolio_path):
+    _write_positions(portfolio_path, ["AAPL"], thesis="Old thesis")
+
+    calls, _out = _drive(monkeypatch, capsys, "3", "6", "1", "2", "q")
+
+    assert calls[0].action == "thesis"
+    assert calls[0].clear is True
+    assert calls[0].set_text is None
+
+
+def test_thesis_menu_shows_the_current_text(monkeypatch, capsys, portfolio_path):
+    _write_positions(portfolio_path, ["AAPL"], thesis="Old thesis")
+
+    calls, out = _drive(monkeypatch, capsys, "3", "6", "1", "3", "q")
+
+    assert calls == []
+    assert "Current thesis (AAPL):" in out
+    assert "Old thesis" in out
+
+
+# ---------------------------------------------------------------------------
 # numbering and ask_float
 # ---------------------------------------------------------------------------
 def test_portfolio_menu_numbering_is_stable():
     _text, choices = interactive._render("data")
     labels = [action.label for action in interactive._DATA.actions]
 
-    assert len(choices) == 11
-    assert labels[:8] == [
+    assert len(choices) == 12
+    assert labels[:9] == [
         "Portfolio view",
         "Performance",
         "Add position",
         "Remove position",
         "Exit position",
+        "Thesis",
         "Refresh",
         "Data status",
         "Load data",
     ]
-    assert labels[8:] == ["Filings", "Financial alerts", "Backtest"]
+    assert labels[9:] == ["Filings", "Financial alerts", "Backtest"]
 
 
 def test_ask_float_default(monkeypatch):

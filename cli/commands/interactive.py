@@ -158,6 +158,39 @@ def _guide_portfolio_add() -> list[str] | None:
     return extra
 
 
+def _guide_portfolio_thesis() -> list[str] | None:
+    positions = _open_positions()
+    if not positions:
+        print(_c("  Portfolio is empty.", "dim"))
+        return None
+    ticker = ask_choice(
+        "Which position?",
+        [(position.ticker, position.ticker) for position in positions],
+    )
+    position = next(
+        (item for item in positions if item.ticker == ticker), None
+    )
+    if position is not None and position.thesis:
+        print()
+        print(_c(f"Current thesis ({ticker}):", "gold"))
+        print(f"  {position.thesis}")
+        print()
+    action = ask_choice(
+        "Action",
+        [
+            ("Set / update thesis", "set"),
+            ("Clear thesis", "clear"),
+            ("Cancel", "cancel"),
+        ],
+    )
+    if action == "cancel":
+        return None
+    if action == "clear":
+        return [ticker, "--clear"]
+    text = ask_text("Thesis (one line)")
+    return [ticker, "--set", text]
+
+
 def _guide_portfolio_remove() -> list[str] | None:
     positions = _open_positions()
     if not positions:
@@ -501,6 +534,13 @@ _DATA = Category(
             portfolio,
             argv=("exit",),
             guide=_guide_portfolio_exit,
+        ),
+        Action(
+            "Thesis",
+            "Set or clear a thesis",
+            portfolio,
+            argv=("thesis",),
+            guide=_guide_portfolio_thesis,
         ),
         Action(
             "Refresh",

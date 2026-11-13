@@ -169,7 +169,7 @@ def test_performance_has_no_prompts(monkeypatch, capsys):
 
 
 def test_refresh_flow_facts_only(monkeypatch, capsys):
-    calls, out = _drive(monkeypatch, capsys, "3", "6", "AAPL", "2", "q")
+    calls, out = _drive(monkeypatch, capsys, "3", "7", "AAPL", "2", "q")
 
     assert calls[0].command == "refresh"
     assert calls[0].ticker == "AAPL"
@@ -179,18 +179,18 @@ def test_refresh_flow_facts_only(monkeypatch, capsys):
 
 
 def test_refresh_flow_prices_only(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "3", "6", "AAPL", "3", "q")
+    calls, _out = _drive(monkeypatch, capsys, "3", "7", "AAPL", "3", "q")
     assert calls[0].prices_only is True
 
 
 def test_data_status_flow(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "3", "7", "AAPL", "q")
+    calls, _out = _drive(monkeypatch, capsys, "3", "8", "AAPL", "q")
     assert calls[0].command == "data-status"
     assert calls[0].tickers == ["AAPL"]
 
 
 def test_load_data_flow(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "3", "8", "AAPL", "8", "n", "q")
+    calls, _out = _drive(monkeypatch, capsys, "3", "9", "AAPL", "8", "n", "q")
 
     assert calls[0].command == "load-data"
     assert calls[0].tickers == ["AAPL"]
@@ -199,20 +199,20 @@ def test_load_data_flow(monkeypatch, capsys):
 
 
 def test_filings_flow(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "3", "9", "AAPL", "10", "q")
+    calls, _out = _drive(monkeypatch, capsys, "3", "10", "AAPL", "10", "q")
     assert calls[0].command == "filings"
     assert calls[0].ticker == "AAPL"
     assert calls[0].limit == 10
 
 
 def test_alerts_flow(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "3", "10", "AAPL", "q")
+    calls, _out = _drive(monkeypatch, capsys, "3", "11", "AAPL", "q")
     assert calls[0].command == "financial-alerts"
     assert calls[0].ticker == "AAPL"
 
 
 def test_backtest_flow(monkeypatch, capsys):
-    calls, out = _drive(monkeypatch, capsys, "3", "11", "4", "10", "400", "n", "q")
+    calls, out = _drive(monkeypatch, capsys, "3", "12", "4", "10", "400", "n", "q")
 
     assert calls[0].command == "backtest"
     assert calls[0].methodology == ["graham"]
@@ -226,7 +226,7 @@ def test_backtest_flow(monkeypatch, capsys):
 
 
 def test_backtest_excludes_greenblatt(monkeypatch, capsys):
-    calls, out = _drive(monkeypatch, capsys, "3", "11", "7", "5", "50", "y", "q")
+    calls, out = _drive(monkeypatch, capsys, "3", "12", "7", "5", "50", "y", "q")
 
     assert calls[0].methodology == ["marks"]
     assert calls[0].equal_weight is True
@@ -294,5 +294,5 @@ def test_every_menu_action_has_a_guided_flow():
 
 def test_guided_flows_do_not_ask_for_raw_flags(monkeypatch, capsys):
     """The old 'Methodology and flags [...]' prompt is gone."""
-    _calls, out = _drive(monkeypatch, capsys, "3", "11", "4", "5", "50", "n", "q")
+    _calls, out = _drive(monkeypatch, capsys, "3", "12", "4", "5", "50", "n", "q")
     assert "flags" not in out.lower().replace("--flags", "")

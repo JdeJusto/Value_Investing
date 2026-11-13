@@ -16,7 +16,7 @@ class Position:
     avg_price: float
     current_price: float
     entry_date: datetime
-    thesis: str = ""
+    thesis: str | None = None
     signal_at_entry: str = ""
     exit_date: datetime | None = None
     exit_price: float | None = None
