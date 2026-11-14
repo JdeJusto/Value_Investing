@@ -1,3 +1,40 @@
+## [0.34.5] - 2026-11-14
+
+### Fixed
+- **`vi consensus <ticker>` no longer requires a precomputed file.** The
+  command runs the eight methodologies directly on the ticker (fundamentals
+  + optional price/market cap/beta) and prints the same table. `--universe`
+  is accepted for compatibility but ignored; this fixes
+  `vi consensus AAPL --universe nasdaq100` asking to run a script.
+- **Menu: `[3] Consensus` no longer asks for a universe.** It only asks for
+  the ticker; the universe is irrelevant for a single company.
+- **Per-universe consensus cache.** The batch script names its output
+  `consensus_<date>.json`, so computing two universes on the same day could
+  overwrite one. Auto-compute now writes to a scratch directory and moves
+  the result to `data/consensus/consensus_<date>_<universe>.json`;
+  `load_report` still selects by the payload universe.
+
+### Added
+- **`vi consensus-ranking --universe X` auto-computes** when the precomputed
+  file is missing: prints `Computing consensus for 'X' (~2-5 min)...`, runs
+  `scripts.compute_consensus_rankings.main()` in-process, caches the result
+  and renders the ranking. The second run is instant.
+- **`--no-compute`** for `consensus-ranking`: fail fast and list the
+  universes that already have a file (for scripts/CI).
+- **Menu availability markers** for `[4] Consensus ranking`: `✓ ready` when
+  a file exists, `⚙ computes ~3min` otherwise.
+- `available_consensus_universes()` reads the payload `universe` (files are
+  date-named, not universe-named).
+
+### Notes
+- `scripts/compute_consensus_rankings.py` is unchanged and remains the batch
+  tool; auto-compute calls its `main()`.
+- Missing-file messages now list the available universes and point to
+  `vi consensus-ranking --universe X` instead of a developer command.
+- Measured: nasdaq100 auto-compute 23 s; Russell 2000 414 s (1,204 KB file);
+  second run 1 s. `vi consensus AAPL` works with no file at all.
+- 3,052 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.4] - 2026-11-13
 
 ### Added
