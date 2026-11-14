@@ -127,3 +127,14 @@ by earlier files.
 `data/demo/consensus/consensus_demo.json` ships a deterministic 30-company
 sample (the 8 demo tickers plus 22 synthetic) built by
 `scripts/build_demo_consensus.py`, so the page renders offline.
+
+## Auto-compute from the CLI (v0.34.5)
+
+`vi consensus <ticker>` no longer reads a file: it runs the eight
+methodologies directly for that ticker.
+
+`vi consensus-ranking --universe X` checks for a precomputed file and, when
+missing, runs `scripts.compute_consensus_rankings.main(["--universe", "X"])`
+in-process. The script writes `data/consensus/consensus_<date>.json`, so the
+second invocation is instant. `--no-compute` fails fast and prints the
+universes that already have a file.

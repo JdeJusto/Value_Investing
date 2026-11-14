@@ -28,7 +28,7 @@ Prices are fetched on demand from Yahoo and are never persisted to FDB.
 | Value a company with a DCF | `vi dcf AAPL` |
 | Refresh facts + price for one ticker | `vi refresh AAPL` |
 | Backtest a methodology | `vi backtest --methodology graham --years 5` |
-| See the consensus (all methodologies) | `vi consensus AAPL --universe all` |
+| See the consensus (all methodologies) | `vi consensus AAPL` |
 | Rank the consensus file | `vi consensus-ranking --universe sp500 --top 10` |
 | Filter the screener by verdict | `vi screener --methodology graham:BUY --top 20` |
 | See my portfolio | `vi portfolio view` |
@@ -444,24 +444,33 @@ for a CSV.
 
 #### `vi consensus <ticker>`
 
-Reads the precomputed consensus file and prints one company's verdicts.
+Runs the eight methodologies directly on the ticker and prints their
+verdicts. **No precomputed consensus file is needed.** `--universe` is
+accepted for compatibility but ignored (it applies only to
+`consensus-ranking`).
 
-Flags: `--universe sp500|nasdaq100|all`, `--date YYYY-MM-DD`, `--csv CSV`,
-`--demo`.
+Flags: `--universe` (ignored), `--date` (ignored), `--csv CSV`, `--demo`.
 
 ```bash
-./vi consensus AAPL --universe all
+./vi consensus AAPL
+./vi consensus AAPL --universe nasdaq100   # same result
 ```
 
 #### `vi consensus-ranking`
 
-Top rows of the consensus file.
+Top rows of the consensus file for a universe.
+
+If the file is missing, the command **auto-computes** it (~2-5 min for 500
+tickers, longer for Russell 2000), prints progress and caches it under
+`data/consensus/consensus_<date>.json`; the next run is instant. Use
+`--no-compute` to fail fast and list the universes that already have a file.
 
 Flags: `--universe`, `--date`, `--csv`, `--demo`, `--top N` (default `20`),
-`--by {avoid,buys,score}` (default `buys`).
+`--by {avoid,buys,score}` (default `buys`), `--no-compute`.
 
 ```bash
 ./vi consensus-ranking --universe sp500 --top 10
+./vi consensus-ranking --universe russell2000 --no-compute
 ```
 
 #### `vi consensus-by-category`
