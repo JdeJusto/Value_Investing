@@ -126,6 +126,9 @@ def test_consensus_flow_has_no_universe_prompt(monkeypatch, capsys):
 
 
 def test_consensus_ranking_flow_marks_ready_universes(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "cli.commands.consensus.available_consensus_universes", lambda: ["sp500"]
+    )
     calls, out = _drive(monkeypatch, capsys, "2", "4", "1", "5", "q")
 
     assert calls[0].command == "consensus-ranking"
