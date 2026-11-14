@@ -116,20 +116,23 @@ def test_rank_combine_flow(monkeypatch, capsys):
     assert "Strategy" in out
 
 
-def test_consensus_flow(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "2", "3", "AAPL", "1", "q")
+def test_consensus_flow_has_no_universe_prompt(monkeypatch, capsys):
+    calls, out = _drive(monkeypatch, capsys, "2", "3", "AAPL", "q")
 
     assert calls[0].command == "consensus"
     assert calls[0].ticker == "AAPL"
-    assert calls[0].universe == "demo"
+    assert calls[0].universe == "sp500"  # argparse default, not prompted
+    assert "Universe" not in out
 
 
-def test_consensus_ranking_flow(monkeypatch, capsys):
-    calls, _out = _drive(monkeypatch, capsys, "2", "4", "2", "5", "q")
+def test_consensus_ranking_flow_marks_ready_universes(monkeypatch, capsys):
+    calls, out = _drive(monkeypatch, capsys, "2", "4", "1", "5", "q")
 
     assert calls[0].command == "consensus-ranking"
     assert calls[0].universe == "sp500"
     assert calls[0].top == 5
+    assert "✓ ready" in out
+    assert "⚙ computes ~3min" in out
 
 
 def test_screener_flow_with_methodology_filter(monkeypatch, capsys):

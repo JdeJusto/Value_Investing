@@ -292,14 +292,37 @@ def _guide_combine() -> list[str]:
     return _rank_args(methods, strategy or "and", top, universe)
 
 
+def _consensus_universe_options() -> list[tuple[str, str]]:
+    """Universes with a ``✓ ready`` / ``⚙ computes`` availability marker."""
+    from cli.commands.consensus import available_consensus_universes
+
+    ready = set(available_consensus_universes())
+    options = [
+        ("S&P 500", "sp500"),
+        ("Nasdaq 100", "nasdaq100"),
+        ("Russell 2000", "russell2000"),
+        ("All", "all"),
+    ]
+    return [
+        (
+            f"{label}  {'✓ ready' if value in ready else '⚙ computes ~3min'}",
+            value,
+        )
+        for label, value in options
+    ]
+
+
 def _guide_consensus() -> list[str]:
-    ticker = ask_ticker("Ticker")
-    universe = ask_universe()
-    return [ticker, "--universe", universe]
+    """Single-ticker consensus: no universe (it is computed directly)."""
+    return [ask_ticker("Ticker")]
 
 
 def _guide_consensus_ranking() -> list[str]:
-    universe = ask_universe()
+    universe = ask_choice(
+        "Universe",
+        _consensus_universe_options(),
+        default_index=0,
+    )
     top = ask_int("How many rows?", default=20, min_val=1, max_val=500)
     return ["--universe", universe, "--top", str(top)]
 
