@@ -1,3 +1,33 @@
+## [0.34.7] - 2026-11-17
+
+### Verified
+- **Daily workflow end-to-end after the v0.34.6 race fix**: a full
+  `python -m scripts.daily_workflow` run (500 tickers) completed in
+  **53m28s** with the run state archived at stage `done`, the daily report
+  written and no `FileNotFoundError`/`PermissionError` or
+  `workflow failed at stage` entry. 499/500 companies produced a row;
+  `HONA` reported `analysis: no data` (expected data gap).
+- A controlled 8-ticker run (`--out /tmp/... --no-update --no-prices
+  --workers 4`) exited **0** in 31s and exercised the concurrent screener
+  state writes.
+- Portfolio polish re-verified live: HSY → Consumer Staples, PDD →
+  Consumer Discretionary, CMCSA → Communication Services, LULU →
+  Consumer Discretionary; sector exposure has no `N/A`; PDD keeps
+  `Buffett score 47` with `Signal (screener) HOLD` (documented).
+
+### Changed
+- `vi portfolio view` thesis preview is capped at **40 characters** (was 48),
+  with `...` for longer texts; `vi portfolio thesis <ticker>` still prints
+  the full text.
+
+### Notes
+- Sector enrichment, clarified columns (`Buffett score`,
+  `Signal (screener)`) and the thesis CLI/menu option were shipped in
+  **v0.34.3**; this release confirms them and does not duplicate the logic.
+- No new concurrency bug appeared; the mkstemp save from v0.34.6 held
+  through the real full run.
+- 3,054 unit tests + 125 API, ruff 0/0, theme 26/4 unchanged.
+
 ## [0.34.6] - 2026-11-17
 
 ### Fixed
