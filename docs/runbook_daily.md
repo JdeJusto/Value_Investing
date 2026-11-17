@@ -371,6 +371,19 @@ the fundamentals already stored in Financial-DataBase and N/A market fields.
 `--no-update` and `--dry-run` skip the SEC probe (no SEC request is made);
 `--no-prices` skips the Yahoo probe.
 
+### SEC preflight 403
+
+If the log says `SEC preflight failed: HTTP 403 (rate limit or
+non-compliant User-Agent)`:
+
+- Check that `.env` (or the systemd unit) sets
+  `SEC_USER_AGENT="Value_Investing your-email@example.com"`.
+- SEC requires a contact email in the User-Agent; a missing or generic
+  agent is rejected, and github.com addresses are rejected outright.
+- The workflow **skips the SEC refresh and continues** with the
+  fundamentals already stored in Financial-DataBase. Analysis is not
+  blocked; data is simply stale until the next successful refresh.
+
 ### Retries
 
 The workflow's own network probes go through the shared helper
