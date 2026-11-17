@@ -1,3 +1,31 @@
+## [0.34.6] - 2026-11-17
+
+### Fixed
+- **Race condition in `run_state._save_locked`**: concurrent saves (screener
+  workers, or two workflow processes) all wrote to
+  `daily_run_state.json.tmp`. The first `os.replace` consumed it and the
+  next writer raised `FileNotFoundError` at the rename. Each save now uses a
+  unique `tempfile.mkstemp` name in the target directory, fsyncs, renames
+  atomically and removes the temp file on failure. The per-instance lock is
+  kept, but correctness no longer depends on it.
+- **Misleading workflow error**: the top-level handler said "workflow failed
+  to start" for exceptions raised minutes into the run. It now reports the
+  actual stage (`load_universe`, `sec_refresh`, `prices`, `analysis`,
+  `screener`, `alerts`, `consensus`, `report`) in both the log and stdout.
+
+### Documentation
+- `docs/runbook_daily.md`: SEC preflight 403 requires a compliant
+  `SEC_USER_AGENT` with a contact email; the workflow skips the SEC refresh
+  and continues with stored fundamentals.
+
+### Notes
+- SEC 403 is not a crash. `SEC_USER_AGENT` is set in `.env` and verified with
+  `data.sec.gov` (HTTP 200).
+- Regression test: 8 threads × 20 saves across **two** RunState instances
+  (independent locks) complete without errors and leave valid JSON and no
+  temp files.
+- 3,054 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.5] - 2026-11-14
 
 ### Fixed
