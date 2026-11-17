@@ -47,7 +47,7 @@ vi portfolio thesis HSY --clear
 ```
 
 The interactive menu exposes the same flow under **Portfolio → [6] Thesis**
-(select position → set/clear → text). `vi portfolio view` prints a 48-character
+(select position → set/clear → text). `vi portfolio view` prints a 40-character
 preview per position; `--show` prints the full text.
 
 ## Sector exposure

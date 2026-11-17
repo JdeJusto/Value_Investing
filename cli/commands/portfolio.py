@@ -191,8 +191,8 @@ def _thesis_line(ticker: str, thesis: str | None) -> Text:
     prints the full text.
     """
     text = thesis or "(no thesis)"
-    if len(text) > 48:
-        text = text[:48].rstrip() + "..."
+    if len(text) > 40:
+        text = text[:37].rstrip() + "..."
     line = Text("  ")
     line.append(ticker, style=cli_output.PRIMARY)
     line.append(": ")
