@@ -78,6 +78,17 @@ if load_dotenv is not None:
 
 logger = logging.getLogger("daily_workflow")
 
+#: Last stage entered by the run; reported by the top-level error handler so a
+#: mid-run crash does not say "failed to start".
+_current_stage = "init"
+
+
+def _set_stage(stage: str) -> None:
+    """Record the stage about to run (module-level for the error handler)."""
+    global _current_stage
+    _current_stage = stage
+
+
 # Master universe produced by scripts/build_universe.py. Named --universe
 # subsets (sp500 / nasdaq100 / russell2000 / european / all) are filtered
 # from this file by the source_index column.
@@ -602,6 +613,7 @@ def _run(args) -> int:
     # Set when a pre-stage provider health check skips a network stage; the run
     # is then PARTIAL (EXIT_PARTIAL). See docs/runbook_daily.md.
     stage_skipped = False
+    _set_stage("load_universe")
     universe = resolve_universe(args.universe)
     if args.limit:
         universe = universe[: args.limit]
@@ -773,6 +785,7 @@ def _run(args) -> int:
     # prefetch above runs concurrently because prices are independent of it.
     # A pre-stage SEC health check skips the stage (and marks the run partial)
     # when EDGAR is unreachable, instead of spawning a burst of doomed syncs.
+    _set_stage("sec_refresh")
     if args.no_update:
         sec_update_status = "SEC refresh: skipped (--no-update)"
     elif _precheck_sec(args):
@@ -798,6 +811,7 @@ def _run(args) -> int:
         )
     timings["refresh"] = time.time() - tick
     tick = time.time()
+    _set_stage("prices")
     if stage_skipped:
         logger.warning(
             "one or more network stages were skipped by a health check — "
@@ -897,6 +911,7 @@ def _run(args) -> int:
         return _exit_code(stage_skipped)
     if run_state is not None:
         run_state.set_stage("analysis")
+    _set_stage("analysis")
 
     analysis_service = build_analysis_service(
         market_provider=market_provider, analysis_cache=analysis_cache
@@ -947,6 +962,7 @@ def _run(args) -> int:
         workers=args.workers,
         price_cache=PriceCache(),
     )
+    _set_stage("screener")
     screened = screener.run()
     logger.info("screened %d of %d tickers", len(screened), len(universe))
     logger.info("fundamentals cache: %s", analysis_cache.stats)
@@ -990,6 +1006,7 @@ def _run(args) -> int:
             run_state.run_id if run_state is not None else "-",
         )
     else:
+        _set_stage("alerts")
         alerts = run_alerts(cache, previous)
         alerts_cache.put(
             report_date,
@@ -1018,6 +1035,7 @@ def _run(args) -> int:
         try:
             from scripts.compute_consensus_rankings import main as compute_consensus
 
+            _set_stage("consensus")
             consensus_args = [
                 "--universe",
                 args.universe,
@@ -1134,6 +1152,7 @@ def _run(args) -> int:
         yahoo_streak=yahoo_streak_state,
         runtime_seconds=time.time() - start_time,
     )
+    _set_stage("report")
     body = build_markdown(report)
     timings["report"] = time.time() - tick
     timings["total"] = time.time() - start_time
@@ -1569,8 +1588,8 @@ def main() -> int:
         # code; do not rewrite them.
         raise
     except Exception:
-        logger.exception("workflow failed to start")
-        print("Workflow failed to start: see the log for details")
+        logger.exception("workflow failed at stage '%s'", _current_stage)
+        print(f"Workflow failed at stage '{_current_stage}': see the log for details")
         return EXIT_FAILED
 
 

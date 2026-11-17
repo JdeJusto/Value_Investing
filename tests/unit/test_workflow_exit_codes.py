@@ -45,6 +45,20 @@ def test_main_maps_a_startup_crash_to_failed(monkeypatch):
     assert daily_workflow.main() == daily_workflow.EXIT_FAILED
 
 
+def test_main_reports_the_stage_where_the_run_failed(monkeypatch, caplog, capsys):
+    def boom(_args):
+        daily_workflow._set_stage("screener")
+        raise RuntimeError("state file vanished")
+
+    _patch_main(monkeypatch, boom)
+    with caplog.at_level("ERROR", logger="daily_workflow"):
+        assert daily_workflow.main() == daily_workflow.EXIT_FAILED
+
+    assert "stage 'screener'" in caplog.text
+    assert "failed to start" not in caplog.text
+    assert "Workflow failed at stage 'screener'" in capsys.readouterr().out
+
+
 def test_main_returns_130_on_keyboard_interrupt(monkeypatch):
     def interrupt(_args):
         raise KeyboardInterrupt
