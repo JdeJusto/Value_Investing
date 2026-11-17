@@ -186,6 +186,45 @@ def test_concurrent_completions_are_all_recorded(tmp_path):
     assert len(set(loaded.completed)) == 75
 
 
+def test_two_instances_saving_concurrently_do_not_crash(tmp_path):
+    """Regression: a fixed .tmp name made the second writer fail on replace.
+
+    Two RunState instances have independent locks, exactly like two workflow
+    processes or a resume racing the live run. Unique mkstemp names must keep
+    every save atomic and crash-free.
+    """
+    path = tmp_path / RUN_STATE_FILENAME
+    first = _create(tmp_path)
+    second = RunState.load(path)
+    assert second is not None
+    errors: list[BaseException] = []
+    barrier = threading.Barrier(8)
+
+    def worker(state: RunState, prefix: str) -> None:
+        barrier.wait()
+        try:
+            for index in range(20):
+                state.note_progress("analysis", f"{prefix}{index}")
+        except BaseException as exc:  # noqa: BLE001 — the test reports it
+            errors.append(exc)
+
+    threads = [
+        threading.Thread(
+            target=worker, args=(first if index % 2 else second, f"T{index}")
+        )
+        for index in range(8)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert errors == []
+    json.loads(path.read_text(encoding="utf-8"))  # never truncated
+    assert not list(tmp_path.glob("*.tmp"))
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
 # ----------------------------------------------------------------------
 # network telemetry
 # ----------------------------------------------------------------------

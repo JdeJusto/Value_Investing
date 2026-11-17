@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import secrets
+import tempfile
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -429,16 +430,35 @@ class RunState:
     # internals
     # ------------------------------------------------------------------
     def _save_locked(self) -> None:
-        """Atomic write: temp file + fsync + rename + directory fsync."""
+        """Atomic write: unique temp file + fsync + rename + directory fsync.
+
+        The temp name must be unique per write. Several RunState instances
+        (or two workflow processes) may save to the same path at once; a
+        fixed ``<path>.tmp`` lets the first ``os.replace`` consume the file
+        and every other writer then raises ``FileNotFoundError``. A
+        per-write ``mkstemp`` name is race-free even when the instance lock
+        is not shared.
+        """
         self._payload["last_update_at"] = _now_iso()
         data = json.dumps(self._payload, indent=2, sort_keys=False)
-        tmp = self.path.with_name(self.path.name + ".tmp")
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(tmp, "w", encoding="utf-8") as handle:
-            handle.write(data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp, self.path)
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+            dir=self.path.parent,
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_name, self.path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
+            raise
         _fsync_dir(self.path.parent)
 
 
