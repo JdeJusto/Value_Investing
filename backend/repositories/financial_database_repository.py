@@ -597,6 +597,45 @@ class FinancialDatabaseRepository(
             updates["cash_and_equivalents"] = float(cash)
         elif currency != "USD":
             updates["cash_and_equivalents"] = None
+        # Cash-flow, capex and debt are not in core_financials. For a non-USD
+        # filer, convert them with the same period FX implied by revenue_usd /
+        # revenue so FCF yield, D/E and DCF compare USD with USD. The ratio is
+        # derived from already-converted core data (no FX schema dependency).
+        fx = None
+        if currency != "USD":
+            raw_revenue = getattr(row, "revenue", None)
+            usd_revenue = core.get("revenue_usd")
+            if raw_revenue and usd_revenue:
+                try:
+                    fx = float(usd_revenue) / float(raw_revenue)
+                except (TypeError, ValueError, ZeroDivisionError):
+                    fx = None
+        if fx is not None:
+            for field in (
+                "operating_cash_flow",
+                "capital_expenditure",
+                "total_debt",
+            ):
+                value = getattr(row, field, None)
+                if value is not None:
+                    updates[field] = float(value) * fx
+            if (
+                updates.get("operating_cash_flow") is not None
+                and updates.get("capital_expenditure") is not None
+            ):
+                updates["free_cash_flow"] = (
+                    updates["operating_cash_flow"] - updates["capital_expenditure"]
+                )
+            elif getattr(row, "free_cash_flow", None) is not None:
+                updates["free_cash_flow"] = float(row.free_cash_flow) * fx
+            raw_revenue = getattr(row, "revenue", None)
+            raw_cogs = getattr(row, "cogs", None)
+            if (
+                updates.get("gross_profit") is None
+                and raw_revenue is not None
+                and raw_cogs is not None
+            ):
+                updates["gross_profit"] = (float(raw_revenue) - float(raw_cogs)) * fx
         if (
             updates.get("total_liabilities") is None
             and updates.get("total_assets") is not None

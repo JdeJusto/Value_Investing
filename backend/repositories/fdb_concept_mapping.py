@@ -240,6 +240,8 @@ CASH_FLOW_FIELD_PRIORITY = {
     "operating_cash_flow": [
         "NetCashProvidedByUsedInOperatingActivities",
         "OperatingCashFlow",
+        # IFRS 20-F/40-F filers (AZN, BTI, SAP, SNY, TM, TSM).
+        "CashFlowsFromUsedInOperatingActivities",
         # Filers with discontinued operations (e.g. JCI after divesting its
         # residential HVAC business) tag OCF only under the continuing-
         # operations variant; the plain tag is preferred when both exist.
@@ -249,6 +251,12 @@ CASH_FLOW_FIELD_PRIORITY = {
         "PaymentsToAcquirePropertyPlantAndEquipment",
         "SegmentExpenditureAdditionToLongLivedAssets",
         "PaymentsToAcquireProductiveAssets",
+        # 20-F/40-F IFRS filers (AZN, BTI, TSM and the combined intangible
+        # variant used by BTI/SAP/SNY).
+        "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
+        "PurchaseOfPropertyPlantAndEquipmentIntangibleAssetsOtherThanGoodwillInvestmentPropertyAndOtherNoncurrentAssets",
+        # Older Alibaba filings (US-GAAP 20-F) tag capex here.
+        "PaymentsToAcquireOtherPropertyPlantAndEquipment",
         # Verizon tags its network capex only under this variant.
         "PaymentsToAcquireOtherProductiveAssets",
         "PaymentsForConstructionInProcess",
@@ -339,6 +347,8 @@ DEBT_NONCURRENT_PRIORITY = [
     "LongTermDebt",
     "DebtNoncurrent",
     "LongTermDebtNoncurrent",
+    # Convertible notes are long-term debt for 20-F filers (BABA FY2024-26).
+    "ConvertibleDebtNoncurrent",
     # IFRS non-current borrowings (20-F/40-F filers: Sanofi, AstraZeneca, BTI).
     "LongtermBorrowings",
     "LongTermNotesPayable",
@@ -447,10 +457,15 @@ CASH_FLOW_CONCEPTS = {
     "OperatingCashFlow": "operating_cash_flow",
     # see CASH_FLOW_FIELD_PRIORITY['operating_cash_flow']
     "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations": "operating_cash_flow",
+    # IFRS 20-F/40-F filers.
+    "CashFlowsFromUsedInOperatingActivities": "operating_cash_flow",
     # Capital Expenditure (positive value)
     "PaymentsToAcquireProductiveAssets": "capital_expenditure",
     "PaymentsToAcquireOtherProductiveAssets": "capital_expenditure",
     "PaymentsToAcquirePropertyPlantAndEquipment": "capital_expenditure",
+    "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities": "capital_expenditure",
+    "PurchaseOfPropertyPlantAndEquipmentIntangibleAssetsOtherThanGoodwillInvestmentPropertyAndOtherNoncurrentAssets": "capital_expenditure",
+    "PaymentsToAcquireOtherPropertyPlantAndEquipment": "capital_expenditure",
     "SegmentExpenditureAdditionToLongLivedAssets": "capital_expenditure",
     "PaymentsForConstructionInProcess": "capital_expenditure",
     "CapitalExpenditures": "capital_expenditure",

@@ -5,6 +5,8 @@ Mixin for :class:`FinancialDatabaseRepository` (pure move).
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from backend.domain.value_objects.financials_normalized import (
     NormalizedFinancials,
 )
@@ -72,7 +74,7 @@ class FactsMixin:
                 statements = self._calculate_derived_fields(statements)
 
                 # Build and return NormalizedFinancials
-                return self._build_normalized_financials(
+                financials = self._build_normalized_financials(
                     ticker=ticker.upper(),
                     fiscal_year=fiscal_year,
                     statements=statements,
@@ -80,6 +82,17 @@ class FactsMixin:
                     sector=self._get_company_sector(ticker),
                     industry=self._get_company_industry(ticker),
                 )
+                ratio = self._ads_ratio(company_id, ticker)
+                if (
+                    financials is not None
+                    and ratio != 1.0
+                    and financials.shares_outstanding
+                ):
+                    financials = replace(
+                        financials,
+                        shares_outstanding=financials.shares_outstanding / ratio,
+                    )
+                return financials
 
         except Exception:  # noqa: BLE001 — a failure degrades to None so the caller falls back
             # In case of any error, return None to let fallback handle it
@@ -305,6 +318,7 @@ class FactsMixin:
             # year's factor is computed from it (pure function), keeping the
             # methodology payload hermetic — the factor is data, not a price.
             split_rows = self._fetch_split_ratio_facts(company_id)
+            ads_ratio = self._ads_ratio(company_id, ticker)
 
             results: list[NormalizedFinancials] = []
             for year in sorted(by_year, reverse=True):
@@ -333,6 +347,12 @@ class FactsMixin:
                         industry=company_industry,
                     )
                     if financials is not None:
+                        if ads_ratio != 1.0 and financials.shares_outstanding:
+                            financials = replace(
+                                financials,
+                                shares_outstanding=financials.shares_outstanding
+                                / ads_ratio,
+                            )
                         results.append(financials)
                 except Exception:  # noqa: BLE001, S112 — one bad year must not drop the rest
                     continue

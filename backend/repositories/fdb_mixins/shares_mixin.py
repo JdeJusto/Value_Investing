@@ -58,6 +58,52 @@ class SharesMixin:
         as-reported answers differ, and callers ask for both."""
         return f"{int(fiscal_year)}:{'diluted' if prefer_diluted else 'basic'}"
 
+    def _ads_ratio(self, company_id, ticker: str | None = None) -> float:
+        """ADSs per ordinary share for 20-F/40-F ADRs (1.0 when not an ADR).
+
+        The 20-F cover tags ``EntityListingDepositoryReceiptRatio`` on the
+        dei namespace (e.g. BABA 8 ordinary shares per ADS). Financial facts
+        store ordinary shares; per-share metrics and market cap must use ADS
+        because the quoted price is per ADS.
+        """
+        cache = getattr(self, "_ads_ratio_cache", None)
+        if cache is None:
+            cache = {}
+            self._ads_ratio_cache = cache
+        key = str(company_id)
+        if key in cache:
+            return cache[key]
+        ratio = 1.0
+        filed = False
+        try:
+            with self._get_connection().cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT f.value
+                    FROM financial_facts f
+                    WHERE f.company_id = %s
+                      AND f.concept = 'EntityListingDepositoryReceiptRatio'
+                      AND f.value IS NOT NULL
+                    ORDER BY f.fiscal_year DESC, f.period_end DESC NULLS LAST
+                    LIMIT 1
+                    """,
+                    (company_id,),
+                )
+                row = cur.fetchone()
+            if row and row["value"] is not None:
+                candidate = float(row["value"])
+                if candidate > 0:
+                    ratio = candidate
+                    filed = True
+        except Exception:  # noqa: BLE001 — no ratio reads as not an ADR
+            ratio = 1.0
+        if not filed:
+            from backend.repositories.ads_ratios import ads_ratio_for
+
+            ratio = ads_ratio_for(ticker)
+        cache[key] = ratio
+        return ratio
+
     def get_shares_outstanding(
         self,
         ticker: str,
@@ -278,6 +324,10 @@ class SharesMixin:
             # ~1000x-inflated EPS.
             if candidate is not None and candidate < 1_000_000:
                 candidate = None
+
+            if candidate is not None and candidate > 0:
+                # 20-F ADRs: facts are ordinary shares; the quote is per ADS.
+                candidate = candidate / self._ads_ratio(company_id, ticker)
 
             return candidate
 
