@@ -1,3 +1,29 @@
+## [0.34.10] - 2026-11-18
+
+### Fixed
+- **`Shares outstanding` display for ADRs**: `analyze-full` now labels the
+  ADS count (`2,404,375,000 ADS (1 ADS = 8 ord.)`) instead of the raw
+  ordinary-share count (`19,235,000,000`). Consistent with Market Cap and
+  P/E, which already used ADS.
+- **`Debt/Equity` N/A in `analyze-full`**: the v0.34.9 value (0.05) existed
+  but stale analysis-cache entries (`ANALYSIS_VERSION=3`) kept serving the
+  old row. The cache version is now **4**, so pre-v0.34.9 fundamentals are
+  recomputed. `BABA` shows D/E 0.05 with the default cache.
+- **Streamlit PER 2 → 14**: the scorecard's `pe_absolute` rule (used by the
+  P/E-vs-peer chart) divided a USD market cap by the filing-currency
+  `net_income` (CNY). It now prefers the normalized row (`net_income` in
+  USD, ADS-adjusted shares), matching the CLI: **14.04x** for BABA, not
+  2.03x. FCF yield in the same scorecard path uses the normalized FCF.
+
+### Notes
+- Remaining BABA N/A (FCF, Owner Earnings, CROIC, DCF, Margin of Safety and
+  historical FCF yield) are **legitimate**: the FY2024–FY2026 20-F filings
+  do not tag capex. Documented in `docs/data_gaps_investigation.md`; no
+  estimate is substituted.
+- After deploying, clear Streamlit's data cache (`st.cache_data.clear()` /
+  restart) once so the browser does not keep the old P/E chart.
+- 3,072 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.9] - 2026-11-18
 
 ### Fixed
