@@ -93,7 +93,8 @@ jobs:
         run: npm ci
 
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        working-directory: .
+        run: python3 scripts/npm_audit_gate.py --cwd frontend
 
       - name: Lint
         run: npm run lint
@@ -123,7 +124,8 @@ jobs:
         run: npm ci
 
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        working-directory: .
+        run: python3 scripts/npm_audit_gate.py --cwd mobile
 
       - name: Type check
         run: npm run typecheck

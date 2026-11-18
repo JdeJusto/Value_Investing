@@ -1,14 +1,14 @@
 # Security posture
 
-Last full sweep: 2026-11-13 (v0.34.0 + price providers).
+Last full sweep: 2026-11-18 (v0.34.8 + picomatch advisory).
 
 ## Dependabot
 
 | Repo | Open | High | Med | Low | Notes |
 |---|---:|---:|---:|---:|---|
-| Value_Investing (mobile) | 1 | 0 | 0 | 1 | `deepmerge` only (no upstream fix) |
-| Value_Investing (frontend) | 0 | 0 | 0 | 0 | `npm audit` clean |
-| Value_Investing (Pipfile.lock) | 0 | 0 | 0 | 0 | `soupsieve` 4.0.0; pins guarded by `test_pipfile_lock_pins.py` |
+| Value_Investing (mobile) | 2 | 1 | 0 | 1 | `picomatch` high (no fix) + `deepmerge` low |
+| Value_Investing (frontend) | 1 | 1 | 0 | 0 | `picomatch` high, cascades through Vite/fdir/tinyglobby |
+| Value_Investing (Pipfile.lock) | 0 | 0 | 0 | 0 | `dnspython`/`opentelemetry-api` fixed; pins guarded |
 | Financial-DataBase | 0 | 0 | 0 | 0 | `pip-audit`/Dependabot clean |
 
 Closed in this sweep:
@@ -45,10 +45,19 @@ redacted before logging (`***`). `.env.example` contains placeholders only.
   vulnerable and 4.3.1 is the latest). It is a build-time dependency of
   Jest/Expo config, not part of the runtime Metro bundle. Revisit when Jest
   or Expo replaces it.
+- **`picomatch` (mobile + frontend, high, GHSA-fc5q-39xc-vjpf)**: ReDoS in
+  single-branch repeated extglobs. The advisory range is `*` and no patched
+  version exists (2026-11-18). It reaches Expo CLI/Metro (mobile) and Vite
+  (frontend) as a build-time glob dependency, not the runtime bundle.
+  `config/npm_audit_allowlist.txt` contains this single GHSA; all other
+  high/critical findings still fail CI. Revisit as soon as picomatch ships
+  a fix and remove the line.
 - **Expo/Jest low-severity advisories**: the remaining low findings require a
   downgrade to Expo 52 / Jest 25 (`fixAvailable.isSemVerMajor: true`), which
-  would break the SDK. The high-severity findings are all closed; CI runs
-  `npm audit --audit-level=high` and fails on a new high/critical.
+  would break the SDK.
+- CI runs `scripts/npm_audit_gate.py` for mobile and frontend. It fails on any
+  high/critical finding except the explicitly allowlisted GHSA; critical
+  findings are never allowed.
 
 ## Historical fixes
 
@@ -57,6 +66,9 @@ redacted before logging (`***`). `.env.example` contains placeholders only.
 - 2026-11-13: mobile Dependabot zod/glob/node-forge/minimatch patched.
 - 2026-11-13: soupsieve 4.0.0 (high, DoS); parser tests green with
   BeautifulSoup 4.15.0.
+- 2026-11-18: dnspython 2.9.2 (high, GHSA-vvf4-9x63-8xvv) and
+  opentelemetry-api 1.45.2 (moderate, CVE-2026-126360) from Dependabot
+  #85/#84; transitive lock-only update.
 
 ## How to re-run the sweep
 
@@ -65,6 +77,7 @@ gh api "repos/JdeJusto/Value_Investing/dependabot/alerts?state=open" \
   --paginate --jq '[.[] | {severity: .security_advisory.severity, package: .dependency.package.name}]'
 gh api "repos/JdeJusto/Value_Investing/code-scanning/alerts?state=open" --paginate
 gh api "repos/JdeJusto/Value_Investing/secret-scanning/alerts?state=open" --paginate
-cd mobile && npm audit --audit-level=high
+python3 scripts/npm_audit_gate.py --cwd mobile
+python3 scripts/npm_audit_gate.py --cwd frontend
 .venv/bin/pipenv verify
 ```
