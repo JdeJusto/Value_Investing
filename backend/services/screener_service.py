@@ -237,6 +237,7 @@ class StockScreenerService:
             fcf_yield=enriched.get("fcf_yield"),
             ev_ebit=enriched.get("ev_ebit"),
             debt_to_equity=enriched.get("debt_to_equity"),
+            shares_outstanding=enriched.get("shares_outstanding"),
             revenue_growth=enriched.get("revenue_growth"),
             fcf=enriched.get("fcf"),
             score=enriched.get("score"),

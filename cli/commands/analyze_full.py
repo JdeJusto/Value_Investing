@@ -87,6 +87,21 @@ def _heading(title: str) -> None:
 
 
 def _company_overview(ticker: str, name) -> tuple:
+    """Sector/industry from FDB first, then the legacy company repository.
+
+    FDB carries Yahoo's sector for 20-F ADRs too (BABA → Consumer Cyclical);
+    the legacy repository only knows US names and returned N/A for ADRs.
+    """
+    try:
+        from backend.app.cli import build_financial_repository
+
+        repository = build_financial_repository()
+        sector = getattr(repository, "get_company_sector", lambda _t: None)(ticker)
+        industry = getattr(repository, "get_company_industry", lambda _t: None)(ticker)
+        if sector or industry:
+            return sector, industry
+    except Exception:  # noqa: BLE001 — fall back to the legacy repository
+        sector = industry = None
     try:
         company = CompanyRepository().find_by_ticker(ticker)
         return (company.sector if company else None), (

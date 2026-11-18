@@ -358,6 +358,11 @@ class CompanyAnalysisService:
         result.update(self._data_reliability(ticker, rows))
         result.update(self._market_edge(ticker, result.get("dcf_value")))
         result.update(assess_investment(rows, result))
+        # The screener/analyze-full table reads shares from this dict; without
+        # it the column was N/A even when the balance sheet had the count.
+        # For ADRs the repository already returns ADS (see _ads_ratio).
+        result["shares_outstanding"] = last.shares_outstanding
+        result["currency"] = getattr(last, "currency", None)
 
         return result
 
