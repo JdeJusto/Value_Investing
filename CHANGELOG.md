@@ -1,3 +1,57 @@
+## [0.34.9] - 2026-11-18
+
+### Fixed
+- **ADR shares outstanding**: 20-F facts store ordinary shares, but the
+  quoted price is per ADS. The repository now divides by
+  `EntityListingDepositoryReceiptRatio` when filed (BABA 8:1) and by the
+  verified `backend/repositories/ads_ratios.py` table otherwise (PDD 4,
+  JD 2, TSM 5, TM 10, SNY/AZN 0.5, ...). BABA shares: 19.47B ordinary →
+  **2.404B ADS**; the analysis table now shows them.
+- **ADR EPS / historical P/E**: `net_income_usd / ADS shares` replaces the
+  ordinary-share EPS, and prices are per ADS. BABA FY2024 P/E moved from
+  **123** to **15.4** (FY2026: 18.8); market cap is now price × ADS.
+- **IFRS cash flow / capex**: mapped
+  `CashFlowsFromUsedInOperatingActivities`,
+  `PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities` and
+  the combined intangibles variant (AZN, BTI, SAP, SNY, TM, TSM). FCF is
+  now available for AZN ($11.8B) and TSM ($26.6B).
+- **USD conversion for non-core fields**: OCF, capex, FCF, total debt and
+  gross profit are converted with the period FX implied by
+  `revenue_usd / revenue`, so FCF yield, D/E and DCF compare USD with USD
+  for BABA (CNY), BTI (GBP), SAP/SNY (EUR), TM (JPY) and TSM (TWD).
+- **Debt / Equity**: `ConvertibleDebtNoncurrent` counts as long-term debt
+  (BABA FY2026 D/E 0.05 instead of N/A).
+- **Sector / Industry in `analyze-full`**: reads FDB
+  `companies.sector`/`industry` first (BABA → Consumer Cyclical / Internet
+  Retail) instead of the US-only legacy repository.
+- **Shares column**: the analysis result now exposes `shares_outstanding`,
+  so `analyze-full` no longer prints N/A when the balance sheet has it.
+- **CI npm audit gate**: a new `picomatch` high advisory
+  (`GHSA-fc5q-39xc-vjpf`, range `*`, no patched version) cascaded through
+  Expo CLI/Metro (mobile) and Vite/fdir/tinyglobby (frontend), failing the
+  strict `npm audit --audit-level=high` steps even though v0.34.8's Python
+  dependency fix was correct. `scripts/npm_audit_gate.py` now fails on any
+  high/critical finding except GHSAs explicitly listed in
+  `config/npm_audit_allowlist.txt`; critical findings are never allowed.
+  The allowlist contains only the unfixable picomatch advisory.
+- `docs/security.md` records the accepted risk and the new gate.
+
+### Notes
+- v0.34.8's security bumps are included and Dependabot #85 (dnspython
+  2.9.2) and #84 (opentelemetry-api 1.45.2) are closed.
+- Pins preserved: pyarrow 25.0.1, soupsieve 4.0.0, websockets 16.1.1,
+  fastapi 0.150.0.
+- BABA still has FCF/DCF/Owner Earnings/CROIC/Margin of Safety N/A: its
+  FY2024–FY2026 20-F filings do not tag any capex concept (only
+  intangibles). The DCF reports `no free cash flow: operating cash
+  flow/capex missing`; no estimate is fabricated. PDD and TM have the same
+  data gap.
+- AZN and BIDU still show shares N/A: their SEC filings carry no
+  `EntityCommonStockSharesOutstanding`/weighted-average share fact.
+- No methodology thresholds, scoring logic, price providers or backtest
+  changes.
+- 3,069 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.8] - 2026-11-18
 
 ### Security
