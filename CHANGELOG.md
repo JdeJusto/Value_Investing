@@ -1,3 +1,21 @@
+## [0.34.8] - 2026-11-18
+
+### Security
+- **dnspython 2.9.2** (Dependabot #85, high): fixes excessive memory and CPU
+  use when parsing malicious WKS records (`GHSA-vvf4-9x63-8xvv`,
+  `CVE-2026-128089`).
+- **opentelemetry-api 1.45.2** (Dependabot #84, moderate): fixes a
+  quadratic-time traceparent parsing denial of service
+  (`CVE-2026-126360`, `GHSA-mf5v-w3w3-f6cg`).
+
+### Notes
+- Both are transitive dependencies; updated directly in `Pipfile.lock`
+  without re-resolving the full lock.
+- Pins preserved: pyarrow 25.0.1, soupsieve 4.0.0, websockets 16.1.1,
+  fastapi 0.150.0. `test_pipfile_lock_pins.py` is green.
+- `pipenv verify` and `pipenv install --deploy --dev` pass with the new lock.
+- 3,054 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.7] - 2026-11-17
 
 ### Verified
