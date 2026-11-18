@@ -673,6 +673,7 @@ def _valuation_rules(
     metrics: _Metrics,
     dcf: Any,
     market_cap: float | None,
+    latest_row: NormalizedFinancials | None = None,
 ) -> list[DimensionRule]:
     rules: list[DimensionRule] = []
 
@@ -690,7 +691,11 @@ def _valuation_rules(
         )
     )
 
-    net_income = metrics.latest("net_income")
+    # Prefer the normalized row: it carries USD (core overlay) and ADS-adjusted
+    # shares, while the insights series still holds filing-currency values.
+    net_income = getattr(latest_row, "net_income", None) if latest_row else None
+    if net_income is None:
+        net_income = metrics.latest("net_income")
     per = PerCalculator().calculate(market_cap=market_cap, net_income=net_income)
     if per is None or per <= 0:
         status, reason = INSUFFICIENT, "A positive P/E could not be computed."
@@ -709,7 +714,9 @@ def _valuation_rules(
         )
     )
 
-    fcf = metrics.latest("free_cash_flow", "fcf")
+    fcf = getattr(latest_row, "free_cash_flow", None) if latest_row else None
+    if fcf is None:
+        fcf = metrics.latest("free_cash_flow", "fcf")
     fcf_yield = FcfYieldCalculator().calculate(
         free_cash_flow=fcf, market_cap=market_cap
     )
@@ -1297,6 +1304,7 @@ class ScorecardService:
                 industry=rows[0].industry,
                 metrics=metrics,
                 market_cap=market_cap,
+                latest_row=rows[0] if rows else None,
             )
         )
         if peered is not None:
@@ -1379,7 +1387,10 @@ def _build_dimensions(
         _build_dimension(
             "financial_health", _financial_health_rules(metrics, alertset, rows)
         ),
-        _build_dimension("valuation", _valuation_rules(metrics, dcf, market_cap)),
+        _build_dimension(
+            "valuation",
+            _valuation_rules(metrics, dcf, market_cap, rows[0] if rows else None),
+        ),
         _build_dimension(
             "shareholder_returns", _shareholder_returns_rules(metrics, alertset)
         ),
@@ -1431,7 +1442,9 @@ PEER_RULE_METRICS: dict[str, str] = {
 
 
 def _peer_raw_values(
-    metrics: _Metrics, market_cap: float | None
+    metrics: _Metrics,
+    market_cap: float | None,
+    latest_row: NormalizedFinancials | None = None,
 ) -> dict[str, float | None]:
     """The rule values a peer percentile is looked up against.
 
@@ -1439,13 +1452,22 @@ def _peer_raw_values(
     calculators); ``revenue_cagr_5y`` is converted from its percent display
     unit to the fraction the artifact stores.
     """
-    net_income = metrics.latest("net_income")
+    # Prefer the normalized row: it carries USD (core overlay) and ADS-adjusted
+    # shares, while the insights series still holds filing-currency values.
+    net_income = getattr(latest_row, "net_income", None) if latest_row else None
+    if net_income is None:
+        net_income = getattr(latest_row, "net_income", None) if latest_row else None
+    if net_income is None:
+        net_income = metrics.latest("net_income")
     per = PerCalculator().calculate(market_cap=market_cap, net_income=net_income)
     cagr = metrics.cagr("revenue")
+    fcf = getattr(latest_row, "free_cash_flow", None) if latest_row else None
+    if fcf is None:
+        fcf = metrics.latest("free_cash_flow", "fcf")
     return {
         "pe_absolute": per if (per is not None and per > 0) else None,
         "fcf_yield": FcfYieldCalculator().calculate(
-            free_cash_flow=metrics.latest("free_cash_flow", "fcf"),
+            free_cash_flow=fcf,
             market_cap=market_cap,
         ),
         "net_margin": metrics.latest("net_margin"),
@@ -1485,13 +1507,14 @@ def _attach_peers(
     industry: str | None,
     metrics: _Metrics,
     market_cap: float | None,
+    latest_row: NormalizedFinancials | None = None,
 ) -> tuple[DimensionScore, ...]:
     """Annotate every dimension with its peer group and every rule with its
     position inside that group. No score is read or written here."""
     group = peers.group_for(sector=sector, industry=industry)
     if group is None:
         return dimensions
-    raw_values = _peer_raw_values(metrics, market_cap)
+    raw_values = _peer_raw_values(metrics, market_cap, latest_row)
     return tuple(
         replace(
             dimension,

@@ -26,6 +26,7 @@ from backend.app.cli import (
     build_screener_service,
     refresh_analysis_inputs,
 )
+from backend.repositories.ads_ratios import ads_ratio_for
 from backend.services import cli_output
 from backend.services.historical_valuation_service import HistoricalValuationService
 from cli.commands.preflight import require_known_tickers
@@ -139,7 +140,17 @@ def _section_overview(row_input, sector, industry):
     )
 
 
-def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, shares, no_prices):
+def _section_price(
+    price,
+    market_cap,
+    per,
+    pb,
+    fcf_yield,
+    ev_ebit,
+    shares,
+    no_prices,
+    ads_ratio: float | None = None,
+):
     _heading("2) Real-time price and valuation")
     if no_prices:
         cli_output.get_console().print(
@@ -152,7 +163,19 @@ def _section_price(price, market_cap, per, pb, fcf_yield, ev_ebit, shares, no_pr
     cli_output.print_kv(
         [
             ("Price", _fmt(price, fmt_dollar)),
-            ("Shares outstanding", f"{shares:,}" if shares else _na()),
+            (
+                "Shares outstanding",
+                (
+                    f"{shares:,.0f}"
+                    + (
+                        f" ADS (1 ADS = {ads_ratio:g} ord.)"
+                        if ads_ratio and ads_ratio != 1
+                        else ""
+                    )
+                )
+                if shares
+                else _na(),
+            ),
             ("Market Cap", _fmt(market_cap, fmt_dollar)),
             ("PER", _fmt(per, lambda v: fmt_ratio(v, 1))),
             ("P/B", _fmt(pb, lambda v: fmt_ratio(v, 2))),
@@ -452,6 +475,7 @@ def _run(args):
                 row.ev_ebit,
                 row.shares_outstanding,
                 args.no_prices,
+                ads_ratio=ads_ratio_for(ticker),
             )
             _section_fundamentals(d)
             _section_quality(d, d.get("quality_metrics") or {})

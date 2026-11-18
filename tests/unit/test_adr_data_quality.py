@@ -148,6 +148,43 @@ def test_ifrs_ticker_has_fcf(repo):
     assert row.free_cash_flow is not None
 
 
+def test_scorecard_pe_uses_the_usd_row_not_cny_insights():
+    from backend.services.scorecard_service import _Metrics, _peer_raw_values
+
+    row = NormalizedFinancials(
+        ticker="BABA",
+        fiscal_year=2026,
+        net_income=15_347_477_248.6336,
+    )
+    values = _peer_raw_values(_Metrics(None), 215_500_000_000.0, row)
+    assert values["pe_absolute"] is not None
+    assert 13.0 < values["pe_absolute"] < 15.0  # ~14.04, not ~2
+
+
+def test_analysis_cache_version_was_bumped():
+    from backend.services.analysis_cache import ANALYSIS_VERSION
+
+    assert int(ANALYSIS_VERSION) >= 4
+
+
+def test_analyze_full_labels_ads_shares(capsys):
+    from cli.commands.analyze_full import _section_price
+
+    _section_price(
+        86.65,
+        215_500_000_000.0,
+        14.0,
+        1.33,
+        None,
+        2.9,
+        2_404_375_000.0,
+        False,
+        ads_ratio=8.0,
+    )
+    out = capsys.readouterr().out
+    assert "2,404,375,000 ADS (1 ADS = 8 ord.)" in out
+
+
 def test_sector_fallback_returns_fdb_sector(monkeypatch):
     from cli.commands.analyze_full import _company_overview
 

@@ -416,3 +416,17 @@ limitations, not mapping bugs that a simple tag change can close.
   `INSUFFICIENT_DATA`.
 - Cannot compute a 10-year Greenblatt/quality history. Documented as a known
   limitation; no data can be invented.
+
+
+## BABA / PDD / TM — capex not tagged in the 20-F (2026-11-18)
+
+The FY2024–FY2026 20-F filings for BABA, PDD and TM do not tag a
+capital-expenditure concept in `financial_facts` (BABA only tags
+`PaymentsToAcquireIntangibleAssets`, ~0.8B CNY, which is not capex).
+Consequently FCF, Owner Earnings, CROIC, DCF, Margin of Safety and
+historical FCF yield remain **N/A by design**; the DCF shows
+`no free cash flow: operating cash flow/capex missing`.
+
+This is a filing limitation, not a mapping bug. Resolving it requires
+parsing the cash-flow statement text (1–2 days) or an external data
+vendor; do not substitute intangibles or an estimate.
