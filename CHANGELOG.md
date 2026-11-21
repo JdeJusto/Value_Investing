@@ -1,3 +1,34 @@
+## [0.35.0] - 2026-11-21
+
+### Added
+- **`vi expenses <ticker>`**: XBRL-disclosed expense lines (marketing /
+  advertising, R&D, SG&A, G&A, occupancy, utilities/electricity and D&A).
+  `--year` selects the fiscal year; `--json` returns the source tag and the
+  reason for every undisclosed line.
+- **Expense-line model** (`backend/repositories/expense_lines.py`): generic
+  tag map + per-ticker overrides (`expense_overrides.py`). A missing tag is
+  `is_disclosed=False`, never 0; banks/REITs are explicitly `not applicable`.
+- **Streamlit**: new **Expenses** tab in Analysis with the same lines and
+  source/status column.
+- **Pilot**: 23 S&P 500 tickers across staples, retail, tech, industrials,
+  utilities, banks, pharma and energy. 19/23 disclose at least one mapped
+  line (60/161 potential lines, 37%); no overrides were needed.
+- **Coverage documentation** (`docs/expense_lines.md`): S&P 500 coverage per
+  line, pilot matrix, gaps and override policy.
+
+### Notes
+- S&P 500 coverage: marketing 45%, R&D 46%, SG&A 59%, G&A 29%, D&A 73%,
+  COGS 71%; `OccupancyExpense` and `UtilitiesExpense` are **0%** in the
+  index (electricity is inside occupancy/COGS or a note, not a standalone
+  tag).
+- Non-USD filers are converted to USD at the fiscal-year FX rate implied by
+  core revenue.
+- The 10-K text parser for companies without XBRL tags (and for
+  electricity/occupancy) is deliberately out of scope; no values are
+  estimated or scraped here.
+- Banks/REITs show every line as `not applicable` with the reason.
+- 3,083 unit tests + 125 API, ruff 0/0.
+
 ## [0.34.10] - 2026-11-18
 
 ### Fixed
