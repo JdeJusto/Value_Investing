@@ -70,6 +70,7 @@ def main():
         data_status,
         dcf,
         debug,
+        expenses,
         filing,
         filing_balance_sheet,
         filing_section,
@@ -104,6 +105,7 @@ def main():
     load_data.register(sub)
     data_status.register(sub)
     dcf.register(sub)
+    expenses.register(sub)
     scorecard.register(sub)
     opportunities.register(sub)
     anomalies.register(sub)

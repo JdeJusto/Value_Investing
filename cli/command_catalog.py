@@ -294,6 +294,13 @@ CATALOG: dict[str, CommandInfo] = {
         "vi filings AAPL --form 10-K",
         ("filings", "sec", "10-k", "edgar"),
     ),
+    "expenses": CommandInfo(
+        "expenses",
+        "Analysis",
+        "Disaggregated expense lines from XBRL",
+        "vi expenses KO",
+        ("expenses", "marketing", "r&d", "occupancy", "sga"),
+    ),
     "filing": CommandInfo(
         "filing",
         "Data & refresh",

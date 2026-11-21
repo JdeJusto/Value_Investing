@@ -1,6 +1,6 @@
 # CLI reference
 
-`vi` is the terminal interface to Value Investing: 44 commands across
+`vi` is the terminal interface to Value Investing: 45 commands across
 analysis, ranking, portfolio and data management. Every command is documented
 here from its real `--help`; the README keeps a short quick-start list.
 
@@ -8,7 +8,7 @@ here from its real `--help`; the README keeps a short quick-start list.
 
 ```bash
 ./vi scorecard AAPL      # First command: six-dimension scorecard
-./vi --help              # List all 44 commands
+./vi --help              # List all 45 commands
 ./vi                     # Interactive menu (no arguments)
 ```
 
@@ -482,6 +482,18 @@ Flags: `--universe`, `--date`, `--csv`, `--demo`, `--per-category N`
 
 ```bash
 ./vi consensus-by-category --universe sp500
+```
+
+#### `vi expenses <ticker>`
+
+XBRL-disclosed expense lines: marketing/advertising, R&D, SG&A, G&A,
+occupancy, utilities/electricity and D&A. Lines without a tag are printed as
+`not disclosed` (never 0). `--year` selects the fiscal year; `--json` returns
+the full payload with the source tag and reason.
+
+```bash
+./vi expenses KO
+./vi expenses AAPL --year 2026 --json
 ```
 
 ### Portfolio
