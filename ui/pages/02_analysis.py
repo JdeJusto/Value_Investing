@@ -254,6 +254,7 @@ def _render_single(ticker: str) -> None:
             "Historical",
             "Filings",
             "Financials",
+            "Expenses",
             "Evolution",
             "Raw",
         ]
@@ -275,9 +276,59 @@ def _render_single(ticker: str) -> None:
     with tabs[7]:
         _financials(ticker)
     with tabs[8]:
-        _render_evolution_tab(ticker)
+        _expenses(ticker)
     with tabs[9]:
+        _render_evolution_tab(ticker)
+    with tabs[10]:
         _raw(ticker)
+
+
+def _expenses(ticker: str) -> None:
+    """XBRL-disclosed expense lines; missing lines are not estimated."""
+    from backend.services.expense_service import ExpenseService
+
+    try:
+        report = ExpenseService().build(ticker)
+    except Exception as exc:  # noqa: BLE001 — a tab must not blank the page
+        st.warning(f"Could not read expense lines: {exc}")
+        return
+    if report is None:
+        st.info("No expense facts stored for this company.")
+        return
+
+    def _money(value: float | None) -> str:
+        if value is None:
+            return "not disclosed"
+        if abs(value) >= 1_000_000_000:
+            return f"${value / 1_000_000_000:,.2f}B"
+        if abs(value) >= 1_000_000:
+            return f"${value / 1_000_000:,.1f}M"
+        return f"${value:,.0f}"
+
+    st.caption(
+        f"FY{report.fiscal_year} · {report.currency}"
+        + (f" → USD (FX {report.fx_rate:.4f})" if report.fx_rate else "")
+    )
+    if report.note:
+        st.caption(report.note)
+    if not report.applicable:
+        st.info(report.note or "Not comparable for this company type.")
+    st.dataframe(
+        [
+            {
+                "Line item": line.label,
+                "Value": _money(line.value) if line.is_disclosed else "not disclosed",
+                "Source / status": line.source if line.is_disclosed else line.reason,
+            }
+            for line in report.lines
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(
+        "XBRL has no universal 'electricity' or 'marketing' tag; missing lines "
+        "are not estimated."
+    )
 
 
 def _filings(ticker: str) -> None:
