@@ -1,3 +1,38 @@
+## [0.36.0] - 2026-11-24
+
+### Removed
+- **Android app** (`mobile/`): Expo/React Native sources, Jest config, EAS
+  build, npm overrides and the `Mobile Release` workflow that built and
+  uploaded the APK on every `v*` tag. Published APKs remain available as
+  assets of their existing releases.
+- **REST API** (`backend/api/`, `tests/api/`): FastAPI app, routes, auth,
+  response envelopes and the 125 API tests. The CLI and Streamlit never
+  depended on it.
+- **Web frontend** (`frontend/`): React/Vite app, its build, npm Dependabot
+  entry and the `Frontend` CI job; it consumed the API and had no standalone
+  use.
+- **Container stack**: `Dockerfile.backend`, `Dockerfile.frontend`,
+  `docker-compose.yml` and `nginx.conf`, all of which only served the API and
+  frontend.
+- **API-only Python modules**: `backend/core/security.py`,
+  `backend/core/database.py`, `backend/models/`, `backend/schemas/`,
+  `backend/tasks/`, plus the legacy npm audit gate and its allowlist.
+- **API/mobile docs and probes**: `docs/api_*.md`, `docs/mobile_*.md`,
+  `docs/security_review_2026-11-11.md` and `scripts/dev_emulator.sh`.
+
+### Changed
+- **Dependencies**: dropped `fastapi`, `celery`, `passlib`, `pyjwt`,
+  `pydantic-settings`, `redis` and `bcrypt` from the Pipfile and the
+  Streamlit requirements. `pydantic` and `uvicorn` remain only as transitive
+  dependencies of `edgartools` and `streamlit`.
+- **Structured logging**: `configure_logging` now lives in
+  `backend/logging_config/` and is shared by the CLI, workflow and Streamlit
+  instead of living under the API package.
+- **CI and Dependabot**: only the Python unit/compile jobs and
+  `github-actions` updates remain.
+- **Alembic**: `env.py` registers the adapter models; the historical
+  migrations are kept so existing databases keep a valid revision chain.
+
 ## [0.35.0] - 2026-11-21
 
 ### Added

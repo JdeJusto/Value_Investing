@@ -5,9 +5,11 @@ produce and render stock analysis today, plus the reference model that informs
 the [scorecard design](scorecard_design.md) and
 [roadmap](scorecard_roadmap.md).
 
-**Date:** 2026-10-14 · **Scope:** `backend/`, `ui/`, `mobile/`,
-`backend/api/` (audit only — no code changed). Financial-DataBase was read
-read-only for peer-coverage numbers and was not modified.
+**Date:** 2026-10-14 · **Scope:** `backend/`, `ui/`, and the mobile/API
+surfaces that existed at the time. The mobile app, REST API and web frontend
+were retired in v0.36.0; those sections are kept as historical context.
+Financial-DataBase was read read-only for peer-coverage numbers and was not
+modified.
 
 The goal: today's analysis is text- and table-heavy. We want a
 Simply-Wall-St-like scorecard — a small set of dimensions, each decomposed
@@ -19,12 +21,12 @@ into named, metric-backed rules, with charts and peer comparison.
 
 | Source | What it computes | Output shape | Where it is rendered |
 |---|---|---|---|
-| `backend/methodologies/*` (8 frameworks) | Independent verdict + optional numeric score, passed/failed rules, red flags, confidence | `MethodologyResult` (`methodology`, `version`, `family`, `verdict`, `score: float \| None`, `metrics`, `reasons`, `red_flags`, `confidence`, `sources`, `failed_rules`, `passed_rules`) | `ui/pages/02_analysis.py` → Methodologies tab; `cli/commands/methodologies*.py`; `backend/api/routes/methodologies.py` |
-| `FinancialInsightsService` | Per-metric derived statistics | `InsightsReport` → `MetricInsight` (`metric`, `label`, `latest_value`, `latest_year`, `yoy_change_pct`, `cagr_5y`, `cagr_10y`, `average_5y`, `trend`, `stability`, `direction_changed`, `notes`, `kind`, display strings, raw `series`) | `02_analysis.py` tables; `backend/api/routes/insights.py`; CLI analyze commands |
-| `AlertService` | Per-rule alerts with severity + evidence | `AlertsReport` → `Alert` (`rule_id`, `severity` INFO/WARNING/CRITICAL, `title`, `message`, `evidence: dict[str,str]`, `metric_hint`, `period`); `rules_evaluated`, `rules_skipped` | Alerts tab / alerts cache; `backend/api/routes/alerts.py`; `cli/commands/financial_alerts.py` |
-| `ConsensusService` | Cross-methodology agreement | `CompanyConsensus` (`buy_count`, `consensus_score = buy − avoid`, `na_count`, `verdicts`) | `ui/pages/06_consensus.py`; `backend/api/routes/consensus.py` |
-| DCF (`backend/analytics/valuation/`) | Intrinsic value, margin of safety, verdict, sensitivity rows | DCF result | `02_analysis.py` DCF tab + expanders; `backend/api/routes/dcf.py`; `cli/commands/dcf.py` |
-| `backend/analytics/` (`ratios/`, `scoring/`, `screening/`, `interpretation.py`) | Plain ratios and scores (ROE, ROA, ROIC, D/E, margins, Greenblatt, Piotroski-style checks) | Values / rows | Consumed by CLI, UI, API, screener |
+| `backend/methodologies/*` (8 frameworks) | Independent verdict + optional numeric score, passed/failed rules, red flags, confidence | `MethodologyResult` (`methodology`, `version`, `family`, `verdict`, `score: float \| None`, `metrics`, `reasons`, `red_flags`, `confidence`, `sources`, `failed_rules`, `passed_rules`) | `ui/pages/02_analysis.py` → Methodologies tab; `cli/commands/methodologies*.py` |
+| `FinancialInsightsService` | Per-metric derived statistics | `InsightsReport` → `MetricInsight` (`metric`, `label`, `latest_value`, `latest_year`, `yoy_change_pct`, `cagr_5y`, `cagr_10y`, `average_5y`, `trend`, `stability`, `direction_changed`, `notes`, `kind`, display strings, raw `series`) | `02_analysis.py` tables; CLI analyze commands |
+| `AlertService` | Per-rule alerts with severity + evidence | `AlertsReport` → `Alert` (`rule_id`, `severity` INFO/WARNING/CRITICAL, `title`, `message`, `evidence: dict[str,str]`, `metric_hint`, `period`); `rules_evaluated`, `rules_skipped` | Alerts tab / alerts cache; `cli/commands/financial_alerts.py` |
+| `ConsensusService` | Cross-methodology agreement | `CompanyConsensus` (`buy_count`, `consensus_score = buy − avoid`, `na_count`, `verdicts`) | `ui/pages/06_consensus.py` |
+| DCF (`backend/analytics/valuation/`) | Intrinsic value, margin of safety, verdict, sensitivity rows | DCF result | `02_analysis.py` DCF tab + expanders; `cli/commands/dcf.py` |
+| `backend/analytics/` (`ratios/`, `scoring/`, `screening/`, `interpretation.py`) | Plain ratios and scores (ROE, ROA, ROIC, D/E, margins, Greenblatt, Piotroski-style checks) | Values / rows | Consumed by CLI, UI, screener |
 
 **Methodology inventory (8):** `buffett_clark`, `buffett_classic`,
 `fisher_quantitative_subset`, `graham`, `graham_dodd`, `greenblatt`,
@@ -83,7 +85,7 @@ interpret.
 | Surface | Installed | Radar / polar capable? |
 |---|---|---|
 | Streamlit (Python) | **`altair`** (ships with Streamlit). `matplotlib` **absent**; `plotly` **absent**. | Altair has no polar/radar mark → radar needs `plotly` (new dependency) or a dependency-free SVG. |
-| Mobile (Expo/RN) | `react-native-svg` present (referenced in jest config). **No** `victory-native`, `react-native-chart-kit`, or Skia. | Hand-drawn SVG radar is feasible with **zero** new dependencies. |
+| Mobile (Expo/RN, retired) | `react-native-svg` present (referenced in jest config). **No** `victory-native`, `react-native-chart-kit`, or Skia. | Historical: hand-drawn SVG radar was feasible with **zero** new dependencies. |
 
 Verified with `.venv/bin/python -c "importlib.util.find_spec(...)"` and by
 grepping `Pipfile.lock` (0 matches for `matplotlib`/`plotly`, 1 for `altair`).
@@ -95,7 +97,10 @@ a separately approved dependency change). Mobile will stay on
 
 ---
 
-## 4. Mobile analysis screens (A4)
+## 4. Mobile analysis screens (A4, historical)
+
+> The mobile app was retired in v0.36.0. This section documents the surface as
+> it existed in the 2026-10-14 audit.
 
 `mobile/app/company/[ticker].tsx` (191 lines) renders a horizontal segmented
 control with **5 tabs**: **Overview, Methodologies, DCF, Financials,
@@ -231,7 +236,8 @@ than collapsing everything into one shape.
 1. **No LLM.** All reason strings are templated from values; deterministic.
 2. **Prices never persisted** — prices are fetched once per build and cached in
    memory only.
-3. **Two frontends** (Streamlit + React Native/Expo) share one service.
+3. **CLI and Streamlit** share one service (the mobile/API surfaces were
+   retired in v0.36.0).
 4. **Aggregate and explain, don't replace.** The scorecard is a presentation
    layer over existing scores/rules.
 5. **No master score.** `overall` is a label; cross-dimension disagreement is

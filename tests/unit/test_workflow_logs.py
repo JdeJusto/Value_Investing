@@ -1,4 +1,4 @@
-"""The workflow logs through the API's structured (JSON) logging config."""
+"""The workflow logs through the shared structured (JSON) logging config."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-try:  # python-json-logger >= 3 (same import dance as backend.api.logging_config)
+try:  # python-json-logger >= 3 (same import dance as backend.logging_config)
     from pythonjsonlogger.json import JsonFormatter
 except ImportError:  # pragma: no cover - python-json-logger < 3
     from pythonjsonlogger.jsonlogger import JsonFormatter
 
-from backend.api import logging_config
+from backend import logging_config
 from scripts import daily_workflow
 
 

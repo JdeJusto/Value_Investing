@@ -14,9 +14,8 @@ closed. This file now tracks what remains.
 - **FDB 0.4.0**: `sp500_constituents`, `companies.delisted_at`, the PIT index
   and the documented `filing_date` semantics.
 - **Cleanup**: 401 legacy price-cache files removed, `analyze-*` commands
-  marked deprecated in `--help`, `LEARNINGS.md` moved to
-  `docs/learnings.md`, mobile Dependabot patches (zod/glob/deepmerge) and a
-  mobile audit step in CI.
+  marked deprecated in `--help`, `LEARNINGS.md` moved to `docs/learnings.md`,
+  and the unused mobile/API/frontend layers retired in v0.36.0.
 
 ### Next (v0.35+)
 
@@ -35,8 +34,6 @@ closed. This file now tracks what remains.
 - **Simplification / Big-O work without profiling** — batch operations are
   ~100 ms and 2,976 unit tests are green; no measured bottleneck justifies
   the churn. Revisit only with a profile.
-- **Mobile Phase 6 / Expo SDK upgrade** — needs a physical device to validate;
-  patch-level Dependabot updates only for now.
 - **Deferred methodology rules** (maintenance capex, insider ownership,
   qualitative moat, full 20-year dividends) — blocked on data sources, listed
   in the per-methodology sections below.
@@ -46,13 +43,12 @@ closed. This file now tracks what remains.
 Measured 2026-10-14 (stability/precision sprint):
 
 - **Unit coverage: 73.3%** — `python -m pytest tests/unit --cov`, threshold
-  `fail_under = 70` in `pyproject.toml` (the API suite is measured separately
-  and `backend/api/*` is omitted from the unit coverage config). Files at 0%:
-  `backend/analytics/ratios/revenue_growth.py`, `backend/core/database.py`,
-  `backend/core/security.py`, `backend/domain/interfaces/cache.py`,
-  `backend/domain/interfaces/repository.py`, `backend/logging_config/setup.py`,
-  `backend/providers/cache/memory.py`, `backend/repositories/financials.py`,
-  `backend/tasks/screener.py` and the `scripts/build_demo_*.py` generators.
+  `fail_under = 70` in `pyproject.toml`. Files at 0%:
+  `backend/analytics/ratios/revenue_growth.py`,
+  `backend/domain/interfaces/cache.py`,
+  `backend/domain/interfaces/repository.py`,
+  `backend/providers/cache/memory.py`, `backend/repositories/financials.py`
+  and the `scripts/build_demo_*.py` generators.
 - **Pyright (basic): 73 errors / 12 warnings** on the narrowed scope
   (`backend/services` + `backend/methodologies`, see `pyrightconfig.json`).
   The full `backend` + `cli` + `scripts` scope reports 195 errors, so the
@@ -115,14 +111,7 @@ Remove after migrating remaining direct consumers to
    57,048 M consolidated); documented in `docs/coherence_audit_2026-09-30.md`
    but worth a one-line note in the analysis output. *Effort*: XS.
 
-5. **Frontend lint warnings in CI** (not failures): `setState`
-   synchronously inside effects and fast-refresh-only-exports warnings in
-   `src/store/AuthContext.tsx`, `src/pages/PortfoliosPage.tsx`,
-   `src/pages/AlertsPage.tsx` and `src/pages/CompanyDetailPage.tsx`. The
-   fixes touch React state flow, so they were deferred ahead of v0.1.1.
-   *Effort*: S-M.
-
-6. **Wire ROIC / interest coverage / current ratio into
+5. **Wire ROIC / interest coverage / current ratio into
    `FinancialInsightsService`.** The scorecard's Financial Health dimension
    marks `current_ratio` `INSUFFICIENT` because no calculator exposes it. ROIC
    and interest coverage are already wired through `backend/analytics/ratios`
@@ -185,10 +174,9 @@ parent versions before being pinned:
   requires `pyarrow!=25.0.0,<27,>=10.0.1` (only 25.0.0 is excluded) — 25.0.1
   satisfies both.
 - `websockets` pinned to `16.1.1` (major `17.3` deferred): the protocol layer
-  behind `streamlit` sessions and `uvicorn[standard]`; protocol majors are a
-  common source of silent stream/UI breakage. `streamlit 1.66.0` requires
-  `>=12,<18`, and both `yfinance 1.7.0` and `uvicorn 0.54.0[standard]` require
-  `>=13` — 16.1.1 satisfies all three.
+  behind `streamlit` sessions; protocol majors are a common source of silent
+  stream/UI breakage. `streamlit 1.66.0` requires `>=12,<18`, and
+  `yfinance 1.7.0` requires `>=13` — 16.1.1 satisfies both.
 - `soupsieve` was pinned to `2.10` (major `3.0.3` deferred) as the CSS-selector
   engine behind `beautifulsoup4`. It is now **4.0.0**: the 2026-11-13 sweep
   found a high-severity polynomial-time DoS in `< 4.0.0`, and 4.0.0 passed the
@@ -268,12 +256,11 @@ into the lock and `_meta.hash.sha256` is pipenv's own value for the edited
 `Pipfile` — the result is "previous lock + ruff", nothing else moved, and
 `pipenv install --deploy --dev` accepts it. A plain `pipenv lock` re-resolves
 everything and re-proposes the three majors reverted above (`pyarrow 26`,
-`soupsieve 3`, `websockets 17`) plus unrelated minors (`fastapi 0.151`), so
-the next regeneration needs the same review-and-revert pass documented in the
-section above.
+`soupsieve 3`, `websockets 17`), so the next regeneration needs the same
+review-and-revert pass documented in the section above.
 
 Baseline after this change: `ruff check .` 0, `ruff format --check .` 0 (564
-files), unit 2363 passed / 2 skipped, api 125 passed. The six tracked findings
+files), unit 2363 passed / 2 skipped. The six tracked findings
 that were fixed are 2 × `I001` (`ui/pages/02_analysis.py`,
 `ui/pages/04_portfolio.py`) and 4 × `C408` (`ui/theme/plotly_template.py`,
 `dict(...)` → literals); three further files were reformatted to reach a
@@ -313,7 +300,7 @@ Before making the repository public:
 ### Branch protection — applied 2026-09-30
 
 > Branch protection applied on 2026-09-30:
-> - VI: required checks = Unit tests (no database), Compile check, Frontend (audit, lint, build)
+> - VI: required checks = Unit tests (no database), Compile check
 > - FDB: required checks = Unit tests (no database), PostgreSQL integration tests, Compile check
 >
 > Fresh-clone onboarding verified on 2026-09-30 (clean clone, no .env, no
@@ -337,7 +324,6 @@ gh api repos/JdeJusto/Value_Investing/branches/main/protection -X PUT \
   -f "required_status_checks[strict]=true" \
   -f "required_status_checks[contexts][]=Unit tests (no database)" \
   -f "required_status_checks[contexts][]=Compile check" \
-  -f "required_status_checks[contexts][]=Frontend (audit, lint, build)" \
   -f "enforce_admins=false" \
   -f "required_pull_request_reviews=null" \
   -f "restrictions=null" \
@@ -496,9 +482,6 @@ run and `--price-snapshot FILE` replays it without touching Yahoo.
 
 ## Security follow-ups
 
-- Mobile: `npm audit --audit-level=high` runs in CI (`Mobile` job, v0.34.0).
-- `deepmerge` (mobile, low): no upstream fix; build-time only. Revisit at the
-  next Expo SDK upgrade.
 - `soupsieve`: now 4.0.0 (high-severity DoS fix). `test_pipfile_lock_pins.py`
   guards the major; update it together with the lock if a future bump is
   intentional.

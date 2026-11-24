@@ -5,10 +5,9 @@ portable Markdown document (read it in any renderer, print it to PDF from
 there, paste it into a report). No template engine, no HTML, no dependency —
 and no I/O, so the same payload always yields byte-identical output.
 
-The JSON export remains the machine contract (see the API's default
-``format=json`` and the CLI's ``--json``); this is the human-facing one. The
-exporter never computes a figure: every value it prints is already in the
-payload it was handed.
+The JSON export remains the machine contract (the CLI's ``--json`` and the
+Streamlit download); this is the human-facing one. The exporter never computes
+a figure: every value it prints is already in the payload it was handed.
 """
 
 from __future__ import annotations

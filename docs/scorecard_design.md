@@ -7,8 +7,9 @@ is the contract the [roadmap](scorecard_roadmap.md) implements.
 **Decisions locked with the maintainer (2026-10-14):** dimensions = Growth,
 Profitability, Financial Health, Valuation, Shareholder Returns,
 Management/Moat; methodology scores stay independent; radar via **plotly**
-(Phase 4); peers = industry → sector fallback; new opt-in Streamlit tab,
-mobile later; **no master score**.
+(Phase 4); peers = industry → sector fallback; new opt-in Streamlit tab;
+**no master score**. The mobile app and web frontend were retired in
+v0.36.0, so Streamlit and the CLI are the only surfaces.
 
 ---
 
@@ -336,14 +337,15 @@ from all 8 023 companies, because a peer needs a ticker to price.
 
 ---
 
-## 6. Exposure (design only — nothing built here)
+## 6. Exposure
 
 | Surface | Proposal |
 |---|---|
-| API | `GET /api/v1/company/{ticker}/scorecard` → existing envelope `{ok, data}`; errors via `fail()` (the global handler added in B3). |
 | CLI | `./vi scorecard AAPL [--period FY] [--json]` — new `cli/commands/scorecard.py`; text render default, `--json` for the payload. |
 | Streamlit | New **Scorecard** tab in `ui/pages/02_analysis.py` (appended, opt-in; not the default tab). |
-| Mobile | Add **Scorecard** to `TABS` in `mobile/app/company/[ticker].tsx` (5 → 6 tabs). |
+
+The REST API and mobile app surfaces described by earlier drafts were retired
+in v0.36.0.
 
 ---
 
@@ -457,15 +459,10 @@ above the radar, which opens the chosen dimension's rules; a
 
 ---
 
-## 9. Mobile parity (design)
+## 9. Mobile parity (retired)
 
-- **Radar:** hand-drawn with **`react-native-svg`** (`Polygon`/`Path`) — no
-  new dependency. `victory-native` stays a deferred option, not required.
-- **Cards:** expandable list items on the existing company screen.
-- **Charts:** `react-native-svg` paths (sparklines/rows).
-- **Placement:** the 6th tab in `mobile/app/company/[ticker].tsx`, reusing the
-  same `/scorecard` payload. The Overview tab gains a compact radar + overall
-  chip once the Streamlit layout settles.
+The mobile app was retired in v0.36.0; there is no mobile surface to keep in
+parity. The Streamlit tab and the CLI are the only renderers.
 
 ---
 
@@ -484,8 +481,7 @@ above the radar, which opens the chosen dimension's rules; a
 
 ## 11. Design-level open questions
 
-1. **plotly pin** — exact version to add in Phase 4 (Streamlit-only;
-   mobile stays on `react-native-svg`).
+1. **plotly pin** — exact version to add in Phase 4 (Streamlit-only).
 2. **ROIC / interest coverage / current ratio** — these are not in
    `FinancialInsightsService` today; source from `backend/analytics/ratios`
    (confirmed module) or mark `INSUFFICIENT` until wired. Confirm the ratio
@@ -501,7 +497,7 @@ above the radar, which opens the chosen dimension's rules; a
 
 A concrete reference of what `ScorecardService` produces. It is built from
 Financial-DataBase fundamentals plus a real-time Yahoo price; no figure below is
-computed by a view layer — the API, the CLI and the (Phase 3) Streamlit tab all
+computed by a view layer — the CLI and the (Phase 3) Streamlit tab both
 render this same summary.
 
 | Dimension | Score | Verdict | Trend | Evaluable rules |

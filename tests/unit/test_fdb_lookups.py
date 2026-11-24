@@ -1,8 +1,8 @@
-"""Hermetic tests for the read-only lookups added for the API.
+"""Hermetic tests for the read-only repository lookups.
 
-``get_sector_map`` (screener sector filter) and ``search_companies``
-(autocomplete) run against a fake psycopg2-style connection, so no database
-is required.
+``get_sector_map`` (portfolio/screener sector filter) and
+``search_companies`` (ticker search) run against a fake psycopg2-style
+connection, so no database is required.
 """
 
 from __future__ import annotations

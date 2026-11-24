@@ -2,9 +2,6 @@
 #
 # The dependency set still lives in Pipfile/Pipfile.lock; this file only
 # carries tool configuration so `--cov` has a single source of truth.
-#
-# `backend/api/*` is omitted here on purpose: the API suite (tests/api) covers
-# it and is measured separately.
 
 [tool.coverage.run]
 source = ["backend", "cli", "scripts"]
@@ -12,7 +9,6 @@ omit = [
     "*/tests/*",
     "*/__pycache__/*",
     "*/migrations/*",
-    "backend/api/*",
     "*/__init__.py",
 ]
 branch = true
@@ -57,21 +53,6 @@ required-version = "==0.16.4"
 # SyntaxError on 3.13 and broke CI.
 target-version = "py313"
 extend-exclude = ["scripts_dev", ".venv", "node_modules"]
-
-[tool.ruff.lint.flake8-bugbear]
-# FastAPI dependency injection uses Depends()/Query()/... in argument
-# defaults by design; these are the documented exceptions.
-extend-immutable-calls = [
-    "fastapi.Depends",
-    "fastapi.Query",
-    "fastapi.Path",
-    "fastapi.Body",
-    "fastapi.Header",
-    "fastapi.Cookie",
-    "fastapi.File",
-    "fastapi.Form",
-    "fastapi.Security",
-]
 
 [tool.ruff.lint.per-file-ignores]
 # Streamlit's multi-page convention requires numeric filename prefixes,

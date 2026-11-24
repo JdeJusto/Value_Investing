@@ -183,7 +183,7 @@ def test_default_form_types_cover_the_financial_statements():
 
 
 class _AccessionRepo(_Repo):
-    """Stub repo exposing the accession lookup (the API path)."""
+    """Stub repo exposing the accession lookup (the filing-service path)."""
 
     def __init__(self, rows, by_accession=None):
         super().__init__(rows)

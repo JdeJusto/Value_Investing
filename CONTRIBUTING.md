@@ -60,8 +60,8 @@ on `sys.path`. `docs/runbook_daily.md` is the operational guide.
 ## Updating dependencies
 
 This project uses Pipenv, so `Pipfile` is the source of truth and
-`Pipfile.lock` must stay in sync with it. Dependabot covers `npm`
-(`frontend/`) and `github-actions` only: its Pipenv resolver rejects the
+`Pipfile.lock` must stay in sync with it. Dependabot covers
+`github-actions` only: its Pipenv resolver rejects the
 `python_version` range in `[requires]` and then fails every package, so a `pip`
 ecosystem entry would only produce red weekly runs. Update Python packages
 explicitly instead:

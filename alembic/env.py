@@ -7,18 +7,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from backend.core.database import Base
-from backend.models import (  # noqa: F401  (registra modelos en metadata)
-    AlertModel,
-    AnalysisCacheModel,
+from backend.adapters.database.base import Base
+from backend.adapters.database.models import (  # noqa: F401  (registra modelos en metadata)
     CompanyModel,
-    FinancialDataModel,
-    PortfolioItemModel,
-    PortfolioModel,
-    ScreenerJobModel,
-    UserModel,
-    WatchlistItemModel,
-    WatchlistModel,
+    FinancialStatementModel,
+    NormalizedFinancialModel,
 )
 
 config = context.config

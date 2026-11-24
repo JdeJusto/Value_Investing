@@ -17,21 +17,12 @@ psycopg2-binary = ">=2.9"
 sqlparse = ">=0.5"
 streamlit = "*"
 # Charts (6-axis radar + 4 charts) in the Streamlit Scorecard tab. Pure Python
-# wheel, Streamlit-only; never imported by the CLI or the API.
+# wheel, Streamlit-only; never imported by the CLI.
 plotly = ">=6.0"
 gitpython = ">=3.1.59"
-fastapi = "*"
-uvicorn = {extras = ["standard"], version = "*"}
-celery = {extras = ["redis"], version = "*"}
-passlib = {extras = ["bcrypt"], version = "*"}
-pyjwt = {extras = ["crypto"], version = ">=2.8"}
-pydantic = {extras = ["email"], version = "*"}
-pydantic-settings = "*"
 httpx = "*"
-redis = "*"
 alembic = "*"
 asyncpg = "*"
-bcrypt = "==4.0.1"
 beautifulsoup4 = ">=4.15"
 lxml = ">=6.0"
 # Terminal rendering (tables, panels, spinners) for the CLI. Pure Python, no

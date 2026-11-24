@@ -1,7 +1,7 @@
 """Write-lock invariant tests for :class:`PortfolioService`.
 
 The service must run every read-modify-write cycle inside an exclusive
-``fcntl.flock`` so concurrent writers (API, CLI, Streamlit) never lose an
+``fcntl.flock`` so concurrent writers (CLI, Streamlit) never lose an
 update. The concurrency test widens the read window with a slow loader: the
 old unlocked code lost one of the two adds, the locked code keeps both.
 """

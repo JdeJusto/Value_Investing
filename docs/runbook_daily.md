@@ -448,8 +448,8 @@ checkpoint.
 
 ### Logging
 
-Stage output is structured **JSON**, produced by the API's logger config
-(`backend/api/logging_config.py`); the workflow installs it with
+Stage output is structured **JSON**, produced by the shared logger config
+(`backend/logging_config.py`); the workflow installs it with
 `configure_logging` (default level INFO — `--verbose` → DEBUG). Every line is a
 JSON object with `asctime`, `levelname`, `name`, `message`, `pathname` and
 `lineno`, so `data/logs/daily_workflow.log`, the boot-run log

@@ -1,11 +1,11 @@
 # Scorecard roadmap — interactive, visual stock analysis
 
-**Status:** Phases 1–5 shipped (backend, API/CLI, Streamlit tab with radar and
+**Status:** Phases 1–5 shipped (backend, CLI, Streamlit tab with radar and
 charts, peer percentiles). Phase 7's exports shipped (the scorecard downloads as
-JSON or Markdown from all three surfaces); its remaining interactions and
-Phase 6 (mobile parity) are still pending. Implements the
-[scorecard design](scorecard_design.md) on top of the current surfaces
-described in the [analysis visualization audit](analysis_visualization_audit.md).
+JSON or Markdown from the CLI and Streamlit); its remaining interactions are
+still pending. Phase 6 (mobile parity) is closed: the mobile app was retired in
+v0.36.0. Implements the [scorecard design](scorecard_design.md) on top of the
+current surfaces described in the [analysis visualization audit](analysis_visualization_audit.md).
 
 **Principles for sequencing:** each phase is independently shippable; backend
 first (so both frontends share one contract); no phase adds a dependency
@@ -23,14 +23,13 @@ Financial-DataBase is read-only.
 | # | Phase | Est. | Depends on |
 |---|---|---:|---|
 | 1 | Scorecard domain + `ScorecardService` (backend only) | 1.5–2 d | — |
-| 2 | API endpoint + CLI command | 0.5–1 d | 1 |
+| 2 | CLI command | 0.5–1 d | 1 |
 | 3 | Streamlit Scorecard tab (cards, no charts) | 1–1.5 d | 1 |
 | 4 | Radar + 4 charts (adds **plotly**) | 1–1.5 d | 3 |
 | 5 | Peer percentiles (script + artifact + UI) | 1.5–2 d | 1 |
-| 6 | Mobile parity | 2–3 d | 1, 2 |
 | 7 | Polish, interactions, exports, docs | 1–2 d | 3–6 |
 
-**Total: ~9–13 working days.** Phases 2, 3 and 5 can run in parallel after
+**Total: ~7–10 working days.** Phases 2, 3 and 5 can run in parallel after
 Phase 1.
 
 ---
@@ -62,28 +61,24 @@ non-payer and one bank/insurer.
 
 ---
 
-## Phase 2 — API + CLI exposure
+## Phase 2 — CLI exposure (API retired)
 
-**Shipped.** API `007fc9a` (`feat(api): expose GET /company/{ticker}/scorecard`);
-CLI `ea6c5f0` (`feat(cli): add scorecard command with rich rendering and json
-output`). Both return the frozen Phase 1 `Scorecard.to_dict()` verbatim — the
-API and the CLI add no computation of their own.
+**Shipped.** API `007fc9a` (`feat(api): expose GET /company/{ticker}/scorecard`)
+and CLI `ea6c5f0` (`feat(cli): add scorecard command with rich rendering and json
+output`). Both returned the frozen Phase 1 `Scorecard.to_dict()` verbatim. The
+REST API was retired in v0.36.0; the CLI remains.
 
-**Deliverable.** `GET /api/v1/company/{ticker}/scorecard` (existing
-`{ok, data}` envelope, errors via `fail()`), and `./vi scorecard AAPL
-[--json] [--period FY]`.
+**Deliverable.** `./vi scorecard AAPL [--json] [--period FY]`.
 
 **Dependencies.** Phase 1.
 
 **Acceptance criteria.**
 
-- Endpoint returns `200` + a schema-valid Scorecard for `AAPL`; `404` for an
-  unknown ticker; `500` never leaks internals (covered by the B3 handler).
 - CLI prints a readable text scorecard by default and the raw payload with
   `--json`; exit code 0 on success, non-zero on unknown ticker.
 
-**Tests.** API test via `TestClient` (happy path + unknown ticker); CLI test
-(stdout shape); payload round-trip (serialize/deserialize stability).
+**Tests.** CLI test (stdout shape); payload round-trip (serialize/deserialize
+stability).
 
 ---
 
@@ -224,23 +219,11 @@ stats weekly on Sunday`), so the artifact stays a local build product.
 
 ---
 
-## Phase 6 — Mobile parity
+## Phase 6 — Mobile parity (retired)
 
-**Deliverable.** A **Scorecard** tab in `mobile/app/company/[ticker].tsx`
-(5 → 6 tabs): radar hand-drawn with the already-present `react-native-svg`,
-expandable dimension cards, and `react-native-svg` charts. The Overview tab
-gains a compact radar + overall chip.
-
-**Dependencies.** Phase 1 (and Phase 2 payload).
-
-**Acceptance criteria.**
-
-- The tab renders for `AAPL` on device with **no new native dependency**.
-- The payload maps 1:1 to the backend `Scorecard` (no mobile-side scoring).
-- With no network, the last cached payload renders (existing query cache).
-
-**Tests.** Jest: radar point math (`angle → x/y`), status→color mapping,
-payload mapping. No snapshot of visuals.
+Closed in v0.36.0: the mobile app was retired, so there is no mobile surface
+to keep in parity. The backend `Scorecard` payload remains covered by the CLI
+and the Streamlit tab.
 
 ---
 
@@ -255,10 +238,10 @@ a README mention.
 
 **Shipped (v0.18.0).** The Markdown export: `scorecard_to_markdown()` in
 `backend/services/scorecard_export.py`, `--markdown`/`--out` on
-`main.py scorecard`, `?format=markdown` on the API (JSON remains the default),
-and a second "Download scorecard Markdown" button beside the JSON one in the
-Streamlit tab. The exporter is a pure function of the frozen payload — the same
-input produces the same bytes on every surface — and adds no dependency (charts,
+`main.py scorecard`, and a second "Download scorecard Markdown" button beside
+the JSON one in the Streamlit tab. The exporter is a pure function of the frozen
+payload — the same input produces the same bytes on every surface — and adds no
+dependency (charts,
 when enabled, are an inline text block, not a rendered image). The remaining
 interactions (radar-click, card/rule expansion, the absolute↔sector and FY
 toggles) are still pending.
@@ -312,6 +295,6 @@ genuine defect instead of only counting it. See
 
 A **new** GitHub issue — *"Roadmap: interactive, visual stock analysis
 (scorecard)"* — with the design summary, links to the three docs, and the open
-questions. It cross-links issue #27 (*"Roadmap: REST API + native Android
-app"*), which is the API/Android delivery track; the scorecard is a distinct
-feature, so it gets its own thread rather than a comment on #27.
+questions. The scorecard is a distinct feature, so it gets its own thread. The
+old issue #27 (*"Roadmap: REST API + native Android app"*) is obsolete: those
+surfaces were retired in v0.36.0.
